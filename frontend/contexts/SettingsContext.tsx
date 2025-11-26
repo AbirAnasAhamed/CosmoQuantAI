@@ -1,10 +1,14 @@
+import React, { createContext, useState, useContext, useEffect, ReactNode, useCallback } from 'react';
+import { fetchApiKeys, saveApiKey as apiSaveApiKey } from '../services/settings';
+import { fetchCurrentUser } from '../services/auth';
+import { useToast } from './ToastContext';
 
-import React, { createContext, useState, useContext, useEffect, ReactNode } from 'react';
-
+// টাইপ ডেফিনিশন
 export interface ApiKeyConfig {
     apiKey: string;
-    secretKey: string;
+    secretKey: string; // এটি খালি থাকবে ডাটাবেস থেকে লোড করার পর (সিকিউরিটির জন্য)
     isEnabled: boolean;
+    isSaved?: boolean; // UI তে বোঝানোর জন্য যে এটি ডাটাবেসে আছে
 }
 
 export interface UserProfile {
@@ -17,82 +21,152 @@ export interface UserProfile {
 
 interface SettingsContextType {
     apiKeys: Record<string, ApiKeyConfig>;
-    updateApiKey: (exchange: string, config: ApiKeyConfig) => void;
+    updateLocalApiKeyInput: (exchange: string, config: Partial<ApiKeyConfig>) => void; // ইনপুট টাইপ করার জন্য
+    saveApiKeyToBackend: (exchange: string) => Promise<void>; // ডাটাবেসে পাঠানোর জন্য
+    isLoading: boolean;
     userProfile: UserProfile;
     updateUserProfile: (profile: Partial<UserProfile>) => void;
     is2faEnabled: boolean;
     set2faEnabled: (enabled: boolean) => void;
 }
 
+// ডিফল্ট প্রোফাইল (অথবা চাইলে পরে ইউজারের ডাটা API থেকেও আনতে পারেন)
 const defaultProfile: UserProfile = {
-    fullName: 'ABIR AHAMED',
-    email: 'abir.ahamed@example.com',
-    username: 'abirahamed',
-    timezone: 'America/New_York',
+    fullName: 'Abir Ahamed', // লগইন API থেকে আসল নাম আপডেট করা যাবে
+    email: 'user@example.com',
+    username: 'abir',
+    timezone: 'UTC',
     currency: 'USD'
 };
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
 export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const [apiKeys, setApiKeys] = useState<Record<string, ApiKeyConfig>>(() => {
-        try {
-            const saved = localStorage.getItem('apiKeys');
-            return saved ? JSON.parse(saved) : {
-                'Binance': { apiKey: 'live_mock_api_key_for_binance_xxxx', secretKey: 'live_mock_secret_key_for_binance_yyyy', isEnabled: true },
-                'KuCoin': { apiKey: '', secretKey: '', isEnabled: false },
-            };
-        } catch {
-            return {
-                'Binance': { apiKey: 'live_mock_api_key_for_binance_xxxx', secretKey: 'live_mock_secret_key_for_binance_yyyy', isEnabled: true },
-                'KuCoin': { apiKey: '', secretKey: '', isEnabled: false },
-            };
-        }
+    const { showToast } = useToast();
+    const [isLoading, setIsLoading] = useState(false);
+
+    const [apiKeys, setApiKeys] = useState<Record<string, ApiKeyConfig>>({
+        'Binance': { apiKey: '', secretKey: '', isEnabled: false, isSaved: false },
+        'KuCoin': { apiKey: '', secretKey: '', isEnabled: false, isSaved: false },
     });
 
-    const [userProfile, setUserProfile] = useState<UserProfile>(() => {
-        try {
-            const saved = localStorage.getItem('userProfile');
-            return saved ? JSON.parse(saved) : defaultProfile;
-        } catch {
-            return defaultProfile;
-        }
+    // ডিফল্ট ভ্যালু ফাঁকা রাখুন, লোড হলে পূর্ণ হবে
+    const [userProfile, setUserProfile] = useState<UserProfile>({
+        fullName: 'Loading...',
+        email: '...',
+        username: '...',
+        timezone: 'UTC',
+        currency: 'USD'
     });
 
-    const [is2faEnabled, set2faEnabledState] = useState(() => {
+    const [is2faEnabled, set2faEnabled] = useState(false);
+
+    // মেইন ডেটা লোডিং ফাংশন
+    const loadUserData = useCallback(async () => {
+        const token = localStorage.getItem('accessToken');
+        if (!token) return;
+
         try {
-            return localStorage.getItem('is2faEnabled') === 'true';
-        } catch {
-            return false;
+            // ১. প্যারালাল রিকোয়েস্ট (API Key এবং User Profile একসাথে)
+            const [keysFromDB, userData] = await Promise.all([
+                fetchApiKeys().catch(() => []), // ইরর হলে খালি অ্যারে
+                fetchCurrentUser().catch(() => null)
+            ]);
+
+            // ২. API Keys সেটআপ
+            if (keysFromDB && Array.isArray(keysFromDB)) {
+                setApiKeys(prev => {
+                    const newKeys = { ...prev };
+                    keysFromDB.forEach((k: any) => {
+                        if (newKeys[k.exchange]) {
+                            newKeys[k.exchange] = {
+                                apiKey: k.api_key,
+                                secretKey: '••••••••',
+                                isEnabled: k.is_enabled,
+                                isSaved: true
+                            };
+                        }
+                    });
+                    return newKeys;
+                });
+            }
+
+            // ৩. ইউজার প্রোফাইল সেটআপ (backend snake_case পাঠায়, আমরা camelCase এ কনভার্ট করবো)
+            if (userData) {
+                setUserProfile({
+                    fullName: userData.full_name || 'Trader',
+                    email: userData.email,
+                    username: userData.email.split('@')[0], // ইউজারনেম না থাকলে ইমেইল থেকে বানানো
+                    timezone: 'UTC', // ডিফল্ট
+                    currency: 'USD'
+                });
+            }
+
+        } catch (error) {
+            console.error("Error loading user data", error);
+            // টোকেন অবৈধ হলে লগআউট করে দেয়া ভালো (অপশনাল)
+            // localStorage.removeItem('accessToken');
         }
-    });
+    }, []);
 
+    // অ্যাপ মাউন্ট হলে কল হবে
     useEffect(() => {
-        localStorage.setItem('apiKeys', JSON.stringify(apiKeys));
-    }, [apiKeys]);
+        loadUserData();
+    }, [loadUserData]);
 
-    useEffect(() => {
-        localStorage.setItem('userProfile', JSON.stringify(userProfile));
-    }, [userProfile]);
+    // ২. ইউজার ইনপুট দিলে লোকাল স্টেটে আপডেট হবে
+    const updateLocalApiKeyInput = (exchange: string, updates: Partial<ApiKeyConfig>) => {
+        setApiKeys(prev => ({
+            ...prev,
+            [exchange]: { ...prev[exchange], ...updates }
+        }));
+    };
 
-    useEffect(() => {
-        localStorage.setItem('is2faEnabled', String(is2faEnabled));
-    }, [is2faEnabled]);
+    // ৩. "Save" বাটন চাপলে এটি কল হবে
+    const saveApiKeyToBackend = async (exchange: string) => {
+        const config = apiKeys[exchange];
+        if (!config.apiKey || !config.secretKey || config.secretKey === '••••••••') {
+            showToast('Please enter valid API and Secret keys', 'warning');
+            return;
+        }
 
-    const updateApiKey = (exchange: string, config: ApiKeyConfig) => {
-        setApiKeys(prev => ({ ...prev, [exchange]: config }));
+        setIsLoading(true);
+        try {
+            await apiSaveApiKey({
+                exchange: exchange,
+                api_key: config.apiKey,
+                secret_key: config.secretKey
+            });
+
+            // সেভ হওয়ার পর স্টেট আপডেট
+            setApiKeys(prev => ({
+                ...prev,
+                [exchange]: { ...prev[exchange], isSaved: true, secretKey: '••••••••' }
+            }));
+            showToast(`${exchange} API keys connected successfully!`, 'success');
+        } catch (error: any) {
+            console.error(error);
+            showToast('Failed to save API keys.', 'error');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const updateUserProfile = (updates: Partial<UserProfile>) => {
         setUserProfile(prev => ({ ...prev, ...updates }));
     };
-    
-    const set2faEnabled = (enabled: boolean) => {
-        set2faEnabledState(enabled);
-    };
 
     return (
-        <SettingsContext.Provider value={{ apiKeys, updateApiKey, userProfile, updateUserProfile, is2faEnabled, set2faEnabled }}>
+        <SettingsContext.Provider value={{
+            apiKeys,
+            updateLocalApiKeyInput,
+            saveApiKeyToBackend,
+            isLoading,
+            userProfile,
+            updateUserProfile,
+            is2faEnabled,
+            set2faEnabled
+        }}>
             {children}
         </SettingsContext.Provider>
     );

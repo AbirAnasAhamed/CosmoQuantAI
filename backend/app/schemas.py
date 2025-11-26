@@ -1,0 +1,57 @@
+from pydantic import BaseModel, EmailStr
+from typing import Optional
+from datetime import datetime
+
+# রেজিস্ট্রেশনের সময় ইউজার এই তথ্যগুলো দিবে
+class UserCreate(BaseModel):
+    email: EmailStr
+    password: str
+    full_name: str
+
+# রেজিস্ট্রেশন সফল হলে আমরা এই তথ্যগুলো ফেরত পাঠাবো (পাসওয়ার্ড ছাড়া)
+class UserResponse(BaseModel):
+    id: int
+    email: EmailStr
+    full_name: Optional[str] = None
+    is_active: bool
+    is_pro: bool
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
+# লগইন করার জন্য ইনপুট মডেল
+class UserLogin(BaseModel):
+    email: EmailStr
+    password: str
+
+# টোকেন রিটার্ন করার জন্য রেসপন্স মডেল
+class Token(BaseModel):
+    access_token: str
+    refresh_token: str
+    token_type: str
+
+# API Key তৈরি করার সময় লাগবে
+class ApiKeyCreate(BaseModel):
+    exchange: str
+    api_key: str
+    secret_key: str
+
+# রেসপন্সে পাঠানোর জন্য (Secret Key লুকানো থাকবে)
+class ApiKeyResponse(BaseModel):
+    id: int
+    exchange: str
+    api_key: str
+    is_enabled: bool
+    
+    class Config:
+        from_attributes = True
+
+# ১. ইমেইল পাঠানোর জন্য রিকোয়েস্ট
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+# ২. পাসওয়ার্ড চেঞ্জ করার জন্য রিকোয়েস্ট
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str

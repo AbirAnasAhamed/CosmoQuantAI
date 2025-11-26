@@ -29,7 +29,7 @@ const cryptoAssets = [
 const SignalGauge: React.FC<{ score: number }> = ({ score }) => {
     // Score -100 (Bearish) to 100 (Bullish)
     const rotation = (score / 100) * 90; // -90deg to 90deg
-    
+
     let statusText = "Neutral";
     let statusColor = "text-gray-400";
     let gaugeColor = "stroke-gray-600";
@@ -46,11 +46,11 @@ const SignalGauge: React.FC<{ score: number }> = ({ score }) => {
                 {/* Track */}
                 <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#1e293b" strokeWidth="12" strokeLinecap="round" />
                 {/* Active Arc (Dynamic) */}
-                <path 
-                    d="M 20 100 A 80 80 0 0 1 180 100" 
-                    fill="none" 
+                <path
+                    d="M 20 100 A 80 80 0 0 1 180 100"
+                    fill="none"
                     className={`${gaugeColor} transition-all duration-1000 ease-out`}
-                    strokeWidth="12" 
+                    strokeWidth="12"
                     strokeLinecap="round"
                     strokeDasharray="251" // Approx circumference of half circle r=80
                     strokeDashoffset={251 - ((score + 100) / 200) * 251}
@@ -63,8 +63,8 @@ const SignalGauge: React.FC<{ score: number }> = ({ score }) => {
                 </g>
             </svg>
             <div className="absolute bottom-0 flex flex-col items-center">
-                 <span className="text-xs text-gray-500 uppercase tracking-widest font-semibold">Net Signal</span>
-                 <span className={`text-lg font-bold ${statusColor} transition-colors duration-300`}>{statusText}</span>
+                <span className="text-xs text-gray-500 uppercase tracking-widest font-semibold">Net Signal</span>
+                <span className={`text-lg font-bold ${statusColor} transition-colors duration-300`}>{statusText}</span>
             </div>
         </div>
     );
@@ -76,7 +76,7 @@ const StatBlock: React.FC<{ label: string; value: string; trend?: 'up' | 'down' 
             {trend === 'up' ? (
                 <svg className="w-8 h-8 text-emerald-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
             ) : trend === 'down' ? (
-                 <svg className="w-8 h-8 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" /></svg>
+                <svg className="w-8 h-8 text-rose-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 17h8m0 0V9m0 8l-8-8-4 4-6-6" /></svg>
             ) : null}
         </div>
         <p className="text-xs text-gray-500 uppercase tracking-wide font-semibold mb-1">{label}</p>
@@ -110,7 +110,7 @@ const OnChainAnalyzer: React.FC = () => {
     const [activePair, setActivePair] = useState(cryptoAssets[0].id);
 
     const activeAsset = cryptoAssets.find(c => c.id === activePair) || cryptoAssets[0];
-    
+
     const onChainData = useMemo(() => {
         return activePair === 'ETH/USDT' ? MOCK_ETH_ONCHAIN_DATA : MOCK_BTC_ONCHAIN_DATA;
     }, [activePair]);
@@ -135,13 +135,13 @@ const OnChainAnalyzer: React.FC = () => {
 
     return (
         <div className="space-y-6 h-full flex flex-col">
-            
+
             {/* Control Deck */}
             <div className="flex flex-col md:flex-row gap-6 staggered-fade-in">
                 {/* Asset Selector */}
                 <Card className="md:w-1/3 !p-0 bg-gradient-to-br from-white to-gray-50 dark:from-[#1E293B] dark:to-[#0F172A] overflow-hidden relative border-brand-primary/20">
-                     <div className="absolute top-0 left-0 w-1 h-full bg-brand-primary"></div>
-                     <div className="p-6">
+                    <div className="absolute top-0 left-0 w-1 h-full bg-brand-primary"></div>
+                    <div className="p-6">
                         <div className="flex justify-between items-start mb-4">
                             <div>
                                 <p className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-bold">Network Scanner</p>
@@ -150,7 +150,7 @@ const OnChainAnalyzer: React.FC = () => {
                                 </h2>
                             </div>
                             <div className="relative">
-                                <select 
+                                <select
                                     value={activePair}
                                     onChange={(e) => setActivePair(e.target.value)}
                                     className="appearance-none bg-gray-200 dark:bg-white/5 border border-transparent dark:border-white/10 rounded-lg py-1 pl-3 pr-8 text-xs font-bold text-slate-900 dark:text-white focus:ring-1 focus:ring-brand-primary cursor-pointer hover:bg-gray-300 dark:hover:bg-white/10 transition-colors"
@@ -160,29 +160,29 @@ const OnChainAnalyzer: React.FC = () => {
                                 <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">▼</div>
                             </div>
                         </div>
-                        
+
                         {/* Gauge Area */}
                         <SignalGauge score={stats.sentimentScore} />
-                     </div>
+                    </div>
                 </Card>
 
                 {/* Key Metrics */}
                 <div className="md:w-2/3 grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <StatBlock 
-                        label="Net Exchange Flow" 
-                        value={`${stats.netflow > 0 ? '+' : ''}${stats.netflow.toLocaleString()}`} 
+                    <StatBlock
+                        label="Net Exchange Flow"
+                        value={`${stats.netflow > 0 ? '+' : ''}${stats.netflow.toLocaleString()}`}
                         subtext={stats.netflow < 0 ? "Outflow (Bullish)" : "Inflow (Bearish)"}
-                        trend={stats.netflow < 0 ? 'up' : 'down'} 
+                        trend={stats.netflow < 0 ? 'up' : 'down'}
                     />
-                    <StatBlock 
-                        label="Whale Tx Count" 
-                        value={stats.whaleActivity.toLocaleString()} 
+                    <StatBlock
+                        label="Whale Tx Count"
+                        value={stats.whaleActivity.toLocaleString()}
                         subtext="Large Tier (> $100k)"
-                        trend={stats.whaleActivity > 70 ? 'up' : 'neutral'} 
+                        trend={stats.whaleActivity > 70 ? 'up' : 'neutral'}
                     />
-                    <StatBlock 
-                        label="Network Hashrate" 
-                        value={`${stats.hashRate} EH/s`} 
+                    <StatBlock
+                        label="Network Hashrate"
+                        value={`${stats.hashRate} EH/s`}
                         subtext="Network Security"
                         trend="up"
                     />
@@ -191,31 +191,31 @@ const OnChainAnalyzer: React.FC = () => {
 
             {/* Charts Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 flex-1 min-h-0">
-                
+
                 {/* Exchange Netflow Chart */}
                 <Card className="flex flex-col relative overflow-hidden bg-white dark:bg-[#0B1120] border-gray-200 dark:border-brand-border-dark shadow-lg staggered-fade-in" style={{ animationDelay: '100ms' }}>
-                     <div className="absolute top-0 right-0 p-4 pointer-events-none opacity-20">
-                        <svg className="w-24 h-24 text-gray-500" viewBox="0 0 24 24" fill="currentColor"><path d="M16 17v-7h-2v7h-8v2h8v7h2v-7h8v-2zM8 7V0H6v7H0v2h6v7h2V9h8V7z"/></svg>
-                     </div>
-                     <div className="mb-6 z-10">
+                    <div className="absolute top-0 right-0 p-4 pointer-events-none opacity-20">
+                        <svg className="w-24 h-24 text-gray-500" viewBox="0 0 24 24" fill="currentColor"><path d="M16 17v-7h-2v7h-8v2h8v7h2v-7h8v-2zM8 7V0H6v7H0v2h6v7h2V9h8V7z" /></svg>
+                    </div>
+                    <div className="mb-6 z-10">
                         <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-purple-500 animate-pulse"></span>
                             Exchange Netflow
                         </h3>
                         <p className="text-xs text-gray-500">Inflows (Red) vs Outflows (Green) to Exchanges</p>
-                     </div>
-                     
-                     <div className="flex-1 w-full min-h-[250px]">
+                    </div>
+
+                    <div className="flex-1 w-full min-h-[250px]">
                         <ResponsiveContainer width="100%" height="100%">
                             <ComposedChart data={onChainData.exchangeFlow}>
                                 <defs>
                                     <linearGradient id="netflowGradPositive" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.8}/>
-                                        <stop offset="95%" stopColor="#F43F5E" stopOpacity={0.2}/>
+                                        <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.8} />
+                                        <stop offset="95%" stopColor="#F43F5E" stopOpacity={0.2} />
                                     </linearGradient>
                                     <linearGradient id="netflowGradNegative" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
-                                        <stop offset="95%" stopColor="#10B981" stopOpacity={0.2}/>
+                                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.8} />
+                                        <stop offset="95%" stopColor="#10B981" stopOpacity={0.2} />
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} opacity={0.5} />
@@ -232,34 +232,34 @@ const OnChainAnalyzer: React.FC = () => {
                                 <Line type="monotone" dataKey="value" stroke="#6366F1" strokeWidth={2} dot={false} opacity={0.3} />
                             </ComposedChart>
                         </ResponsiveContainer>
-                     </div>
+                    </div>
                 </Card>
 
                 <div className="flex flex-col gap-6">
                     {/* Whale Activity (Sonar) */}
                     <Card className="flex-1 relative overflow-hidden bg-[#001e3c] border-none shadow-lg staggered-fade-in" style={{ animationDelay: '200ms' }}>
-                         {/* Sonar Background */}
-                         <div className="absolute inset-0" style={{ 
-                             backgroundImage: 'radial-gradient(circle, rgba(14, 165, 233, 0.1) 1px, transparent 1px)', 
-                             backgroundSize: '20px 20px',
-                             opacity: 0.3
-                         }}></div>
-                         <div className="relative z-10 flex flex-col h-full">
+                        {/* Sonar Background */}
+                        <div className="absolute inset-0" style={{
+                            backgroundImage: 'radial-gradient(circle, rgba(14, 165, 233, 0.1) 1px, transparent 1px)',
+                            backgroundSize: '20px 20px',
+                            opacity: 0.3
+                        }}></div>
+                        <div className="relative z-10 flex flex-col h-full">
                             <div className="mb-4 flex justify-between items-center">
                                 <div>
                                     <h3 className="text-lg font-bold text-sky-400">Whale Sonar</h3>
-                                    <p className="text-xs text-sky-400/60">Large Transaction Count ({">"} $100k)</p>
+                                    <p className="text-xs text-sky-400/60">Large Transaction Count (&gt; $100k)</p>
                                 </div>
                                 <div className="animate-ping w-2 h-2 bg-sky-400 rounded-full"></div>
                             </div>
-                            
+
                             <div className="flex-1 min-h-[150px]">
                                 <ResponsiveContainer width="100%" height="100%">
                                     <AreaChart data={onChainData.whaleTransactions}>
                                         <defs>
                                             <linearGradient id="whaleGrad" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#0EA5E9" stopOpacity={0.4}/>
-                                                <stop offset="95%" stopColor="#0EA5E9" stopOpacity={0}/>
+                                                <stop offset="5%" stopColor="#0EA5E9" stopOpacity={0.4} />
+                                                <stop offset="95%" stopColor="#0EA5E9" stopOpacity={0} />
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(14, 165, 233, 0.1)" vertical={false} />
@@ -270,7 +270,7 @@ const OnChainAnalyzer: React.FC = () => {
                                     </AreaChart>
                                 </ResponsiveContainer>
                             </div>
-                         </div>
+                        </div>
                     </Card>
 
                     {/* Hashrate (System Load) */}
@@ -289,8 +289,8 @@ const OnChainAnalyzer: React.FC = () => {
                                 <AreaChart data={onChainData.hashRate}>
                                     <defs>
                                         <linearGradient id="hashGrad" x1="0" y1="0" x2="0" y2="1">
-                                            <stop offset="5%" stopColor="#22D3EE" stopOpacity={0.3}/>
-                                            <stop offset="95%" stopColor="#22D3EE" stopOpacity={0}/>
+                                            <stop offset="5%" stopColor="#22D3EE" stopOpacity={0.3} />
+                                            <stop offset="95%" stopColor="#22D3EE" stopOpacity={0} />
                                         </linearGradient>
                                     </defs>
                                     <Area type="monotone" dataKey="value" stroke="#22D3EE" strokeWidth={2} fill="url(#hashGrad)" />

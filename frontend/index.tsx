@@ -2,6 +2,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import './index.css';
 import { ThemeProvider } from './contexts/ThemeContext';
 import { ToastProvider } from './contexts/ToastContext';
 import { SettingsProvider } from './contexts/SettingsContext';
@@ -15,11 +16,11 @@ const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
     <ThemeProvider>
-      <SettingsProvider>
-        <ToastProvider>
+      <ToastProvider>
+        <SettingsProvider>
           <App />
-        </ToastProvider>
-      </SettingsProvider>
+        </SettingsProvider>
+      </ToastProvider>
     </ThemeProvider>
   </React.StrictMode>
 );

@@ -35,6 +35,7 @@ import MarketTicker from '../../components/ui/MarketTicker';
 import TaskManager from './TaskManager';
 import Backtester from './Backtester';
 import BotLab from './BotLab';
+import { useSettings } from '../../contexts/SettingsContext';
 
 interface AppDashboardProps {
     currentView: AppView;
@@ -53,8 +54,8 @@ const NavItem: React.FC<{
     <button
         onClick={onClick}
         className={`group relative flex items-center w-full px-4 py-3 mb-2 rounded-2xl transition-all duration-300 ease-out overflow-hidden
-            ${isActive 
-                ? 'text-white shadow-lg shadow-brand-primary/25 translate-x-1' 
+            ${isActive
+                ? 'text-white shadow-lg shadow-brand-primary/25 translate-x-1'
                 : 'text-slate-500 dark:text-slate-400 hover:bg-white/50 dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white hover:translate-x-1'
             }`}
     >
@@ -62,7 +63,7 @@ const NavItem: React.FC<{
         {isActive && (
             <div className="absolute inset-0 bg-gradient-to-r from-brand-primary to-indigo-600 opacity-100 transition-opacity duration-300"></div>
         )}
-        
+
         {/* Hover Background (Subtle) */}
         {!isActive && (
             <div className="absolute inset-0 bg-gradient-to-r from-gray-100 to-transparent dark:from-white/5 dark:to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
@@ -76,7 +77,7 @@ const NavItem: React.FC<{
 
         {/* Label */}
         <span className="relative z-10 ml-3 text-sm font-medium tracking-wide truncate">{label}</span>
-        
+
         {/* Active Indicator Dot */}
         {isActive && (
             <span className="absolute right-3 w-1.5 h-1.5 rounded-full bg-white animate-pulse shadow-[0_0_8px_white] z-10"></span>
@@ -84,15 +85,16 @@ const NavItem: React.FC<{
     </button>
 );
 
-const Sidebar: React.FC<{ 
+const Sidebar: React.FC<{
     currentView: AppView;
-    onNavigate: (view: AppView, section?: string) => void; 
-    onLogout: () => void; 
+    onNavigate: (view: AppView, section?: string) => void;
+    onLogout: () => void;
 }> = ({ currentView, onNavigate, onLogout }) => {
+    const { userProfile } = useSettings();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const profileRef = useRef<HTMLDivElement>(null);
 
-     useEffect(() => {
+    useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
             if (profileRef.current && !profileRef.current.contains(event.target as Node)) {
                 setIsProfileOpen(false);
@@ -165,31 +167,31 @@ const Sidebar: React.FC<{
             ]
         },
     ], []);
-    
+
     return (
         <aside className="w-72 bg-[#F8FAFC] dark:bg-[#050B14] border-r border-gray-200 dark:border-white/5 flex flex-col h-screen transition-colors duration-300 shadow-[5px_0_20px_rgba(0,0,0,0.05)] z-20 relative">
-            
+
             {/* Glowing Background Effect */}
             <div className="absolute top-0 left-0 w-full h-96 bg-brand-primary/5 dark:bg-brand-primary/10 blur-[80px] pointer-events-none"></div>
 
             <div className="p-6 pb-4 relative z-10">
-                 <div className="flex items-center justify-center mb-2 transform hover:scale-105 transition-transform duration-300">
+                <div className="flex items-center justify-center mb-2 transform hover:scale-105 transition-transform duration-300">
                     <Logo />
-                 </div>
-                 {/* Stylish Divider */}
-                 <div className="h-px w-full bg-gradient-to-r from-transparent via-gray-300 dark:via-gray-700 to-transparent my-6"></div>
+                </div>
+                {/* Stylish Divider */}
+                <div className="h-px w-full bg-gradient-to-r from-transparent via-gray-300 dark:via-gray-700 to-transparent my-6"></div>
             </div>
 
             <nav className="flex-1 space-y-2 overflow-y-auto px-4 custom-scrollbar pb-4 relative z-10">
                 {navCategories.map(category => (
-                   <div key={category.title} className="mb-8 last:mb-0">
+                    <div key={category.title} className="mb-8 last:mb-0">
                         {/* Gradient Text Header */}
                         <h3 className="px-4 mb-3 text-[10px] font-extrabold uppercase tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-slate-500 to-slate-400 dark:from-gray-400 dark:to-gray-600 select-none">
                             {category.title}
                         </h3>
                         <div className="space-y-1">
                             {category.items.map(item => (
-                                <NavItem 
+                                <NavItem
                                     key={item.view}
                                     icon={item.icon}
                                     label={item.label}
@@ -198,10 +200,10 @@ const Sidebar: React.FC<{
                                 />
                             ))}
                         </div>
-                   </div>
+                    </div>
                 ))}
             </nav>
-            
+
             {/* Profile Section */}
             <div className="p-4 relative z-20" ref={profileRef}>
                 {/* Dropdown Menu */}
@@ -215,13 +217,13 @@ const Sidebar: React.FC<{
                     <div className="my-1 border-t border-gray-100 dark:border-gray-700"></div>
                     <DropdownMenuItem icon={<LogoutIcon />} label="Logout" onClick={onLogout} />
                 </div>
-            
+
                 {/* Profile Button */}
-                <button 
-                    onClick={() => setIsProfileOpen(!isProfileOpen)} 
+                <button
+                    onClick={() => setIsProfileOpen(!isProfileOpen)}
                     className={`flex items-center w-full p-3 rounded-2xl border transition-all duration-300 group
-                        ${isProfileOpen 
-                            ? 'bg-white dark:bg-[#161e2e] border-brand-primary shadow-lg shadow-brand-primary/10' 
+                        ${isProfileOpen
+                            ? 'bg-white dark:bg-[#161e2e] border-brand-primary shadow-lg shadow-brand-primary/10'
                             : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/5 hover:border-brand-primary/50 hover:bg-gray-50 dark:hover:bg-white/10'
                         }`}
                 >
@@ -230,7 +232,7 @@ const Sidebar: React.FC<{
                         <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-[#0B1120] rounded-full"></div>
                     </div>
                     <div className="ml-3 flex-1 min-w-0 text-left">
-                        <p className="font-bold text-sm text-slate-900 dark:text-white truncate group-hover:text-brand-primary transition-colors">Abir Ahamed</p>
+                        <p className="font-bold text-sm text-slate-900 dark:text-white truncate group-hover:text-brand-primary transition-colors">{userProfile.fullName}</p>
                         <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate font-medium flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-brand-warning"></span>
                             Pro Trader Plan
@@ -319,7 +321,7 @@ const AppDashboard: React.FC<AppDashboardProps> = ({ currentView, onNavigate, on
     };
 
     const showWalletConnect = [AppView.DASHBOARD, AppView.PORTFOLIO, AppView.ON_CHAIN_ANALYZER].includes(viewToRender);
-    
+
     return (
         <div className="flex h-screen bg-brand-light dark:bg-brand-darkest">
             <Sidebar currentView={currentView} onNavigate={onNavigate} onLogout={onLogout} />
@@ -344,14 +346,14 @@ const AppDashboard: React.FC<AppDashboardProps> = ({ currentView, onNavigate, on
                                     )}
                                 </div>
                             )}
-                             <Button variant="outline" onClick={() => setIsAssistantOpen(true)} className="!p-2 rounded-full border-gray-200 dark:border-gray-700 text-gray-500 hover:text-brand-primary">
+                            <Button variant="outline" onClick={() => setIsAssistantOpen(true)} className="!p-2 rounded-full border-gray-200 dark:border-gray-700 text-gray-500 hover:text-brand-primary">
                                 <AssistantIcon className="h-5 w-5" />
                             </Button>
                             <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
                             <ThemeToggle />
                         </div>
                     </div>
-                    { viewToRender === AppView.MARKET && <div className="border-t border-gray-100 dark:border-gray-800"><MarketTicker /></div> }
+                    {viewToRender === AppView.MARKET && <div className="border-t border-gray-100 dark:border-gray-800"><MarketTicker /></div>}
                 </header>
                 <main className="flex-1 overflow-y-auto p-8 relative">
                     {renderContent()}

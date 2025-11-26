@@ -1,0 +1,44 @@
+services:
+  # 1. Backend Service (Python/FastAPI)
+  backend:
+    build: ./backend
+    container_name: cosmoquant_backend
+    volumes:
+      - ./backend:/app # Hot reload: Code change হলে সার্ভার রিস্টার্ট হবে
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/cosmoquant_db
+    depends_on:
+      - db
+
+  # 2. Frontend Service (React/Vite)
+  frontend:
+    build: ./frontend
+    container_name: cosmoquant_frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      - VITE_BACKEND_URL=http://backend:8000
+
+  # 3. Database Service (PostgreSQL)
+  db:
+    image: postgres:15-alpine
+    container_name: cosmoquant_db
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: cosmoquant_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:

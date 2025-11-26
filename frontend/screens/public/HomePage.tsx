@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI } from '@google/genai';
 import Button from '../../components/ui/Button';
-import { 
+import {
     BacktesterIcon, BotLabIcon, AIFoundryIcon,
     InteractiveBrokersLogo, CoinbaseLogo, BitfinexLogo, TradierLogo, TradingTechnologiesLogo, TerminalLinkLogo, AlpacaLogo,
     TradeStationLogo, CharlesSchwabLogo, KrakenLogo, SscEzeLogo, SamcoLogo, ZerodhaLogo, TdAmeritradeLogo, BinanceLogo,
@@ -188,11 +188,11 @@ const InteractiveCanvasBackground: React.FC = () => {
             mouse.x = e.clientX - rect.left;
             mouse.y = e.clientY - rect.top;
         };
-        
+
         resizeCanvas();
         init();
         animate();
-        
+
         window.addEventListener('resize', resizeCanvas);
         window.addEventListener('mousemove', handleMouseMove);
 
@@ -213,39 +213,39 @@ const LandingPageNewsTicker: React.FC = () => {
     return (
         <>
             <div className="w-full bg-[#0B1120] border-t border-white/5 py-2 px-4 overflow-hidden flex items-center relative z-20">
-                 <div className="flex items-center gap-2 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-lg flex-shrink-0 mr-4">
-                     <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                <div className="flex items-center gap-2 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-lg flex-shrink-0 mr-4">
+                    <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                     </span>
                     <span className="text-[10px] font-bold text-red-500 uppercase tracking-wider whitespace-nowrap">Breaking News</span>
                 </div>
                 <div className="flex-1 overflow-hidden relative h-6">
-                     <div className="animate-marquee-slow whitespace-nowrap absolute top-0 left-0 flex items-center h-full text-sm text-gray-300" style={{ animationDuration: '80s' }}>
-                        {[...MOCK_CRYPTO_NEWS, ...MOCK_CRYPTO_NEWS].map((news, i) => (
-                            <div 
-                                key={`${news.id}-${i}`} 
-                                className="mx-8 flex items-center cursor-pointer hover:text-brand-primary transition-colors"
+                    <div className="animate-marquee-slow whitespace-nowrap absolute top-0 left-0 flex items-center h-full text-sm text-gray-300" style={{ animationDuration: '120s' }}>
+                        {[...MOCK_CRYPTO_NEWS, ...MOCK_CRYPTO_NEWS, ...MOCK_CRYPTO_NEWS, ...MOCK_CRYPTO_NEWS].map((news, i) => (
+                            <div
+                                key={`${news.id}-${i}`}
+                                className="mx-8 flex flex-shrink-0 items-center cursor-pointer hover:text-brand-primary transition-colors"
                                 onClick={() => setSelectedNews(news)}
                             >
                                 <span className="font-bold text-gray-500 text-xs mr-2">[{news.source}]</span>
                                 {news.text}
                             </div>
                         ))}
-                     </div>
+                    </div>
                 </div>
             </div>
 
             {/* News Popup Modal */}
             {selectedNews && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-modal-fade-in" onClick={() => setSelectedNews(null)}>
-                    <div 
+                    <div
                         className="bg-white dark:bg-[#0F172A] w-full max-w-md rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden animate-modal-content-slide-down"
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="p-6 relative">
-                            <button 
-                                onClick={() => setSelectedNews(null)} 
+                            <button
+                                onClick={() => setSelectedNews(null)}
                                 className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors"
                             >
                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -268,7 +268,7 @@ const LandingPageNewsTicker: React.FC = () => {
                                 <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
                                     <strong className="block mb-1 text-slate-900 dark:text-white text-xs uppercase tracking-wider">Summary</strong>
                                     This is a mock detail view for the selected news item. In a production environment, this area would display the full article summary, key takeaways, or related market impact analysis fetched from the live API.
-                                    <br/><br/>
+                                    <br /><br />
                                     Sentiment Analysis: <span className={`font-bold capitalize ${selectedNews.sentiment === 'positive' ? 'text-green-500' : selectedNews.sentiment === 'negative' ? 'text-red-500' : 'text-yellow-500'}`}>{selectedNews.sentiment}</span>
                                 </p>
                             </div>
@@ -287,7 +287,7 @@ const LandingPageNewsTicker: React.FC = () => {
 const MarketIntelligenceSection: React.FC = () => {
     const ref = useScrollAnimation();
     const [activeSignal, setActiveSignal] = useState(0);
-    
+
     const signals = [
         { pair: 'BTC/USDT', signal: 'BULLISH DIV', conf: 88, type: 'long' },
         { pair: 'SOL/USDT', signal: 'BREAKOUT', conf: 92, type: 'long' },
@@ -306,11 +306,11 @@ const MarketIntelligenceSection: React.FC = () => {
         <div ref={ref} className="py-20 bg-white dark:bg-brand-darkest/50 fade-in-up border-b border-gray-100 dark:border-white/5">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    
+
                     {/* Metric 1: Market Mood */}
                     <div className="bg-gray-50 dark:bg-brand-dark border border-gray-200 dark:border-white/10 rounded-2xl p-6 relative overflow-hidden group">
                         <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
-                            <svg className="w-16 h-16 text-brand-primary" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+                            <svg className="w-16 h-16 text-brand-primary" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z" /></svg>
                         </div>
                         <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-2">Market Mood</h4>
                         <div className="flex items-end gap-3">
@@ -348,7 +348,7 @@ const MarketIntelligenceSection: React.FC = () => {
                     <div className="bg-gray-50 dark:bg-brand-dark border border-gray-200 dark:border-white/10 rounded-2xl p-6 flex flex-col">
                         <h4 className="text-sm font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest mb-4">Sector Flow (24h)</h4>
                         <div className="flex-1 flex items-end gap-2">
-                            {[{n:'AI', v:85}, {n:'DeFi', v:45}, {n:'L1', v:60}, {n:'Game', v:30}, {n:'Meme', v:95}].map((sec, i) => (
+                            {[{ n: 'AI', v: 85 }, { n: 'DeFi', v: 45 }, { n: 'L1', v: 60 }, { n: 'Game', v: 30 }, { n: 'Meme', v: 95 }].map((sec, i) => (
                                 <div key={sec.n} className="flex-1 flex flex-col items-center group">
                                     <div className="w-full bg-brand-primary/10 dark:bg-brand-primary/20 rounded-t-lg relative overflow-hidden transition-all duration-300 group-hover:bg-brand-primary/30" style={{ height: `${sec.v}%` }}>
                                         <div className="absolute bottom-0 left-0 w-full bg-brand-primary opacity-50 h-1 group-hover:h-full transition-all duration-500"></div>
@@ -367,7 +367,7 @@ const MarketIntelligenceSection: React.FC = () => {
 
 const StatsSection: React.FC = () => {
     const ref = useScrollAnimation();
-    
+
     return (
         <div ref={ref} className="py-20 border-t border-gray-100 dark:border-white/5 fade-in-up">
             <div className="container mx-auto px-4">
@@ -393,7 +393,7 @@ const StatsSection: React.FC = () => {
 
 const BentoGrid: React.FC = () => {
     const ref = useScrollAnimation(0.1);
-    
+
     return (
         <div ref={ref} className="py-32 relative fade-in-up">
             {/* Background - kept minimal to allow glass effect to shine */}
@@ -416,7 +416,7 @@ const BentoGrid: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-6 gap-6 lg:gap-8">
-                    
+
                     {/* Item 1: AI Foundry (Large, Wide) */}
                     <SpotlightCard className="md:col-span-4 group min-h-[320px] flex flex-col">
                         <div className="p-8 pb-0 flex-grow relative z-20">
@@ -428,7 +428,7 @@ const BentoGrid: React.FC = () => {
                                 Convert natural language into production-grade Python code. Describe your strategy, and our fine-tuned LLM builds the logic automatically.
                             </p>
                         </div>
-                        
+
                         {/* Visual representation of Code */}
                         <div className="relative h-40 mt-6 overflow-hidden border-t border-white/10 bg-black/5 dark:bg-black/20">
                             <div className="absolute top-4 left-6 right-6 bottom-0 bg-white/50 dark:bg-black/40 backdrop-blur-md rounded-t-xl shadow-2xl p-4 border border-white/20 dark:border-white/5 transform translate-y-2 transition-transform duration-500 group-hover:translate-y-0">
@@ -438,11 +438,11 @@ const BentoGrid: React.FC = () => {
                                     <div className="w-2.5 h-2.5 rounded-full bg-green-500"></div>
                                 </div>
                                 <div className="font-mono text-xs text-slate-800 dark:text-blue-200 opacity-90 leading-5">
-                                    <span className="text-purple-600 dark:text-purple-400">def</span> <span className="text-yellow-600 dark:text-yellow-300">on_tick</span>(self, data):<br/>
-                                    &nbsp;&nbsp;<span className="text-gray-500"># Generated Logic</span><br/>
-                                    &nbsp;&nbsp;<span className="text-purple-600 dark:text-purple-400">if</span> data.rsi &lt; <span className="text-green-600 dark:text-green-300">30</span>:<br/>
-                                    &nbsp;&nbsp;&nbsp;&nbsp;self.buy(size=<span className="text-green-600 dark:text-green-300">0.1</span>)<br/>
-                                    &nbsp;&nbsp;<span className="text-purple-600 dark:text-purple-400">elif</span> data.rsi &gt; <span className="text-green-600 dark:text-green-300">70</span>:<br/>
+                                    <span className="text-purple-600 dark:text-purple-400">def</span> <span className="text-yellow-600 dark:text-yellow-300">on_tick</span>(self, data):<br />
+                                    &nbsp;&nbsp;<span className="text-gray-500"># Generated Logic</span><br />
+                                    &nbsp;&nbsp;<span className="text-purple-600 dark:text-purple-400">if</span> data.rsi &lt; <span className="text-green-600 dark:text-green-300">30</span>:<br />
+                                    &nbsp;&nbsp;&nbsp;&nbsp;self.buy(size=<span className="text-green-600 dark:text-green-300">0.1</span>)<br />
+                                    &nbsp;&nbsp;<span className="text-purple-600 dark:text-purple-400">elif</span> data.rsi &gt; <span className="text-green-600 dark:text-green-300">70</span>:<br />
                                     &nbsp;&nbsp;&nbsp;&nbsp;self.close_position()
                                 </div>
                             </div>
@@ -452,7 +452,7 @@ const BentoGrid: React.FC = () => {
                     {/* Item 2: Bot Lab (Tall) */}
                     <SpotlightCard className="md:col-span-2 group min-h-[320px] flex flex-col">
                         <div className="p-8 relative z-20">
-                             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white mb-6 shadow-lg shadow-green-500/20 group-hover:scale-110 transition-transform duration-300">
+                            <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-green-500 to-emerald-600 flex items-center justify-center text-white mb-6 shadow-lg shadow-green-500/20 group-hover:scale-110 transition-transform duration-300">
                                 <BotLabIcon />
                             </div>
                             <h4 className="text-2xl font-bold text-slate-900 dark:text-white mb-3">Bot Lab</h4>
@@ -461,23 +461,23 @@ const BentoGrid: React.FC = () => {
                             </p>
                         </div>
                         <div className="flex-grow relative overflow-hidden">
-                             <div className="absolute inset-0 flex items-center justify-center">
-                                 {/* Animated Nodes */}
-                                 <div className="relative w-40 h-40">
-                                     <div className="absolute top-1/2 left-1/2 w-4 h-4 bg-green-500 rounded-full shadow-[0_0_20px_rgba(34,197,94,0.6)] z-10 -translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
-                                     {[0, 60, 120, 180, 240, 300].map((deg, i) => (
-                                         <div key={i} className="absolute top-1/2 left-1/2 w-24 h-[1px] bg-gradient-to-r from-green-500/50 to-transparent origin-left" style={{ transform: `rotate(${deg}deg)` }}>
-                                             <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-slate-400/50 rounded-full border border-green-500/50"></div>
-                                         </div>
-                                     ))}
-                                 </div>
-                             </div>
+                            <div className="absolute inset-0 flex items-center justify-center">
+                                {/* Animated Nodes */}
+                                <div className="relative w-40 h-40">
+                                    <div className="absolute top-1/2 left-1/2 w-4 h-4 bg-green-500 rounded-full shadow-[0_0_20px_rgba(34,197,94,0.6)] z-10 -translate-x-1/2 -translate-y-1/2 animate-pulse"></div>
+                                    {[0, 60, 120, 180, 240, 300].map((deg, i) => (
+                                        <div key={i} className="absolute top-1/2 left-1/2 w-24 h-[1px] bg-gradient-to-r from-green-500/50 to-transparent origin-left" style={{ transform: `rotate(${deg}deg)` }}>
+                                            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-slate-400/50 rounded-full border border-green-500/50"></div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     </SpotlightCard>
 
                     {/* Item 3: Backtester (Tall) */}
                     <SpotlightCard className="md:col-span-2 group min-h-[320px] flex flex-col">
-                         <div className="p-8 relative z-20">
+                        <div className="p-8 relative z-20">
                             <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-500 flex items-center justify-center text-white mb-6 shadow-lg shadow-blue-500/20 group-hover:scale-110 transition-transform duration-300">
                                 <BacktesterIcon />
                             </div>
@@ -487,18 +487,18 @@ const BentoGrid: React.FC = () => {
                             </p>
                         </div>
                         <div className="mt-auto h-32 w-full relative overflow-hidden">
-                             <div className="absolute bottom-0 left-0 right-0 h-full bg-gradient-to-t from-blue-500/10 to-transparent"></div>
-                             <svg className="absolute bottom-0 left-0 right-0 w-full h-24 text-blue-500" preserveAspectRatio="none" viewBox="0 0 100 40">
-                                 <path d="M0 40 Q 20 35, 40 20 T 100 5" fill="none" stroke="currentColor" strokeWidth="2" className="drop-shadow-md"/>
-                                 <path d="M0 40 L0 40 Q 20 35, 40 20 T 100 5 V 40 H 0 Z" fill="currentColor" fillOpacity="0.2" />
-                             </svg>
+                            <div className="absolute bottom-0 left-0 right-0 h-full bg-gradient-to-t from-blue-500/10 to-transparent"></div>
+                            <svg className="absolute bottom-0 left-0 right-0 w-full h-24 text-blue-500" preserveAspectRatio="none" viewBox="0 0 100 40">
+                                <path d="M0 40 Q 20 35, 40 20 T 100 5" fill="none" stroke="currentColor" strokeWidth="2" className="drop-shadow-md" />
+                                <path d="M0 40 L0 40 Q 20 35, 40 20 T 100 5 V 40 H 0 Z" fill="currentColor" fillOpacity="0.2" />
+                            </svg>
                         </div>
                     </SpotlightCard>
 
-                     {/* Item 4: Visual Builder (Wide) */}
+                    {/* Item 4: Visual Builder (Wide) */}
                     <SpotlightCard className="md:col-span-4 group min-h-[320px] flex flex-col">
-                         <div className="absolute top-0 right-0 p-32 bg-gradient-to-br from-purple-600/10 to-transparent rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
-                         <div className="grid md:grid-cols-2 h-full">
+                        <div className="absolute top-0 right-0 p-32 bg-gradient-to-br from-purple-600/10 to-transparent rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+                        <div className="grid md:grid-cols-2 h-full">
                             <div className="p-8 flex flex-col justify-center z-20">
                                 <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-purple-600 to-fuchsia-600 flex items-center justify-center text-white mb-6 shadow-lg shadow-purple-600/20 group-hover:scale-110 transition-transform duration-300">
                                     <IdeaIcon className="w-6 h-6" />
@@ -508,7 +508,7 @@ const BentoGrid: React.FC = () => {
                                     No code? No problem. Use our node-based editor to drag, drop, and connect indicators, triggers, and actions. Logic visualization made simple.
                                 </p>
                                 <div>
-                                     <Button variant="outline" className="text-xs border-gray-300 dark:border-white/20 hover:bg-white/10">Try Builder Demo</Button>
+                                    <Button variant="outline" className="text-xs border-gray-300 dark:border-white/20 hover:bg-white/10">Try Builder Demo</Button>
                                 </div>
                             </div>
                             <div className="relative min-h-[200px] bg-white/5 dark:bg-black/10 border-l border-white/10 overflow-hidden flex items-center justify-center">
@@ -521,10 +521,10 @@ const BentoGrid: React.FC = () => {
                                         <path d="M0 0 V 48" stroke="#64748B" strokeWidth="2" strokeDasharray="4 4" />
                                     </svg>
                                     <div className="absolute top-24 left-0 w-28 h-14 rounded-lg bg-white/10 dark:bg-black/40 backdrop-blur border border-yellow-500/50 shadow-lg flex flex-col items-center justify-center p-2">
-                                         <span className="text-[10px] font-mono text-yellow-500 dark:text-yellow-400">RSI Condition</span>
-                                         <div className="w-full h-1 bg-gray-700 mt-1 rounded-full overflow-hidden"><div className="w-2/3 h-full bg-yellow-500"></div></div>
+                                        <span className="text-[10px] font-mono text-yellow-500 dark:text-yellow-400">RSI Condition</span>
+                                        <div className="w-full h-1 bg-gray-700 mt-1 rounded-full overflow-hidden"><div className="w-2/3 h-full bg-yellow-500"></div></div>
                                     </div>
-                                     <svg className="absolute top-[130px] left-14 w-12 h-12" overflow="visible">
+                                    <svg className="absolute top-[130px] left-14 w-12 h-12" overflow="visible">
                                         <path d="M0 0 Q 0 24, 24 24" stroke="#64748B" strokeWidth="2" fill="none" />
                                     </svg>
                                     <div className="absolute top-36 left-28 w-24 h-12 rounded-lg bg-white/10 dark:bg-black/40 backdrop-blur border border-green-500/50 shadow-lg flex items-center justify-center text-[10px] font-mono text-green-400">
@@ -532,7 +532,7 @@ const BentoGrid: React.FC = () => {
                                     </div>
                                 </div>
                             </div>
-                         </div>
+                        </div>
                     </SpotlightCard>
 
                 </div>
@@ -549,21 +549,21 @@ const AIStrategyGenerator: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
 
     const highlightSyntax = (code: string) => {
-      const pythonKeywords = ['def', 'return', 'import', 'from', 'class', 'if', 'else', 'elif', 'for', 'while', 'in', 'and', 'or', 'not', 'is', 'None', 'True', 'False'];
-      return code
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-        .replace(/(#.*$)/gm, '<span class="token-comment">$1</span>')
-        .replace(/('.*?'|".*?")/g, '<span class="token-string">$1</span>')
-        .replace(new RegExp(`\\b(${pythonKeywords.join('|')})\\b`, 'g'), '<span class="token-keyword">$1</span>')
-        .replace(/\b(\d+\.?\d*)\b/g, '<span class="token-number">$1</span>')
-        .replace(/([a-zA-Z_]\w*)\s*(?=\()/g, '<span class="token-function">$1</span>');
+        const pythonKeywords = ['def', 'return', 'import', 'from', 'class', 'if', 'else', 'elif', 'for', 'while', 'in', 'and', 'or', 'not', 'is', 'None', 'True', 'False'];
+        return code
+            .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+            .replace(/(#.*$)/gm, '<span class="token-comment">$1</span>')
+            .replace(/('.*?'|".*?")/g, '<span class="token-string">$1</span>')
+            .replace(new RegExp(`\\b(${pythonKeywords.join('|')})\\b`, 'g'), '<span class="token-keyword">$1</span>')
+            .replace(/\b(\d+\.?\d*)\b/g, '<span class="token-number">$1</span>')
+            .replace(/([a-zA-Z_]\w*)\s*(?=\()/g, '<span class="token-function">$1</span>');
     };
 
     const handleGenerate = async () => {
         if (!prompt.trim()) { showToast('Please enter a description.', 'error'); return; }
         setIsLoading(true);
         setGeneratedCode('');
-        
+
         const systemInstruction = "You are an expert trading algorithm developer. Take a natural language strategy description and output concise Python pseudocode using a 'backtrader' style class structure. Do not include markdown blocks, just the code.";
 
         try {
@@ -581,7 +581,7 @@ const AIStrategyGenerator: React.FC = () => {
             setIsLoading(false);
         }
     };
-    
+
     return (
         <div ref={ref} className="py-24 bg-white dark:bg-brand-darkest fade-in-up">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
@@ -607,7 +607,7 @@ const AIStrategyGenerator: React.FC = () => {
                                     <div className="text-gray-500">
                                         <p># Waiting for input...</p>
                                         <p># Describe your strategy on the right to generate code.</p>
-                                        <p className="mt-4"><span className="text-brand-primary">{">>"}</span> Ready for prompt.</p>
+                                        <p className="mt-4"><span className="text-brand-primary">&gt;&gt;</span> Ready for prompt.</p>
                                     </div>
                                 )}
                             </div>
@@ -619,13 +619,13 @@ const AIStrategyGenerator: React.FC = () => {
                             Powered by Gemini 2.5
                         </div>
                         <h2 className="text-4xl font-extrabold text-slate-900 dark:text-white mb-6">
-                            Talk Trading. <br/>
+                            Talk Trading. <br />
                             <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary to-purple-500">Get Code.</span>
                         </h2>
                         <p className="text-lg text-gray-600 dark:text-gray-300 mb-8 leading-relaxed">
                             Skip the boilerplate. Describe any technical indicator, entry/exit logic, or risk parameter in plain English, and let our fine-tuned AI models build the foundation of your algorithm instantly.
                         </p>
-                        
+
                         <div className="bg-gray-100 dark:bg-brand-dark/50 p-2 rounded-2xl border border-gray-200 dark:border-gray-700 focus-within:ring-2 ring-brand-primary transition-all shadow-sm">
                             <textarea
                                 value={prompt}
@@ -667,10 +667,10 @@ const PartnersSection: React.FC = () => {
             <div className="relative w-full overflow-hidden">
                 <div className="absolute left-0 top-0 bottom-0 w-20 bg-gradient-to-r from-white dark:from-brand-darkest to-transparent z-10"></div>
                 <div className="absolute right-0 top-0 bottom-0 w-20 bg-gradient-to-l from-white dark:from-brand-darkest to-transparent z-10"></div>
-                
+
                 <div className="flex animate-marquee-slow whitespace-nowrap">
-                    {[...logos, ...logos, ...logos].map((logo, index) => (
-                        <div key={index} className="mx-12 flex items-center justify-center opacity-60 hover:opacity-100 transition-opacity">
+                    {[...logos, ...logos, ...logos, ...logos].map((logo, index) => (
+                        <div key={index} className="mx-12 flex flex-shrink-0 items-center justify-center opacity-60 hover:opacity-100 transition-opacity">
                             {logo.component}
                         </div>
                     ))}
@@ -684,9 +684,9 @@ const CustomServicesSection: React.FC = () => {
     const ref = useScrollAnimation();
     return (
         <div ref={ref} className="py-24 relative overflow-hidden fade-in-up">
-             <div className="absolute inset-0 bg-brand-primary/5 dark:bg-brand-primary/5 -skew-y-3 transform origin-top-left scale-110"></div>
-             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-                 <div className="max-w-4xl mx-auto text-center">
+            <div className="absolute inset-0 bg-brand-primary/5 dark:bg-brand-primary/5 -skew-y-3 transform origin-top-left scale-110"></div>
+            <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+                <div className="max-w-4xl mx-auto text-center">
                     <h2 className="text-3xl font-bold tracking-tight text-slate-900 dark:text-white sm:text-5xl mb-6">
                         Need a Custom Solution?
                     </h2>
@@ -697,8 +697,8 @@ const CustomServicesSection: React.FC = () => {
                         <Button variant="primary" className="px-8 py-4 text-lg rounded-full shadow-xl shadow-brand-primary/20">Book Consultation</Button>
                         <Button variant="outline" className="px-8 py-4 text-lg rounded-full">View Portfolio</Button>
                     </div>
-                 </div>
-             </div>
+                </div>
+            </div>
         </div>
     );
 };
@@ -706,7 +706,7 @@ const CustomServicesSection: React.FC = () => {
 const HomePage: React.FC<{ onLogin: () => void; onSignUp: () => void; }> = ({ onLogin, onSignUp }) => {
     const { theme } = useTheme();
     const [activeSymbol, setActiveSymbol] = useState('BTCUSDT');
-    
+
     useEffect(() => {
         const createWidget = () => {
             const container = document.getElementById('homepage_chart');
@@ -726,14 +726,14 @@ const HomePage: React.FC<{ onLogin: () => void; onSignUp: () => void; }> = ({ on
                 // Updated config for full features on landing page
                 hide_top_toolbar: false,
                 hide_legend: false,
-                hide_side_toolbar: false, 
+                hide_side_toolbar: false,
                 withdateranges: true,
                 hotlist: true,
                 calendar: true,
                 save_image: false,
                 studies: [
-                  "MASimple@tv-basicstudies",
-                  "RSI@tv-basicstudies"
+                    "MASimple@tv-basicstudies",
+                    "RSI@tv-basicstudies"
                 ]
             });
         };
@@ -751,26 +751,26 @@ const HomePage: React.FC<{ onLogin: () => void; onSignUp: () => void; }> = ({ on
             {/* Hero Section */}
             <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-brand-light dark:bg-brand-darkest">
                 <InteractiveCanvasBackground />
-                
+
                 <div className="container mx-auto px-4 relative z-10 flex flex-col items-center text-center pt-20 pb-32">
                     <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-brand-primary/10 text-brand-primary text-xs font-bold uppercase tracking-wide mb-8 animate-fade-in-down">
                         <span className="w-2 h-2 rounded-full bg-brand-primary animate-pulse"></span>
                         Now in Public Beta
                     </div>
-                    
-                    <h1 className="text-5xl md:text-7xl lg:text-8xl font-extrabold tracking-tighter text-slate-900 dark:text-white mb-6 animate-fade-in-down" style={{animationDelay: '0.1s'}}>
+
+                    <h1 className="text-5xl md:text-7xl lg:text-8xl font-extrabold tracking-tighter text-slate-900 dark:text-white mb-6 animate-fade-in-down" style={{ animationDelay: '0.1s' }}>
                         Stop Guessing. <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-primary via-purple-500 to-pink-500">Start Quantifying.</span>
                     </h1>
-                    
-                    <p className="max-w-2xl text-xl text-gray-600 dark:text-gray-300 mb-10 leading-relaxed animate-fade-in-down" style={{animationDelay: '0.2s'}}>
+
+                    <p className="max-w-2xl text-xl text-gray-600 dark:text-gray-300 mb-10 leading-relaxed animate-fade-in-down" style={{ animationDelay: '0.2s' }}>
                         The all-in-one platform for algorithmic trading. Build, backtest, and deploy strategies without managing infrastructure.
                     </p>
-                    
-                    <div className="flex flex-col sm:flex-row gap-4 animate-fade-in-down" style={{animationDelay: '0.3s'}}>
+
+                    <div className="flex flex-col sm:flex-row gap-4 animate-fade-in-down" style={{ animationDelay: '0.3s' }}>
                         <Button variant="primary" onClick={onSignUp} className="px-8 py-4 text-lg rounded-full shadow-xl shadow-brand-primary/30 hover:scale-105 transition-transform">
                             Get Started for Free
                         </Button>
-                        <Button variant="secondary" onClick={() => {}} className="px-8 py-4 text-lg rounded-full hover:bg-gray-200 dark:hover:bg-white/10">
+                        <Button variant="secondary" onClick={() => { }} className="px-8 py-4 text-lg rounded-full hover:bg-gray-200 dark:hover:bg-white/10">
                             See How It Works
                         </Button>
                     </div>
@@ -779,7 +779,7 @@ const HomePage: React.FC<{ onLogin: () => void; onSignUp: () => void; }> = ({ on
                     <div className="mt-32 w-full max-w-6xl h-[500px] md:h-[600px] bg-white dark:bg-brand-dark rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-800 p-1 relative animate-fade-in-slide-up overflow-hidden">
                         <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-brand-primary via-purple-500 to-pink-500 z-20"></div>
                         <div id="homepage_chart" className="w-full h-full rounded-xl overflow-hidden"></div>
-                        
+
                         {/* Note: Overlays removed to allow full interaction with the TradingView widget */}
                     </div>
                 </div>

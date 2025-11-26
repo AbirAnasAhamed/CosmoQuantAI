@@ -5,7 +5,7 @@ import type { Asset, ActiveBot, BacktestResult, PricingTier, Candle, SentimentDa
 
 // New Logo Components
 export const BtcLogo = ({ className = "h-8 w-8" }: { className?: string }) => (
-    <svg className={className} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="currentColor" color="#f7931a"><path d="M30,16A14,14,0,1,1,16,2,14,14,0,0,1,30,16ZM21.5,16.21h-2.3a1.5,1.5,0,0,0-1.29-1.32l.73-2.93-1.7-.42-.71,2.84a1.51,1.51,0,0,0-1.28-.73h-.5V10.87l4.47-1.12-1.12-4.47-4.47,1.12v.11h-.64a1.5,1.5,0,0,0-1.48,1.38l-1,4.21a1.5,1.5,0,0,0,0,.2,1.5,1.5,0,0,0-1.45-1.58H10.5v2.36h.28a1.5,1.5,0,0,0,1.48-1.38l1-4.21a1.5,1.5,0,0,0,0-.2,1.5,1.5,0,0,0,1.45-1.58h.64V8.58L10.5,7.46l1.12-4.47L16.09,4.1v-.1h.5a1.5,1.5,0,0,0,1.48-1.38l.73-2.93,1.7.42-.73,2.93A1.5,1.5,0,0,0,21.07,7h.14l4.47-1.12L24.56,10.4,21.5,11.12V13.5h.3a1.5,1.5,0,0,0,1.47-1.34l.36-1.43,1.71.43-.36,1.43a1.5,1.5,0,0,0-1.47,1.64v.94Zm-4.14,2.36h-4v4.72h4a2.36,2.36,0,0,0,0-4.72Zm.59,2.36a.59.59,0,0,1,0,1.18h-2.22V19.39h2.22a.59.59,0,0,1,0,1.18Z"/></svg>
+    <svg className={className} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="currentColor" color="#f7931a"><path d="M30,16A14,14,0,1,1,16,2,14,14,0,0,1,30,16ZM21.5,16.21h-2.3a1.5,1.5,0,0,0-1.29-1.32l.73-2.93-1.7-.42-.71,2.84a1.51,1.51,0,0,0-1.28-.73h-.5V10.87l4.47-1.12-1.12-4.47-4.47,1.12v.11h-.64a1.5,1.5,0,0,0-1.48,1.38l-1,4.21a1.5,1.5,0,0,0,0,.2,1.5,1.5,0,0,0-1.45-1.58H10.5v2.36h.28a1.5,1.5,0,0,0,1.48-1.38l1-4.21a1.5,1.5,0,0,0,0-.2,1.5,1.5,0,0,0,1.45-1.58h.64V8.58L10.5,7.46l1.12-4.47L16.09,4.1v-.1h.5a1.5,1.5,0,0,0,1.48-1.38l.73-2.93,1.7.42-.73,2.93A1.5,1.5,0,0,0,21.07,7h.14l4.47-1.12L24.56,10.4,21.5,11.12V13.5h.3a1.5,1.5,0,0,0,1.47-1.34l.36-1.43,1.71.43-.36,1.43a1.5,1.5,0,0,0-1.47,1.64v.94Zm-4.14,2.36h-4v4.72h4a2.36,2.36,0,0,0,0-4.72Zm.59,2.36a.59.59,0,0,1,0,1.18h-2.22V19.39h2.22a.59.59,0,0,1,0,1.18Z" /></svg>
 );
 export const EthLogo = ({ className = "h-8 w-8" }: { className?: string }) => (
     <svg className={className} viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg" fill="none"><path fill="#8a92b2" d="M16 2L15.5 17.5 16 20.5 24.5 12z"></path><path fill="#627eea" d="M16 2L7.5 12 16 20.5V2z"></path><path fill="#8a92b2" d="M16 22.5L15.5 24.5 16 30 24.5 14z"></path><path fill="#627eea" d="M16 30V22.5L7.5 14z"></path><path fill="#465785" d="M16 20.5L24.5 12 16 8z"></path><path fill="#8a92b2" d="M7.5 12L16 20.5V8z"></path></svg>
@@ -18,8 +18,8 @@ export const UsdtLogo = ({ className = "h-8 w-8" }: { className?: string }) => (
 );
 export const BinanceLogo = ({ className = "w-8 h-8" }: { className?: string }) => (
     <svg className={className} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="12" cy="12" r="12" fill="#F0B90B"/>
-        <path fill="black" d="M16.624 13.92l3.377-3.378-3.377-3.378-3.377 3.378 3.377 3.378zm-4.624-6.578L10.252 9.1 12 10.848l1.748-1.748-1.748-1.748zM12 15.672l-1.748-1.75-3.378 3.378 1.748 1.75 3.378-3.378zm0-7.344l1.748 1.75 3.378-3.378-1.748-1.75-3.378 3.378zM7.376 13.92l-3.377-3.378 3.377-3.378 3.377 3.378-3.377 3.378zm4.624 4.624L10.252 16.8 12 18.548l1.748-1.748-1.748-1.748zM12 12l1.748 1.748L15.496 12l-1.748-1.748L12 12zM12 21.943l1.748-1.75L12 18.445l-1.748 1.748L12 21.943zm0-19.886l-1.748 1.75L12 5.555l1.748-1.748L12 2.057z"/>
+        <circle cx="12" cy="12" r="12" fill="#F0B90B" />
+        <path fill="black" d="M16.624 13.92l3.377-3.378-3.377-3.378-3.377 3.378 3.377 3.378zm-4.624-6.578L10.252 9.1 12 10.848l1.748-1.748-1.748-1.748zM12 15.672l-1.748-1.75-3.378 3.378 1.748 1.75 3.378-3.378zm0-7.344l1.748 1.75 3.378-3.378-1.748-1.75-3.378 3.378zM7.376 13.92l-3.377-3.378 3.377-3.378 3.377 3.378-3.377 3.378zm4.624 4.624L10.252 16.8 12 18.548l1.748-1.748-1.748-1.748zM12 12l1.748 1.748L15.496 12l-1.748-1.748L12 12zM12 21.943l1.748-1.75L12 18.445l-1.748 1.748L12 21.943zm0-19.886l-1.748 1.75L12 5.555l1.748-1.748L12 2.057z" />
     </svg>
 );
 export const KucoinLogo = ({ className = "w-8 h-8" }: { className?: string }) => (
@@ -29,34 +29,34 @@ export const KucoinLogo = ({ className = "w-8 h-8" }: { className?: string }) =>
 );
 export const AptosLogo = ({ className = "h-8 w-8" }: { className?: string }) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" stroke="currentColor" color="#000000" strokeWidth="1.5">
-        <path d="M7.75 2.5L2.5 7.75V16.25L7.75 21.5H16.25L21.5 16.25V7.75L16.25 2.5H7.75Z" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M12 7.75L17.25 16.25H6.75L12 7.75Z" strokeLinecap="round" strokeLinejoin="round"/>
-        <path d="M9.875 13.375H14.125" strokeLinecap="round" strokeLinejoin="round"/>
+        <path d="M7.75 2.5L2.5 7.75V16.25L7.75 21.5H16.25L21.5 16.25V7.75L16.25 2.5H7.75Z" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M12 7.75L17.25 16.25H6.75L12 7.75Z" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M9.875 13.375H14.125" strokeLinecap="round" strokeLinejoin="round" />
     </svg>
 );
 export const SeiLogo = ({ className = "h-8 w-8" }: { className?: string }) => (
-     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M4 12L12 4L20 12L12 20L4 12Z" fill="#9945FF"/>
+    <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M4 12L12 4L20 12L12 20L4 12Z" fill="#9945FF" />
     </svg>
 );
 export const SuiLogo = ({ className = "h-8 w-8" }: { className?: string }) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 2C6.48,2,2,6.48,2,12s4.48,10,10,10 10-4.48,10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" fill="#0288D1"/>
-        <path d="M12 7l-4 4h8l-4-4z" fill="#0288D1"/>
-        <path d="M12 17l4-4h-8l4 4z" fill="#0288D1"/>
+        <path d="M12 2C6.48,2,2,6.48,2,12s4.48,10,10,10 10-4.48,10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" fill="#0288D1" />
+        <path d="M12 7l-4 4h8l-4-4z" fill="#0288D1" />
+        <path d="M12 17l4-4h-8l4 4z" fill="#0288D1" />
     </svg>
 );
 
 // New logos for partners section
 export const InteractiveBrokersLogo = ({ className = "h-8 w-auto" }: { className?: string }) => (
     <svg className={className} viewBox="0 0 200 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-      <text x="0" y="15" fontFamily="Arial, sans-serif" fontSize="14" fontWeight="bold">InteractiveBrokers</text>
+        <text x="0" y="15" fontFamily="Arial, sans-serif" fontSize="14" fontWeight="bold">InteractiveBrokers</text>
     </svg>
 );
 
 export const CoinbaseLogo = ({ className = "h-8 w-auto" }: { className?: string }) => (
     <svg className={className} viewBox="0 0 110 18" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-      <text x="0" y="15" fontFamily="Arial, sans-serif" fontSize="16" fontWeight="bold">coinbase</text>
+        <text x="0" y="15" fontFamily="Arial, sans-serif" fontSize="16" fontWeight="bold">coinbase</text>
     </svg>
 );
 
@@ -67,31 +67,31 @@ export const BitfinexLogo = ({ className = "h-8 w-auto" }: { className?: string 
 );
 
 export const TradierLogo = ({ className = "h-8 w-auto" }: { className?: string }) => (
-     <svg className={className} viewBox="0 0 100 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <svg className={className} viewBox="0 0 100 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
         <text x="0" y="15" fontFamily="Arial, sans-serif" fontSize="16" fontWeight="bold">tradier</text>
     </svg>
 );
 
 export const TradingTechnologiesLogo = ({ className = "h-8 w-auto" }: { className?: string }) => (
-     <svg className={className} viewBox="0 0 200 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <svg className={className} viewBox="0 0 200 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
         <text x="0" y="15" fontFamily="Arial, sans-serif" fontSize="12" fontWeight="bold">TRADING TECHNOLOGIES</text>
     </svg>
 );
 
 export const TerminalLinkLogo = ({ className = "h-8 w-auto" }: { className?: string }) => (
-     <svg className={className} viewBox="0 0 150 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <svg className={className} viewBox="0 0 150 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
         <text x="0" y="15" fontFamily="Arial, sans-serif" fontSize="12" fontWeight="bold">TERMINAL LINK</text>
     </svg>
 );
 
 export const AlpacaLogo = ({ className = "h-8 w-auto" }: { className?: string }) => (
-     <svg className={className} viewBox="0 0 100 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <svg className={className} viewBox="0 0 100 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
         <text x="0" y="15" fontFamily="Arial, sans-serif" fontSize="16" fontWeight="bold">Alpaca</text>
     </svg>
 );
 
 export const TradeStationLogo = ({ className = "h-8 w-auto" }: { className?: string }) => (
-     <svg className={className} viewBox="0 0 150 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <svg className={className} viewBox="0 0 150 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
         <text x="0" y="15" fontFamily="Arial, sans-serif" fontSize="16" fontWeight="bold">TradeStation</text>
     </svg>
 );
@@ -104,25 +104,25 @@ export const CharlesSchwabLogo = ({ className = "h-8 w-auto" }: { className?: st
 );
 
 export const KrakenLogo = ({ className = "h-8 w-auto" }: { className?: string }) => (
-     <svg className={className} viewBox="0 0 100 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <svg className={className} viewBox="0 0 100 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
         <text x="0" y="15" fontFamily="Arial, sans-serif" fontSize="16" fontWeight="bold">kraken</text>
     </svg>
 );
 
 export const SscEzeLogo = ({ className = "h-8 w-auto" }: { className?: string }) => (
-     <svg className={className} viewBox="0 0 100 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <svg className={className} viewBox="0 0 100 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
         <text x="0" y="15" fontFamily="Arial, sans-serif" fontSize="16" fontWeight="bold">SS&C | EZE</text>
     </svg>
 );
 
 export const SamcoLogo = ({ className = "h-8 w-auto" }: { className?: string }) => (
-     <svg className={className} viewBox="0 0 100 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <svg className={className} viewBox="0 0 100 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
         <text x="0" y="15" fontFamily="Arial, sans-serif" fontSize="16" fontWeight="bold">SAMCO</text>
     </svg>
 );
 
 export const ZerodhaLogo = ({ className = "h-8 w-auto" }: { className?: string }) => (
-     <svg className={className} viewBox="0 0 100 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+    <svg className={className} viewBox="0 0 100 20" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
         <text x="0" y="15" fontFamily="Arial, sans-serif" fontSize="16" fontWeight="bold">ZERODHA</text>
     </svg>
 );
@@ -138,20 +138,20 @@ export const TdAmeritradeLogo = ({ className = "h-8 w-auto" }: { className?: str
 // Social Login Icons
 export const GoogleLogo = ({ className = "h-5 w-5" }: { className?: string }) => (
     <svg className={className} viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05"/>
-        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
+        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
     </svg>
 );
 export const GithubLogo = ({ className = "h-5 w-5" }: { className?: string }) => (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.91 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+        <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.91 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
     </svg>
 );
 export const AppleLogo = ({ className = "h-5 w-5" }: { className?: string }) => (
     <svg className={className} viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-        <path d="M15.228 15.352a2.333 2.333 0 01-.873.111c-.927 0-1.613-.533-2.347-1.6-.733-1.067-1.28-2.427-1.64-4.08h.027c.907.027 1.947-.4 2.827-1.12.827-.667 1.293-1.493 1.4-2.48h.026c-.453 1.04-.32 2.213.4 3.52.333.613.787 1.213 1.36 1.8.187-.107.4-.2.64-.28a.42.42 0 00.107-.213c-.08-.027-.187-.053-.32-.08a1.294 1.294 0 00-.586-.107c-1.147 0-2.147.533-3 1.6zm-3.36-4.48c.107.027.213.04.32.04.053 0 .107-.013.16-.04.48-.107.88-.307 1.2-.613.293-.294.507-.693.64-1.174-.133-.027-.267-.04-.4-.04-.987 0-1.84.453-2.56 1.36-.027.026-.08.066-.16.12-.24.16-.427.266-.56.32a.16.16 0 00-.053.106c.053.027.107.027.16.027zM12.001 0C10.2 0 8.561.427 7.081 1.28a6.38 6.38 0 00-2.72 2.72C3.5 5.467 3.074 7.107 3.074 8.907c0 1.546.334 2.986.974 4.32.64 1.333 1.546 2.413 2.72 3.24.053 0 .08-.027.08-.08a.19.19 0 00-.08-.16c-.16-.08-.347-.187-.56-.32a.57.57 0 01-.267-.427c0-.106.027-.213.08-.32.053-.106.133-.213.24-.32.053-.053.107-.106.16-.16.053-.053.107-.093.16-.133.453-.347.88-.587 1.28-.72.4-.133.8-.2 1.2-.2H12a2.44 2.44 0 01.666-.08c.507-.053.987-.2 1.44-.453.453-.253.84-.573 1.16-.96.32-.387.56-.813.72-1.28.16-.467.24-.96.24-1.48 0-1.8-1.013-3.32-3.04-4.56a4.42 4.42 0 00-1.2-2.346C13.28 1.467 12.08 1.2 10.76 1.12a.304.304 0 00-.187-.026A3.483 3.483 0 008.4 1.627a.122.122 0 01-.133.026c.267-.213.56-.373.88-.48a2.6 2.6 0 011.013-.16c.347 0 .68.053 1 .16s.613.267.88.48c.267.213.48.48.64.8s.24.68.24 1.067c0 .346-.053.68-.16.986a1.6 1.6 0 01-.48.747c-.24.213-.533.36-.88.44-.347.08-.72.12-1.12.12-.133 0-.267 0-.4-.027a.2.2 0 00-.134.027c.054.08.08.133.08.16a.42.42 0 01-.133.32c-.107.08-.24.12-.4.12s-.293-.04-.4-.12a.42.42 0 01-.133-.32c0-.027.026-.08.08-.16a.2.2 0 00-.133-.027c-.134.027-.267.027-.4.027-.347 0-.68-.053-1-.16a2.027 2.027 0 01-.88-.48c-.267-.213-.48-.48-.64-.8a2.12 2.12 0 01-.24-1.067c0-.347.053-.68.16-1a1.693 1.693 0 01.48-.746c.24-.214.533-.36.88-.44.346-.08.72-.12 1.12-.12h.026a.204.204 0 00.134-.027c.053-.08.08-.133.08-.16a.42.42 0 01-.133-.32.42.42 0 01.133-.32c.107-.08.24-.12.4-.12s.293.04.4.12a.42.42 0 01.133.32c0 .027-.027.08-.08.16a.2.2 0 00.133.027c.107 0 .214.013.32.04zm-.347 16.426a4.42 4.42 0 003.147-1.306c.72-.747 1.253-1.667 1.6-2.76.346-1.093.52-2.266.52-3.52 0-.613-.08-1.213-.24-1.813a.14.14 0 00-.16-.106c-1.067.453-1.92.973-2.56 1.56-.64.587-1.12 1.28-1.44 2.08-.32.8-.48 1.68-.48 2.64 0 1.2.226 2.293.666 3.28z"/>
+        <path d="M15.228 15.352a2.333 2.333 0 01-.873.111c-.927 0-1.613-.533-2.347-1.6-.733-1.067-1.28-2.427-1.64-4.08h.027c.907.027 1.947-.4 2.827-1.12.827-.667 1.293-1.493 1.4-2.48h.026c-.453 1.04-.32 2.213.4 3.52.333.613.787 1.213 1.36 1.8.187-.107.4-.2.64-.28a.42.42 0 00.107-.213c-.08-.027-.187-.053-.32-.08a1.294 1.294 0 00-.586-.107c-1.147 0-2.147.533-3 1.6zm-3.36-4.48c.107.027.213.04.32.04.053 0 .107-.013.16-.04.48-.107.88-.307 1.2-.613.293-.294.507-.693.64-1.174-.133-.027-.267-.04-.4-.04-.987 0-1.84.453-2.56 1.36-.027.026-.08.066-.16.12-.24.16-.427.266-.56.32a.16.16 0 00-.053.106c.053.027.107.027.16.027zM12.001 0C10.2 0 8.561.427 7.081 1.28a6.38 6.38 0 00-2.72 2.72C3.5 5.467 3.074 7.107 3.074 8.907c0 1.546.334 2.986.974 4.32.64 1.333 1.546 2.413 2.72 3.24.053 0 .08-.027.08-.08a.19.19 0 00-.08-.16c-.16-.08-.347-.187-.56-.32a.57.57 0 01-.267-.427c0-.106.027-.213.08-.32.053-.106.133-.213.24-.32.053-.053.107-.106.16-.16.053-.053.107-.093.16-.133.453-.347.88-.587 1.28-.72.4-.133.8-.2 1.2-.2H12a2.44 2.44 0 01.666-.08c.507-.053.987-.2 1.44-.453.453-.253.84-.573 1.16-.96.32-.387.56-.813.72-1.28.16-.467.24-.96.24-1.48 0-1.8-1.013-3.32-3.04-4.56a4.42 4.42 0 00-1.2-2.346C13.28 1.467 12.08 1.2 10.76 1.12a.304.304 0 00-.187-.026A3.483 3.483 0 008.4 1.627a.122.122 0 01-.133.026c.267-.213.56-.373.88-.48a2.6 2.6 0 011.013-.16c.347 0 .68.053 1 .16s.613.267.88.48c.267.213.48.48.64.8s.24.68.24 1.067c0 .346-.053.68-.16.986a1.6 1.6 0 01-.48.747c-.24.213-.533.36-.88.44-.347.08-.72.12-1.12.12-.133 0-.267 0-.4-.027a.2.2 0 00-.134.027c.054.08.08.133.08.16a.42.42 0 01-.133.32c-.107.08-.24.12-.4.12s-.293-.04-.4-.12a.42.42 0 01-.133-.32c0-.027.026-.08.08-.16a.2.2 0 00-.133-.027c-.134.027-.267.027-.4.027-.347 0-.68-.053-1-.16a2.027 2.027 0 01-.88-.48c-.267-.213-.48-.48-.64-.8a2.12 2.12 0 01-.24-1.067c0-.347.053-.68.16-1a1.693 1.693 0 01.48-.746c.24-.214.533-.36.88-.44.346-.08.72-.12 1.12-.12h.026a.204.204 0 00.134-.027c.053-.08.08-.133.08-.16a.42.42 0 01-.133-.32.42.42 0 01.133-.32c.107-.08.24-.12.4-.12s.293.04.4.12a.42.42 0 01.133.32c0 .027-.027.08-.08.16a.2.2 0 00.133.027c.107 0 .214.013.32.04zm-.347 16.426a4.42 4.42 0 003.147-1.306c.72-.747 1.253-1.667 1.6-2.76.346-1.093.52-2.266.52-3.52 0-.613-.08-1.213-.24-1.813a.14.14 0 00-.16-.106c-1.067.453-1.92.973-2.56 1.56-.64.587-1.12 1.28-1.44 2.08-.32.8-.48 1.68-.48 2.64 0 1.2.226 2.293.666 3.28z" />
     </svg>
 );
 
@@ -163,39 +163,45 @@ export const CoinMarketCapLogo = ({ className = "h-8 w-auto" }: { className?: st
 
 export const PolkadotLogo = ({ className = "h-6 w-6" }: { className?: string }) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="12" cy="12" r="10" fill="#E6007A"/>
-        <circle cx="12" cy="6" r="2" fill="white"/>
-        <circle cx="12" cy="18" r="2" fill="white"/>
-        <circle cx="6" cy="12" r="2" fill="white"/>
-        <circle cx="18" cy="12" r="2" fill="white"/>
+        <circle cx="12" cy="12" r="10" fill="#E6007A" />
+        <circle cx="12" cy="6" r="2" fill="white" />
+        <circle cx="12" cy="18" r="2" fill="white" />
+        <circle cx="6" cy="12" r="2" fill="white" />
+        <circle cx="18" cy="12" r="2" fill="white" />
     </svg>
 );
 
 export const ChainlinkLogo = ({ className = "h-6 w-6" }: { className?: string }) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <path d="M4.68 13.39L8.2 9.87a3 3 0 014.24 0l2.12 2.12-4.24 4.24a3 3 0 01-4.24 0l-.36-.36z" fill="#375BD2"/>
-        <path d="M19.32 10.61l-3.52 3.52a3 3 0 01-4.24 0L9.44 12l4.24-4.24a3 3 0 014.24 0l1.4 1.4z" fill="#375BD2"/>
+        <path d="M4.68 13.39L8.2 9.87a3 3 0 014.24 0l2.12 2.12-4.24 4.24a3 3 0 01-4.24 0l-.36-.36z" fill="#375BD2" />
+        <path d="M19.32 10.61l-3.52 3.52a3 3 0 01-4.24 0L9.44 12l4.24-4.24a3 3 0 014.24 0l1.4 1.4z" fill="#375BD2" />
+    </svg>
+);
+
+export const MailIcon = ({ className = "w-6 h-6" }: { className?: string }) => (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 00-2-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
     </svg>
 );
 
 
 export const MOCK_ASSETS: Asset[] = [
-  { id: '1', name: 'Bitcoin', symbol: 'BTC', logo: <BtcLogo />, amount: 0.5, price: 68000, value: 34000, price24h: 67500, history: [{time: 'Jan', value: 21000}, {time: 'Feb', value: 25000}, {time: 'Mar', value: 30000}, {time: 'Apr', value: 28000}, {time: 'May', value: 32000}, {time: 'Jun', value: 34000}] },
-  { id: '2', name: 'Ethereum', symbol: 'ETH', logo: <EthLogo />, amount: 10, price: 3500, value: 35000, price24h: 3550, history: [{time: 'Jan', value: 20000}, {time: 'Feb', value: 22000}, {time: 'Mar', value: 28000}, {time: 'Apr', value: 27000}, {time: 'May', value: 33000}, {time: 'Jun', value: 35000}] },
-  { id: '3', name: 'Solana', symbol: 'SOL', logo: <SolLogo />, amount: 150, price: 170, value: 25500, price24h: 165, history: [{time: 'Jan', value: 15000}, {time: 'Feb', value: 18000}, {time: 'Mar', value: 22000}, {time: 'Apr', value: 20000}, {time: 'May', value: 26000}, {time: 'Jun', value: 25500}] },
-  { id: '4', name: 'Tether', symbol: 'USDT', logo: <UsdtLogo />, amount: 5000, price: 1, value: 5000, price24h: 1, history: [{time: 'Jan', value: 5000}, {time: 'Feb', value: 5000}, {time: 'Mar', value: 5000}, {time: 'Apr', value: 5000}, {time: 'May', value: 5000}, {time: 'Jun', value: 5000}] },
+    { id: '1', name: 'Bitcoin', symbol: 'BTC', logo: <BtcLogo />, amount: 0.5, price: 68000, value: 34000, price24h: 67500, history: [{ time: 'Jan', value: 21000 }, { time: 'Feb', value: 25000 }, { time: 'Mar', value: 30000 }, { time: 'Apr', value: 28000 }, { time: 'May', value: 32000 }, { time: 'Jun', value: 34000 }] },
+    { id: '2', name: 'Ethereum', symbol: 'ETH', logo: <EthLogo />, amount: 10, price: 3500, value: 35000, price24h: 3550, history: [{ time: 'Jan', value: 20000 }, { time: 'Feb', value: 22000 }, { time: 'Mar', value: 28000 }, { time: 'Apr', value: 27000 }, { time: 'May', value: 33000 }, { time: 'Jun', value: 35000 }] },
+    { id: '3', name: 'Solana', symbol: 'SOL', logo: <SolLogo />, amount: 150, price: 170, value: 25500, price24h: 165, history: [{ time: 'Jan', value: 15000 }, { time: 'Feb', value: 18000 }, { time: 'Mar', value: 22000 }, { time: 'Apr', value: 20000 }, { time: 'May', value: 26000 }, { time: 'Jun', value: 25500 }] },
+    { id: '4', name: 'Tether', symbol: 'USDT', logo: <UsdtLogo />, amount: 5000, price: 1, value: 5000, price24h: 1, history: [{ time: 'Jan', value: 5000 }, { time: 'Feb', value: 5000 }, { time: 'Mar', value: 5000 }, { time: 'Apr', value: 5000 }, { time: 'May', value: 5000 }, { time: 'Jun', value: 5000 }] },
 ];
 
 export const MOCK_ACTIVE_BOTS: ActiveBot[] = [
-  { id: '1', name: 'ETH Momentum Bot', market: 'ETH/USDT', strategy: 'RSI Crossover', pnl: 1250.75, pnlPercent: 12.5, status: 'active', isRegimeAware: true, regimeStrategies: { 'Bull Volatile': 'Momentum Long', 'Ranging': 'Grid Trading', 'Bear Stable': 'Mean Reversion Short' }, sentimentScore: 0.65 },
-  { id: '2', name: 'BTC Trend Follower', market: 'BTC/USDT', strategy: 'MACD Crossover', pnl: -340.50, pnlPercent: -3.4, status: 'active', sentimentScore: -0.21 },
-  { id: '3', name: 'SOL Scalper', market: 'SOL/USDT', strategy: 'EMA Crossover', pnl: 880.00, pnlPercent: 8.8, status: 'active', sentimentScore: 0.15 },
-  { id: '4', name: 'BTC LSTM Predictor', market: 'BTC/USDT', strategy: 'Custom ML Model', pnl: 450.20, pnlPercent: 4.5, status: 'active', customModelId: '1', sentimentScore: 0.05 },
+    { id: '1', name: 'ETH Momentum Bot', market: 'ETH/USDT', strategy: 'RSI Crossover', pnl: 1250.75, pnlPercent: 12.5, status: 'active', isRegimeAware: true, regimeStrategies: { 'Bull Volatile': 'Momentum Long', 'Ranging': 'Grid Trading', 'Bear Stable': 'Mean Reversion Short' }, sentimentScore: 0.65 },
+    { id: '2', name: 'BTC Trend Follower', market: 'BTC/USDT', strategy: 'MACD Crossover', pnl: -340.50, pnlPercent: -3.4, status: 'active', sentimentScore: -0.21 },
+    { id: '3', name: 'SOL Scalper', market: 'SOL/USDT', strategy: 'EMA Crossover', pnl: 880.00, pnlPercent: 8.8, status: 'active', sentimentScore: 0.15 },
+    { id: '4', name: 'BTC LSTM Predictor', market: 'BTC/USDT', strategy: 'Custom ML Model', pnl: 450.20, pnlPercent: 4.5, status: 'active', customModelId: '1', sentimentScore: 0.05 },
 ];
 
 export const MOCK_BACKTEST_RESULTS: BacktestResult[] = [
-  { id: '1', market: 'BTC/USDT', strategy: 'RSI Crossover', timeframe: '4h', date: '2023-10-22', profitPercent: 52.4, maxDrawdown: 5.19, winRate: 62.5, sharpeRatio: 1.8 },
-  { id: '2', market: 'ETH/USDT', strategy: 'MACD Crossover', timeframe: '1h', date: '2023-10-21', profitPercent: 88.9, maxDrawdown: 25.1, winRate: 55.0, sharpeRatio: 1.2 },
+    { id: '1', market: 'BTC/USDT', strategy: 'RSI Crossover', timeframe: '4h', date: '2023-10-22', profitPercent: 52.4, maxDrawdown: 5.19, winRate: 62.5, sharpeRatio: 1.8 },
+    { id: '2', market: 'ETH/USDT', strategy: 'MACD Crossover', timeframe: '1h', date: '2023-10-21', profitPercent: 88.9, maxDrawdown: 25.1, winRate: 55.0, sharpeRatio: 1.2 },
 ];
 
 export const MOCK_STRATEGIES = [
@@ -215,101 +221,101 @@ export const MOCK_STRATEGIES = [
 ];
 
 export const MOCK_STRATEGY_PARAMS: Record<string, Record<string, { label: string; type: string; defaultValue: number; min?: number; max?: number; step?: number }>> = {
-  'RSI Crossover': {
-    period: { label: 'RSI Period', type: 'number', defaultValue: 14, min: 2, max: 50, step: 1 },
-    overbought: { label: 'Overbought Threshold', type: 'number', defaultValue: 70, min: 50, max: 100, step: 1 },
-    oversold: { label: 'Oversold Threshold', type: 'number', defaultValue: 30, min: 0, max: 50, step: 1 },
-  },
-  'MACD Crossover': {
-    fastPeriod: { label: 'Fast EMA Period', type: 'number', defaultValue: 12, min: 2, max: 50, step: 1 },
-    slowPeriod: { label: 'Slow EMA Period', type: 'number', defaultValue: 26, min: 10, max: 100, step: 1 },
-    signalPeriod: { label: 'Signal Line Period', type: 'number', defaultValue: 9, min: 2, max: 50, step: 1 },
-  },
-  'EMA Crossover': {
-    shortPeriod: { label: 'Short EMA Period', type: 'number', defaultValue: 9, min: 2, max: 50, step: 1 },
-    longPeriod: { label: 'Long EMA Period', type: 'number', defaultValue: 21, min: 10, max: 100, step: 1 },
-  },
-  'SMA Crossover': {
-    shortPeriod: { label: 'Short SMA Period', type: 'number', defaultValue: 20, min: 5, max: 100, step: 1 },
-    longPeriod: { label: 'Long SMA Period', type: 'number', defaultValue: 50, min: 20, max: 200, step: 1 },
-  },
-  'Bollinger Bands': {
-    period: { label: 'Lookback Period', type: 'number', defaultValue: 20, min: 5, max: 100, step: 1 },
-    stdDev: { label: 'Standard Deviations', type: 'number', defaultValue: 2, min: 1, max: 4, step: 0.1 },
-  },
-  'Stochastic Oscillator': {
-    kPeriod: { label: '%K Period', type: 'number', defaultValue: 14, min: 5, max: 50, step: 1 },
-    slowingK: { label: 'Slowing %K Period', type: 'number', defaultValue: 3, min: 1, max: 20, step: 1 },
-    dPeriod: { label: '%D Period', type: 'number', defaultValue: 3, min: 1, max: 20, step: 1 },
-    overbought: { label: 'Overbought Threshold', type: 'number', defaultValue: 80, min: 50, max: 100, step: 1 },
-    oversold: { label: 'Oversold Threshold', type: 'number', defaultValue: 20, min: 0, max: 50, step: 1 },
-  },
-  'Supertrend': {
-    atrPeriod: { label: 'ATR Period', type: 'number', defaultValue: 10, min: 5, max: 50, step: 1 },
-    factor: { label: 'ATR Factor', type: 'number', defaultValue: 3, min: 1, max: 10, step: 0.5 },
-  },
-  'OBV': {
-      maPeriod: { label: 'OBV MA Period', type: 'number', defaultValue: 20, min: 5, max: 100, step: 1 },
-  },
-  'Grid Trading': {
-      upperBound: { label: 'Upper Bound', type: 'number', defaultValue: 70000, step: 100 },
-      lowerBound: { label: 'Lower Bound', type: 'number', defaultValue: 65000, step: 100 },
-      grids: { label: 'Number of Grids', type: 'number', defaultValue: 10, min: 2, max: 100, step: 1 },
-  },
-  'Momentum Long': {
-      period: { label: 'Lookback Period', type: 'number', defaultValue: 20, min: 5, max: 100, step: 1 },
-      threshold: { label: 'Momentum Threshold %', type: 'number', defaultValue: 2, min: 1, max: 10, step: 0.5 },
-  },
-  'Mean Reversion Short': {
-      period: { label: 'Lookback Period', type: 'number', defaultValue: 20, min: 5, max: 100, step: 1 },
-      stdDev: { label: 'Std. Deviations', type: 'number', defaultValue: 2, min: 1, max: 4, step: 0.1 },
-  },
-  'Custom ML Model': {},
-  'Upload Custom Strategy': {},
+    'RSI Crossover': {
+        period: { label: 'RSI Period', type: 'number', defaultValue: 14, min: 2, max: 50, step: 1 },
+        overbought: { label: 'Overbought Threshold', type: 'number', defaultValue: 70, min: 50, max: 100, step: 1 },
+        oversold: { label: 'Oversold Threshold', type: 'number', defaultValue: 30, min: 0, max: 50, step: 1 },
+    },
+    'MACD Crossover': {
+        fastPeriod: { label: 'Fast EMA Period', type: 'number', defaultValue: 12, min: 2, max: 50, step: 1 },
+        slowPeriod: { label: 'Slow EMA Period', type: 'number', defaultValue: 26, min: 10, max: 100, step: 1 },
+        signalPeriod: { label: 'Signal Line Period', type: 'number', defaultValue: 9, min: 2, max: 50, step: 1 },
+    },
+    'EMA Crossover': {
+        shortPeriod: { label: 'Short EMA Period', type: 'number', defaultValue: 9, min: 2, max: 50, step: 1 },
+        longPeriod: { label: 'Long EMA Period', type: 'number', defaultValue: 21, min: 10, max: 100, step: 1 },
+    },
+    'SMA Crossover': {
+        shortPeriod: { label: 'Short SMA Period', type: 'number', defaultValue: 20, min: 5, max: 100, step: 1 },
+        longPeriod: { label: 'Long SMA Period', type: 'number', defaultValue: 50, min: 20, max: 200, step: 1 },
+    },
+    'Bollinger Bands': {
+        period: { label: 'Lookback Period', type: 'number', defaultValue: 20, min: 5, max: 100, step: 1 },
+        stdDev: { label: 'Standard Deviations', type: 'number', defaultValue: 2, min: 1, max: 4, step: 0.1 },
+    },
+    'Stochastic Oscillator': {
+        kPeriod: { label: '%K Period', type: 'number', defaultValue: 14, min: 5, max: 50, step: 1 },
+        slowingK: { label: 'Slowing %K Period', type: 'number', defaultValue: 3, min: 1, max: 20, step: 1 },
+        dPeriod: { label: '%D Period', type: 'number', defaultValue: 3, min: 1, max: 20, step: 1 },
+        overbought: { label: 'Overbought Threshold', type: 'number', defaultValue: 80, min: 50, max: 100, step: 1 },
+        oversold: { label: 'Oversold Threshold', type: 'number', defaultValue: 20, min: 0, max: 50, step: 1 },
+    },
+    'Supertrend': {
+        atrPeriod: { label: 'ATR Period', type: 'number', defaultValue: 10, min: 5, max: 50, step: 1 },
+        factor: { label: 'ATR Factor', type: 'number', defaultValue: 3, min: 1, max: 10, step: 0.5 },
+    },
+    'OBV': {
+        maPeriod: { label: 'OBV MA Period', type: 'number', defaultValue: 20, min: 5, max: 100, step: 1 },
+    },
+    'Grid Trading': {
+        upperBound: { label: 'Upper Bound', type: 'number', defaultValue: 70000, step: 100 },
+        lowerBound: { label: 'Lower Bound', type: 'number', defaultValue: 65000, step: 100 },
+        grids: { label: 'Number of Grids', type: 'number', defaultValue: 10, min: 2, max: 100, step: 1 },
+    },
+    'Momentum Long': {
+        period: { label: 'Lookback Period', type: 'number', defaultValue: 20, min: 5, max: 100, step: 1 },
+        threshold: { label: 'Momentum Threshold %', type: 'number', defaultValue: 2, min: 1, max: 10, step: 0.5 },
+    },
+    'Mean Reversion Short': {
+        period: { label: 'Lookback Period', type: 'number', defaultValue: 20, min: 5, max: 100, step: 1 },
+        stdDev: { label: 'Std. Deviations', type: 'number', defaultValue: 2, min: 1, max: 4, step: 0.1 },
+    },
+    'Custom ML Model': {},
+    'Upload Custom Strategy': {},
 };
 
 export const MOCK_STRATEGY_TEMPLATES: StrategyTemplate[] = [
-  {
-    name: 'RSI Crossover',
-    title: 'RSI Momentum',
-    description: 'A classic mean-reversion strategy. Buys when RSI enters the oversold territory and sells when it enters the overbought territory. Good for ranging markets.',
-    tags: ['Mean Reversion', 'Oscillator', 'Ranging Market'],
-  },
-  {
-    name: 'MACD Crossover',
-    title: 'MACD Trend Following',
-    description: 'A trend-following strategy that buys when the MACD line crosses above the signal line, and sells when it crosses below. Aims to capture sustained trends.',
-    tags: ['Trend Following', 'Momentum', 'Trending Market'],
-  },
-  {
-    name: 'EMA Crossover',
-    title: 'Golden/Death Cross',
-    description: 'Uses two Exponential Moving Averages (a short-period and a long-period). A buy signal is generated on a "golden cross" (short EMA crosses above long EMA), and a sell on a "death cross".',
-    tags: ['Trend Following', 'Moving Average'],
-  },
-  {
-    name: 'Bollinger Bands',
-    title: 'Bollinger Bands Mean Reversion',
-    description: 'Trades on the assumption that price will revert to the mean. It sells when price hits the upper Bollinger Band and buys when it hits the lower band.',
-    tags: ['Mean Reversion', 'Volatility', 'Ranging Market'],
-  },
-   {
-    name: 'Supertrend',
-    title: 'Supertrend Follower',
-    description: 'A straightforward trend-following indicator. It plots a line on the chart that flips above or below the price to signal changes in trend direction.',
-    tags: ['Trend Following', 'Volatility'],
-  },
+    {
+        name: 'RSI Crossover',
+        title: 'RSI Momentum',
+        description: 'A classic mean-reversion strategy. Buys when RSI enters the oversold territory and sells when it enters the overbought territory. Good for ranging markets.',
+        tags: ['Mean Reversion', 'Oscillator', 'Ranging Market'],
+    },
+    {
+        name: 'MACD Crossover',
+        title: 'MACD Trend Following',
+        description: 'A trend-following strategy that buys when the MACD line crosses above the signal line, and sells when it crosses below. Aims to capture sustained trends.',
+        tags: ['Trend Following', 'Momentum', 'Trending Market'],
+    },
+    {
+        name: 'EMA Crossover',
+        title: 'Golden/Death Cross',
+        description: 'Uses two Exponential Moving Averages (a short-period and a long-period). A buy signal is generated on a "golden cross" (short EMA crosses above long EMA), and a sell on a "death cross".',
+        tags: ['Trend Following', 'Moving Average'],
+    },
+    {
+        name: 'Bollinger Bands',
+        title: 'Bollinger Bands Mean Reversion',
+        description: 'Trades on the assumption that price will revert to the mean. It sells when price hits the upper Bollinger Band and buys when it hits the lower band.',
+        tags: ['Mean Reversion', 'Volatility', 'Ranging Market'],
+    },
+    {
+        name: 'Supertrend',
+        title: 'Supertrend Follower',
+        description: 'A straightforward trend-following indicator. It plots a line on the chart that flips above or below the price to signal changes in trend direction.',
+        tags: ['Trend Following', 'Volatility'],
+    },
 ];
 
 
 export const PORTFOLIO_VALUE_DATA = [
-  { name: 'Jan', value: 65000 }, { name: 'Feb', value: 71000 }, { name: 'Mar', value: 82000 },
-  { name: 'Apr', value: 78000 }, { name: 'May', value: 95000 }, { name: 'Jun', value: 105000 },
+    { name: 'Jan', value: 65000 }, { name: 'Feb', value: 71000 }, { name: 'Mar', value: 82000 },
+    { name: 'Apr', value: 78000 }, { name: 'May', value: 95000 }, { name: 'Jun', value: 105000 },
 ];
 
 export const PORTFOLIO_ALLOCATION_DATA = [
-  { name: 'Bitcoin', value: 34000 }, { name: 'Ethereum', value: 35000 },
-  { name: 'Solana', value: 25500 }, { name: 'Cash', value: 5000 },
+    { name: 'Bitcoin', value: 34000 }, { name: 'Ethereum', value: 35000 },
+    { name: 'Solana', value: 25500 }, { name: 'Cash', value: 5000 },
 ];
 
 export const EQUITY_CURVE_DATA = [
@@ -325,30 +331,30 @@ export const EQUITY_CURVE_DATA = [
 ];
 
 export const PRICING_TIERS: PricingTier[] = [
-  {
-    name: "Hobbyist",
-    price: "Free",
-    priceUnit: "",
-    features: ["1 Connected Exchange", "10 Backtests/month", "1 Active Bot (pre-made)", "Portfolio Tracking"],
-    cta: "Start for Free",
-    isFeatured: false,
-  },
-  {
-    name: "Pro Trader",
-    price: "$49",
-    priceUnit: "/ mo",
-    features: ["5 Connected Exchanges", "Unlimited Backtests", "10 Active Bots (custom)", "Advanced Analytics"],
-    cta: "Go Pro",
-    isFeatured: true,
-  },
-  {
-    name: "Enterprise",
-    price: "Contact Us",
-    priceUnit: "",
-    features: ["Everything in Pro", "Custom-built trading algorithms", "Personal consultation", "Dedicated support"],
-    cta: "Contact Sales",
-    isFeatured: false,
-  }
+    {
+        name: "Hobbyist",
+        price: "Free",
+        priceUnit: "",
+        features: ["1 Connected Exchange", "10 Backtests/month", "1 Active Bot (pre-made)", "Portfolio Tracking"],
+        cta: "Start for Free",
+        isFeatured: false,
+    },
+    {
+        name: "Pro Trader",
+        price: "$49",
+        priceUnit: "/ mo",
+        features: ["5 Connected Exchanges", "Unlimited Backtests", "10 Active Bots (custom)", "Advanced Analytics"],
+        cta: "Go Pro",
+        isFeatured: true,
+    },
+    {
+        name: "Enterprise",
+        price: "Contact Us",
+        priceUnit: "",
+        features: ["Everything in Pro", "Custom-built trading algorithms", "Personal consultation", "Dedicated support"],
+        cta: "Contact Sales",
+        isFeatured: false,
+    }
 ];
 
 // Candlestick chart data
@@ -403,7 +409,7 @@ export const generatePriceDataForSentiment = (sentimentData: SentimentData[], in
         const randomWalk = (Math.random() - 0.5) * volatility;
         const newPrice = lastPrice + sentimentInfluence + randomWalk;
         // Ensure price doesn't go below a reasonable threshold (e.g., 0)
-        lastPrice = newPrice > 0 ? newPrice : lastPrice; 
+        lastPrice = newPrice > 0 ? newPrice : lastPrice;
         return { time: sentimentPoint.time, price: lastPrice };
     });
 };
@@ -477,7 +483,7 @@ export const generateOnChainMetricData = (numPoints: number, startValue: number,
     for (let i = 0; i < numPoints; i++) {
         let change = (Math.random() - 0.5) * volatility;
         if (!canBeNegative) {
-             change = (Math.random() - 0.45) * volatility; // Skew towards positive
+            change = (Math.random() - 0.45) * volatility; // Skew towards positive
         }
         let newValue = lastValue + change + trend;
         if (!canBeNegative) {
@@ -546,9 +552,9 @@ export const generateRegimeData = (numPoints: number): RegimeDataPoint[] => {
         if (i > 0 && i % 20 === 0) {
             currentRegime = regimes[Math.floor(Math.random() * regimes.length)];
         }
-        
+
         let priceChange = 0;
-        switch(currentRegime) {
+        switch (currentRegime) {
             case 'Bull Volatile': priceChange = (Math.random() - 0.4) * 1000; break;
             case 'Bull Stable': priceChange = (Math.random() - 0.3) * 300; break;
             case 'Bear Volatile': priceChange = (Math.random() - 0.6) * 1000; break;
@@ -579,7 +585,7 @@ export const MOCK_CORRELATION_MATRIX = {
 const generateSpreadHistory = (numPoints: number, mean: number, stdDev: number, currentZ: number): { time: number; value: number }[] => {
     const data = [];
     let currentTime = new Date().getTime() - numPoints * 60 * 60 * 1000;
-    for(let i = 0; i < numPoints - 1; i++) {
+    for (let i = 0; i < numPoints - 1; i++) {
         const value = mean + (Math.random() - 0.5) * stdDev * 3;
         data.push({ time: currentTime, value });
         currentTime += 60 * 60 * 1000;
@@ -1037,77 +1043,77 @@ export const MOCK_RESEARCH_REPORTS: Record<string, ResearchReport[]> = {
 
 // MOCK DATA FOR INSTITUTIONAL HOLDINGS
 export const MOCK_GURUS = [
-  { id: 'berkshire', name: 'Berkshire Hathaway', manager: 'Warren Buffett', portfolioValue: 313_000_000_000, stockCount: 41, latestFiling: '2023-11-14' },
-  { id: 'ark', name: 'ARK Investment Management', manager: 'Cathie Wood', portfolioValue: 15_000_000_000, stockCount: 35, latestFiling: '2023-11-14' },
+    { id: 'berkshire', name: 'Berkshire Hathaway', manager: 'Warren Buffett', portfolioValue: 313_000_000_000, stockCount: 41, latestFiling: '2023-11-14' },
+    { id: 'ark', name: 'ARK Investment Management', manager: 'Cathie Wood', portfolioValue: 15_000_000_000, stockCount: 35, latestFiling: '2023-11-14' },
 ];
 
 export const MOCK_HOLDINGS: Record<string, Holding[]> = {
-  berkshire: [
-    { 
-      ticker: 'AAPL', company: 'Apple Inc.', shares: 915560382, marketValue: 156760000000, portfolioPercentage: 50.08, action: 'Hold', change: 0,
-      history: [
-        { quarter: 'Q3 2022', shares: 890923366, action: 'Hold' },
-        { quarter: 'Q4 2022', shares: 895136175, action: 'Added' },
-        { quarter: 'Q1 2023', shares: 915560382, action: 'Added' },
-        { quarter: 'Q2 2023', shares: 915560382, action: 'Hold' },
-      ]
-    },
-    { 
-      ticker: 'BAC', company: 'Bank of America Corp', shares: 1032852006, marketValue: 28300000000, portfolioPercentage: 9.04, action: 'Hold', change: 0,
-      history: [
-        { quarter: 'Q3 2022', shares: 1020100606, action: 'Hold' },
-        { quarter: 'Q4 2022', shares: 1010100606, action: 'Reduced' },
-        { quarter: 'Q1 2023', shares: 1032852006, action: 'Hold' },
-        { quarter: 'Q2 2023', shares: 1032852006, action: 'Hold' },
-      ]
-    },
-    { ticker: 'AXP', company: 'American Express Co', shares: 151610700, marketValue: 22890000000, portfolioPercentage: 7.31, action: 'Hold', change: 0, history: [] },
-    { ticker: 'KO', company: 'Coca-Cola Co', shares: 400000000, marketValue: 22400000000, portfolioPercentage: 7.16, action: 'Hold', change: 0, history: [] },
-    { ticker: 'CVX', company: 'Chevron Corp', shares: 110257182, marketValue: 18600000000, portfolioPercentage: 5.94, action: 'Reduced', change: -14238572, history: [] },
-    { ticker: 'OXY', company: 'Occidental Petroleum', shares: 224129192, marketValue: 13900000000, portfolioPercentage: 4.44, action: 'Added', change: 12431231, history: [] },
-  ],
-  ark: [
-    { 
-      ticker: 'COIN', company: 'Coinbase Global Inc', shares: 8370000, marketValue: 1190000000, portfolioPercentage: 7.93, action: 'Added', change: 489768,
-      history: [
-        { quarter: 'Q3 2022', shares: 7500000, action: 'Hold' },
-        { quarter: 'Q4 2022', shares: 7800000, action: 'Added' },
-        { quarter: 'Q1 2023', shares: 7880232, action: 'Added' },
-        { quarter: 'Q2 2023', shares: 8370000, action: 'Added' },
-      ]
-    },
-    { 
-      ticker: 'TSLA', company: 'Tesla Inc', shares: 4890000, marketValue: 1180000000, portfolioPercentage: 7.86, action: 'Reduced', change: -56245,
-      history: [
-        { quarter: 'Q3 2022', shares: 5800000, action: 'Reduced' },
-        { quarter: 'Q4 2022', shares: 5500000, action: 'Reduced' },
-        { quarter: 'Q1 2023', shares: 4946245, action: 'Reduced' },
-        { quarter: 'Q2 2023', shares: 4890000, action: 'Reduced' },
-      ]
-    },
-    { ticker: 'ROKU', company: 'Roku Inc', shares: 10450000, marketValue: 978000000, portfolioPercentage: 6.52, action: 'Hold', change: 0, history: [] },
-    { ticker: 'U', company: 'Unity Software Inc', shares: 26390000, marketValue: 792000000, portfolioPercentage: 5.28, action: 'Added', change: 1203941, history: [] },
-    { ticker: 'ZM', company: 'Zoom Video Communications', shares: 11460000, marketValue: 778000000, portfolioPercentage: 5.18, action: 'Hold', change: 0, history: [] },
-    { ticker: 'SQ', company: 'Block Inc', shares: 10790000, marketValue: 695000000, portfolioPercentage: 4.63, action: 'New', change: 10790000, history: [] },
-  ]
+    berkshire: [
+        {
+            ticker: 'AAPL', company: 'Apple Inc.', shares: 915560382, marketValue: 156760000000, portfolioPercentage: 50.08, action: 'Hold', change: 0,
+            history: [
+                { quarter: 'Q3 2022', shares: 890923366, action: 'Hold' },
+                { quarter: 'Q4 2022', shares: 895136175, action: 'Added' },
+                { quarter: 'Q1 2023', shares: 915560382, action: 'Added' },
+                { quarter: 'Q2 2023', shares: 915560382, action: 'Hold' },
+            ]
+        },
+        {
+            ticker: 'BAC', company: 'Bank of America Corp', shares: 1032852006, marketValue: 28300000000, portfolioPercentage: 9.04, action: 'Hold', change: 0,
+            history: [
+                { quarter: 'Q3 2022', shares: 1020100606, action: 'Hold' },
+                { quarter: 'Q4 2022', shares: 1010100606, action: 'Reduced' },
+                { quarter: 'Q1 2023', shares: 1032852006, action: 'Hold' },
+                { quarter: 'Q2 2023', shares: 1032852006, action: 'Hold' },
+            ]
+        },
+        { ticker: 'AXP', company: 'American Express Co', shares: 151610700, marketValue: 22890000000, portfolioPercentage: 7.31, action: 'Hold', change: 0, history: [] },
+        { ticker: 'KO', company: 'Coca-Cola Co', shares: 400000000, marketValue: 22400000000, portfolioPercentage: 7.16, action: 'Hold', change: 0, history: [] },
+        { ticker: 'CVX', company: 'Chevron Corp', shares: 110257182, marketValue: 18600000000, portfolioPercentage: 5.94, action: 'Reduced', change: -14238572, history: [] },
+        { ticker: 'OXY', company: 'Occidental Petroleum', shares: 224129192, marketValue: 13900000000, portfolioPercentage: 4.44, action: 'Added', change: 12431231, history: [] },
+    ],
+    ark: [
+        {
+            ticker: 'COIN', company: 'Coinbase Global Inc', shares: 8370000, marketValue: 1190000000, portfolioPercentage: 7.93, action: 'Added', change: 489768,
+            history: [
+                { quarter: 'Q3 2022', shares: 7500000, action: 'Hold' },
+                { quarter: 'Q4 2022', shares: 7800000, action: 'Added' },
+                { quarter: 'Q1 2023', shares: 7880232, action: 'Added' },
+                { quarter: 'Q2 2023', shares: 8370000, action: 'Added' },
+            ]
+        },
+        {
+            ticker: 'TSLA', company: 'Tesla Inc', shares: 4890000, marketValue: 1180000000, portfolioPercentage: 7.86, action: 'Reduced', change: -56245,
+            history: [
+                { quarter: 'Q3 2022', shares: 5800000, action: 'Reduced' },
+                { quarter: 'Q4 2022', shares: 5500000, action: 'Reduced' },
+                { quarter: 'Q1 2023', shares: 4946245, action: 'Reduced' },
+                { quarter: 'Q2 2023', shares: 4890000, action: 'Reduced' },
+            ]
+        },
+        { ticker: 'ROKU', company: 'Roku Inc', shares: 10450000, marketValue: 978000000, portfolioPercentage: 6.52, action: 'Hold', change: 0, history: [] },
+        { ticker: 'U', company: 'Unity Software Inc', shares: 26390000, marketValue: 792000000, portfolioPercentage: 5.28, action: 'Added', change: 1203941, history: [] },
+        { ticker: 'ZM', company: 'Zoom Video Communications', shares: 11460000, marketValue: 778000000, portfolioPercentage: 5.18, action: 'Hold', change: 0, history: [] },
+        { ticker: 'SQ', company: 'Block Inc', shares: 10790000, marketValue: 695000000, portfolioPercentage: 4.63, action: 'New', change: 10790000, history: [] },
+    ]
 };
 
 export const MOCK_SECTOR_ALLOCATION: Record<string, any[]> = {
-  berkshire: [
-    { name: 'Information Technology', value: 51.5 },
-    { name: 'Financials', value: 24.2 },
-    { name: 'Consumer Staples', value: 9.8 },
-    { name: 'Energy', value: 10.5 },
-    { name: 'Other', value: 4.0 },
-  ],
-  ark: [
-    { name: 'Information Technology', value: 35.1 },
-    { name: 'Communication Services', value: 18.2 },
-    { name: 'Financials', value: 15.8 },
-    { name: 'Consumer Discretionary', value: 12.5 },
-    { name: 'Health Care', value: 10.4 },
-    { name: 'Other', value: 8.0 },
-  ]
+    berkshire: [
+        { name: 'Information Technology', value: 51.5 },
+        { name: 'Financials', value: 24.2 },
+        { name: 'Consumer Staples', value: 9.8 },
+        { name: 'Energy', value: 10.5 },
+        { name: 'Other', value: 4.0 },
+    ],
+    ark: [
+        { name: 'Information Technology', value: 35.1 },
+        { name: 'Communication Services', value: 18.2 },
+        { name: 'Financials', value: 15.8 },
+        { name: 'Consumer Discretionary', value: 12.5 },
+        { name: 'Health Care', value: 10.4 },
+        { name: 'Other', value: 8.0 },
+    ]
 };
 
 export const MOCK_AGGREGATE_MOVERS = {
@@ -1180,7 +1186,7 @@ export const generateUnusualOptionTrade = (): UnusualOptionTrade => {
     const ticker = optionableTickers[Math.floor(Math.random() * optionableTickers.length)];
     const type = Math.random() > 0.5 ? 'Call' : 'Put';
     const detail = details[Math.floor(Math.random() * details.length)];
-    
+
     let sentiment: UnusualOptionTrade['sentiment'] = 'Neutral';
     if ((type === 'Call' && (detail.includes('Ask'))) || (type === 'Put' && (detail.includes('Bid')))) {
         sentiment = 'Bullish';
@@ -1296,10 +1302,10 @@ export const generateTrade = (lastPrice: number): Trade => {
 };
 
 export const SUPPORTED_EXCHANGES: Exchange[] = [
-  { id: 'binance', name: 'Binance', logo: <BinanceLogo />, isConnected: true },
-  { id: 'coinbase', name: 'Coinbase Pro', logo: <CoinbaseLogo />, isConnected: false },
-  { id: 'kraken', name: 'Kraken', logo: <KrakenLogo />, isConnected: false },
-  { id: 'kucoin', name: 'KuCoin', logo: <KucoinLogo />, isConnected: false },
+    { id: 'binance', name: 'Binance', logo: <BinanceLogo />, isConnected: true },
+    { id: 'coinbase', name: 'Coinbase Pro', logo: <CoinbaseLogo />, isConnected: false },
+    { id: 'kraken', name: 'Kraken', logo: <KrakenLogo />, isConnected: false },
+    { id: 'kucoin', name: 'KuCoin', logo: <KucoinLogo />, isConnected: false },
 ];
 
 export const MOCK_CMC_ARTICLES: CmcArticle[] = [
@@ -1367,13 +1373,13 @@ export const ChevronDownIcon = ({ className = "h-5 w-5" }: { className?: string 
 
 export const ExpandIcon = ({ className = "h-5 w-5" }: { className?: string }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 0h-4m4 0l-5-5" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5v-4m0 0h-4m4 0l-5-5" />
     </svg>
 );
 
 export const CollapseIcon = ({ className = "h-5 w-5" }: { className?: string }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 4V8m0 0h4M9 8l-5-5m16 5V4m0 0h-4m4 0l-5 5M9 20v-4m0 0h4m-4 0l-5 5m16-5v4m0 0h-4m4 0l-5-5" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 4V8m0 0h4M9 8l-5-5m16 5V4m0 0h-4m4 0l-5 5M9 20v-4m0 0h4m-4 0l-5 5m16-5v4m0 0h-4m4 0l-5-5" />
     </svg>
 );
 
@@ -1448,9 +1454,9 @@ export const CorrelationIcon = () => (
 );
 export const TokenUnlockIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-      <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15 11l-1 6" />
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 11l1 6" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M15 11l-1 6" />
+        <path strokeLinecap="round" strokeLinejoin="round" d="M9 11l1 6" />
     </svg>
 );
 export const AlternativeDataIcon = () => (
@@ -1598,7 +1604,7 @@ export const PlayIcon = ({ className = "h-6 w-6" }: { className?: string }) => (
 );
 
 export const GlobeIcon = ({ className = "h-6 w-6" }: { className?: string }) => (
-     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2h10a2 2 0 002-2v-1a2 2 0 012-2h1.945M7.707 4.293l.5-1.5m-.5 1.5l-1.5.5m1.5-.5l1.5-1.5m-1.5 1.5l-1.5-1.5M12 21a9 9 0 110-18 9 9 0 010 18z" />
     </svg>
 );
@@ -1652,45 +1658,45 @@ export const MOCK_STRATEGY_OF_THE_WEEK: StrategyOfTheWeek = {
 };
 
 export const MOCK_PORTFOLIO_PROJECTS: PortfolioProject[] = [
-  {
-    id: 'p1',
-    title: 'AI-Powered Volatility Prediction for Options Trading',
-    category: 'Machine Learning',
-    description: 'Developed a custom LSTM model to forecast short-term volatility spikes in the SPX, allowing for more profitable options straddle strategies. The model was trained on historical VIX data, market volume, and macroeconomic indicators.',
-    tags: ['Python', 'TensorFlow', 'Options', 'LSTM'],
-    imageUrl: 'https://via.placeholder.com/400x250/1E293B/FFFFFF?text=Volatility+Model',
-    metrics: [
-      { label: 'Backtested Sharpe Ratio', value: '2.15' },
-      { label: 'Profit Factor', value: '3.2' },
-      { label: 'Max Drawdown', value: '-12.5%' },
-    ],
-  },
-  {
-    id: 'p2',
-    title: 'Multi-Exchange Crypto Arbitrage Bot',
-    category: 'High-Frequency Trading',
-    description: 'A high-frequency arbitrage bot built in Rust that connects to Binance, Kraken, and Coinbase via WebSocket APIs to identify and execute on fleeting price discrepancies between exchanges. Includes a robust risk management module.',
-    tags: ['Rust', 'WebSocket', 'Arbitrage', 'Crypto'],
-    imageUrl: 'https://via.placeholder.com/400x250/1E293B/FFFFFF?text=Arbitrage+Bot',
-    metrics: [
-      { label: 'Average Daily Return', value: '0.8%' },
-      { label: 'Execution Latency', value: '< 10ms' },
-      { label: 'Win Rate', value: '85%' },
-    ],
-  },
-  {
-    id: 'p3',
-    title: 'Regime-Aware Trend Following Strategy for Forex',
-    category: 'Quantitative Strategy',
-    description: 'A systematic trend-following strategy for major FX pairs (EUR/USD, GBP/USD). It uses a Markov-Switching model to classify the market into different volatility regimes and adjusts EMA crossover parameters accordingly.',
-    tags: ['Python', 'Pandas', 'Forex', 'Market Regimes'],
-    imageUrl: 'https://via.placeholder.com/400x250/1E293B/FFFFFF?text=FX+Strategy',
-    metrics: [
-      { label: 'CAGR', value: '18.2%' },
-      { label: 'Sortino Ratio', value: '1.9' },
-      { label: 'Max Drawdown', value: '-15.8%' },
-    ],
-  },
+    {
+        id: 'p1',
+        title: 'AI-Powered Volatility Prediction for Options Trading',
+        category: 'Machine Learning',
+        description: 'Developed a custom LSTM model to forecast short-term volatility spikes in the SPX, allowing for more profitable options straddle strategies. The model was trained on historical VIX data, market volume, and macroeconomic indicators.',
+        tags: ['Python', 'TensorFlow', 'Options', 'LSTM'],
+        imageUrl: 'https://via.placeholder.com/400x250/1E293B/FFFFFF?text=Volatility+Model',
+        metrics: [
+            { label: 'Backtested Sharpe Ratio', value: '2.15' },
+            { label: 'Profit Factor', value: '3.2' },
+            { label: 'Max Drawdown', value: '-12.5%' },
+        ],
+    },
+    {
+        id: 'p2',
+        title: 'Multi-Exchange Crypto Arbitrage Bot',
+        category: 'High-Frequency Trading',
+        description: 'A high-frequency arbitrage bot built in Rust that connects to Binance, Kraken, and Coinbase via WebSocket APIs to identify and execute on fleeting price discrepancies between exchanges. Includes a robust risk management module.',
+        tags: ['Rust', 'WebSocket', 'Arbitrage', 'Crypto'],
+        imageUrl: 'https://via.placeholder.com/400x250/1E293B/FFFFFF?text=Arbitrage+Bot',
+        metrics: [
+            { label: 'Average Daily Return', value: '0.8%' },
+            { label: 'Execution Latency', value: '< 10ms' },
+            { label: 'Win Rate', value: '85%' },
+        ],
+    },
+    {
+        id: 'p3',
+        title: 'Regime-Aware Trend Following Strategy for Forex',
+        category: 'Quantitative Strategy',
+        description: 'A systematic trend-following strategy for major FX pairs (EUR/USD, GBP/USD). It uses a Markov-Switching model to classify the market into different volatility regimes and adjusts EMA crossover parameters accordingly.',
+        tags: ['Python', 'Pandas', 'Forex', 'Market Regimes'],
+        imageUrl: 'https://via.placeholder.com/400x250/1E293B/FFFFFF?text=FX+Strategy',
+        metrics: [
+            { label: 'CAGR', value: '18.2%' },
+            { label: 'Sortino Ratio', value: '1.9' },
+            { label: 'Max Drawdown', value: '-15.8%' },
+        ],
+    },
 ];
 
 export const MOCK_CLIENT_TESTIMONIALS: ClientTestimonial[] = [
@@ -1739,21 +1745,21 @@ export const OtherModelIcon = ({ className = "h-8 w-8" }: { className?: string }
 );
 
 export const CheckCircleIcon = ({ className = "h-5 w-5" }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor">
-    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-  </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+    </svg>
 );
 
 export const ClockIcon = ({ className = "h-5 w-5" }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor">
-    <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.415L11 9.586V6z" clipRule="evenodd" />
-  </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.414-1.415L11 9.586V6z" clipRule="evenodd" />
+    </svg>
 );
 
 export const ExclamationCircleIcon = ({ className = "h-5 w-5" }: { className?: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor">
-    <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-  </svg>
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 20 20" fill="currentColor">
+        <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+    </svg>
 );
 
 // MOCK_CRYPTO_NEWS was duplicated here, removed.

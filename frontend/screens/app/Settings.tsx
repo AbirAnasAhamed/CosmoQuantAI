@@ -23,15 +23,19 @@ const EyeOffIcon: React.FC<{ className?: string }> = ({ className = 'w-5 h-5' })
 const Settings: React.FC<{ initialSection?: string | null }> = ({ initialSection }) => {
     const { theme, setTheme } = useTheme();
     const { showToast } = useToast();
-    const { userProfile, updateUserProfile, apiKeys, updateApiKey, is2faEnabled, set2faEnabled } = useSettings();
-    
+    const {
+        userProfile, updateUserProfile,
+        apiKeys, updateLocalApiKeyInput, saveApiKeyToBackend,
+        is2faEnabled, set2faEnabled, isLoading
+    } = useSettings();
+
     // State for editable profile fields, initialized from context
     const [fullName, setFullName] = useState(userProfile.fullName);
     const [email, setEmail] = useState(userProfile.email);
     const [username, setUsername] = useState(userProfile.username);
     const [timezone, setTimezone] = useState(userProfile.timezone);
     const [currency, setCurrency] = useState(userProfile.currency);
-    
+
     const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
     const [visibleSecrets, setVisibleSecrets] = useState<Record<string, boolean>>({});
 
@@ -54,7 +58,7 @@ const Settings: React.FC<{ initialSection?: string | null }> = ({ initialSection
         // Allow state to settle before scrolling
         setTimeout(() => {
             let targetRef: React.RefObject<HTMLDivElement> | null = null;
-            switch(initialSection) {
+            switch (initialSection) {
                 case 'profile': targetRef = profileRef; break;
                 case 'billing': targetRef = billingRef; break;
                 case 'api-keys': targetRef = apiKeysRef; break;
@@ -72,11 +76,11 @@ const Settings: React.FC<{ initialSection?: string | null }> = ({ initialSection
         setTheme(isDarkMode ? 'light' : 'dark');
     };
 
-    const hasProfileChanges = 
-        fullName !== userProfile.fullName || 
-        email !== userProfile.email || 
-        username !== userProfile.username || 
-        timezone !== userProfile.timezone || 
+    const hasProfileChanges =
+        fullName !== userProfile.fullName ||
+        email !== userProfile.email ||
+        username !== userProfile.username ||
+        timezone !== userProfile.timezone ||
         currency !== userProfile.currency;
 
     const handleSaveChanges = () => {
@@ -97,18 +101,17 @@ const Settings: React.FC<{ initialSection?: string | null }> = ({ initialSection
     };
 
     const handleApiKeyChange = (exchange: string, field: keyof ApiKeyConfig, value: string | boolean) => {
-        const currentConfig = apiKeys[exchange] || { apiKey: '', secretKey: '', isEnabled: false };
-        const newConfig = { ...currentConfig, [field]: value };
-        updateApiKey(exchange, newConfig);
+        // শুধুমাত্র লোকাল ইনপুট আপডেট করবে
+        updateLocalApiKeyInput(exchange, { [field]: value });
     };
 
-    const handleSaveApiKeys = (exchange: string) => {
-        showToast(`${exchange} API keys saved!`, 'success');
+    const handleSaveApiKeys = async (exchange: string) => {
+        await saveApiKeyToBackend(exchange);
     };
 
     const handleDeleteApiKeys = (exchange: string) => {
-        updateApiKey(exchange, { apiKey: '', secretKey: '', isEnabled: false });
-        showToast(`${exchange} API keys deleted.`, 'info');
+        updateLocalApiKeyInput(exchange, { apiKey: '', secretKey: '', isEnabled: false });
+        showToast(`${exchange} API keys deleted locally.`, 'info');
     };
 
     const toggleSecretVisibility = (exchange: string) => {
@@ -121,13 +124,13 @@ const Settings: React.FC<{ initialSection?: string | null }> = ({ initialSection
     };
 
     const inputBaseClasses = "w-full max-w-md bg-white dark:bg-brand-dark/50 border border-brand-border-light dark:border-brand-border-dark rounded-md p-2 text-slate-900 dark:text-white focus:ring-brand-primary focus:border-brand-primary transition-colors";
-    
+
     const timezones = ['America/New_York', 'Europe/London', 'Asia/Tokyo', 'Australia/Sydney', 'UTC'];
     const currencies = ['USD', 'EUR', 'GBP', 'JPY', 'BTC'];
 
     return (
         <div className="space-y-8 max-w-4xl animate-fade-in-slide-up">
-             <Card>
+            <Card>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6 border-b border-brand-border-light dark:border-brand-border-dark pb-4">Appearance</h2>
                 <div>
                     <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">Theme</h3>
@@ -137,10 +140,10 @@ const Settings: React.FC<{ initialSection?: string | null }> = ({ initialSection
                     <div className="flex items-center space-x-4 p-4 bg-gray-100 dark:bg-brand-dark/50 rounded-lg">
                         <label htmlFor="theme-toggle" className="flex items-center cursor-pointer">
                             <div className="relative">
-                                <input 
-                                    type="checkbox" 
-                                    id="theme-toggle" 
-                                    className="sr-only" 
+                                <input
+                                    type="checkbox"
+                                    id="theme-toggle"
+                                    className="sr-only"
                                     checked={isDarkMode}
                                     onChange={handleThemeChange}
                                 />
@@ -184,7 +187,7 @@ const Settings: React.FC<{ initialSection?: string | null }> = ({ initialSection
                                 <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Email Address</label>
                                 <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={inputBaseClasses} />
                             </div>
-                             <div>
+                            <div>
                                 <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Timezone</label>
                                 <select value={timezone} onChange={(e) => setTimezone(e.target.value)} className={inputBaseClasses}>
                                     {timezones.map(tz => <option key={tz} value={tz}>{tz.replace(/_/g, ' ')}</option>)}
@@ -235,7 +238,7 @@ const Settings: React.FC<{ initialSection?: string | null }> = ({ initialSection
             <div ref={securityRef}>
                 <Card>
                     <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6 border-b border-brand-border-light dark:border-brand-border-dark pb-4">Security</h2>
-                    
+
                     {/* 2FA Section */}
                     <div>
                         <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-2">Two-Factor Authentication (2FA)</h3>
@@ -246,10 +249,10 @@ const Settings: React.FC<{ initialSection?: string | null }> = ({ initialSection
                         <div className="flex items-center space-x-4 p-4 bg-gray-100 dark:bg-brand-dark/50 rounded-lg">
                             <label htmlFor="2fa-toggle" className="flex items-center cursor-pointer">
                                 <div className="relative">
-                                    <input 
-                                        type="checkbox" 
-                                        id="2fa-toggle" 
-                                        className="sr-only" 
+                                    <input
+                                        type="checkbox"
+                                        id="2fa-toggle"
+                                        className="sr-only"
                                         checked={is2faEnabled}
                                         onChange={() => set2faEnabled(!is2faEnabled)}
                                     />
@@ -292,8 +295,8 @@ const Settings: React.FC<{ initialSection?: string | null }> = ({ initialSection
                     </div>
                 </Card>
             </div>
-            
-             <div ref={apiKeysRef}>
+
+            <div ref={apiKeysRef}>
                 <Card>
                     <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6 border-b border-brand-border-light dark:border-brand-border-dark pb-4">API Key Management</h2>
                     <p className="text-gray-500 dark:text-gray-400 mb-6 max-w-2xl">
@@ -331,7 +334,9 @@ const Settings: React.FC<{ initialSection?: string | null }> = ({ initialSection
                                         </div>
                                     </div>
                                     <div className="flex items-center gap-4">
-                                        <Button variant="primary" onClick={() => handleSaveApiKeys(exchange)}>Save</Button>
+                                        <Button variant="primary" onClick={() => handleSaveApiKeys(exchange)} disabled={isLoading}>
+                                            {isLoading ? 'Saving...' : 'Save Connection'}
+                                        </Button>
                                         <Button variant="secondary" onClick={() => handleDeleteApiKeys(exchange)}>Delete</Button>
                                     </div>
                                 </div>
