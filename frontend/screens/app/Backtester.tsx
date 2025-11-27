@@ -7,8 +7,13 @@ import { EQUITY_CURVE_DATA, MOCK_BACKTEST_RESULTS, MOCK_STRATEGIES, MOCK_STRATEG
 import { useTheme } from '../../contexts/ThemeContext';
 import CodeEditor from '../../components/ui/CodeEditor';
 import type { BacktestResult } from '../../types';
-import StrategyLibraryModal from './StrategyLibraryModal';
+
 import { useToast } from '../../contexts/ToastContext';
+import { syncMarketData, runBacktestApi, getExchangeList, getExchangeMarkets } from '../../services/backtester';
+import SearchableSelect from '../../components/ui/SearchableSelect';
+import BacktestChart from '../../components/ui/BacktestChart';
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 
 // Animated Number Component (Same as Dashboard)
 const AnimatedNumber: React.FC<{ value: number; decimals?: number; prefix?: string; suffix?: string }> = ({ value, decimals = 2, prefix = '', suffix = '' }) => {
@@ -18,17 +23,17 @@ const AnimatedNumber: React.FC<{ value: number; decimals?: number; prefix?: stri
         let start = 0;
         const end = value;
         if (start === end) return;
-        
+
         const duration = 1000;
         const startTime = performance.now();
 
         const animate = (currentTime: number) => {
             const elapsed = currentTime - startTime;
             const progress = Math.min(elapsed / duration, 1);
-            
+
             // Ease out function
             const easeOut = 1 - Math.pow(1 - progress, 3);
-            
+
             const current = start + (end - start) * easeOut;
             setDisplayValue(current);
 
@@ -67,7 +72,7 @@ const CustomTooltip = ({ active, payload, label }: any) => {
                 <div className="space-y-1">
                     <div className="flex justify-between items-center">
                         <span className="text-gray-500 dark:text-gray-400 mr-4">Equity:</span>
-                        <span className="font-semibold text-slate-900 dark:text-white">${data.value.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</span>
+                        <span className="font-semibold text-slate-900 dark:text-white">${data.value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
                     </div>
                     <div className="flex justify-between items-center">
                         <span className="text-gray-500 dark:text-gray-400 mr-4">Profit:</span>
@@ -122,7 +127,7 @@ const RangeSliderInput: React.FC<{
 
     const handleValueChange = (field: 'start' | 'end' | 'step', val: string | number) => {
         const newValues = { ...value, [field]: val };
-        
+
         let s = Number(newValues.start);
         let e = Number(newValues.end);
 
@@ -131,7 +136,7 @@ const RangeSliderInput: React.FC<{
         } else if (field === 'end') {
             e = Math.max(e, s);
         }
-        
+
         onChange({ ...newValues, start: s, end: e });
     };
 
@@ -156,7 +161,7 @@ const RangeSliderInput: React.FC<{
         <div className="space-y-3">
             <div className="range-slider-container">
                 <input type="range" min={min} max={max} step={step} value={startNum} onChange={(e) => handleRangeChange('start', e)} className="thumb thumb--left" aria-label="Start value" />
-                <input type="range" min={min} max={max} step={step} value={endNum} onChange={(e) => handleRangeChange('end', e)} className="thumb thumb--right" aria-label="End value"/>
+                <input type="range" min={min} max={max} step={step} value={endNum} onChange={(e) => handleRangeChange('end', e)} className="thumb thumb--right" aria-label="End value" />
                 <div className="range-slider-track"></div>
                 <div ref={rangeRef} className="range-slider-range"></div>
             </div>
@@ -193,13 +198,55 @@ const Backtester: React.FC = () => {
     const { showToast } = useToast();
     const [strategies, setStrategies] = useState(MOCK_STRATEGIES);
     const [strategy, setStrategy] = useState('RSI Crossover');
+    const [symbol, setSymbol] = useState('');
+    const [timeframe, setTimeframe] = useState('1h');
+    const [exchanges, setExchanges] = useState<string[]>([]);
+    const [markets, setMarkets] = useState<string[]>([]);
+    const [selectedExchange, setSelectedExchange] = useState('binance');
+    const [isLoadingMarkets, setIsLoadingMarkets] = useState(false);
+
+    useEffect(() => {
+        const loadExchanges = async () => {
+            try {
+                const list = await getExchangeList();
+                setExchanges(list);
+                if (list.length > 0) setSelectedExchange(list[0]);
+            } catch (error) {
+                console.error("Failed to load exchanges", error);
+            }
+        };
+        loadExchanges();
+    }, []);
+
+    useEffect(() => {
+        const loadMarkets = async () => {
+            if (!selectedExchange) return;
+            setIsLoadingMarkets(true);
+            try {
+                const pairs = await getExchangeMarkets(selectedExchange);
+                setMarkets(pairs);
+                const defaultPair = pairs.includes('BTC/USDT') ? 'BTC/USDT' : pairs[0];
+                setSymbol(defaultPair || '');
+            } catch (error) {
+                showToast('Failed to load market pairs', 'error');
+                setMarkets([]);
+            } finally {
+                setIsLoadingMarkets(false);
+            }
+        };
+        loadMarkets();
+    }, [selectedExchange]);
     const [params, setParams] = useState<Record<string, any>>({});
     const [optimizationParams, setOptimizationParams] = useState<OptimizationParams>({});
     const [showResults, setShowResults] = useState(false);
     const [backtestMode, setBacktestMode] = useState<'single' | 'optimization'>('single');
     const [startDate, setStartDate] = useState('2023-01-01');
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
-    
+
+    // Loading States
+    const [isSyncing, setIsSyncing] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+
     // State for portfolio backtesting
     const [isPortfolioBacktest, setIsPortfolioBacktest] = useState(false);
     const [portfolioAssets, setPortfolioAssets] = useState(['BTC/USDT', 'ETH/USDT']);
@@ -216,7 +263,7 @@ const Backtester: React.FC = () => {
     const [walkForwardConfig, setWalkForwardConfig] = useState({ inSample: 6, outOfSample: 2 });
     const [isMultiObjectiveEnabled, setIsMultiObjectiveEnabled] = useState(false);
     const [multiObjectiveGoals, setMultiObjectiveGoals] = useState<string[]>(['Net Profit']);
-    
+
     // State for different result types
     const [singleResult, setSingleResult] = useState<BacktestResult | null>(null);
     const [multiObjectiveResults, setMultiObjectiveResults] = useState<BacktestResult[] | null>(null);
@@ -226,7 +273,7 @@ const Backtester: React.FC = () => {
     // State for Python-powered features
     const [showAdvancedPythonFeatures, setShowAdvancedPythonFeatures] = useState(false);
     const [customObjectiveCode, setCustomObjectiveCode] = useState(
-`# Example: Prioritize Sharpe and low Drawdown
+        `# Example: Prioritize Sharpe and low Drawdown
 def custom_objective(stats):
     sharpe = stats.get('sharpe_ratio', 0)
     drawdown = stats.get('max_drawdown', 100)
@@ -250,7 +297,7 @@ def custom_objective(stats):
     const [replaySpeed, setReplaySpeed] = useState(1);
     const replayIntervalRef = useRef<number | null>(null);
 
-    const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+
 
     const replayData = useMemo(() => EQUITY_CURVE_DATA.slice(0, replayIndex + 1), [replayIndex]);
 
@@ -279,7 +326,14 @@ def custom_objective(stats):
     }, [strategy]);
 
     const handleParamChange = (key: string, value: string) => {
-        setParams(prev => ({ ...prev, [key]: value }));
+        // নম্বর কিনা চেক করা হচ্ছে
+        const numValue = Number(value);
+
+        setParams(prev => ({
+            ...prev,
+            // যদি ভ্যালিড নম্বর হয় তাহলে নম্বর সেভ হবে, না হলে স্ট্রিং
+            [key]: isNaN(numValue) ? value : numValue
+        }));
     };
 
     const handleOptimizationParamChange = (key: string, newValue: OptimizationParamValue) => {
@@ -290,30 +344,40 @@ def custom_objective(stats):
     };
 
     const handleGoalToggle = (goal: string) => {
-        setMultiObjectiveGoals(prev => 
-            prev.includes(goal) 
-                ? prev.filter(g => g !== goal) 
+        setMultiObjectiveGoals(prev =>
+            prev.includes(goal)
+                ? prev.filter(g => g !== goal)
                 : [...prev, goal]
         );
     };
-    
+
     const handleLoadParams = (paramsToLoad: Record<string, number | string>) => {
         setParams(paramsToLoad);
         setBacktestMode('single');
     };
 
-    const handleLoadTemplate = (strategyName: string, defaultParams: Record<string, any>) => {
-        setStrategy(strategyName);
-        setParams(defaultParams);
-        setIsLibraryOpen(false);
-        showToast(`Loaded "${strategyName}" template!`, 'success');
-    };
+
 
 
     const axisColor = theme === 'dark' ? '#9CA3AF' : '#6B7280';
     const gridColor = theme === 'dark' ? '#334155' : '#E2E8F0';
 
-    const handleRunBacktest = () => {
+    // ১. মার্কেট ডেটা সিঙ্ক হ্যান্ডেলার (Sync Data)
+    const handleSyncData = async () => {
+        setIsSyncing(true);
+        try {
+            await syncMarketData(symbol, timeframe, startDate, endDate);
+            showToast(`Synced historical data for ${symbol}`, 'success');
+        } catch (error) {
+            console.error(error);
+            showToast('Failed to sync market data.', 'error');
+        } finally {
+            setIsSyncing(false);
+        }
+    };
+
+    // ২. ব্যাকটেস্ট রান হ্যান্ডেলার (Run Backtest)
+    const handleRunBacktest = async () => {
         // Reset all result states for a clean run
         setBatchResults(null);
         setMultiObjectiveResults(null);
@@ -323,9 +387,53 @@ def custom_objective(stats):
         setShowResults(false);
 
         if (backtestMode === 'single') {
-             // In a real app, this would be the result of the API call
-            setSingleResult(MOCK_BACKTEST_RESULTS[0]);
-            setShowResults(true);
+            setIsLoading(true);
+            try {
+                // রিয়েল এপিআই কল
+                const apiResult = await runBacktestApi({
+                    symbol: symbol,
+                    timeframe: timeframe,
+                    strategy: strategy,
+                    initial_cash: 10000, // হার্ডকোড বা ইনপুট নিতে পারেন
+                    start_date: startDate,
+                    end_date: endDate,
+                    params: params // ফর্ম থেকে নেয়া প্যারামিটার
+                });
+
+                // ব্যাকএন্ড ডেটাকে ফ্রন্টএন্ড মডেলে কনভার্ট
+                const mappedResult: BacktestResult = {
+                    id: Date.now().toString(),
+                    market: apiResult.symbol || symbol,
+                    strategy: apiResult.strategy || strategy,
+                    timeframe: timeframe,
+                    date: new Date().toISOString().split('T')[0],
+
+                    // আমাদের Types ফাইলে যে নাম আছে, সেই অনুযায়ী ম্যাপ করছি
+                    profitPercent: apiResult.profit_percent,
+                    maxDrawdown: apiResult.max_drawdown,
+                    winRate: apiResult.win_rate,
+                    sharpeRatio: apiResult.sharpe_ratio,
+
+                    // সাপোর্টের জন্য অরিজিনাল ভ্যালুও রাখা যেতে পারে
+                    profit_percent: apiResult.profit_percent,
+                    max_drawdown: apiResult.max_drawdown,
+                    win_rate: apiResult.win_rate,
+                    sharpe_ratio: apiResult.sharpe_ratio,
+                    trades_log: apiResult.trades_log,
+                    candle_data: apiResult.candle_data
+                };
+
+                setSingleResult(mappedResult);
+                setShowResults(true);
+                showToast('Backtest completed successfully!', 'success');
+
+            } catch (error: any) {
+                console.error(error);
+                const msg = error.response?.data?.detail || "Backtest failed. Did you sync data?";
+                showToast(msg, 'error');
+            } finally {
+                setIsLoading(false);
+            }
             return;
         }
 
@@ -333,7 +441,7 @@ def custom_objective(stats):
             if (optimizationMethod === 'geneticAlgorithm') {
                 setIsOptimizing(true);
                 setOptimizationProgress(0);
-                
+
                 const totalGenerations = gaParams.generations;
                 let currentGeneration = 0;
                 const interval = setInterval(() => {
@@ -343,11 +451,11 @@ def custom_objective(stats):
                     if (currentGeneration >= totalGenerations) {
                         clearInterval(interval);
                         setIsOptimizing(false);
-                        if(isMultiObjectiveEnabled){
+                        if (isMultiObjectiveEnabled) {
                             const paretoFront: BacktestResult[] = [
-                                { id: 'mo1', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 125.5, maxDrawdown: 22.1, winRate: 68, sharpeRatio: 2.1, params: { period: 10, overbought: 80, oversold: 25 } },
-                                { id: 'mo2', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 92.3, maxDrawdown: 11.5, winRate: 65, sharpeRatio: 2.8, params: { period: 14, overbought: 75, oversold: 30 } },
-                                { id: 'mo3', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 61.8, maxDrawdown: 5.2, winRate: 61, sharpeRatio: 1.9, params: { period: 20, overbought: 70, oversold: 35 } },
+                                { id: 'mo1', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 125.5, maxDrawdown: 22.1, winRate: 68, sharpeRatio: 2.1, profit_percent: 125.5, max_drawdown: 22.1, win_rate: 68, sharpe_ratio: 2.1, params: { period: 10, overbought: 80, oversold: 25 } },
+                                { id: 'mo2', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 92.3, maxDrawdown: 11.5, winRate: 65, sharpeRatio: 2.8, profit_percent: 92.3, max_drawdown: 11.5, win_rate: 65, sharpe_ratio: 2.8, params: { period: 14, overbought: 75, oversold: 30 } },
+                                { id: 'mo3', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 61.8, maxDrawdown: 5.2, winRate: 61, sharpeRatio: 1.9, profit_percent: 61.8, max_drawdown: 5.2, win_rate: 61, sharpe_ratio: 1.9, params: { period: 20, overbought: 70, oversold: 35 } },
                             ];
                             setMultiObjectiveResults(paretoFront);
                         } else {
@@ -357,15 +465,16 @@ def custom_objective(stats):
                     }
                 }, 200);
             } else { // Grid Search
-                if(isMultiObjectiveEnabled) {
+                if (isMultiObjectiveEnabled) {
                     const paretoFront: BacktestResult[] = [
-                        { id: 'mo1', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 110.2, maxDrawdown: 19.8, winRate: 67, sharpeRatio: 2.3, params: { period: 12, overbought: 78, oversold: 28 } },
-                        { id: 'mo2', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 78.6, maxDrawdown: 9.1, winRate: 64, sharpeRatio: 2.6, params: { period: 16, overbought: 72, oversold: 32 } },
-                        { id: 'mo3', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 45.1, maxDrawdown: 4.8, winRate: 59, sharpeRatio: 1.7, params: { period: 22, overbought: 68, oversold: 38 } },
+
+                        { id: 'mo1', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 110.2, maxDrawdown: 19.8, winRate: 67, sharpeRatio: 2.3, profit_percent: 110.2, max_drawdown: 19.8, win_rate: 67, sharpe_ratio: 2.3, params: { period: 12, overbought: 78, oversold: 28 } },
+                        { id: 'mo2', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 78.6, maxDrawdown: 9.1, winRate: 64, sharpeRatio: 2.6, profit_percent: 78.6, max_drawdown: 9.1, win_rate: 64, sharpe_ratio: 2.6, params: { period: 16, overbought: 72, oversold: 32 } },
+                        { id: 'mo3', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 45.1, maxDrawdown: 4.8, winRate: 59, sharpeRatio: 1.7, profit_percent: 45.1, max_drawdown: 4.8, win_rate: 59, sharpe_ratio: 1.7, params: { period: 22, overbought: 68, oversold: 38 } },
                     ];
                     setMultiObjectiveResults(paretoFront);
                 } else {
-                     setSingleResult(MOCK_BACKTEST_RESULTS[1]); // Show the best result
+                    setSingleResult(MOCK_BACKTEST_RESULTS[1]); // Show the best result
                 }
                 setShowResults(true);
             }
@@ -379,21 +488,25 @@ def custom_objective(stats):
         setSingleResult(null);
         setMultiObjectiveResults(null);
         setIsReplayActive(false);
-    
+
         setTimeout(() => {
             const allStrategies = MOCK_STRATEGIES.filter(s => s !== 'Custom ML Model');
             const newBatchResults: BacktestResult[] = allStrategies.map((strategyName, index) => ({
                 id: `${index + 1}`,
-                market: 'BTC/USDT', 
+                market: 'BTC/USDT',
                 strategy: strategyName,
-                timeframe: '4h', 
+                timeframe: '4h',
                 date: new Date().toISOString().split('T')[0],
                 profitPercent: (Math.random() * 150) - 25,
                 maxDrawdown: Math.random() * 30,
                 winRate: 40 + Math.random() * 50,
                 sharpeRatio: Math.random() * 3,
+                profit_percent: (Math.random() * 150) - 25,
+                max_drawdown: Math.random() * 30,
+                win_rate: 40 + Math.random() * 50,
+                sharpe_ratio: Math.random() * 3,
             }));
-    
+
             setBatchResults(newBatchResults);
             setIsBatchRunning(false);
             setShowResults(true);
@@ -449,7 +562,7 @@ def custom_objective(stats):
     };
 
     const inputBaseClasses = "w-full bg-white dark:bg-brand-dark/50 border border-brand-border-light dark:border-brand-border-dark rounded-md p-2 text-slate-900 dark:text-white focus:ring-brand-primary focus:border-brand-primary";
-    
+
     const renderSingleParams = () => {
         const strategyParamsConfig = MOCK_STRATEGY_PARAMS[strategy as keyof typeof MOCK_STRATEGY_PARAMS];
         if (!strategyParamsConfig || Object.keys(strategyParamsConfig).length === 0) return null;
@@ -480,7 +593,7 @@ def custom_objective(stats):
     const renderOptimizationParams = () => {
         const strategyParamsConfig = MOCK_STRATEGY_PARAMS[strategy as keyof typeof MOCK_STRATEGY_PARAMS];
         if (!strategyParamsConfig || Object.keys(strategyParamsConfig).length === 0) return null;
-        
+
         const objectives = ['Net Profit', 'Max Drawdown', 'Sharpe Ratio'];
 
         return (
@@ -496,7 +609,7 @@ def custom_objective(stats):
                 {optimizationMethod === 'gridSearch' ? (
                     <div>
                         <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Grid Search Parameters</h3>
-                         {Object.entries(strategyParamsConfig).map(([key, config]) => (
+                        {Object.entries(strategyParamsConfig).map(([key, config]) => (
                             <div key={key} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start mb-6 pb-4 border-b border-brand-border-light/50 dark:border-brand-border-dark/50 last:border-b-0 last:mb-0 last:pb-0">
                                 <label className="md:col-span-1 block text-sm font-medium text-gray-500 dark:text-gray-400 pt-1.5">{config.label}</label>
                                 <div className="md:col-span-3">
@@ -513,17 +626,17 @@ def custom_objective(stats):
                     <div>
                         <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Genetic Algorithm Parameters</h3>
                         <div className="grid grid-cols-2 gap-4 mb-4">
-                             <div>
+                            <div>
                                 <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Population Size</label>
-                                <input type="number" value={gaParams.populationSize} onChange={(e) => setGaParams(p => ({...p, populationSize: parseInt(e.target.value)}))} step="10" className={inputBaseClasses} />
+                                <input type="number" value={gaParams.populationSize} onChange={(e) => setGaParams(p => ({ ...p, populationSize: parseInt(e.target.value) }))} step="10" className={inputBaseClasses} />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Generations</label>
-                                <input type="number" value={gaParams.generations} onChange={(e) => setGaParams(p => ({...p, generations: parseInt(e.target.value)}))} step="5" className={inputBaseClasses} />
+                                <input type="number" value={gaParams.generations} onChange={(e) => setGaParams(p => ({ ...p, generations: parseInt(e.target.value) }))} step="5" className={inputBaseClasses} />
                             </div>
                         </div>
-                         {Object.entries(strategyParamsConfig).map(([key, config]) => (
-                             <div key={key} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start mb-6 pb-4 border-b border-brand-border-light/50 dark:border-brand-border-dark/50 last:border-b-0 last:mb-0 last:pb-0">
+                        {Object.entries(strategyParamsConfig).map(([key, config]) => (
+                            <div key={key} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start mb-6 pb-4 border-b border-brand-border-light/50 dark:border-brand-border-dark/50 last:border-b-0 last:mb-0 last:pb-0">
                                 <label className="md:col-span-1 block text-sm font-medium text-gray-500 dark:text-gray-400 pt-1.5">{config.label} Range</label>
                                 <div className="md:col-span-3">
                                     <RangeSliderInput
@@ -548,9 +661,9 @@ def custom_objective(stats):
                                 <label htmlFor="walk-forward-toggle" className="font-medium text-slate-900 dark:text-white cursor-pointer">
                                     Walk-Forward Optimization
                                 </label>
-                                <input 
-                                    type="checkbox" 
-                                    id="walk-forward-toggle" 
+                                <input
+                                    type="checkbox"
+                                    id="walk-forward-toggle"
                                     className="form-checkbox h-5 w-5 rounded bg-slate-300 dark:bg-slate-700 border-brand-border-light dark:border-brand-border-dark text-brand-primary focus:ring-brand-primary focus:ring-offset-0"
                                     checked={isWalkForwardEnabled}
                                     onChange={() => setIsWalkForwardEnabled(!isWalkForwardEnabled)}
@@ -560,11 +673,11 @@ def custom_objective(stats):
                                 <div className="mt-4 pt-4 border-t border-brand-border-light dark:border-brand-border-dark grid grid-cols-2 gap-4">
                                     <div>
                                         <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">In-Sample Periods</label>
-                                        <input type="number" value={walkForwardConfig.inSample} onChange={(e) => setWalkForwardConfig(p => ({...p, inSample: parseInt(e.target.value)}))} className={inputBaseClasses} />
+                                        <input type="number" value={walkForwardConfig.inSample} onChange={(e) => setWalkForwardConfig(p => ({ ...p, inSample: parseInt(e.target.value) }))} className={inputBaseClasses} />
                                     </div>
                                     <div>
                                         <label className="block text-sm text-gray-500 dark:text-gray-400 mb-1">Out-of-Sample Periods</label>
-                                        <input type="number" value={walkForwardConfig.outOfSample} onChange={(e) => setWalkForwardConfig(p => ({...p, outOfSample: parseInt(e.target.value)}))} className={inputBaseClasses} />
+                                        <input type="number" value={walkForwardConfig.outOfSample} onChange={(e) => setWalkForwardConfig(p => ({ ...p, outOfSample: parseInt(e.target.value) }))} className={inputBaseClasses} />
                                     </div>
                                 </div>
                             )}
@@ -576,9 +689,9 @@ def custom_objective(stats):
                                 <label htmlFor="multi-obj-toggle" className="font-medium text-slate-900 dark:text-white cursor-pointer">
                                     Multi-Objective Optimization
                                 </label>
-                                <input 
-                                    type="checkbox" 
-                                    id="multi-obj-toggle" 
+                                <input
+                                    type="checkbox"
+                                    id="multi-obj-toggle"
                                     className="form-checkbox h-5 w-5 rounded bg-slate-300 dark:bg-slate-700 border-brand-border-light dark:border-brand-border-dark text-brand-primary focus:ring-brand-primary focus:ring-offset-0"
                                     checked={isMultiObjectiveEnabled}
                                     onChange={() => setIsMultiObjectiveEnabled(!isMultiObjectiveEnabled)}
@@ -593,11 +706,10 @@ def custom_objective(stats):
                                                 key={goal}
                                                 type="button"
                                                 onClick={() => handleGoalToggle(goal)}
-                                                className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${
-                                                    multiObjectiveGoals.includes(goal)
-                                                        ? 'bg-brand-primary border-transparent text-white'
-                                                        : 'bg-transparent border-brand-border-light dark:border-brand-border-dark text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-brand-dark'
-                                                }`}
+                                                className={`px-3 py-1.5 text-xs font-semibold rounded-full border transition-colors ${multiObjectiveGoals.includes(goal)
+                                                    ? 'bg-brand-primary border-transparent text-white'
+                                                    : 'bg-transparent border-brand-border-light dark:border-brand-border-dark text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-brand-dark'
+                                                    }`}
                                             >
                                                 {goal}
                                             </button>
@@ -609,11 +721,11 @@ def custom_objective(stats):
                     </div>
                 </div>
 
-                 {/* Advanced Python-Powered Features */}
-                 <div className="mt-8 pt-6 border-t border-brand-border-light dark:border-brand-border-dark">
+                {/* Advanced Python-Powered Features */}
+                <div className="mt-8 pt-6 border-t border-brand-border-light dark:border-brand-border-dark">
                     <div className="flex items-center justify-between cursor-pointer" onClick={() => setShowAdvancedPythonFeatures(!showAdvancedPythonFeatures)}>
                         <h3 className="text-lg font-semibold text-slate-900 dark:text-white">
-                            Advanced Python-Powered Features 
+                            Advanced Python-Powered Features
                             <span className="text-xs font-bold text-brand-primary bg-brand-primary/20 px-2 py-1 rounded-full align-middle ml-2">PREMIUM</span>
                         </h3>
                         <svg className={`h-5 w-5 text-gray-400 transform transition-transform ${showAdvancedPythonFeatures ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
@@ -659,12 +771,7 @@ def custom_objective(stats):
 
     return (
         <div className="space-y-8">
-            {isLibraryOpen && (
-                <StrategyLibraryModal 
-                    onClose={() => setIsLibraryOpen(false)} 
-                    onLoadTemplate={handleLoadTemplate} 
-                />
-            )}
+
             <Card className="staggered-fade-in" style={{ animationDelay: '100ms' }}>
                 <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Upload New Strategy</h2>
                 <div className="flex items-center justify-between">
@@ -688,39 +795,54 @@ def custom_objective(stats):
             </Card>
 
             <Card className="staggered-fade-in" style={{ animationDelay: '200ms' }}>
-                 <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center justify-between mb-6">
                     <h2 className="text-xl font-bold text-slate-900 dark:text-white">Backtest Configuration</h2>
+
+                    <Button
+                        variant="secondary"
+                        onClick={handleSyncData}
+                        disabled={isSyncing}
+                        className="border border-brand-primary/30 text-brand-primary hover:bg-brand-primary/10"
+                    >
+                        {isSyncing ? (
+                            <span className="flex items-center gap-2">
+                                <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                Syncing Data...
+                            </span>
+                        ) : (
+                            "☁ Sync Market Data"
+                        )}
+                    </Button>
+
                     <div className="flex items-center space-x-3">
                         <label htmlFor="portfolio-toggle" className="text-sm font-medium text-gray-500 dark:text-gray-400">Portfolio Backtest</label>
-                        <input 
-                            type="checkbox" 
-                            id="portfolio-toggle" 
+                        <input
+                            type="checkbox"
+                            id="portfolio-toggle"
                             className="form-checkbox h-5 w-5 rounded bg-slate-300 dark:bg-slate-700 border-brand-border-light dark:border-brand-border-dark text-brand-primary focus:ring-brand-primary focus:ring-offset-0"
                             checked={isPortfolioBacktest}
                             onChange={() => setIsPortfolioBacktest(!isPortfolioBacktest)}
                         />
                     </div>
                 </div>
-                
+
                 <div className="mb-6">
                     <div className="inline-flex bg-gray-100 dark:bg-brand-dark/50 rounded-lg p-1 space-x-1">
                         <button
                             onClick={() => setBacktestMode('single')}
-                            className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
-                                backtestMode === 'single'
-                                    ? 'bg-white dark:bg-brand-dark shadow text-brand-primary'
-                                    : 'text-gray-500 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-brand-dark/80'
-                            }`}
+                            className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${backtestMode === 'single'
+                                ? 'bg-white dark:bg-brand-dark shadow text-brand-primary'
+                                : 'text-gray-500 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-brand-dark/80'
+                                }`}
                         >
                             Single Backtest
                         </button>
                         <button
                             onClick={() => setBacktestMode('optimization')}
-                            className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${
-                                backtestMode === 'optimization'
-                                    ? 'bg-white dark:bg-brand-dark shadow text-brand-primary'
-                                    : 'text-gray-500 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-brand-dark/80'
-                            }`}
+                            className={`px-4 py-2 text-sm font-semibold rounded-md transition-colors ${backtestMode === 'optimization'
+                                ? 'bg-white dark:bg-brand-dark shadow text-brand-primary'
+                                : 'text-gray-500 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-brand-dark/80'
+                                }`}
                         >
                             Optimization
                         </button>
@@ -730,25 +852,22 @@ def custom_objective(stats):
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <div>
                         <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Exchange</label>
-                        <select className={inputBaseClasses}>
-                            <option>Binance</option>
-                            <option>Bybit</option>
-                            <option>Coinbase</option>
-                            <option>Kraken</option>
-                            <option>KuCoin</option>
-                            <option>OKX</option>
-                            <option>Huobi</option>
-                            <option>Gate.io</option>
-                            <option>Bitget</option>
-                            <option>MEXC</option>
+                        <select
+                            className={inputBaseClasses}
+                            value={selectedExchange}
+                            onChange={(e) => setSelectedExchange(e.target.value)}
+                        >
+                            {exchanges.map(ex => (
+                                <option key={ex} value={ex}>{ex.toUpperCase()}</option>
+                            ))}
                         </select>
                     </div>
                     {isPortfolioBacktest ? (
                         <div className="md:col-span-2 lg:col-span-2">
                             <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Portfolio Assets</label>
                             <div className="flex gap-2">
-                                <input 
-                                    type="text" 
+                                <input
+                                    type="text"
                                     value={newPortfolioAsset}
                                     onChange={(e) => setNewPortfolioAsset(e.target.value)}
                                     placeholder="e.g. ADA/USDT"
@@ -772,22 +891,26 @@ def custom_objective(stats):
                         </div>
                     ) : (
                         <div>
-                            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Market Pair</label>
-                            <select className={inputBaseClasses}>
-                                <option>BTC/USDT</option>
-                                <option>ETH/USDT</option>
-                                <option>SOL/USDT</option>
-                            </select>
+                            <SearchableSelect
+                                label="Market Pair"
+                                options={markets}
+                                value={symbol}
+                                onChange={(val) => setSymbol(val)}
+                                placeholder={isLoadingMarkets ? "Loading..." : "Search pair (e.g. BTC)"}
+                                disabled={isLoadingMarkets}
+                            />
                         </div>
                     )}
                     <div>
                         <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Start Date</label>
                         <div className="relative">
-                            <input 
-                                type="date"
-                                value={startDate}
-                                onChange={(e) => setStartDate(e.target.value)}
+                            <DatePicker
+                                selected={startDate ? new Date(startDate) : null}
+                                onChange={(date: Date | null) => setStartDate(date ? date.toISOString().split('T')[0] : '')}
                                 className={`${inputBaseClasses} pr-10`}
+                                dateFormat="yyyy-MM-dd"
+                                placeholderText="Select start date"
+                                wrapperClassName="w-full"
                             />
                             <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                                 <CalendarIcon />
@@ -797,11 +920,13 @@ def custom_objective(stats):
                     <div>
                         <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">End Date</label>
                         <div className="relative">
-                            <input 
-                                type="date"
-                                value={endDate}
-                                onChange={(e) => setEndDate(e.target.value)}
+                            <DatePicker
+                                selected={endDate ? new Date(endDate) : null}
+                                onChange={(date: Date | null) => setEndDate(date ? date.toISOString().split('T')[0] : '')}
                                 className={`${inputBaseClasses} pr-10`}
+                                dateFormat="yyyy-MM-dd"
+                                placeholderText="Select end date"
+                                wrapperClassName="w-full"
                             />
                             <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
                                 <CalendarIcon />
@@ -810,43 +935,55 @@ def custom_objective(stats):
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Timeframe</label>
-                        <select className={inputBaseClasses}>
-                            <option>1 Tick</option>
-                            <option>1 Minute</option>
-                            <option>5 Minutes</option>
-                            <option>15 Minutes</option>
-                            <option>30 Minutes</option>
-                            <option>1 Hour</option>
-                            <option>4 Hours</option>
-                            <option>1 Day</option>
-                            <option>1 Week</option>
-                            <option>1 Month</option>
+                        <select
+                            value={timeframe}
+                            onChange={(e) => setTimeframe(e.target.value)}
+                            className={inputBaseClasses}
+                        >
+                            <optgroup label="Minutes">
+                                <option value="1m">1 Minute</option>
+                                <option value="3m">3 Minutes</option>
+                                <option value="5m">5 Minutes</option>
+                                <option value="15m">15 Minutes</option>
+                                <option value="30m">30 Minutes</option>
+                            </optgroup>
+                            <optgroup label="Hours">
+                                <option value="1h">1 Hour</option>
+                                <option value="2h">2 Hours</option>
+                                <option value="4h">4 Hours</option>
+                                <option value="6h">6 Hours</option>
+                                <option value="8h">8 Hours</option>
+                                <option value="12h">12 Hours</option>
+                            </optgroup>
+                            <optgroup label="Days">
+                                <option value="1d">1 Day</option>
+                                <option value="3d">3 Days</option>
+                            </optgroup>
+                            <optgroup label="Weeks & Months">
+                                <option value="1w">1 Week</option>
+                                <option value="1M">1 Month</option>
+                            </optgroup>
                         </select>
                     </div>
-                     <div>
+                    <div>
                         <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Strategy</label>
-                         <div className="flex gap-2">
-                            <select onChange={(e) => setStrategy(e.target.value)} value={strategy} className={`${inputBaseClasses} flex-grow`}>
-                                {strategies.map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
-                            <Button variant="secondary" onClick={() => setIsLibraryOpen(true)}>
-                                From Library
-                            </Button>
-                        </div>
+                        <select onChange={(e) => setStrategy(e.target.value)} value={strategy} className={`${inputBaseClasses} flex-grow`}>
+                            {strategies.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
                     </div>
                 </div>
-                
+
                 {backtestMode === 'single' ? renderSingleParams() : renderOptimizationParams()}
 
                 <div className="mt-8 pt-6 border-t border-brand-border-light dark:border-brand-border-dark flex items-center gap-4">
-                    <Button onClick={handleRunBacktest} className="w-full md:w-auto" disabled={isOptimizing || isBatchRunning}>
-                        {isOptimizing ? 'Optimizing...' : backtestMode === 'single' ? 'Run Backtest' : 'Run Optimization'}
+                    <Button onClick={handleRunBacktest} className="w-full md:w-auto" disabled={isLoading || isSyncing || isOptimizing || isBatchRunning}>
+                        {isLoading ? 'Running Strategy...' : isOptimizing ? 'Optimizing...' : backtestMode === 'single' ? 'Run Backtest' : 'Run Optimization'}
                     </Button>
                     <Button variant="secondary" onClick={handleRunAllStrategies} disabled={isOptimizing || isBatchRunning}>
                         {isBatchRunning ? 'Running All...' : 'Run All Strategies'}
                     </Button>
                 </div>
-            </Card>
+            </Card >
 
             {isOptimizing && (
                 <Card className="staggered-fade-in" style={{ animationDelay: '300ms' }}>
@@ -858,155 +995,172 @@ def custom_objective(stats):
                 </Card>
             )}
 
-            {isBatchRunning && (
-                <Card className="staggered-fade-in" style={{ animationDelay: '300ms' }}>
-                    <div className="flex flex-col items-center justify-center p-8 text-center">
-                        <svg className="animate-spin h-8 w-8 text-brand-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                        <h2 className="mt-4 text-xl font-bold text-slate-900 dark:text-white">Running Batch Backtest</h2>
-                        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Please wait while we process all strategies...</p>
-                    </div>
-                </Card>
-            )}
-
-            {showResults && !isOptimizing && !isBatchRunning && (
-                <>
-                {batchResults ? (
+            {
+                isBatchRunning && (
                     <Card className="staggered-fade-in" style={{ animationDelay: '300ms' }}>
-                        <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6">Batch Backtest Results</h2>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead>
-                                    <tr className="border-b border-brand-border-light dark:border-brand-border-dark">
-                                        <th className="p-4 text-sm font-semibold text-gray-500 dark:text-gray-400">Strategy</th>
-                                        <th className="p-4 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Profit %</th>
-                                        <th className="p-4 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Max Drawdown %</th>
-                                        <th className="p-4 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Win Rate %</th>
-                                        <th className="p-4 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Sharpe Ratio</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {batchResults.sort((a, b) => b.profitPercent - a.profitPercent).map((result, index) => (
-                                        <tr key={result.id} className="border-b border-brand-border-light/80 dark:border-brand-border-dark/50 hover:bg-gray-50 dark:hover:bg-brand-dark/30 stagger-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
-                                            <td className="p-4 font-medium text-slate-900 dark:text-white">{result.strategy}</td>
-                                            <td className={`p-4 font-semibold text-right ${result.profitPercent >= 0 ? 'text-brand-success' : 'text-brand-danger'}`}>
-                                                {result.profitPercent.toFixed(2)}%
-                                            </td>
-                                            <td className="p-4 text-gray-600 dark:text-gray-300 text-right">{result.maxDrawdown.toFixed(2)}%</td>
-                                            <td className="p-4 text-gray-600 dark:text-gray-300 text-right">{result.winRate.toFixed(1)}%</td>
-                                            <td className="p-4 text-gray-600 dark:text-gray-300 text-right">{result.sharpeRatio.toFixed(2)}</td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
+                        <div className="flex flex-col items-center justify-center p-8 text-center">
+                            <svg className="animate-spin h-8 w-8 text-brand-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <h2 className="mt-4 text-xl font-bold text-slate-900 dark:text-white">Running Batch Backtest</h2>
+                            <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">Please wait while we process all strategies...</p>
                         </div>
                     </Card>
-                ) : multiObjectiveResults ? (
-                    <Card className="staggered-fade-in" style={{ animationDelay: '300ms' }}>
-                        <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Multi-Objective Optimization Results</h2>
-                        <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">The following results represent the best trade-offs (Pareto Front) found for your selected objectives.</p>
-                        <div className="overflow-x-auto">
-                            <table className="w-full text-left">
-                                <thead>
-                                    <tr className="border-b border-brand-border-light dark:border-brand-border-dark">
-                                        {Object.values(MOCK_STRATEGY_PARAMS[strategy] || {}).map(p => <th key={p.label} className="p-4 text-sm font-semibold text-gray-500 dark:text-gray-400">{p.label}</th>)}
-                                        {multiObjectiveGoals.map(goal => <th key={goal} className="p-4 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">{goal}</th>)}
-                                        <th className="p-4 text-sm font-semibold text-gray-500 dark:text-gray-400 text-center">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {multiObjectiveResults.map((res, index) => (
-                                        <tr key={res.id} className="border-b border-brand-border-light/80 dark:border-brand-border-dark/50 hover:bg-gray-50 dark:hover:bg-brand-dark/30 stagger-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
-                                            {Object.keys(MOCK_STRATEGY_PARAMS[strategy] || {}).map(paramKey => <td key={paramKey} className="p-4 font-mono text-slate-900 dark:text-white">{res.params?.[paramKey]}</td>)}
-                                            {multiObjectiveGoals.includes('Net Profit') && <td className={`p-4 font-semibold text-right ${res.profitPercent >= 0 ? 'text-brand-success' : 'text-brand-danger'}`}>{res.profitPercent.toFixed(2)}%</td>}
-                                            {multiObjectiveGoals.includes('Max Drawdown') && <td className="p-4 font-semibold text-right text-brand-danger">{res.maxDrawdown.toFixed(2)}%</td>}
-                                            {multiObjectiveGoals.includes('Sharpe Ratio') && <td className="p-4 font-semibold text-right text-slate-900 dark:text-white">{res.sharpeRatio.toFixed(2)}</td>}
-                                            <td className="p-4 text-center">
-                                                <Button variant="outline" className="px-3 py-1 text-xs" onClick={() => handleLoadParams(res.params || {})}>
-                                                    Load Params
-                                                </Button>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </Card>
-                ) : singleResult ? (
-                 <Card className="staggered-fade-in" style={{ animationDelay: '300ms' }}>
-                    <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
-                        <h2 className="text-xl font-bold text-slate-900 dark:text-white">
-                            {backtestMode === 'optimization' ? 'Best Optimization Result' : 'Backtest Results'}
-                        </h2>
-                         <Button variant="outline" onClick={() => setIsReplayActive(!isReplayActive)}>
-                             {isReplayActive ? 'Exit Replay' : 'Start Bar Replay'}
-                        </Button>
-                    </div>
+                )
+            }
 
-                    {!isReplayActive && (
-                        <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                           <MetricCard label="Total Profit" value={singleResult.profitPercent} prefix="+" suffix="%" positive={true} />
-                           <MetricCard label="Max Drawdown" value={singleResult.maxDrawdown} suffix="%" positive={false}/>
-                           <MetricCard label="Win Rate" value={singleResult.winRate} suffix="%" />
-                           <MetricCard label="Sharpe Ratio" value={singleResult.sharpeRatio} />
-                        </div>
-                    )}
-                    
-                    <div className="h-96 animate-fade-in-down">
-                        <ResponsiveContainer width="100%" height="100%">
-                           <LineChart data={isReplayActive ? replayData : EQUITY_CURVE_DATA}>
-                                <CartesianGrid strokeDasharray="3 3" stroke={gridColor} />
-                                <XAxis dataKey="name" stroke={axisColor} />
-                                <YAxis stroke={axisColor} tickFormatter={(value) => `$${Number(value) / 1000}k`} />
-                                <Tooltip content={<CustomTooltip />} cursor={{ stroke: axisColor, strokeDasharray: '3 3' }} />
-                                <Line 
-                                    type="monotone" 
-                                    dataKey="value" 
-                                    name="Equity" 
-                                    stroke="#6366F1" 
-                                    strokeWidth={2} 
-                                    dot={false}
-                                    activeDot={{ r: 6, stroke: '#6366F1', fill: '#6366F1' }} 
-                                    animationDuration={isReplayActive ? 0 : 1500}
-                                />
-                            </LineChart>
-                        </ResponsiveContainer>
-                    </div>
+            {
+                showResults && !isOptimizing && !isBatchRunning && (
+                    <>
+                        {batchResults ? (
+                            <Card className="staggered-fade-in" style={{ animationDelay: '300ms' }}>
+                                <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6">Batch Backtest Results</h2>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left">
+                                        <thead>
+                                            <tr className="border-b border-brand-border-light dark:border-brand-border-dark">
+                                                <th className="p-4 text-sm font-semibold text-gray-500 dark:text-gray-400">Strategy</th>
+                                                <th className="p-4 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Profit %</th>
+                                                <th className="p-4 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Max Drawdown %</th>
+                                                <th className="p-4 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Win Rate %</th>
+                                                <th className="p-4 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Sharpe Ratio</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {batchResults.sort((a, b) => b.profitPercent - a.profitPercent).map((result, index) => (
+                                                <tr key={result.id} className="border-b border-brand-border-light/80 dark:border-brand-border-dark/50 hover:bg-gray-50 dark:hover:bg-brand-dark/30 stagger-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
+                                                    <td className="p-4 font-medium text-slate-900 dark:text-white">{result.strategy}</td>
+                                                    <td className={`p-4 font-semibold text-right ${result.profitPercent >= 0 ? 'text-brand-success' : 'text-brand-danger'}`}>
+                                                        {result.profitPercent.toFixed(2)}%
+                                                    </td>
+                                                    <td className="p-4 text-gray-600 dark:text-gray-300 text-right">{result.maxDrawdown.toFixed(2)}%</td>
+                                                    <td className="p-4 text-gray-600 dark:text-gray-300 text-right">{result.winRate.toFixed(1)}%</td>
+                                                    <td className="p-4 text-gray-600 dark:text-gray-300 text-right">{result.sharpeRatio.toFixed(2)}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </Card>
+                        ) : multiObjectiveResults ? (
+                            <Card className="staggered-fade-in" style={{ animationDelay: '300ms' }}>
+                                <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-2">Multi-Objective Optimization Results</h2>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mb-6">The following results represent the best trade-offs (Pareto Front) found for your selected objectives.</p>
+                                <div className="overflow-x-auto">
+                                    <table className="w-full text-left">
+                                        <thead>
+                                            <tr className="border-b border-brand-border-light dark:border-brand-border-dark">
+                                                {Object.values(MOCK_STRATEGY_PARAMS[strategy] || {}).map(p => <th key={p.label} className="p-4 text-sm font-semibold text-gray-500 dark:text-gray-400">{p.label}</th>)}
+                                                {multiObjectiveGoals.map(goal => <th key={goal} className="p-4 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">{goal}</th>)}
+                                                <th className="p-4 text-sm font-semibold text-gray-500 dark:text-gray-400 text-center">Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody>
+                                            {multiObjectiveResults.map((res, index) => (
+                                                <tr key={res.id} className="border-b border-brand-border-light/80 dark:border-brand-border-dark/50 hover:bg-gray-50 dark:hover:bg-brand-dark/30 stagger-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
+                                                    {Object.keys(MOCK_STRATEGY_PARAMS[strategy] || {}).map(paramKey => <td key={paramKey} className="p-4 font-mono text-slate-900 dark:text-white">{res.params?.[paramKey]}</td>)}
+                                                    {multiObjectiveGoals.includes('Net Profit') && <td className={`p-4 font-semibold text-right ${res.profitPercent >= 0 ? 'text-brand-success' : 'text-brand-danger'}`}>{res.profitPercent.toFixed(2)}%</td>}
+                                                    {multiObjectiveGoals.includes('Max Drawdown') && <td className="p-4 font-semibold text-right text-brand-danger">{res.maxDrawdown.toFixed(2)}%</td>}
+                                                    {multiObjectiveGoals.includes('Sharpe Ratio') && <td className="p-4 font-semibold text-right text-slate-900 dark:text-white">{res.sharpeRatio.toFixed(2)}</td>}
+                                                    <td className="p-4 text-center">
+                                                        <Button variant="outline" className="px-3 py-1 text-xs" onClick={() => handleLoadParams(res.params || {})}>
+                                                            Load Params
+                                                        </Button>
+                                                    </td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </Card>
+                        ) : singleResult ? (
+                            <Card className="staggered-fade-in" style={{ animationDelay: '300ms' }}>
+                                <div className="flex flex-wrap gap-4 justify-between items-center mb-6">
+                                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">
+                                        {backtestMode === 'optimization' ? 'Best Optimization Result' : 'Backtest Results'}
+                                    </h2>
+                                    <Button variant="outline" onClick={() => setIsReplayActive(!isReplayActive)}>
+                                        {isReplayActive ? 'Exit Replay' : 'Start Bar Replay'}
+                                    </Button>
+                                </div>
 
-                    {isReplayActive && (
-                        <div className="mt-6 pt-6 border-t border-brand-border-light dark:border-brand-border-dark animate-fade-in-down">
-                             <div className="flex items-center gap-6">
-                                <Button onClick={handlePlayPause}>
-                                    {isPlaying ? 'Pause' : 'Play'}
-                                </Button>
-                                <div className="flex-1">
-                                    <input
-                                        type="range"
-                                        min="0"
-                                        max={EQUITY_CURVE_DATA.length - 1}
-                                        value={replayIndex}
-                                        onChange={(e) => setReplayIndex(Number(e.target.value))}
-                                        className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-brand-dark slider-thumb"
-                                    />
+                                {!isReplayActive && (
+                                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                                        <MetricCard
+                                            label="Total Profit"
+                                            value={singleResult.profitPercent || 0}
+                                            prefix={singleResult.profitPercent! > 0 ? "+" : ""}
+                                            suffix="%"
+                                            positive={singleResult.profitPercent! >= 0}
+                                        />
+                                        <MetricCard
+                                            label="Max Drawdown"
+                                            value={singleResult.maxDrawdown || 0}
+                                            suffix="%"
+                                            positive={false}
+                                        />
+                                        <MetricCard
+                                            label="Win Rate"
+                                            value={singleResult.winRate || 0}
+                                            suffix="%"
+                                        />
+                                        <MetricCard
+                                            label="Sharpe Ratio"
+                                            value={singleResult.sharpeRatio || 0}
+                                        />
+                                    </div>
+                                )}
+
+                                <div className="mt-8 animate-fade-in-down">
+                                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Trade Visualization</h3>
+
+                                    {/* ডেটা থাকলে রিয়েল চার্ট, না থাকলে লোডিং বা এরর */}
+                                    {singleResult && singleResult.candle_data && singleResult.candle_data.length > 0 ? (
+                                        <BacktestChart
+                                            data={singleResult.candle_data}
+                                            trades={singleResult.trades_log || []}
+                                        />
+                                    ) : (
+                                        <div className="h-64 bg-gray-100 dark:bg-white/5 rounded-xl flex items-center justify-center text-gray-500">
+                                            Chart data visualization not available for this test.
+                                        </div>
+                                    )}
                                 </div>
-                                <div>
-                                    <label className="text-sm mr-2 text-gray-500 dark:text-gray-400">Speed:</label>
-                                    <select value={replaySpeed} onChange={(e) => setReplaySpeed(Number(e.target.value))} className="bg-white dark:bg-brand-dark/50 border border-brand-border-light dark:border-brand-border-dark rounded-md py-1 px-2 text-sm">
-                                        <option value={1}>1x</option>
-                                        <option value={2}>2x</option>
-                                        <option value={5}>5x</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-                    )}
-                </Card>
-                ) : null }
-                </>
-            )}
-        </div>
+
+                                {isReplayActive && (
+                                    <div className="mt-6 pt-6 border-t border-brand-border-light dark:border-brand-border-dark animate-fade-in-down">
+                                        <div className="flex items-center gap-6">
+                                            <Button onClick={handlePlayPause}>
+                                                {isPlaying ? 'Pause' : 'Play'}
+                                            </Button>
+                                            <div className="flex-1">
+                                                <input
+                                                    type="range"
+                                                    min="0"
+                                                    max={EQUITY_CURVE_DATA.length - 1}
+                                                    value={replayIndex}
+                                                    onChange={(e) => setReplayIndex(Number(e.target.value))}
+                                                    className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer dark:bg-brand-dark slider-thumb"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="text-sm mr-2 text-gray-500 dark:text-gray-400">Speed:</label>
+                                                <select value={replaySpeed} onChange={(e) => setReplaySpeed(Number(e.target.value))} className="bg-white dark:bg-brand-dark/50 border border-brand-border-light dark:border-brand-border-dark rounded-md py-1 px-2 text-sm">
+                                                    <option value={1}>1x</option>
+                                                    <option value={2}>2x</option>
+                                                    <option value={5}>5x</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+                            </Card>
+                        ) : null}
+                    </>
+                )
+            }
+        </div >
     );
 };
 

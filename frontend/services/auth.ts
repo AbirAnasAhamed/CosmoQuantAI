@@ -7,12 +7,19 @@ export const registerUser = async (userData: any) => {
 };
 
 // লগইন আপডেট করুন (Form Data ফরম্যাটে)
+// লগইন ফাংশন (আপডেট করা হয়েছে)
 export const loginUser = async (credentials: any) => {
-    const response = await apiClient.post('/login', {
-        email: credentials.email,
-        password: credentials.password
-    });
-    return response.data;
+  // ব্যাকএন্ড এখন Form Data আশা করে (OAuth2 Standard)
+  const formData = new URLSearchParams();
+  formData.append('username', credentials.email); // ব্যাকএন্ড 'username' ফিল্ড খুঁজবে
+  formData.append('password', credentials.password);
+
+  const response = await apiClient.post('/login', formData, {
+    headers: {
+      'Content-Type': 'application/x-www-form-urlencoded'
+    }
+  });
+  return response.data;
 };
 
 // বর্তমান ইউজারের তথ্য আনার জন্য

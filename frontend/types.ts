@@ -37,15 +37,27 @@ export interface ActiveBot {
 }
 
 export interface BacktestResult {
-  id: string;
+  id?: string;
   market: string;
   strategy: string;
-  timeframe: string;
-  date: string;
-  profitPercent: number;
-  maxDrawdown: number;
-  winRate: number;
-  sharpeRatio: number;
+  timeframe?: string;
+  date?: string;
+
+  // ব্যাকএন্ড রেসপন্স ফিল্ডস
+  profit_percent: number; // snake_case from python
+  max_drawdown: number;
+  win_rate: number;
+  sharpe_ratio: number;
+  final_value?: number;
+  total_trades?: number;
+  trades_log?: any[];
+  candle_data?: any[];
+
+  // লিগ্যাসি ফিল্ডস (Mock Data সাপোর্ট করার জন্য অপশনাল করে দিন)
+  profitPercent?: number;
+  maxDrawdown?: number;
+  winRate?: number;
+  sharpeRatio?: number;
   params?: Record<string, number | string>;
 }
 
@@ -146,19 +158,19 @@ export interface CointegratedPair {
 }
 
 export interface ModelVersion {
-    id: string;
-    version: number;
-    fileName: string;
-    uploadDate: string;
-    status: 'Ready' | 'Processing' | 'Error';
-    description: string;
+  id: string;
+  version: number;
+  fileName: string;
+  uploadDate: string;
+  status: 'Ready' | 'Processing' | 'Error';
+  description: string;
 }
 export interface CustomMLModel {
-    id: string;
-    name: string;
-    modelType: 'LSTM' | 'Random Forest' | 'ARIMA' | 'Other';
-    activeVersionId: string;
-    versions: ModelVersion[];
+  id: string;
+  name: string;
+  modelType: 'LSTM' | 'Random Forest' | 'ARIMA' | 'Other';
+  activeVersionId: string;
+  versions: ModelVersion[];
 }
 
 export interface MarketplaceModelReview {
@@ -178,11 +190,11 @@ export interface MarketplaceModel {
   asset: string;
   timeframe: string;
   performance: {
-      winRate: number;
-      avgReturn: number;
-      sharpeRatio: number;
-      maxDrawdown: number;
-      last12Months: { month: string, profit: number }[];
+    winRate: number;
+    avgReturn: number;
+    sharpeRatio: number;
+    maxDrawdown: number;
+    last12Months: { month: string, profit: number }[];
   };
   price: number;
   subscriptionType: 'Monthly' | 'One-Time';
@@ -191,32 +203,32 @@ export interface MarketplaceModel {
 }
 
 export interface FinancialStatementRow {
-    metric: string;
-    [year: string]: string | number;
+  metric: string;
+  [year: string]: string | number;
 }
 
 export interface FinancialStatementData {
-    income: FinancialStatementRow[];
-    balance: FinancialStatementRow[];
-    cashFlow: FinancialStatementRow[];
+  income: FinancialStatementRow[];
+  balance: FinancialStatementRow[];
+  cashFlow: FinancialStatementRow[];
 }
 
 export interface EconomicEvent {
-    id: string;
-    time: string;
-    event: string;
-    impact: 'High' | 'Medium' | 'Low';
-    actual: string;
-    forecast: string;
-    previous: string;
+  id: string;
+  time: string;
+  event: string;
+  impact: 'High' | 'Medium' | 'Low';
+  actual: string;
+  forecast: string;
+  previous: string;
 }
 
 export interface NewsArticle {
-    id: string;
-    source: string;
-    headline: string;
-    timestamp: string;
-    link: string;
+  id: string;
+  source: string;
+  headline: string;
+  timestamp: string;
+  link: string;
 }
 
 export interface ScreenerResult {
@@ -331,10 +343,12 @@ export interface StrategyTemplate {
   title: string;
   description: string;
   tags: string[];
+  params?: Record<string, any>;
+  strategy_type?: string;
 }
 export interface SampleJob {
-    title: string;
-    department: string;
+  title: string;
+  department: string;
 }
 
 export interface HoldingHistory {

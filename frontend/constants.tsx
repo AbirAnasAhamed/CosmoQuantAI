@@ -200,8 +200,8 @@ export const MOCK_ACTIVE_BOTS: ActiveBot[] = [
 ];
 
 export const MOCK_BACKTEST_RESULTS: BacktestResult[] = [
-    { id: '1', market: 'BTC/USDT', strategy: 'RSI Crossover', timeframe: '4h', date: '2023-10-22', profitPercent: 52.4, maxDrawdown: 5.19, winRate: 62.5, sharpeRatio: 1.8 },
-    { id: '2', market: 'ETH/USDT', strategy: 'MACD Crossover', timeframe: '1h', date: '2023-10-21', profitPercent: 88.9, maxDrawdown: 25.1, winRate: 55.0, sharpeRatio: 1.2 },
+    { id: '1', market: 'BTC/USDT', strategy: 'RSI Crossover', timeframe: '4h', date: '2023-10-22', profitPercent: 52.4, maxDrawdown: 5.19, winRate: 62.5, sharpeRatio: 1.8, profit_percent: 52.4, max_drawdown: 5.19, win_rate: 62.5, sharpe_ratio: 1.8 },
+    { id: '2', market: 'ETH/USDT', strategy: 'MACD Crossover', timeframe: '1h', date: '2023-10-21', profitPercent: 88.9, maxDrawdown: 25.1, winRate: 55.0, sharpeRatio: 1.2, profit_percent: 88.9, max_drawdown: 25.1, win_rate: 55.0, sharpe_ratio: 1.2 },
 ];
 
 export const MOCK_STRATEGIES = [

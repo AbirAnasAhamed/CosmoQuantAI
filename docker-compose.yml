@@ -9,8 +9,11 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://user:password@db:5432/cosmoquant_db
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
     depends_on:
       - db
+    env_file:
+      - .env
 
   # 2. Frontend Service (React/Vite)
   frontend:

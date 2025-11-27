@@ -755,3 +755,443 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .body-no-scroll {
   overflow: hidden;
 }
+
+@keyframes flash-line {
+  0% {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes flash-bg-green {
+  50% {
+    background-color: rgba(16, 185, 129, 0.2);
+  }
+}
+
+@keyframes flash-bg-red {
+  50% {
+    background-color: rgba(244, 63, 94, 0.2);
+  }
+}
+
+/* New animations for Sentiment Engine */
+@keyframes pulse-green {
+
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px rgba(16, 185, 129, 0.6));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.8));
+  }
+}
+
+.animate-pulse-green {
+  animation: pulse-green 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-red {
+
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px rgba(244, 63, 94, 0.6));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 10px rgba(244, 63, 94, 0.8));
+  }
+}
+
+.animate-pulse-red {
+  animation: pulse-red 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-yellow {
+
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px rgba(251, 191, 36, 0.6));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.8));
+  }
+}
+
+.animate-pulse-yellow {
+  animation: pulse-yellow 2.5s ease-in-out infinite;
+}
+
+@keyframes fade-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-slide-in {
+  animation: fade-slide-in 0.5s ease-out forwards;
+}
+
+@keyframes flash-bg-blue {
+  50% {
+    background-color: rgba(99, 102, 241, 0.15);
+  }
+}
+
+.animate-flash-blue {
+  animation: flash-bg-blue 1s ease-out;
+}
+
+@keyframes title-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(10px);
+  }
+
+  60% {
+    opacity: 1;
+    transform: scale(1.05) translateY(0);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-title-pop-in {
+  animation: title-pop-in 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+
+
+
+@keyframes pulse-yellow {
+
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px rgba(251, 191, 36, 0.6));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.8));
+  }
+}
+
+.animate-pulse-yellow {
+  animation: pulse-yellow 2.5s ease-in-out infinite;
+}
+
+@keyframes fade-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-slide-in {
+  animation: fade-slide-in 0.5s ease-out forwards;
+}
+
+@keyframes flash-bg-blue {
+  50% {
+    background-color: rgba(99, 102, 241, 0.15);
+  }
+}
+
+.animate-flash-blue {
+  animation: flash-bg-blue 1s ease-out;
+}
+
+@keyframes title-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(10px);
+  }
+
+  60% {
+    opacity: 1;
+    transform: scale(1.05) translateY(0);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-title-pop-in {
+  animation: title-pop-in 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+
+/* General UI helpers */
+.body-no-scroll {
+  overflow: hidden;
+}
+
+@keyframes flash-line {
+  0% {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes flash-bg-green {
+  50% {
+    background-color: rgba(16, 185, 129, 0.2);
+  }
+}
+
+@keyframes flash-bg-red {
+  50% {
+    background-color: rgba(244, 63, 94, 0.2);
+  }
+}
+
+/* New animations for Sentiment Engine */
+@keyframes pulse-green {
+
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px rgba(16, 185, 129, 0.6));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.8));
+  }
+}
+
+.animate-pulse-green {
+  animation: pulse-green 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-red {
+
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px rgba(244, 63, 94, 0.6));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 10px rgba(244, 63, 94, 0.8));
+  }
+}
+
+.animate-pulse-red {
+  animation: pulse-red 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-yellow {
+
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px rgba(251, 191, 36, 0.6));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 10px rgba(251, 191, 36, 0.8));
+  }
+}
+
+.animate-pulse-yellow {
+  animation: pulse-yellow 2.5s ease-in-out infinite;
+}
+
+@keyframes fade-slide-in {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-slide-in {
+  animation: fade-slide-in 0.5s ease-out forwards;
+}
+
+@keyframes flash-bg-blue {
+  50% {
+    background-color: rgba(99, 102, 241, 0.15);
+  }
+}
+
+.animate-flash-blue {
+  animation: flash-bg-blue 1s ease-out;
+}
+
+@keyframes title-pop-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.8) translateY(10px);
+  }
+
+  60% {
+    opacity: 1;
+    transform: scale(1.05) translateY(0);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-title-pop-in {
+  animation: title-pop-in 0.6s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards;
+}
+
+
+/* General UI helpers */
+.body-no-scroll {
+  overflow: hidden;
+}
+
+@keyframes flash-line {
+  0% {
+    opacity: 0;
+    transform: scaleX(0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scaleX(1);
+  }
+
+  100% {
+    opacity: 0;
+    transform: scaleX(1);
+  }
+}
+
+@keyframes flash-bg-green {
+  50% {
+    background-color: rgba(16, 185, 129, 0.2);
+  }
+}
+
+@keyframes flash-bg-red {
+  50% {
+    background-color: rgba(244, 63, 94, 0.2);
+  }
+}
+
+/* New animations for Sentiment Engine */
+@keyframes pulse-green {
+
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px rgba(16, 185, 129, 0.6));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 10px rgba(16, 185, 129, 0.8));
+  }
+}
+
+.animate-pulse-green {
+  animation: pulse-green 2.5s ease-in-out infinite;
+}
+
+@keyframes pulse-red {
+
+  0%,
+  100% {
+    filter: drop-shadow(0 0 2px rgba(244, 63, 94, 0.6));
+  }
+
+  50% {
+    filter: drop-shadow(0 0 10px rgba(244, 63, 94, 0.8));
+  }
+}
+
+/* Custom DatePicker Styles */
+.react-datepicker-wrapper {
+  width: 100%;
+}
+
+.dark .react-datepicker {
+  background-color: #1e293b;
+  /* slate-800 */
+  border-color: #334155;
+  /* slate-700 */
+  color: #f8fafc;
+  /* slate-50 */
+  font-family: inherit;
+}
+
+.dark .react-datepicker__header {
+  background-color: #0f172a;
+  /* slate-900 */
+  border-bottom-color: #334155;
+  /* slate-700 */
+}
+
+.dark .react-datepicker__current-month,
+.dark .react-datepicker-time__header,
+.dark .react-datepicker-year-header,
+.dark .react-datepicker__day-name {
+  color: #f8fafc;
+  /* slate-50 */
+}
+
+.dark .react-datepicker__day {
+  color: #cbd5e1;
+  /* slate-300 */
+}
+
+.dark .react-datepicker__day:hover {
+  background-color: #334155;
+  /* slate-700 */
+  color: white;
+}
+
+.dark .react-datepicker__day--selected,
+.dark .react-datepicker__day--keyboard-selected {
+  background-color: #6366f1;
+  /* brand-primary */
+  color: white;
+}
+
+.dark .react-datepicker__day--disabled {
+  color: #475569;
+  /* slate-600 */
+}
+
+.react-datepicker-popper {
+  z-index: 9999 !important;
+}

@@ -3,12 +3,20 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import List
 from . import models, database, schemas, crud, utils, auth, email_utils
+from .services.market_service import MarketService
+from .services.backtest_engine import BacktestEngine
 from datetime import timedelta
 
 # ডাটাবেস টেবিল তৈরি
 models.Base.metadata.create_all(bind=database.engine)
 
 app = FastAPI()
+
+@app.on_event("startup")
+def startup_event():
+    db = database.SessionLocal()
+    # crud.seed_strategy_templates(db) # Removed
+    db.close()
 
 # ডাটাবেস সেশন ডিপেন্ডেন্সি
 def get_db():
@@ -38,14 +46,24 @@ def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
 
 # --- Login Endpoint ---
 @app.post("/api/login", response_model=schemas.Token)
-def login(user_credentials: schemas.UserLogin, db: Session = Depends(get_db)):
-    # ... আগের ভেরিফিকেশন লজিক ... (User Check & Pass Check)
+def login(user_credentials: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     
-    user = crud.get_user_by_email(db, email=user_credentials.email)
-    if not user or not utils.verify_password(user_credentials.password, user.hashed_password):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Invalid Credentials")
+    # Swagger Form এ 'username' ফিল্ড থাকে, কিন্তু আমরা ইমেইল ব্যবহার করি।
+    # তাই form data-র username কে আমরা ইমেইল হিসেবে ধরবো।
+    user = crud.get_user_by_email(db, email=user_credentials.username)
     
-    # দুইটি টোকেন জেনারেট করা হচ্ছে
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Invalid Credentials"
+        )
+    
+    if not utils.verify_password(user_credentials.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, 
+            detail="Invalid Credentials"
+        )
+    
     access_token = auth.create_access_token(data={"sub": user.email, "user_id": user.id})
     refresh_token = auth.create_refresh_token(data={"sub": user.email})
     
@@ -146,3 +164,81 @@ def reset_password(request: schemas.ResetPasswordRequest, db: Session = Depends(
         raise HTTPException(status_code=404, detail="User not found")
         
     return {"message": "Password has been reset successfully. Please login with new password."}
+
+# মার্কেট সার্ভিস ইনিশিয়ালইজেশন
+market_service = MarketService()
+# ইঞ্জিন ইনস্ট্যান্স
+backtest_engine = BacktestEngine()
+
+# --- Market & Exchange Info Endpoints ---
+
+# ১. সাপোর্টেড এক্সচেঞ্জ লিস্ট
+@app.get("/api/exchanges")
+def get_exchanges():
+    return market_service.get_supported_exchanges()
+
+# ২. এক্সচেঞ্জ অনুযায়ী সিম্বল/মার্কেট পেয়ার
+@app.get("/api/markets/{exchange_id}")
+async def get_markets(exchange_id: str):
+    symbols = await market_service.get_exchange_markets(exchange_id)
+    if not symbols:
+        raise HTTPException(status_code=404, detail="Exchange not found or error loading markets")
+    return symbols
+
+# --- Market Data Endpoints ---
+
+# ১. লাইভ ডাটা সিঙ্ক করার জন্য
+@app.post("/api/market-data/sync")
+async def sync_market_data(
+    symbol: str = "BTC/USDT", 
+    timeframe: str = "1h", 
+    limit: int = 1000, 
+    start_date: str = None,
+    end_date: str = None,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    result = await market_service.fetch_and_store_candles(db, symbol, timeframe, start_date, end_date)
+    return result
+
+# ২. চার্ট বা ব্যাকটেস্টিং এর জন্য ডেটা রিড করার জন্য
+@app.get("/api/market-data")
+def get_market_data(
+    symbol: str = "BTC/USDT", 
+    timeframe: str = "1h", 
+    db: Session = Depends(get_db)
+):
+    candles = market_service.get_candles_from_db(db, symbol, timeframe)
+    
+    # ফ্রন্টএন্ডের (Recharts/TradingView) ফরম্যাটে ডাটা পাঠানো
+    formatted_data = []
+    for c in candles:
+        formatted_data.append({
+            "time": c.timestamp.isoformat(), # Recharts এ ISO স্ট্রিং সুবিধা দেয়
+            "open": c.open,
+            "high": c.high,
+            "low": c.low,
+            "close": c.close,
+            "volume": c.volume
+        })
+    
+    return formatted_data
+
+# --- Backtest Endpoint ---
+@app.post("/api/backtest/run")
+def run_backtest(
+    request: schemas.BacktestRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(auth.get_current_user) # শুধুমাত্র লগড-ইন ইউজার
+):
+    result = backtest_engine.run(
+        db=db, 
+        symbol=request.symbol, 
+        timeframe=request.timeframe, 
+        strategy_name=request.strategy,
+        initial_cash=request.initial_cash,
+        params=request.params,
+        start_date=request.start_date,
+        end_date=request.end_date
+    )
+    return result

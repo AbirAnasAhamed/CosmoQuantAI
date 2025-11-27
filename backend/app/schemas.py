@@ -55,3 +55,13 @@ class ForgotPasswordRequest(BaseModel):
 class ResetPasswordRequest(BaseModel):
     token: str
     new_password: str
+
+# ব্যাকটেস্ট রিকোয়েস্ট স্কিমা
+class BacktestRequest(BaseModel):
+    symbol: str
+    timeframe: str
+    strategy: str
+    initial_cash: float = 10000.0
+    start_date: Optional[str] = None  # Format: YYYY-MM-DD
+    end_date: Optional[str] = None    # Format: YYYY-MM-DD
+    params: dict = {}
