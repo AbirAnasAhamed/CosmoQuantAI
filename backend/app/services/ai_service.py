@@ -41,7 +41,44 @@ def generate_ai_strategy_templates(user_prompt: str = None):
         
         json_text = response.text.replace("```json", "").replace("```", "").strip()
         return json.loads(json_text)
-    
     except Exception as e:
         print(f"AI Generation Error: {e}")
         return []
+
+def generate_strategy_code(user_prompt: str) -> str:
+    system_instruction = """
+    You are an expert algorithmic trading developer using 'backtrader'. 
+    Your task: Convert natural language ideas into a Python Backtrader Strategy.
+
+    CRITICAL RULES FOR PARAMETERS:
+    1. You MUST define a class variable 'params' tuple with default values.
+    2. You MUST include a special comment block at the VERY TOP of the code describing these parameters in JSON format so the UI can generate input fields.
+    
+    Format for the comment block (STRICTLY FOLLOW THIS):
+    # @params
+    # {
+    #   "period": { "type": "number", "label": "RSI Period", "default": 14, "min": 2, "max": 50, "step": 1 },
+    #   "threshold": { "type": "number", "label": "Overbought Level", "default": 70, "min": 50, "max": 100, "step": 1 }
+    # }
+    # @params_end
+
+    CODE RULES:
+    1. Import backtrader as bt.
+    2. Use 'self.params.parameter_name' inside the logic.
+    3. Implement 'log', '__init__', and 'next' methods.
+    4. Output ONLY raw Python code. No markdown blocks.
+    """
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=f"{system_instruction}\n\nUser Strategy Idea: {user_prompt}"
+        )
+        
+        # ক্লিনআপ: যদি AI ভুল করে মার্কডাউন দেয়, তা রিমুভ করা হবে
+        clean_code = response.text.replace("```python", "").replace("```", "").strip()
+        return clean_code
+    
+    except Exception as e:
+        print(f"AI Code Gen Error: {e}")
+        return ""

@@ -132,9 +132,9 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ data, trades }) => {
         <div className="relative w-full h-[400px]">
             <div ref={chartContainerRef} className="w-full h-full rounded-xl overflow-hidden border border-brand-border-dark" />
             {/* যদি কোনো ট্রেড না থাকে বা ডেটা লোড না হয় */}
-            {(!data.length || !trades.length) && (
+            {!data.length && (
                 <div className="absolute inset-0 flex items-center justify-center bg-black/50 text-white text-sm pointer-events-none">
-                    {!data.length ? "No Chart Data" : "No Trades Executed in this Period"}
+                    No Chart Data
                 </div>
             )}
         </div>

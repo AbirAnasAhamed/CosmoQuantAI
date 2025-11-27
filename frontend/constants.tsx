@@ -200,8 +200,8 @@ export const MOCK_ACTIVE_BOTS: ActiveBot[] = [
 ];
 
 export const MOCK_BACKTEST_RESULTS: BacktestResult[] = [
-    { id: '1', market: 'BTC/USDT', strategy: 'RSI Crossover', timeframe: '4h', date: '2023-10-22', profitPercent: 52.4, maxDrawdown: 5.19, winRate: 62.5, sharpeRatio: 1.8, profit_percent: 52.4, max_drawdown: 5.19, win_rate: 62.5, sharpe_ratio: 1.8 },
-    { id: '2', market: 'ETH/USDT', strategy: 'MACD Crossover', timeframe: '1h', date: '2023-10-21', profitPercent: 88.9, maxDrawdown: 25.1, winRate: 55.0, sharpeRatio: 1.2, profit_percent: 88.9, max_drawdown: 25.1, win_rate: 55.0, sharpe_ratio: 1.2 },
+    { id: '1', market: 'BTC/USDT', strategy: 'RSI Crossover', timeframe: '4h', date: '2023-10-22', profitPercent: 52.4, maxDrawdown: 5.19, winRate: 62.5, sharpeRatio: 1.8, profit_percent: 52.4 },
+    { id: '2', market: 'ETH/USDT', strategy: 'MACD Crossover', timeframe: '1h', date: '2023-10-21', profitPercent: 88.9, maxDrawdown: 25.1, winRate: 55.0, sharpeRatio: 1.2, profit_percent: 88.9 },
 ];
 
 export const MOCK_STRATEGIES = [
@@ -1396,8 +1396,8 @@ export const BacktesterIcon = () => (
 export const BotLabIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z" /></svg>
 );
-export const AIFoundryIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+export const AIFoundryIcon = ({ className = "h-6 w-6" }: { className?: string }) => (
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 8c-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4-1.79-4-4-4zm0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2z" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M20.94 11c-.46-4.17-3.77-7.48-7.94-7.94-1.28-.14-2.58.1-3.75.64M3.06 13c.46 4.17 3.77 7.48 7.94 7.94 1.28.14 2.58-.1 3.75-.64" />
         <path strokeLinecap="round" strokeLinejoin="round" d="M12 4V2m0 20v-2m8-10h2M2 12h2" />

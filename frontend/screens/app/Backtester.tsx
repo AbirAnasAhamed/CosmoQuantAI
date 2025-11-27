@@ -13,11 +13,28 @@ import CodeEditor from '../../components/ui/CodeEditor';
 import type { BacktestResult } from '../../types';
 
 import { useToast } from '../../contexts/ToastContext';
-import { syncMarketData, runBacktestApi, getExchangeList, getExchangeMarkets, uploadStrategyFile } from '../../services/backtester';
+import { syncMarketData, runBacktestApi, getExchangeList, getExchangeMarkets, uploadStrategyFile, generateStrategy } from '../../services/backtester';
+import { AIFoundryIcon } from '../../constants';
 import SearchableSelect from '../../components/ui/SearchableSelect';
 import BacktestChart from '../../components/ui/BacktestChart';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+
+// কোড থেকে প্যারামিটার বের করার ফাংশন
+const parseParamsFromCode = (code: string): Record<string, any> => {
+    const match = code.match(/#\s*@params\s*([\s\S]*?)#\s*@params_end/);
+    if (match && match[1]) {
+        try {
+            // কমেন্টের # গুলো সরিয়ে JSON পার্স করা
+            const jsonString = match[1].replace(/^\s*#\s*/gm, '');
+            return JSON.parse(jsonString);
+        } catch (e) {
+            console.error("Failed to parse param config:", e);
+            return {};
+        }
+    }
+    return {};
+};
 
 // Animated Number Component (Same as Dashboard)
 const AnimatedNumber: React.FC<{ value: number; decimals?: number; prefix?: string; suffix?: string }> = ({ value, decimals = 2, prefix = '', suffix = '' }) => {
@@ -242,6 +259,8 @@ const Backtester: React.FC = () => {
     }, [selectedExchange]);
     const [params, setParams] = useState<Record<string, any>>({});
     const [optimizationParams, setOptimizationParams] = useState<OptimizationParams>({});
+    const [optimizableParams, setOptimizableParams] = useState<Record<string, any>>({});
+    const [currentStrategyCode, setCurrentStrategyCode] = useState('');
     const [showResults, setShowResults] = useState(false);
     const [backtestMode, setBacktestMode] = useState<'single' | 'optimization'>('single');
     const [startDate, setStartDate] = useState('2023-01-01');
@@ -300,6 +319,69 @@ def custom_objective(stats):
     const [isPlaying, setIsPlaying] = useState(false);
     const [replaySpeed, setReplaySpeed] = useState(1);
     const replayIntervalRef = useRef<number | null>(null);
+
+    // AI Strategy Generation State
+    const [isAiModalOpen, setIsAiModalOpen] = useState(false);
+    const [aiPrompt, setAiPrompt] = useState('');
+    const [isGenerating, setIsGenerating] = useState(false);
+
+    // AI জেনারেশন হ্যান্ডেলার
+    const handleAiGenerate = async () => {
+        if (!aiPrompt.trim()) {
+            showToast('Please describe your strategy first.', 'warning');
+            return;
+        }
+
+        setIsGenerating(true);
+        try {
+            const data = await generateStrategy(aiPrompt);
+
+            // ১. কোড সেভ করা
+            setCurrentStrategyCode(data.code);
+
+            // ২. নতুন স্ট্র্যাটেজির নাম লিস্টে যোগ করা
+            const newStrategyName = data.filename.replace(/\.[^/.]+$/, "");
+            if (!strategies.includes(newStrategyName)) {
+                setStrategies(prev => [...prev, newStrategyName]);
+            }
+            setStrategy(newStrategyName);
+
+            // ৩. ডাইনামিক প্যারামিটার এক্সট্রাক্ট করা এবং সেট করা
+            const extractedParams = parseParamsFromCode(data.code);
+
+            // ৪. অপটিমাইজেশন প্যারামস স্টেট আপডেট করা (যাতে স্লাইডারগুলো আসে)
+            const newOptParams: OptimizationParams = {};
+            const newSimpleParams: Record<string, any> = {};
+
+            Object.entries(extractedParams).forEach(([key, config]: [string, any]) => {
+                // স্লাইডারের জন্য কনফিগারেশন
+                newOptParams[key] = {
+                    start: config.default,
+                    end: config.max || config.default * 2,
+                    step: config.step || 1
+                };
+                // সাধারণ প্যারামিটারের জন্য
+                newSimpleParams[key] = config.default;
+            });
+
+            // স্টেট আপডেট
+            setOptimizationParams(newOptParams); // এটি UI তে স্লাইডার দেখাবে
+            setParams(newSimpleParams);          // এটি ব্যাকএন্ডে ভ্যালু পাঠাবে
+
+            // ৫. UI তে প্যারামিটার কনফিগারেশন সেভ রাখা (UI রেন্ডারিং এর জন্য)
+            setOptimizableParams(extractedParams);
+
+            showToast('Strategy & Parameters Generated!', 'success');
+            setIsAiModalOpen(false);
+            setAiPrompt('');
+
+        } catch (error) {
+            console.error(error);
+            showToast('Failed to generate strategy.', 'error');
+        } finally {
+            setIsGenerating(false);
+        }
+    };
 
 
 
@@ -593,14 +675,17 @@ def custom_objective(stats):
     const inputBaseClasses = "w-full bg-white dark:bg-brand-dark/50 border border-brand-border-light dark:border-brand-border-dark rounded-md p-2 text-slate-900 dark:text-white focus:ring-brand-primary focus:border-brand-primary";
 
     const renderSingleParams = () => {
-        const strategyParamsConfig = MOCK_STRATEGY_PARAMS[strategy as keyof typeof MOCK_STRATEGY_PARAMS];
-        if (!strategyParamsConfig || Object.keys(strategyParamsConfig).length === 0) return null;
+        const activeParamsConfig = Object.keys(optimizableParams).length > 0
+            ? optimizableParams
+            : MOCK_STRATEGY_PARAMS[strategy as keyof typeof MOCK_STRATEGY_PARAMS];
+
+        if (!activeParamsConfig || Object.keys(activeParamsConfig).length === 0) return null;
 
         return (
             <div className="mt-6 pt-6 border-t border-brand-border-light dark:border-brand-border-dark animate-fade-in-down">
                 <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Strategy Parameters</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                    {Object.entries(strategyParamsConfig).map(([key, config]) => (
+                    {Object.entries(activeParamsConfig).map(([key, config]: [string, any]) => (
                         <div key={key}>
                             <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">{config.label}</label>
                             <input
@@ -620,8 +705,11 @@ def custom_objective(stats):
     };
 
     const renderOptimizationParams = () => {
-        const strategyParamsConfig = MOCK_STRATEGY_PARAMS[strategy as keyof typeof MOCK_STRATEGY_PARAMS];
-        if (!strategyParamsConfig || Object.keys(strategyParamsConfig).length === 0) return null;
+        const activeParamsConfig = Object.keys(optimizableParams).length > 0
+            ? optimizableParams
+            : MOCK_STRATEGY_PARAMS[strategy as keyof typeof MOCK_STRATEGY_PARAMS];
+
+        if (!activeParamsConfig || Object.keys(activeParamsConfig).length === 0) return null;
 
         const objectives = ['Net Profit', 'Max Drawdown', 'Sharpe Ratio'];
 
@@ -638,7 +726,7 @@ def custom_objective(stats):
                 {optimizationMethod === 'gridSearch' ? (
                     <div>
                         <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Grid Search Parameters</h3>
-                        {Object.entries(strategyParamsConfig).map(([key, config]) => (
+                        {Object.entries(activeParamsConfig).map(([key, config]: [string, any]) => (
                             <div key={key} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start mb-6 pb-4 border-b border-brand-border-light/50 dark:border-brand-border-dark/50 last:border-b-0 last:mb-0 last:pb-0">
                                 <label className="md:col-span-1 block text-sm font-medium text-gray-500 dark:text-gray-400 pt-1.5">{config.label}</label>
                                 <div className="md:col-span-3">
@@ -664,7 +752,7 @@ def custom_objective(stats):
                                 <input type="number" value={gaParams.generations} onChange={(e) => setGaParams(p => ({ ...p, generations: parseInt(e.target.value) }))} step="5" className={inputBaseClasses} />
                             </div>
                         </div>
-                        {Object.entries(strategyParamsConfig).map(([key, config]) => (
+                        {Object.entries(activeParamsConfig).map(([key, config]: [string, any]) => (
                             <div key={key} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start mb-6 pb-4 border-b border-brand-border-light/50 dark:border-brand-border-dark/50 last:border-b-0 last:mb-0 last:pb-0">
                                 <label className="md:col-span-1 block text-sm font-medium text-gray-500 dark:text-gray-400 pt-1.5">{config.label} Range</label>
                                 <div className="md:col-span-3">
@@ -822,6 +910,23 @@ def custom_objective(stats):
                     </Button>
                 </div>
             </Card>
+
+            {/* AI Generator Trigger Button */}
+            <div className="flex justify-center my-4">
+                <div className="relative group">
+                    <div className="absolute -inset-0.5 bg-gradient-to-r from-pink-600 to-purple-600 rounded-lg blur opacity-75 group-hover:opacity-100 transition duration-1000 group-hover:duration-200 animate-tilt"></div>
+                    <button
+                        onClick={() => setIsAiModalOpen(true)}
+                        className="relative px-7 py-4 bg-black rounded-lg leading-none flex items-center divide-x divide-gray-600"
+                    >
+                        <span className="flex items-center space-x-3">
+                            <AIFoundryIcon className="text-pink-500 h-6 w-6" />
+                            <span className="text-gray-100 font-bold pr-4">Generate Strategy with AI</span>
+                        </span>
+                        <span className="pl-4 text-indigo-400 group-hover:text-gray-100 transition duration-200 text-sm">From Idea to Code &rarr;</span>
+                    </button>
+                </div>
+            </div>
 
             <Card className="staggered-fade-in" style={{ animationDelay: '200ms' }}>
                 <div className="flex items-center justify-between mb-6">
@@ -1285,6 +1390,44 @@ def custom_objective(stats):
                     </>
                 )
             }
+            {/* AI Input Modal */}
+            {isAiModalOpen && (
+                <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[70] flex items-center justify-center p-4 animate-fade-in">
+                    <div className="bg-brand-dark w-full max-w-2xl rounded-2xl border border-purple-500/30 shadow-2xl p-6 relative overflow-hidden">
+                        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 to-pink-500"></div>
+
+                        <h2 className="text-xl font-bold text-white mb-2 flex items-center gap-2">
+                            <AIFoundryIcon className="text-purple-400" /> AI Strategy Architect
+                        </h2>
+                        <p className="text-gray-400 text-sm mb-6">Describe your strategy in plain English (e.g., "Buy when RSI is below 30 and price is above 200 EMA").</p>
+
+                        <textarea
+                            value={aiPrompt}
+                            onChange={(e) => setAiPrompt(e.target.value)}
+                            placeholder="Type your strategy idea here..."
+                            className="w-full h-40 bg-black/30 border border-gray-700 rounded-xl p-4 text-white focus:border-purple-500 focus:ring-1 focus:ring-purple-500 outline-none resize-none mb-6"
+                        />
+
+                        <div className="flex justify-end gap-3">
+                            <Button variant="secondary" onClick={() => setIsAiModalOpen(false)}>Cancel</Button>
+                            <Button
+                                onClick={handleAiGenerate}
+                                disabled={isGenerating}
+                                className="bg-gradient-to-r from-purple-600 to-pink-600 text-white border-none hover:opacity-90 shadow-lg"
+                            >
+                                {isGenerating ? (
+                                    <span className="flex items-center gap-2">
+                                        <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                        Generating Code...
+                                    </span>
+                                ) : (
+                                    "Generate & Load"
+                                )}
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 };

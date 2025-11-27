@@ -65,3 +65,7 @@ class BacktestRequest(BaseModel):
     start_date: Optional[str] = None  # Format: YYYY-MM-DD
     end_date: Optional[str] = None    # Format: YYYY-MM-DD
     params: dict = {}
+
+# AI Strategy Generation Request
+class GenerateStrategyRequest(BaseModel):
+    prompt: str

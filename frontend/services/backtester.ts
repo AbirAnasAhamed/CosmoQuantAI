@@ -53,3 +53,9 @@ export const uploadStrategyFile = async (file: File) => {
     });
     return response.data;
 };
+
+// ৬. AI দিয়ে স্ট্র্যাটেজি জেনারেট করার জন্য
+export const generateStrategy = async (prompt: string) => {
+    const response = await apiClient.post('/strategies/generate', { prompt });
+    return response.data;
+};

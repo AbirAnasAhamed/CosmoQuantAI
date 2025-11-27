@@ -1,3 +1,7 @@
+import os
+import sys
+import importlib.util
+import inspect
 import backtrader as bt
 import pandas as pd
 import quantstats as qs
@@ -47,10 +51,52 @@ class BacktestEngine:
         data_feed = bt.feeds.PandasData(dataname=df)
         cerebro.adddata(data_feed)
 
+        # 4. Strategy Loading (Dynamic + Static)
         strategy_class = STRATEGY_MAP.get(strategy_name)
-        if not strategy_class: return {"error": "Strategy not found"}
+
+        # If not found in map, check custom folder
+        if not strategy_class:
+            try:
+                # Add .py extension if missing
+                file_name = f"{strategy_name}.py" if not strategy_name.endswith(".py") else strategy_name
+                file_path = f"app/strategies/custom/{file_name}"
+
+                if os.path.exists(file_path):
+                    # Dynamically import file
+                    spec = importlib.util.spec_from_file_location("custom_strategy", file_path)
+                    module = importlib.util.module_from_spec(spec)
+                    spec.loader.exec_module(module)
+                    
+                    # Register module in sys.modules so pickle/backtrader can find it
+                    sys.modules[file_name.replace('.py', '')] = module
+                    sys.modules["custom_strategy"] = module
+
+                    # Find class inheriting from bt.Strategy
+                    for name, obj in inspect.getmembers(module):
+                        if inspect.isclass(obj) and issubclass(obj, bt.Strategy) and obj is not bt.Strategy:
+                            strategy_class = obj
+                            break
+            except Exception as e:
+                print(f"Error loading custom strategy: {e}")
+
+        # If still not found, return error
+        if not strategy_class:
+            return {"error": f"Strategy '{strategy_name}' not found via Map or File."}
         
-        cerebro.addstrategy(strategy_class, **clean_params)
+        # Pass dynamic parameters
+        # Filter parameters to only include those accepted by the strategy
+        valid_params = {}
+        if hasattr(strategy_class, 'params') and hasattr(strategy_class.params, '_getkeys'):
+            allowed_keys = strategy_class.params._getkeys()
+            for k, v in clean_params.items():
+                if k in allowed_keys:
+                    valid_params[k] = v
+        else:
+            # Fallback if introspection fails
+            valid_params = clean_params
+
+        cerebro.addstrategy(strategy_class, **valid_params)
+
         cerebro.broker.setcash(initial_cash)
         cerebro.broker.setcommission(commission=0.001) 
         cerebro.addsizer(bt.sizers.PercentSizer, percents=90)
@@ -67,48 +113,54 @@ class BacktestEngine:
         end_value = cerebro.broker.getvalue()
 
         # 6. Calculate Advanced Metrics with QuantStats
-        portfolio_stats = first_strat.analyzers.getbyname('pyfolio')
-        returns, positions, transactions, gross_lev = portfolio_stats.get_pf_items()
-        
-        # Fix timezone issue for QuantStats
-        returns.index = returns.index.tz_localize(None)
-
-        # --- Advanced Metrics Calculation ---
         qs_metrics = {
-            "sharpe": qs.stats.sharpe(returns),
-            "sortino": qs.stats.sortino(returns),
-            "calmar": qs.stats.calmar(returns),
-            "max_drawdown": qs.stats.max_drawdown(returns) * 100, # Percentage
-            "volatility": qs.stats.volatility(returns),
-            "win_rate": qs.stats.win_rate(returns) * 100,
-            "profit_factor": qs.stats.profit_factor(returns),
-            "expectancy": qs.stats.expected_return(returns) * 100, # Avg return per trade approx
-            "cagr": qs.stats.cagr(returns) * 100
+            "sharpe": 0, "sortino": 0, "calmar": 0, "max_drawdown": 0,
+            "volatility": 0, "win_rate": 0, "profit_factor": 0, "expectancy": 0, "cagr": 0
         }
-
-        # --- Visual Data Generation ---
-        # 1. Monthly Heatmap Data
-        monthly_returns = qs.stats.monthly_returns(returns)
         heatmap_data = []
-        for index, value in monthly_returns.items():
-             if isinstance(index, tuple):
-                 heatmap_data.append({"year": index[0], "month": index[1], "value": round(value * 100, 2)})
-             elif hasattr(index, 'year') and hasattr(index, 'month'):
-                 heatmap_data.append({"year": index.year, "month": index.month, "value": round(value * 100, 2)})
-             else:
-                 try:
-                     idx_ts = pd.to_datetime(index)
-                     heatmap_data.append({"year": idx_ts.year, "month": idx_ts.month, "value": round(value * 100, 2)})
-                 except:
-                     pass
-
-        # 2. Underwater Plot Data
-        drawdown_series = qs.stats.to_drawdown_series(returns)
-        underwater_data = [{"time": int(t.timestamp()), "value": round(v * 100, 2)} for t, v in drawdown_series.items()]
-
-        # 3. Returns Distribution (Histogram)
+        underwater_data = []
         histogram_data = []
+
         try:
+            portfolio_stats = first_strat.analyzers.getbyname('pyfolio')
+            returns, positions, transactions, gross_lev = portfolio_stats.get_pf_items()
+            
+            # Fix timezone issue for QuantStats
+            returns.index = returns.index.tz_localize(None)
+
+            # --- Advanced Metrics Calculation ---
+            qs_metrics = {
+                "sharpe": qs.stats.sharpe(returns),
+                "sortino": qs.stats.sortino(returns),
+                "calmar": qs.stats.calmar(returns),
+                "max_drawdown": qs.stats.max_drawdown(returns) * 100, # Percentage
+                "volatility": qs.stats.volatility(returns),
+                "win_rate": qs.stats.win_rate(returns) * 100,
+                "profit_factor": qs.stats.profit_factor(returns),
+                "expectancy": qs.stats.expected_return(returns) * 100, # Avg return per trade approx
+                "cagr": qs.stats.cagr(returns) * 100
+            }
+
+            # --- Visual Data Generation ---
+            # 1. Monthly Heatmap Data
+            monthly_returns = qs.stats.monthly_returns(returns)
+            for index, value in monthly_returns.items():
+                 if isinstance(index, tuple):
+                     heatmap_data.append({"year": index[0], "month": index[1], "value": round(value * 100, 2)})
+                 elif hasattr(index, 'year') and hasattr(index, 'month'):
+                     heatmap_data.append({"year": index.year, "month": index.month, "value": round(value * 100, 2)})
+                 else:
+                     try:
+                         idx_ts = pd.to_datetime(index)
+                         heatmap_data.append({"year": idx_ts.year, "month": idx_ts.month, "value": round(value * 100, 2)})
+                     except:
+                         pass
+
+            # 2. Underwater Plot Data
+            drawdown_series = qs.stats.to_drawdown_series(returns)
+            underwater_data = [{"time": int(t.timestamp()), "value": round(v * 100, 2)} for t, v in drawdown_series.items()]
+
+            # 3. Returns Distribution (Histogram)
             # Drop NaN values
             clean_returns = returns.dropna()
             
@@ -124,20 +176,26 @@ class BacktestEngine:
                             "range": range_label,
                             "frequency": int(hist_values[i])
                         })
+
         except Exception as e:
-            print(f"Histogram Generation Error: {e}")
-            histogram_data = []
+            print(f"QuantStats Error: {e}")
 
         trade_analysis = first_strat.analyzers.trades.get_analysis()
         total_closed = trade_analysis.get('total', {}).get('closed', 0)
         
         # Trade logs and candles for chart
         executed_trades = getattr(first_strat, 'trade_history', [])
+        
+        # ট্রেড বা স্ট্র্যাটেজি রেজাল্ট যাই হোক, ক্যান্ডেল ডেটা চার্টের জন্য প্রিপেয়ার করতেই হবে
         chart_candles = []
+        # df (DataFrame) টি আগেই তৈরি করা ছিল
         for index, row in df.iterrows():
             chart_candles.append({
                 "time": int(index.timestamp()), 
-                "open": row['open'], "high": row['high'], "low": row['low'], "close": row['close'],
+                "open": row['open'],
+                "high": row['high'],
+                "low": row['low'],
+                "close": row['close'],
             })
 
         return {
