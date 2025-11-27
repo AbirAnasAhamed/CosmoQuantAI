@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import List
@@ -6,6 +6,12 @@ from . import models, database, schemas, crud, utils, auth, email_utils
 from .services.market_service import MarketService
 from .services.backtest_engine import BacktestEngine
 from datetime import timedelta
+import shutil
+import os
+
+# কাস্টম স্ট্র্যাটেজি সেভ করার ডিরেক্টরি তৈরি
+UPLOAD_DIR = "app/strategies/custom"
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # ডাটাবেস টেবিল তৈরি
 models.Base.metadata.create_all(bind=database.engine)
@@ -223,6 +229,28 @@ def get_market_data(
         })
     
     return formatted_data
+
+# --- Strategy Upload Endpoint ---
+@app.post("/api/strategies/upload")
+async def upload_strategy(file: UploadFile = File(...), current_user: models.User = Depends(auth.get_current_user)):
+    # ১. ফাইলের এক্সটেনশন চেক করা (নিরাপত্তার জন্য)
+    if not file.filename.endswith(".py"):
+        raise HTTPException(status_code=400, detail="Only .py files are allowed")
+
+    file_location = f"{UPLOAD_DIR}/{file.filename}"
+    
+    # ২. ফাইলটি সার্ভারে সেভ করা
+    try:
+        with open(file_location, "wb+") as file_object:
+            shutil.copyfileobj(file.file, file_object)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Could not save file: {str(e)}")
+    
+    # ৩. সফল মেসেজ রিটার্ন করা
+    return {
+        "filename": file.filename, 
+        "message": "Strategy uploaded successfully. It will be available for backtesting."
+    }
 
 # --- Backtest Endpoint ---
 @app.post("/api/backtest/run")

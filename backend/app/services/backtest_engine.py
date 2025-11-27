@@ -1,8 +1,14 @@
 import backtrader as bt
 import pandas as pd
+import quantstats as qs
+import json
+import numpy as np
 from sqlalchemy.orm import Session
 from app.services.market_service import MarketService
 from app.strategies import STRATEGY_MAP
+
+# QuantStats setup
+qs.extend_pandas()
 
 market_service = MarketService()
 
@@ -10,26 +16,13 @@ class BacktestEngine:
     
     def run(self, db: Session, symbol: str, timeframe: str, strategy_name: str, initial_cash: float, params: dict, start_date: str = None, end_date: str = None):
         
-        # ১. ডাটাবেস থেকে ডেটা আনা
+        # 1. Fetch data from DB
         candles = market_service.get_candles_from_db(db, symbol, timeframe, start_date, end_date)
         
-        # DEBUG LOG: কনসোলে প্রিন্ট হবে
-        print(f"--- BACKTEST DEBUG ---")
-        print(f"Request: {symbol} [{timeframe}] | Date: {start_date} to {end_date}")
-        print(f"Found Candles in DB: {len(candles)}")
-        
-        # VALIDATION
-        min_required_candles = 20 # অন্তত ২০টি ক্যান্ডেল না থাকলে রান হবে না
-        
-        if not candles or len(candles) < min_required_candles:
-            error_msg = (
-                f"Insufficient Data! Found only {len(candles)} candles for {symbol} ({timeframe}). "
-                f"Strategy requires more data to calculate indicators. "
-                f"Please go to 'Sync Market Data' and fetching at least 500+ candles."
-            )
-            return {"error": error_msg}
+        if not candles or len(candles) < 20:
+            return {"error": "Insufficient Data"}
 
-        # ২. ডাটা পান্ডাস ডাটাফ্রেম এ কনভার্ট করা (Backtrader এর জন্য)
+        # 2. Convert to Pandas DataFrame
         df = pd.DataFrame([{
             'datetime': c.timestamp,
             'open': c.open,
@@ -38,88 +31,113 @@ class BacktestEngine:
             'close': c.close,
             'volume': c.volume
         } for c in candles])
-        
         df.set_index('datetime', inplace=True)
 
-        # 🔴 NEW FIX: Convert string params to numbers safely
+        # 3. Clean parameters
         clean_params = {}
         for k, v in params.items():
             try:
-                # প্রথমে ইনটিজার করার চেষ্টা
                 clean_params[k] = int(v)
-            except (ValueError, TypeError):
-                try:
-                    # ইনটিজার না হলে ফ্লোট
-                    clean_params[k] = float(v)
-                except (ValueError, TypeError):
-                    # তাও না হলে যা আছে তাই (string)
-                    clean_params[k] = v
+            except:
+                try: clean_params[k] = float(v)
+                except: clean_params[k] = v
 
-        # ৩. ব্রেন (Cerebro) সেটআপ
+        # 4. Backtrader setup
         cerebro = bt.Cerebro()
-        
-        # ফিড যোগ করা
         data_feed = bt.feeds.PandasData(dataname=df)
         cerebro.adddata(data_feed)
 
-        # ৪. স্ট্র্যাটেজি যোগ করা
         strategy_class = STRATEGY_MAP.get(strategy_name)
-        if not strategy_class:
-            return {"error": f"Strategy '{strategy_name}' not found."}
+        if not strategy_class: return {"error": "Strategy not found"}
         
-        # ডাইনামিক প্যারামিটার পাস করা
         cerebro.addstrategy(strategy_class, **clean_params)
-
-        # ৫. ক্যাশ সেটআপ
         cerebro.broker.setcash(initial_cash)
-
-        # 🔴 নতুন কোড: কমিশন এবং সাইজার সেটআপ
-        # ০.১% কমিশন সেট করা
         cerebro.broker.setcommission(commission=0.001) 
-        
-        # স্ট্র্যাটেজিকে বলা যে প্রতি ট্রেডে একাউন্টের ৯০% টাকা দিয়ে কিনবে
         cerebro.addsizer(bt.sizers.PercentSizer, percents=90)
         
-        # ৬. অ্যানালাইজার (Analyzers) যোগ করা (ফলাফল বের করার জন্য)
+        # Add analyzers
+        cerebro.addanalyzer(bt.analyzers.PyFolio, _name='pyfolio')
         cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
         cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
-        cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name="sharpe")
 
-        # রান করার আগের ভ্যালু
+        # 5. Run backtest
         start_value = cerebro.broker.getvalue()
-
-        # ৭. ব্যাকটেস্ট চালানো!
         results = cerebro.run()
         first_strat = results[0]
-
-        # ৮. ফলাফল প্রসেসিং
         end_value = cerebro.broker.getvalue()
-        total_return = end_value - start_value
-        profit_percent = (total_return / start_value) * 100
+
+        # 6. Calculate Advanced Metrics with QuantStats
+        portfolio_stats = first_strat.analyzers.getbyname('pyfolio')
+        returns, positions, transactions, gross_lev = portfolio_stats.get_pf_items()
         
-        # Analyzers থেকে ডেটা বের করা
+        # Fix timezone issue for QuantStats
+        returns.index = returns.index.tz_localize(None)
+
+        # --- Advanced Metrics Calculation ---
+        qs_metrics = {
+            "sharpe": qs.stats.sharpe(returns),
+            "sortino": qs.stats.sortino(returns),
+            "calmar": qs.stats.calmar(returns),
+            "max_drawdown": qs.stats.max_drawdown(returns) * 100, # Percentage
+            "volatility": qs.stats.volatility(returns),
+            "win_rate": qs.stats.win_rate(returns) * 100,
+            "profit_factor": qs.stats.profit_factor(returns),
+            "expectancy": qs.stats.expected_return(returns) * 100, # Avg return per trade approx
+            "cagr": qs.stats.cagr(returns) * 100
+        }
+
+        # --- Visual Data Generation ---
+        # 1. Monthly Heatmap Data
+        monthly_returns = qs.stats.monthly_returns(returns)
+        heatmap_data = []
+        for index, value in monthly_returns.items():
+             if isinstance(index, tuple):
+                 heatmap_data.append({"year": index[0], "month": index[1], "value": round(value * 100, 2)})
+             elif hasattr(index, 'year') and hasattr(index, 'month'):
+                 heatmap_data.append({"year": index.year, "month": index.month, "value": round(value * 100, 2)})
+             else:
+                 try:
+                     idx_ts = pd.to_datetime(index)
+                     heatmap_data.append({"year": idx_ts.year, "month": idx_ts.month, "value": round(value * 100, 2)})
+                 except:
+                     pass
+
+        # 2. Underwater Plot Data
+        drawdown_series = qs.stats.to_drawdown_series(returns)
+        underwater_data = [{"time": int(t.timestamp()), "value": round(v * 100, 2)} for t, v in drawdown_series.items()]
+
+        # 3. Returns Distribution (Histogram)
+        histogram_data = []
+        try:
+            # Drop NaN values
+            clean_returns = returns.dropna()
+            
+            if not clean_returns.empty:
+                # Multiply by 100 to convert to percentage
+                hist_values, bin_edges = np.histogram(clean_returns * 100, bins=20)
+                
+                for i in range(len(hist_values)):
+                    if hist_values[i] > 0:
+                        # Range label formatting
+                        range_label = f"{round(bin_edges[i], 1)}% to {round(bin_edges[i+1], 1)}%"
+                        histogram_data.append({
+                            "range": range_label,
+                            "frequency": int(hist_values[i])
+                        })
+        except Exception as e:
+            print(f"Histogram Generation Error: {e}")
+            histogram_data = []
+
         trade_analysis = first_strat.analyzers.trades.get_analysis()
-        drawdown_analysis = first_strat.analyzers.drawdown.get_analysis()
-        sharpe_analysis = first_strat.analyzers.sharpe.get_analysis()
-
-        # Win Rate ক্যালকুলেশন
         total_closed = trade_analysis.get('total', {}).get('closed', 0)
-        won_trades = trade_analysis.get('won', {}).get('total', 0)
-        win_rate = (won_trades / total_closed * 100) if total_closed > 0 else 0
-
-        # 🟢 নতুন অংশ: ট্রেড হিস্ট্রি এবং ক্যান্ডেল ডেটা প্রিপেয়ার করা
-        executed_trades = getattr(first_strat, 'trade_history', [])
         
-        # চার্টের জন্য ক্যান্ডেল ডেটা JSON সিরিয়ালাইজেবল করা
+        # Trade logs and candles for chart
+        executed_trades = getattr(first_strat, 'trade_history', [])
         chart_candles = []
         for index, row in df.iterrows():
-            # Pandas timestamp থেকে স্ট্রিং বা UNIX time
             chart_candles.append({
-                "time": index.timestamp(), # UNIX timestamp for Lightweight Charts
-                "open": row['open'],
-                "high": row['high'],
-                "low": row['low'],
-                "close": row['close'],
+                "time": int(index.timestamp()), 
+                "open": row['open'], "high": row['high'], "low": row['low'], "close": row['close'],
             })
 
         return {
@@ -128,13 +146,17 @@ class BacktestEngine:
             "strategy": strategy_name,
             "initial_cash": initial_cash,
             "final_value": round(end_value, 2),
-            "profit_percent": round(profit_percent, 2),
-            "max_drawdown": round(drawdown_analysis.get('max', {}).get('drawdown', 0), 2),
-            "win_rate": round(win_rate, 2),
-            "sharpe_ratio": round(sharpe_analysis.get('sharperatio', 0) or 0, 2),
+            "profit_percent": round((end_value - start_value) / start_value * 100, 2),
             "total_trades": total_closed,
-            "date_range": f"{start_date} to {end_date}",
-            # নতুন ফিল্ড:
+            
+            # Advanced Metrics
+            "advanced_metrics": {k: (round(v, 2) if isinstance(v, (int, float)) else 0) for k, v in qs_metrics.items()},
+            "heatmap_data": heatmap_data,
+            "underwater_data": underwater_data,
+            "histogram_data": histogram_data,
+
+            
+            # Chart Data
             "trades_log": executed_trades, 
             "candle_data": chart_candles 
         }

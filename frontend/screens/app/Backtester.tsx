@@ -2,14 +2,18 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import {
+    LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+    AreaChart, Area,
+    BarChart, Bar, Rectangle
+} from 'recharts';
 import { EQUITY_CURVE_DATA, MOCK_BACKTEST_RESULTS, MOCK_STRATEGIES, MOCK_STRATEGY_PARAMS, MOCK_CUSTOM_MODELS } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import CodeEditor from '../../components/ui/CodeEditor';
 import type { BacktestResult } from '../../types';
 
 import { useToast } from '../../contexts/ToastContext';
-import { syncMarketData, runBacktestApi, getExchangeList, getExchangeMarkets } from '../../services/backtester';
+import { syncMarketData, runBacktestApi, getExchangeList, getExchangeMarkets, uploadStrategyFile } from '../../services/backtester';
 import SearchableSelect from '../../components/ui/SearchableSelect';
 import BacktestChart from '../../components/ui/BacktestChart';
 import DatePicker from "react-datepicker";
@@ -416,11 +420,16 @@ def custom_objective(stats):
 
                     // সাপোর্টের জন্য অরিজিনাল ভ্যালুও রাখা যেতে পারে
                     profit_percent: apiResult.profit_percent,
-                    max_drawdown: apiResult.max_drawdown,
-                    win_rate: apiResult.win_rate,
-                    sharpe_ratio: apiResult.sharpe_ratio,
+                    // max_drawdown: apiResult.max_drawdown, // Removed as per new interface
+                    // win_rate: apiResult.win_rate, // Removed as per new interface
+                    // sharpe_ratio: apiResult.sharpe_ratio, // Removed as per new interface
                     trades_log: apiResult.trades_log,
-                    candle_data: apiResult.candle_data
+                    candle_data: apiResult.candle_data,
+
+                    // New Fields
+                    advanced_metrics: apiResult.advanced_metrics,
+                    heatmap_data: apiResult.heatmap_data,
+                    underwater_data: apiResult.underwater_data
                 };
 
                 setSingleResult(mappedResult);
@@ -453,9 +462,9 @@ def custom_objective(stats):
                         setIsOptimizing(false);
                         if (isMultiObjectiveEnabled) {
                             const paretoFront: BacktestResult[] = [
-                                { id: 'mo1', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 125.5, maxDrawdown: 22.1, winRate: 68, sharpeRatio: 2.1, profit_percent: 125.5, max_drawdown: 22.1, win_rate: 68, sharpe_ratio: 2.1, params: { period: 10, overbought: 80, oversold: 25 } },
-                                { id: 'mo2', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 92.3, maxDrawdown: 11.5, winRate: 65, sharpeRatio: 2.8, profit_percent: 92.3, max_drawdown: 11.5, win_rate: 65, sharpe_ratio: 2.8, params: { period: 14, overbought: 75, oversold: 30 } },
-                                { id: 'mo3', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 61.8, maxDrawdown: 5.2, winRate: 61, sharpeRatio: 1.9, profit_percent: 61.8, max_drawdown: 5.2, win_rate: 61, sharpe_ratio: 1.9, params: { period: 20, overbought: 70, oversold: 35 } },
+                                { id: 'mo1', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 125.5, maxDrawdown: 22.1, winRate: 68, sharpeRatio: 2.1, profit_percent: 125.5, params: { period: 10, overbought: 80, oversold: 25 } },
+                                { id: 'mo2', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 92.3, maxDrawdown: 11.5, winRate: 65, sharpeRatio: 2.8, profit_percent: 92.3, params: { period: 14, overbought: 75, oversold: 30 } },
+                                { id: 'mo3', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 61.8, maxDrawdown: 5.2, winRate: 61, sharpeRatio: 1.9, profit_percent: 61.8, params: { period: 20, overbought: 70, oversold: 35 } },
                             ];
                             setMultiObjectiveResults(paretoFront);
                         } else {
@@ -468,9 +477,9 @@ def custom_objective(stats):
                 if (isMultiObjectiveEnabled) {
                     const paretoFront: BacktestResult[] = [
 
-                        { id: 'mo1', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 110.2, maxDrawdown: 19.8, winRate: 67, sharpeRatio: 2.3, profit_percent: 110.2, max_drawdown: 19.8, win_rate: 67, sharpe_ratio: 2.3, params: { period: 12, overbought: 78, oversold: 28 } },
-                        { id: 'mo2', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 78.6, maxDrawdown: 9.1, winRate: 64, sharpeRatio: 2.6, profit_percent: 78.6, max_drawdown: 9.1, win_rate: 64, sharpe_ratio: 2.6, params: { period: 16, overbought: 72, oversold: 32 } },
-                        { id: 'mo3', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 45.1, maxDrawdown: 4.8, winRate: 59, sharpeRatio: 1.7, profit_percent: 45.1, max_drawdown: 4.8, win_rate: 59, sharpe_ratio: 1.7, params: { period: 22, overbought: 68, oversold: 38 } },
+                        { id: 'mo1', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 110.2, maxDrawdown: 19.8, winRate: 67, sharpeRatio: 2.3, profit_percent: 110.2, params: { period: 12, overbought: 78, oversold: 28 } },
+                        { id: 'mo2', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 78.6, maxDrawdown: 9.1, winRate: 64, sharpeRatio: 2.6, profit_percent: 78.6, params: { period: 16, overbought: 72, oversold: 32 } },
+                        { id: 'mo3', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 45.1, maxDrawdown: 4.8, winRate: 59, sharpeRatio: 1.7, profit_percent: 45.1, params: { period: 22, overbought: 68, oversold: 38 } },
                     ];
                     setMultiObjectiveResults(paretoFront);
                 } else {
@@ -502,9 +511,6 @@ def custom_objective(stats):
                 winRate: 40 + Math.random() * 50,
                 sharpeRatio: Math.random() * 3,
                 profit_percent: (Math.random() * 150) - 25,
-                max_drawdown: Math.random() * 30,
-                win_rate: 40 + Math.random() * 50,
-                sharpe_ratio: Math.random() * 3,
             }));
 
             setBatchResults(newBatchResults);
@@ -550,15 +556,38 @@ def custom_objective(stats):
         }
     };
 
-    const handleUpload = () => {
-        if (!fileName) return;
-        const newStrategyName = fileName.replace(/\.[^/.]+$/, "");
-        if (!strategies.includes(newStrategyName)) {
-            setStrategies(prev => [...prev, newStrategyName]);
-            setStrategy(newStrategyName);
+    const handleUpload = async () => {
+        if (!fileInputRef.current?.files?.[0]) {
+            showToast('Please select a python file first.', 'warning');
+            return;
         }
-        setFileName('');
-        if (fileInputRef.current) fileInputRef.current.value = "";
+
+        const file = fileInputRef.current.files[0];
+
+        setIsLoading(true); // লোডিং শুরু
+        try {
+            // API কল করা হচ্ছে
+            await uploadStrategyFile(file);
+
+            // সফল হলে লোকাল লিস্ট আপডেট করা
+            const newStrategyName = file.name.replace(/\.[^/.]+$/, "");
+            if (!strategies.includes(newStrategyName)) {
+                setStrategies(prev => [...prev, newStrategyName]);
+                setStrategy(newStrategyName);
+            }
+
+            showToast(`Strategy "${newStrategyName}" uploaded successfully!`, 'success');
+
+            // ইনপুট ক্লিয়ার করা
+            setFileName('');
+            if (fileInputRef.current) fileInputRef.current.value = "";
+
+        } catch (error: any) {
+            console.error(error);
+            showToast('Failed to upload strategy.', 'error');
+        } finally {
+            setIsLoading(false); // লোডিং শেষ
+        }
     };
 
     const inputBaseClasses = "w-full bg-white dark:bg-brand-dark/50 border border-brand-border-light dark:border-brand-border-dark rounded-md p-2 text-slate-900 dark:text-white focus:ring-brand-primary focus:border-brand-primary";
@@ -1111,6 +1140,102 @@ def custom_objective(stats):
                                         />
                                     </div>
                                 )}
+
+                                {singleResult.advanced_metrics && (
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 animate-fade-in-up">
+                                        <MetricCard label="Sortino Ratio" value={singleResult.advanced_metrics.sortino} />
+                                        <MetricCard label="Profit Factor" value={singleResult.advanced_metrics.profit_factor} />
+                                        <MetricCard label="Calmar Ratio" value={singleResult.advanced_metrics.calmar} />
+                                        <MetricCard label="CAGR" value={singleResult.advanced_metrics.cagr} suffix="%" />
+                                    </div>
+                                )}
+
+                                {singleResult.heatmap_data && (
+                                    <div className="mt-8 animate-fade-in-down">
+                                        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Monthly Returns Heatmap</h3>
+                                        <div className="grid grid-cols-6 md:grid-cols-12 gap-2">
+                                            {singleResult.heatmap_data.map((item, idx) => (
+                                                <div
+                                                    key={idx}
+                                                    className={`p-2 text-xs text-center rounded font-medium ${item.value >= 0 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}`}
+                                                    title={`${item.year}-${item.month}`}
+                                                >
+                                                    <div className="text-[10px] opacity-70">{item.year}-{item.month}</div>
+                                                    {item.value}%
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {singleResult.underwater_data && (
+                                    <Card className="mt-6">
+                                        <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">Underwater Plot (Drawdown)</h3>
+                                        <div className="h-64 w-full">
+                                            <ResponsiveContainer>
+                                                <AreaChart data={singleResult.underwater_data}>
+                                                    <defs>
+                                                        <linearGradient id="colorDrawdown" x1="0" y1="0" x2="0" y2="1">
+                                                            <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.8} />
+                                                            <stop offset="95%" stopColor="#F43F5E" stopOpacity={0} />
+                                                        </linearGradient>
+                                                    </defs>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke={gridColor} opacity={0.1} />
+                                                    <XAxis
+                                                        dataKey="time"
+                                                        tickFormatter={(t) => new Date(t * 1000).toLocaleDateString()}
+                                                        stroke={axisColor}
+                                                        fontSize={12}
+                                                    />
+                                                    <YAxis stroke={axisColor} fontSize={12} />
+                                                    <Tooltip
+                                                        contentStyle={{ backgroundColor: theme === 'dark' ? '#1e293b' : '#fff', borderColor: theme === 'dark' ? '#334155' : '#e2e8f0' }}
+                                                        labelFormatter={(label) => new Date(label * 1000).toLocaleDateString()}
+                                                    />
+                                                    <Area type="monotone" dataKey="value" stroke="#F43F5E" fill="url(#colorDrawdown)" />
+                                                </AreaChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </Card>
+                                )}
+
+                                {/* Distribution of Returns Histogram */}
+                                {singleResult && singleResult.histogram_data && singleResult.histogram_data.length > 0 && (
+                                    <Card className="mt-6 staggered-fade-in">
+                                        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Distribution of Returns</h3>
+                                        <div className="h-64 w-full">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={singleResult.histogram_data}>
+                                                    <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? '#334155' : '#E2E8F0'} vertical={false} />
+                                                    <XAxis
+                                                        dataKey="range"
+                                                        stroke={theme === 'dark' ? '#9CA3AF' : '#6B7280'}
+                                                        tick={{ fontSize: 10 }}
+                                                        angle={-15}
+                                                        textAnchor="end"
+                                                        height={50}
+                                                    />
+                                                    <YAxis stroke={theme === 'dark' ? '#9CA3AF' : '#6B7280'} />
+                                                    <Tooltip
+                                                        cursor={{ fill: 'transparent' }}
+                                                        contentStyle={theme === 'dark' ? { backgroundColor: '#1E293B', border: '1px solid #334155', borderRadius: '8px' } : { borderRadius: '8px' }}
+                                                    />
+                                                    <Bar
+                                                        dataKey="frequency"
+                                                        fill="#6366F1"
+                                                        radius={[4, 4, 0, 0]}
+                                                        name="Frequency"
+                                                        activeBar={<Rectangle fill="#818CF8" stroke="#4F46E5" />}
+                                                    />
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                        <p className="text-xs text-gray-500 mt-2 text-center">
+                                            Shows the frequency of trade returns. A right-skewed distribution (more bars to the right) indicates higher probability of large gains.
+                                        </p>
+                                    </Card>
+                                )}
+
 
                                 <div className="mt-8 animate-fade-in-down">
                                     <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Trade Visualization</h3>

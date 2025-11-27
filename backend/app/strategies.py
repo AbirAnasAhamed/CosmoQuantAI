@@ -13,8 +13,8 @@ class BaseStrategy(bt.Strategy):
                 "type": "buy" if is_buy else "sell",
                 "price": order.executed.price,
                 "size": order.executed.size,
-                # তারিখকে স্ট্রিং এ কনভার্ট করা হচ্ছে (Frontend এর জন্য)
-                "time": bt.num2date(order.executed.dt).isoformat()
+                # পরিবর্তন: isoformat() এর বদলে timestamp() ব্যবহার করুন
+                "time": int(bt.num2date(order.executed.dt).timestamp())
             }
             self.trade_history.append(trade_record)
             

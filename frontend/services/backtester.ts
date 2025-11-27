@@ -40,3 +40,16 @@ export const getExchangeMarkets = async (exchangeId: string) => {
     const response = await apiClient.get(`/markets/${exchangeId}`);
     return response.data;
 };
+
+// ৫. নতুন স্ট্র্যাটেজি আপলোড করার জন্য
+export const uploadStrategyFile = async (file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    const response = await apiClient.post('/strategies/upload', formData, {
+        headers: {
+            'Content-Type': 'multipart/form-data',
+        },
+    });
+    return response.data;
+};

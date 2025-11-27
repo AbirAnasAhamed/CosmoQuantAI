@@ -43,21 +43,37 @@ export interface BacktestResult {
   timeframe?: string;
   date?: string;
 
-  // ব্যাকএন্ড রেসপন্স ফিল্ডস
-  profit_percent: number; // snake_case from python
-  max_drawdown: number;
-  win_rate: number;
-  sharpe_ratio: number;
+  // বেসিক
+  profit_percent: number;
   final_value?: number;
   total_trades?: number;
+
+  // অ্যাডভান্সড মেট্রিক্স অবজেক্ট
+  advanced_metrics?: {
+    sharpe: number;
+    sortino: number;
+    calmar: number;
+    max_drawdown: number;
+    volatility: number;
+    win_rate: number;
+    profit_factor: number;
+    expectancy: number;
+    cagr: number;
+  };
+
+  // ভিজ্যুয়ালাইজেশন ডেটা
+  heatmap_data?: { year: number; month: number; value: number }[];
+  underwater_data?: { time: number; value: number }[];
+  histogram_data?: { range: string; frequency: number }[];
+
   trades_log?: any[];
   candle_data?: any[];
 
-  // লিগ্যাসি ফিল্ডস (Mock Data সাপোর্ট করার জন্য অপশনাল করে দিন)
-  profitPercent?: number;
+  // লিগ্যাসি ফিল্ডস (Optional রাখুন যাতে আগের কোড না ভাঙ্গে)
   maxDrawdown?: number;
   winRate?: number;
   sharpeRatio?: number;
+  profitPercent?: number;
   params?: Record<string, number | string>;
 }
 

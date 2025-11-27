@@ -7,8 +7,8 @@ from app.constants import VALID_TIMEFRAMES
 
 class MarketService:
     def __init__(self):
-        # ডিফল্ট বাইনান্স (Async)
-        self.exchange = ccxt.binance()
+        # We don't instantiate self.exchange here anymore to avoid unclosed session warnings
+        pass
 
     # ১. টাইমফ্রেম কনভার্সন হেল্পার
     def timeframe_to_ms(self, timeframe):
@@ -25,35 +25,38 @@ class MarketService:
         if timeframe not in VALID_TIMEFRAMES:
             return {"status": "error", "message": f"Timeframe '{timeframe}' is not supported."}
 
-        since_ts = None
-        end_ts = int(datetime.utcnow().timestamp() * 1000)
-
-        if start_date:
-            start_dt = datetime.strptime(start_date, "%Y-%m-%d")
-            since_ts = int(start_dt.timestamp() * 1000)
+        # Create exchange instance locally to ensure we can close it properly
+        exchange = ccxt.binance()
         
-        if end_date:
-            end_dt = datetime.strptime(end_date, "%Y-%m-%d")
-            end_dt = end_dt.replace(hour=23, minute=59, second=59)
-            end_ts = int(end_dt.timestamp() * 1000)
-
-        # যদি স্টার্ট ডেট না থাকে, লেটেস্ট ১০০০ ডেটা আনবে (লুপ ছাড়া)
-        if not since_ts:
-             try:
-                ohlcv = await self.exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
-                self._save_candles(db, ohlcv, symbol, timeframe)
-                return {"status": "success", "message": "Latest data synced", "count": len(ohlcv)}
-             except Exception as e:
-                 return {"status": "error", "message": str(e)}
-
-        # স্টার্ট ডেট থাকলে লুপ চালাবো
         try:
+            since_ts = None
+            end_ts = int(datetime.utcnow().timestamp() * 1000)
+
+            if start_date:
+                start_dt = datetime.strptime(start_date, "%Y-%m-%d")
+                since_ts = int(start_dt.timestamp() * 1000)
+            
+            if end_date:
+                end_dt = datetime.strptime(end_date, "%Y-%m-%d")
+                end_dt = end_dt.replace(hour=23, minute=59, second=59)
+                end_ts = int(end_dt.timestamp() * 1000)
+
+            # যদি স্টার্ট ডেট না থাকে, লেটেস্ট ১০০০ ডেটা আনবে (লুপ ছাড়া)
+            if not since_ts:
+                 try:
+                    ohlcv = await exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
+                    self._save_candles(db, ohlcv, symbol, timeframe)
+                    return {"status": "success", "message": "Latest data synced", "count": len(ohlcv)}
+                 except Exception as e:
+                     return {"status": "error", "message": str(e)}
+
+            # স্টার্ট ডেট থাকলে লুপ চালাবো
             total_saved = 0
             tf_ms = self.timeframe_to_ms(timeframe)
             current_since = since_ts
 
             while current_since < end_ts:
-                ohlcv = await self.exchange.fetch_ohlcv(symbol, timeframe, limit=1000, since=current_since)
+                ohlcv = await exchange.fetch_ohlcv(symbol, timeframe, limit=1000, since=current_since)
                 if not ohlcv:
                     break
                 
@@ -78,6 +81,9 @@ class MarketService:
         except Exception as e:
             print(f"Sync Error: {e}")
             return {"status": "error", "message": str(e)}
+        finally:
+            # Ensure exchange is closed
+            await exchange.close()
 
     # ডাটাবেসে সেভ করার ইন্টারনাল মেথড (রিপিটেশন কমানোর জন্য)
     def _save_candles(self, db: Session, ohlcv: list, symbol: str, timeframe: str):
