@@ -59,3 +59,15 @@ export const generateStrategy = async (prompt: string) => {
     const response = await apiClient.post('/strategies/generate', { prompt });
     return response.data;
 };
+
+// ৭. কাস্টম স্ট্র্যাটেজি লিস্ট আনার জন্য
+export const fetchCustomStrategyList = async () => {
+    const response = await apiClient.get('/strategies/list');
+    return response.data; // returns array of strings ['AI_Strat_1', 'My_Strat']
+};
+
+// ৮. নির্দিষ্ট স্ট্র্যাটেজির কোড আনার জন্য
+export const fetchStrategyCode = async (strategyName: string) => {
+    const response = await apiClient.get(`/strategies/source/${strategyName}`);
+    return response.data; // returns { code: "..." }
+};

@@ -57,16 +57,29 @@ def generate_strategy_code(user_prompt: str) -> str:
     Format for the comment block (STRICTLY FOLLOW THIS):
     # @params
     # {
-    #   "period": { "type": "number", "label": "RSI Period", "default": 14, "min": 2, "max": 50, "step": 1 },
-    #   "threshold": { "type": "number", "label": "Overbought Level", "default": 70, "min": 50, "max": 100, "step": 1 }
+    #   "period": { "type": "number", "label": "Period", "default": 14, "min": 2, "max": 100, "step": 1 },
+    #   "threshold": { "type": "number", "label": "Threshold", "default": 30, "min": 10, "max": 90, "step": 1 }
     # }
     # @params_end
 
-    CODE RULES:
+    MANDATORY CODE STRUCTURE:
     1. Import backtrader as bt.
-    2. Use 'self.params.parameter_name' inside the logic.
-    3. Implement 'log', '__init__', and 'next' methods.
-    4. Output ONLY raw Python code. No markdown blocks.
+    2. Class MUST inherit from 'bt.Strategy'.
+    3. Inside '__init__', verify you initialize 'self.trade_history = []'.
+    4. You MUST implement the 'notify_order' method exactly as shown below to record trades for the UI:
+    
+    def notify_order(self, order):
+        if order.status in [order.Completed]:
+            is_buy = order.isbuy()
+            self.trade_history.append({
+                "type": "buy" if is_buy else "sell",
+                "price": order.executed.price,
+                "size": order.executed.size,
+                "time": int(bt.num2date(order.executed.dt).timestamp())
+            })
+    
+    5. Implement 'next' method for your trading logic using 'self.buy()' and 'self.sell()'.
+    6. Output ONLY raw Python code. No markdown blocks.
     """
 
     try:

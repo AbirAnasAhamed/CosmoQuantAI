@@ -13,7 +13,7 @@ import CodeEditor from '../../components/ui/CodeEditor';
 import type { BacktestResult } from '../../types';
 
 import { useToast } from '../../contexts/ToastContext';
-import { syncMarketData, runBacktestApi, getExchangeList, getExchangeMarkets, uploadStrategyFile, generateStrategy } from '../../services/backtester';
+import { syncMarketData, runBacktestApi, getExchangeList, getExchangeMarkets, uploadStrategyFile, generateStrategy, fetchCustomStrategyList, fetchStrategyCode } from '../../services/backtester';
 import { AIFoundryIcon } from '../../constants';
 import SearchableSelect from '../../components/ui/SearchableSelect';
 import BacktestChart from '../../components/ui/BacktestChart';
@@ -226,6 +226,22 @@ const Backtester: React.FC = () => {
     const [selectedExchange, setSelectedExchange] = useState('binance');
     const [isLoadingMarkets, setIsLoadingMarkets] = useState(false);
 
+    // strategies স্টেটটি এখন শুধুমাত্র ডিফল্টগুলো রাখবে না, আমরা আলাদা স্টেট রাখব
+    const [customStrategies, setCustomStrategies] = useState<string[]>([]);
+
+    // পেজ লোড হলে কাস্টম স্ট্র্যাটেজি লিস্ট আনুন
+    useEffect(() => {
+        const loadCustomStrategies = async () => {
+            try {
+                const list = await fetchCustomStrategyList();
+                setCustomStrategies(list);
+            } catch (error) {
+                console.error("Failed to load custom strategies", error);
+            }
+        };
+        loadCustomStrategies();
+    }, []); // Empty dependency array means runs once on mount
+
     useEffect(() => {
         const loadExchanges = async () => {
             try {
@@ -341,9 +357,12 @@ def custom_objective(stats):
 
             // ২. নতুন স্ট্র্যাটেজির নাম লিস্টে যোগ করা
             const newStrategyName = data.filename.replace(/\.[^/.]+$/, "");
-            if (!strategies.includes(newStrategyName)) {
-                setStrategies(prev => [...prev, newStrategyName]);
+
+            // যদি ইতিমধ্যে লিস্টে না থাকে, যোগ করুন
+            if (!customStrategies.includes(newStrategyName)) {
+                setCustomStrategies(prev => [...prev, newStrategyName]);
             }
+
             setStrategy(newStrategyName);
 
             // ৩. ডাইনামিক প্যারামিটার এক্সট্রাক্ট করা এবং সেট করা
@@ -387,29 +406,84 @@ def custom_objective(stats):
 
     const replayData = useMemo(() => EQUITY_CURVE_DATA.slice(0, replayIndex + 1), [replayIndex]);
 
+    // স্ট্র্যাটেজি পরিবর্তন হলে প্যারামিটার লোড করার লজিক
     useEffect(() => {
-        const strategyParamsConfig = MOCK_STRATEGY_PARAMS[strategy as keyof typeof MOCK_STRATEGY_PARAMS];
-        if (strategyParamsConfig) {
-            const defaultParams = Object.keys(strategyParamsConfig).reduce((acc, key) => {
-                acc[key] = strategyParamsConfig[key].defaultValue;
-                return acc;
-            }, {} as Record<string, any>);
-            setParams(defaultParams);
+        const loadStrategyParams = async () => {
+            // ১. যদি এটি একটি কাস্টম স্ট্র্যাটেজি হয় (লিস্টে থাকে)
+            if (customStrategies.includes(strategy)) {
+                try {
+                    setIsLoading(true); // লোডিং ইন্ডিকেটর চাইলে দিতে পারেন
 
-            const defaultOptParams = Object.keys(strategyParamsConfig).reduce((acc, key) => {
-                acc[key] = {
-                    start: strategyParamsConfig[key].min ?? strategyParamsConfig[key].defaultValue,
-                    end: strategyParamsConfig[key].max ?? strategyParamsConfig[key].defaultValue,
-                    step: strategyParamsConfig[key].step || 1,
-                };
-                return acc;
-            }, {} as OptimizationParams);
-            setOptimizationParams(defaultOptParams);
-        } else {
-            setParams({});
-            setOptimizationParams({});
-        }
-    }, [strategy]);
+                    // সার্ভার থেকে কোড আনা
+                    const data = await fetchStrategyCode(strategy);
+                    const code = data.code;
+
+                    // কোড থেকে প্যারামিটার বের করা (আপনার আগের parseParamsFromCode ফাংশন দিয়ে)
+                    const extractedParams = parseParamsFromCode(code);
+
+                    // স্টেট আপডেট করা
+                    setOptimizableParams(extractedParams);
+
+                    // ডিফল্ট ভ্যালু সেট করা
+                    const newParams: Record<string, any> = {};
+                    const newOptParams: OptimizationParams = {};
+
+                    Object.entries(extractedParams).forEach(([key, config]: [string, any]) => {
+                        newParams[key] = config.default;
+                        newOptParams[key] = {
+                            start: config.default,
+                            end: config.max || config.default * 2,
+                            step: config.step || 1
+                        };
+                    });
+
+                    setParams(newParams);
+                    setOptimizationParams(newOptParams);
+
+                    // চাইলে এডিটরে কোডটিও দেখাতে পারেন (অপশনাল)
+                    // setGeneratedCode(code); 
+
+                } catch (error) {
+                    console.error("Failed to load custom strategy code", error);
+                    showToast("Failed to load strategy parameters", "error");
+                } finally {
+                    setIsLoading(false);
+                }
+            }
+            // ২. যদি এটি স্ট্যান্ডার্ড/ডিফল্ট স্ট্র্যাটেজি হয়
+            else {
+                const strategyParamsConfig = MOCK_STRATEGY_PARAMS[strategy as keyof typeof MOCK_STRATEGY_PARAMS];
+
+                if (strategyParamsConfig) {
+                    // স্ট্যান্ডার্ড প্যারামিটার লোড করা
+                    const defaultParams = Object.keys(strategyParamsConfig).reduce((acc, key) => {
+                        acc[key] = strategyParamsConfig[key].defaultValue;
+                        return acc;
+                    }, {} as Record<string, any>);
+                    setParams(defaultParams);
+
+                    const defaultOptParams = Object.keys(strategyParamsConfig).reduce((acc, key) => {
+                        acc[key] = {
+                            start: strategyParamsConfig[key].min ?? strategyParamsConfig[key].defaultValue,
+                            end: strategyParamsConfig[key].max ?? strategyParamsConfig[key].defaultValue,
+                            step: strategyParamsConfig[key].step || 1,
+                        };
+                        return acc;
+                    }, {} as OptimizationParams);
+                    setOptimizationParams(defaultOptParams);
+
+                    // কাস্টম প্যারামস ক্লিয়ার করা যাতে স্ট্যান্ডার্ড রেন্ডারার কাজ করে
+                    setOptimizableParams({});
+                } else {
+                    setParams({});
+                    setOptimizationParams({});
+                    setOptimizableParams({});
+                }
+            }
+        };
+
+        loadStrategyParams();
+    }, [strategy, customStrategies]); // ডিপেন্ডেন্সি অ্যারে
 
     const handleParamChange = (key: string, value: string) => {
         // নম্বর কিনা চেক করা হচ্ছে
@@ -1096,13 +1170,32 @@ def custom_objective(stats):
                             <optgroup label="Weeks & Months">
                                 <option value="1w">1 Week</option>
                                 <option value="1M">1 Month</option>
+                                ```
                             </optgroup>
                         </select>
                     </div>
                     <div>
                         <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Strategy</label>
-                        <select onChange={(e) => setStrategy(e.target.value)} value={strategy} className={`${inputBaseClasses} flex-grow`}>
-                            {strategies.map(s => <option key={s} value={s}>{s}</option>)}
+                        <select
+                            onChange={(e) => setStrategy(e.target.value)}
+                            value={strategy}
+                            className={`${inputBaseClasses} flex-grow`}
+                        >
+                            {/* গ্রুপ ১: স্ট্যান্ডার্ড স্ট্র্যাটেজি */}
+                            <optgroup label="Standard Strategies">
+                                {MOCK_STRATEGIES.map(s => (
+                                    <option key={s} value={s}>{s}</option>
+                                ))}
+                            </optgroup>
+
+                            {/* গ্রুপ ২: আপনার জেনারেট করা স্ট্র্যাটেজি */}
+                            {customStrategies.length > 0 && (
+                                <optgroup label="My AI / Custom Strategies">
+                                    {customStrategies.map(s => (
+                                        <option key={s} value={s}>{s}</option>
+                                    ))}
+                                </optgroup>
+                            )}
                         </select>
                     </div>
                 </div>
