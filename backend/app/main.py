@@ -1,23 +1,38 @@
-import os
-import shutil
-from typing import List
-from datetime import timedelta
 from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
-from . import models, schemas, crud, database, auth, utils, email_utils
+from typing import List
+from datetime import datetime, timedelta
+import os
+import shutil
+import importlib.util
+import inspect
+import backtrader as bt
+import sys
+import ast
+
+from . import models, database, schemas, crud, utils, auth, email_utils
 from .services.market_service import MarketService
 from .services.backtest_engine import BacktestEngine
 from .services import ai_service
 
 UPLOAD_DIR = "app/strategies/custom"
-
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # ডাটাবেস টেবিল তৈরি
 models.Base.metadata.create_all(bind=database.engine)
 
-app = FastAPI()
+# 🔴 পরিবর্তন: টাইটেল এবং মেটাডেটা যোগ করা হয়েছে
+app = FastAPI(
+    title="FastAPI Backend for CosmoQuantAI",
+    description="CosmoQuantAI_Api Server__Developed by 'ABIR AHAMED'",
+    version="1.0.0",
+    contact={
+        "name": "ABIR AHAMED",
+        "email": "abir.ahamed.01931645993@gmail.com",
+        "mobile": "01931645993"
+    }
+)
 
 @app.on_event("startup")
 def startup_event():
@@ -36,7 +51,7 @@ def get_db():
 @app.get("/")
 def read_root():
     return {"message": "CosmoQuantAI Backend is Live! 🚀"}
-
+    
 # --- User Registration Endpoint ---
 @app.post("/api/register", response_model=schemas.UserResponse)
 def register_user(user: schemas.UserCreate, db: Session = Depends(get_db)):
@@ -270,24 +285,73 @@ def get_custom_strategies(current_user: models.User = Depends(auth.get_current_u
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-# --- Get Strategy Code Endpoint ---
+# --- Get Strategy Code & Auto-Detected Params ---
 @app.get("/api/strategies/source/{strategy_name}")
 def get_strategy_source(strategy_name: str, current_user: models.User = Depends(auth.get_current_user)):
     try:
-        # .py এক্সটেনশন না থাকলে যোগ করে নিব
+        # ফাইলের নাম ঠিক করা
         filename = f"{strategy_name}.py" if not strategy_name.endswith(".py") else strategy_name
         file_path = f"{UPLOAD_DIR}/{filename}"
         
         if not os.path.exists(file_path):
             raise HTTPException(status_code=404, detail="Strategy file not found")
             
-        with open(file_path, "r") as f:
+        # 🔴 ফিক্স: encoding="utf-8" এর সাথে errors="ignore" যোগ করা হয়েছে
+        # এটি ক্র্যাশ আটকাবে যদি ফাইলে কোনো অদ্ভুত ক্যারেক্টার থাকে
+        with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
             code = f.read()
+
+        # ২. ডাইনামিকালি প্যারামিটার এক্সট্রাক্ট করা
+        extracted_params = {}
+        
+        try:
+            spec = importlib.util.spec_from_file_location("temp_strategy_module", file_path)
+            module = importlib.util.module_from_spec(spec)
+            spec.loader.exec_module(module)
+
+            target_class = None
+            for name, obj in inspect.getmembers(module):
+                if inspect.isclass(obj) and issubclass(obj, bt.Strategy) and obj is not bt.Strategy:
+                    target_class = obj
+                    break
             
-        return {"code": code}
+            if target_class and hasattr(target_class, 'params'):
+                raw_params = target_class.params._getitems()
+                
+                for key, default_val in raw_params:
+                    if isinstance(default_val, (int, float)) and not isinstance(default_val, bool):
+                        # প্যারামিটার ডিটেকশন লজিক...
+                        is_int = isinstance(default_val, int)
+                        min_val = 0 if default_val >= 0 else default_val * 2
+                        if default_val > 0:
+                            min_val = 1 if is_int else 0.1
+                        
+                        max_val = default_val * 5 if default_val > 0 else 0
+                        if max_val == 0: max_val = 100
+                        
+                        step = 1 if is_int else round(default_val / 10, 3) or 0.01
+
+                        extracted_params[key] = {
+                            "type": "number",
+                            "label": key.replace('_', ' ').title(),
+                            "default": default_val,
+                            "min": min_val,
+                            "max": max_val,
+                            "step": step
+                        }
+
+        except Exception as e:
+            print(f"Auto-param detection failed: {e}")
+            pass
+            
+        return {
+            "code": code,
+            "inferred_params": extracted_params
+        }
         
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        print(f"Critical error in get_strategy_source: {e}")
+        raise HTTPException(status_code=500, detail=f"File read error: {str(e)}")
 
 # --- AI Strategy Generation Endpoint ---
 @app.post("/api/strategies/generate")

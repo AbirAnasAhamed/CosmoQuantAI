@@ -407,24 +407,31 @@ def custom_objective(stats):
     const replayData = useMemo(() => EQUITY_CURVE_DATA.slice(0, replayIndex + 1), [replayIndex]);
 
     // স্ট্র্যাটেজি পরিবর্তন হলে প্যারামিটার লোড করার লজিক
+    // স্ট্র্যাটেজি পরিবর্তন হলে প্যারামিটার লোড করার লজিক (আপডেটেড)
     useEffect(() => {
         const loadStrategyParams = async () => {
-            // ১. যদি এটি একটি কাস্টম স্ট্র্যাটেজি হয় (লিস্টে থাকে)
+            // ১. কাস্টম বা আপলোড করা স্ট্র্যাটেজি হলে
             if (customStrategies.includes(strategy)) {
                 try {
-                    setIsLoading(true); // লোডিং ইন্ডিকেটর চাইলে দিতে পারেন
+                    setIsLoading(true);
 
-                    // সার্ভার থেকে কোড আনা
-                    const data = await fetchStrategyCode(strategy);
+                    // সার্ভার থেকে কোড এবং অটো-ডিটেক্টেড প্যারামস আনা
+                    const data = await fetchStrategyCode(strategy); // { code, inferred_params }
                     const code = data.code;
+                    const backendDetectedParams = data.inferred_params || {};
 
-                    // কোড থেকে প্যারামিটার বের করা (আপনার আগের parseParamsFromCode ফাংশন দিয়ে)
-                    const extractedParams = parseParamsFromCode(code);
+                    // ১. প্রথমে কোডের কমেন্ট ব্লক চেক করব (AI generated হলে এটি থাকবে)
+                    let extractedParams = parseParamsFromCode(code);
 
-                    // স্টেট আপডেট করা
+                    // ২. যদি কমেন্ট না থাকে, তাহলে ব্যাকএন্ডের ডিটেক্ট করা প্যারামস ব্যবহার করব (Uploaded file)
+                    if (Object.keys(extractedParams).length === 0) {
+                        extractedParams = backendDetectedParams;
+                    }
+
+                    // স্টেট আপডেট
                     setOptimizableParams(extractedParams);
 
-                    // ডিফল্ট ভ্যালু সেট করা
+                    // ভ্যালু সেট করা (স্লাইডারের জন্য)
                     const newParams: Record<string, any> = {};
                     const newOptParams: OptimizationParams = {};
 
@@ -432,30 +439,26 @@ def custom_objective(stats):
                         newParams[key] = config.default;
                         newOptParams[key] = {
                             start: config.default,
-                            end: config.max || config.default * 2,
-                            step: config.step || 1
+                            end: config.max || config.default * 3, // সেফটি রেঞ্জ
+                            step: config.step || (Number.isInteger(config.default) ? 1 : 0.1)
                         };
                     });
 
                     setParams(newParams);
                     setOptimizationParams(newOptParams);
 
-                    // চাইলে এডিটরে কোডটিও দেখাতে পারেন (অপশনাল)
-                    // setGeneratedCode(code); 
-
                 } catch (error) {
-                    console.error("Failed to load custom strategy code", error);
-                    showToast("Failed to load strategy parameters", "error");
+                    console.error("Failed to load strategy data", error);
+                    showToast("Failed to load parameters", "error");
                 } finally {
                     setIsLoading(false);
                 }
             }
-            // ২. যদি এটি স্ট্যান্ডার্ড/ডিফল্ট স্ট্র্যাটেজি হয়
+            // ২. স্ট্যান্ডার্ড স্ট্র্যাটেজি (আগের মতোই থাকবে)
             else {
                 const strategyParamsConfig = MOCK_STRATEGY_PARAMS[strategy as keyof typeof MOCK_STRATEGY_PARAMS];
-
                 if (strategyParamsConfig) {
-                    // স্ট্যান্ডার্ড প্যারামিটার লোড করা
+                    // ... (স্ট্যান্ডার্ড লজিক - কোনো পরিবর্তন নেই) ...
                     const defaultParams = Object.keys(strategyParamsConfig).reduce((acc, key) => {
                         acc[key] = strategyParamsConfig[key].defaultValue;
                         return acc;
@@ -471,8 +474,6 @@ def custom_objective(stats):
                         return acc;
                     }, {} as OptimizationParams);
                     setOptimizationParams(defaultOptParams);
-
-                    // কাস্টম প্যারামস ক্লিয়ার করা যাতে স্ট্যান্ডার্ড রেন্ডারার কাজ করে
                     setOptimizableParams({});
                 } else {
                     setParams({});
@@ -483,7 +484,7 @@ def custom_objective(stats):
         };
 
         loadStrategyParams();
-    }, [strategy, customStrategies]); // ডিপেন্ডেন্সি অ্যারে
+    }, [strategy, customStrategies]);
 
     const handleParamChange = (key: string, value: string) => {
         // নম্বর কিনা চেক করা হচ্ছে
@@ -720,21 +721,24 @@ def custom_objective(stats):
 
         const file = fileInputRef.current.files[0];
 
-        setIsLoading(true); // লোডিং শুরু
+        setIsLoading(true);
         try {
-            // API কল করা হচ্ছে
             await uploadStrategyFile(file);
 
-            // সফল হলে লোকাল লিস্ট আপডেট করা
+            // ফাইলের এক্সটেনশন বাদ দিয়ে নাম নেওয়া
             const newStrategyName = file.name.replace(/\.[^/.]+$/, "");
-            if (!strategies.includes(newStrategyName)) {
-                setStrategies(prev => [...prev, newStrategyName]);
-                setStrategy(newStrategyName);
+
+            // ১. কাস্টম লিস্টে যোগ করা (যাতে ড্রপডাউনে আসে)
+            if (!customStrategies.includes(newStrategyName)) {
+                setCustomStrategies(prev => [...prev, newStrategyName]);
             }
+
+            // ২. স্ট্র্যাটেজি সিলেক্ট করা (যাতে প্যারামিটার লোড হয়)
+            setStrategy(newStrategyName);
 
             showToast(`Strategy "${newStrategyName}" uploaded successfully!`, 'success');
 
-            // ইনপুট ক্লিয়ার করা
+            // ইনপুট ক্লিয়ার
             setFileName('');
             if (fileInputRef.current) fileInputRef.current.value = "";
 
@@ -742,7 +746,7 @@ def custom_objective(stats):
             console.error(error);
             showToast('Failed to upload strategy.', 'error');
         } finally {
-            setIsLoading(false); // লোডিং শেষ
+            setIsLoading(false);
         }
     };
 
@@ -1181,19 +1185,34 @@ def custom_objective(stats):
                             value={strategy}
                             className={`${inputBaseClasses} flex-grow`}
                         >
-                            {/* গ্রুপ ১: স্ট্যান্ডার্ড স্ট্র্যাটেজি */}
+                            {/* ১. স্ট্যান্ডার্ড স্ট্র্যাটেজি */}
                             <optgroup label="Standard Strategies">
                                 {MOCK_STRATEGIES.map(s => (
                                     <option key={s} value={s}>{s}</option>
                                 ))}
                             </optgroup>
 
-                            {/* গ্রুপ ২: আপনার জেনারেট করা স্ট্র্যাটেজি */}
-                            {customStrategies.length > 0 && (
-                                <optgroup label="My AI / Custom Strategies">
-                                    {customStrategies.map(s => (
-                                        <option key={s} value={s}>{s}</option>
-                                    ))}
+                            {/* ২. AI জেনারেটেড স্ট্র্যাটেজি (নামের শুরুতে AI_Gen_ থাকলে) */}
+                            {customStrategies.filter(s => s.startsWith('AI_Gen_')).length > 0 && (
+                                <optgroup label="AI Generated Strategies">
+                                    {customStrategies
+                                        .filter(s => s.startsWith('AI_Gen_'))
+                                        .map(s => (
+                                            <option key={s} value={s}>{s}</option>
+                                        ))
+                                    }
+                                </optgroup>
+                            )}
+
+                            {/* ৩. আপলোড করা স্ট্র্যাটেজি (বাকিগুলো) */}
+                            {customStrategies.filter(s => !s.startsWith('AI_Gen_')).length > 0 && (
+                                <optgroup label="Uploaded Strategies">
+                                    {customStrategies
+                                        .filter(s => !s.startsWith('AI_Gen_'))
+                                        .map(s => (
+                                            <option key={s} value={s}>{s}</option>
+                                        ))
+                                    }
                                 </optgroup>
                             )}
                         </select>

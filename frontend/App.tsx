@@ -26,6 +26,9 @@ function App() {
   const [activeSettingsSection, setActiveSettingsSection] = useState<string | null>(null);
 
   useEffect(() => {
+    // ✅ এই অংশটি আবার চালু (Uncomment) করে দিন
+    // এটি চেক করবে লোকাল স্টোরেজে টোকেন আছে কি না।
+    // টোকেন থাকলে সরাসরি ড্যাশবোর্ডে নিয়ে যাবে (রিফ্রেশ দিলেও)।
     const token = localStorage.getItem('accessToken');
     if (token) {
       setAppState(AppState.LOGGED_IN);

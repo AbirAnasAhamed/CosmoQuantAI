@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Sector } from 'recharts';
 import { MOCK_ACTIVE_BOTS, MOCK_BACKTEST_RESULTS, PORTFOLIO_VALUE_DATA, PORTFOLIO_ALLOCATION_DATA, MOCK_ASSETS, BotLabIcon, BacktesterIcon, AIFoundryIcon, TradingIcon } from '../../constants';
@@ -38,7 +37,7 @@ const AnimatedNumber: React.FC<{ value: number; isCurrency?: boolean }> = ({ val
         let start = 0;
         const end = value;
         if (start === end) return;
-        
+
         const duration = 1500;
         const range = end - start;
         let current = start;
@@ -64,22 +63,22 @@ const AnimatedNumber: React.FC<{ value: number; isCurrency?: boolean }> = ({ val
     );
 };
 
-const KpiCard: React.FC<{ 
-    title: string; 
-    value: number; 
-    isCurrency?: boolean; 
-    change?: number; 
-    icon: React.ReactNode; 
+const KpiCard: React.FC<{
+    title: string;
+    value: number;
+    isCurrency?: boolean;
+    change?: number;
+    icon: React.ReactNode;
     colorClass: string;
-    animationDelay: number 
+    animationDelay: number
 }> = ({ title, value, isCurrency = false, change, icon, colorClass, animationDelay }) => (
-    <div 
-        className={`relative group p-6 rounded-2xl bg-white dark:bg-brand-dark border border-brand-border-light dark:border-brand-border-dark overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl staggered-fade-in`} 
+    <div
+        className={`relative group p-6 rounded-2xl bg-white dark:bg-brand-dark border border-brand-border-light dark:border-brand-border-dark overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-xl staggered-fade-in`}
         style={{ animationDelay: `${animationDelay}ms` }}
     >
         {/* Background Glow */}
         <div className={`absolute -right-6 -top-6 w-24 h-24 rounded-full opacity-10 group-hover:opacity-20 transition-opacity blur-2xl ${colorClass}`}></div>
-        
+
         <div className="flex justify-between items-start relative z-10">
             <div>
                 <p className="text-sm font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{title}</p>
@@ -108,7 +107,7 @@ const ActiveShape = (props: any) => {
             <text x={cx} y={cy - 10} dy={8} textAnchor="middle" fill={fill} className="text-lg font-bold dark:fill-white">
                 {payload.name}
             </text>
-             <text x={cx} y={cy + 10} dy={8} textAnchor="middle" fill="#9CA3AF" className="text-sm">
+            <text x={cx} y={cy + 10} dy={8} textAnchor="middle" fill="#9CA3AF" className="text-sm">
                 {`$${payload.value.toLocaleString()}`}
             </text>
             <Sector
@@ -148,16 +147,16 @@ const Dashboard: React.FC = () => {
 
     const axisColor = theme === 'dark' ? '#9CA3AF' : '#6B7280';
     const gridColor = theme === 'dark' ? '#334155' : '#E2E8F0';
-    const tooltipStyle = theme === 'dark' 
-        ? { backgroundColor: 'rgba(30, 41, 59, 0.9)', border: '1px solid #334155', borderRadius: '12px', color: '#FFF', backdropFilter: 'blur(4px)' } 
+    const tooltipStyle = theme === 'dark'
+        ? { backgroundColor: 'rgba(30, 41, 59, 0.9)', border: '1px solid #334155', borderRadius: '12px', color: '#FFF', backdropFilter: 'blur(4px)' }
         : { backgroundColor: 'rgba(255, 255, 255, 0.9)', border: '1px solid #E2E8F0', borderRadius: '12px', color: '#000', backdropFilter: 'blur(4px)' };
-        
+
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
 
     const onPieEnter = useCallback((_: any, index: number) => {
         setActiveIndex(index);
     }, []);
-    
+
     const onPieLeave = useCallback(() => {
         setActiveIndex(null);
     }, []);
@@ -168,7 +167,7 @@ const Dashboard: React.FC = () => {
 
     return (
         <div className="space-y-8">
-            
+
             {/* Welcome Header */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 animate-fade-in-down">
                 <div>
@@ -181,8 +180,8 @@ const Dashboard: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-2 bg-white dark:bg-brand-dark/50 px-4 py-2 rounded-full border border-brand-border-light dark:border-brand-border-dark shadow-sm">
                     <div className="relative flex h-3 w-3">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-success opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-3 w-3 bg-brand-success"></span>
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-success opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-3 w-3 bg-brand-success"></span>
                     </div>
                     <span className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">Market Pulse: Bullish</span>
                 </div>
@@ -190,38 +189,38 @@ const Dashboard: React.FC = () => {
 
             {/* KPI Grid - Bento Style */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-                <KpiCard 
-                    title="Total Equity" 
-                    value={totalPortfolioValue} 
-                    isCurrency={true} 
-                    change={2.5} 
+                <KpiCard
+                    title="Total Equity"
+                    value={totalPortfolioValue}
+                    isCurrency={true}
+                    change={2.5}
                     icon={<WalletIcon className="w-6 h-6" />}
                     colorClass="bg-brand-primary"
-                    animationDelay={100} 
+                    animationDelay={100}
                 />
-                <KpiCard 
-                    title="24h Profit" 
-                    value={1250} 
-                    isCurrency={true} 
-                    change={1.2} 
+                <KpiCard
+                    title="24h Profit"
+                    value={1250}
+                    isCurrency={true}
+                    change={1.2}
                     icon={<TrendingUpIcon className="w-6 h-6" />}
                     colorClass="bg-brand-success"
-                    animationDelay={200} 
+                    animationDelay={200}
                 />
-                <KpiCard 
-                    title="Active Bots" 
-                    value={totalBots} 
+                <KpiCard
+                    title="Active Bots"
+                    value={totalBots}
                     icon={<CpuIcon className="w-6 h-6" />}
                     colorClass="bg-blue-500"
-                    animationDelay={300} 
+                    animationDelay={300}
                 />
-                <KpiCard 
-                    title="Win Rate" 
-                    value={winRate} 
+                <KpiCard
+                    title="Win Rate"
+                    value={winRate}
                     change={0.5}
                     icon={<ActivityIcon className="w-6 h-6" />}
                     colorClass="bg-purple-500"
-                    animationDelay={400} 
+                    animationDelay={400}
                 />
             </div>
 
@@ -241,25 +240,25 @@ const Dashboard: React.FC = () => {
                         </div>
                     </div>
                     <div className="h-80 w-full">
-                         <ResponsiveContainer width="100%" height="100%">
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                             <AreaChart data={PORTFOLIO_VALUE_DATA}>
                                 <defs>
                                     <linearGradient id="portfolioGradient" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#6366F1" stopOpacity={0.4}/>
-                                        <stop offset="95%" stopColor="#6366F1" stopOpacity={0}/>
+                                        <stop offset="5%" stopColor="#6366F1" stopOpacity={0.4} />
+                                        <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} opacity={0.5} />
                                 <XAxis dataKey="name" stroke={axisColor} fontSize={12} tickLine={false} axisLine={false} dy={10} />
                                 <YAxis stroke={axisColor} tickFormatter={(value) => `$${Number(value) / 1000}k`} fontSize={12} tickLine={false} axisLine={false} dx={-10} />
                                 <Tooltip contentStyle={tooltipStyle} cursor={{ stroke: '#6366F1', strokeWidth: 1, strokeDasharray: '5 5' }} />
-                                <Area 
-                                    type="monotone" 
-                                    dataKey="value" 
-                                    stroke="#6366F1" 
-                                    strokeWidth={3} 
-                                    fillOpacity={1} 
-                                    fill="url(#portfolioGradient)" 
+                                <Area
+                                    type="monotone"
+                                    dataKey="value"
+                                    stroke="#6366F1"
+                                    strokeWidth={3}
+                                    fillOpacity={1}
+                                    fill="url(#portfolioGradient)"
                                     activeDot={{ r: 6, strokeWidth: 0, fill: '#fff' }}
                                 />
                             </AreaChart>
@@ -271,17 +270,17 @@ const Dashboard: React.FC = () => {
                 <div className="lg:col-span-1 rounded-2xl bg-white dark:bg-brand-dark border border-brand-border-light dark:border-brand-border-dark p-6 shadow-lg flex flex-col staggered-fade-in" style={{ animationDelay: '600ms' }}>
                     <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Allocation</h2>
                     <div className="flex-1 relative min-h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%">
-                             <PieChart>
-                                <Pie 
-                                    data={PORTFOLIO_ALLOCATION_DATA} 
-                                    cx="50%" 
-                                    cy="50%" 
+                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                            <PieChart>
+                                <Pie
+                                    data={PORTFOLIO_ALLOCATION_DATA}
+                                    cx="50%"
+                                    cy="50%"
                                     innerRadius={60}
-                                    outerRadius={80} 
-                                    fill="#8884d8" 
-                                    dataKey="value" 
-                                    activeIndex={activeIndex !== null ? activeIndex : undefined}
+                                    outerRadius={80}
+                                    fill="#8884d8"
+                                    dataKey="value"
+                                    {...({ activeIndex: activeIndex !== null ? activeIndex : undefined } as any)}
                                     activeShape={ActiveShape}
                                     onMouseEnter={onPieEnter}
                                     onMouseLeave={onPieLeave}
@@ -301,7 +300,7 @@ const Dashboard: React.FC = () => {
 
             {/* Bottom Section Grid */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
+
                 {/* Active Bots Command Center */}
                 <div className="lg:col-span-2 rounded-2xl bg-white dark:bg-brand-dark border border-brand-border-light dark:border-brand-border-dark p-6 shadow-lg staggered-fade-in" style={{ animationDelay: '700ms' }}>
                     <div className="flex justify-between items-center mb-4">
@@ -310,7 +309,7 @@ const Dashboard: React.FC = () => {
                         </h2>
                         <button className="text-xs font-bold text-brand-primary hover:underline">View All Bots &rarr;</button>
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         {MOCK_ACTIVE_BOTS.map((bot) => (
                             <div key={bot.id} className="flex items-center p-4 rounded-xl bg-gray-50 dark:bg-brand-darkest/50 border border-transparent hover:border-brand-primary/30 transition-all duration-300 group">
@@ -357,17 +356,17 @@ const Dashboard: React.FC = () => {
                     <div className="rounded-2xl bg-white dark:bg-brand-dark border border-brand-border-light dark:border-brand-border-dark p-6 shadow-lg flex-1 staggered-fade-in" style={{ animationDelay: '900ms' }}>
                         <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Recent Backtests</h2>
                         <div className="space-y-3">
-                             {MOCK_BACKTEST_RESULTS.slice(0,3).map(result => (
-                                 <div key={result.id} className="flex justify-between items-center text-sm p-2 hover:bg-gray-50 dark:hover:bg-brand-darkest/50 rounded-lg transition-colors cursor-pointer">
-                                     <div>
-                                         <p className="font-semibold text-slate-900 dark:text-white">{result.strategy}</p>
-                                         <p className="text-xs text-gray-500">{result.market} • {result.timeframe}</p>
-                                     </div>
-                                     <div className={`px-2 py-1 rounded text-xs font-bold ${result.profitPercent >= 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700'}`}>
-                                         {result.profitPercent > 0 ? '+' : ''}{result.profitPercent}%
-                                     </div>
-                                 </div>
-                             ))}
+                            {MOCK_BACKTEST_RESULTS.slice(0, 3).map(result => (
+                                <div key={result.id} className="flex justify-between items-center text-sm p-2 hover:bg-gray-50 dark:hover:bg-brand-darkest/50 rounded-lg transition-colors cursor-pointer">
+                                    <div>
+                                        <p className="font-semibold text-slate-900 dark:text-white">{result.strategy}</p>
+                                        <p className="text-xs text-gray-500">{result.market} • {result.timeframe}</p>
+                                    </div>
+                                    <div className={`px-2 py-1 rounded text-xs font-bold ${result.profitPercent >= 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700'}`}>
+                                        {result.profitPercent > 0 ? '+' : ''}{result.profitPercent}%
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </div>
