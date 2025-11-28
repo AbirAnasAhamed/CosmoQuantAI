@@ -15,6 +15,8 @@ from . import models, database, schemas, crud, utils, auth, email_utils
 from .services.market_service import MarketService
 from .services.backtest_engine import BacktestEngine
 from .services import ai_service
+from celery.result import AsyncResult
+from .tasks import run_backtest_task
 
 UPLOAD_DIR = "app/strategies/custom"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -381,20 +383,39 @@ async def generate_strategy(request: schemas.GenerateStrategyRequest, current_us
     }
 
 # --- Backtest Endpoint ---
+
+# ১. ব্যাকটেস্ট শুরু করার এন্ডপয়েন্ট (Async)
 @app.post("/api/backtest/run")
 def run_backtest(
     request: schemas.BacktestRequest,
-    db: Session = Depends(get_db),
-    current_user: models.User = Depends(auth.get_current_user) # শুধুমাত্র লগড-ইন ইউজার
+    current_user: models.User = Depends(auth.get_current_user)
 ):
-    result = backtest_engine.run(
-        db=db, 
-        symbol=request.symbol, 
-        timeframe=request.timeframe, 
+    # টাস্কটি কিউতে পাঠানো হচ্ছে
+    task = run_backtest_task.delay(
+        symbol=request.symbol,
+        timeframe=request.timeframe,
         strategy_name=request.strategy,
         initial_cash=request.initial_cash,
         params=request.params,
         start_date=request.start_date,
         end_date=request.end_date
     )
-    return result
+    
+    # সাথে সাথে Task ID রিটার্ন করা হবে
+    return {"task_id": task.id, "status": "Processing"}
+
+# ২. টাস্ক স্ট্যাটাস চেক করার এন্ডপয়েন্ট
+@app.get("/api/backtest/status/{task_id}")
+def get_backtest_status(task_id: str):
+    task_result = AsyncResult(task_id)
+    
+    if task_result.state == 'PENDING':
+        return {"status": "Pending", "result": None}
+    elif task_result.state == 'STARTED':
+        return {"status": "Processing", "result": None}
+    elif task_result.state == 'SUCCESS':
+        return {"status": "Completed", "result": task_result.result}
+    elif task_result.state == 'FAILURE':
+        return {"status": "Failed", "error": str(task_result.result)}
+    
+    return {"status": task_result.state}

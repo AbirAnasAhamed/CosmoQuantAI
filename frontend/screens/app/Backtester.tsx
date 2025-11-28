@@ -14,11 +14,13 @@ import type { BacktestResult } from '../../types';
 
 import { useToast } from '../../contexts/ToastContext';
 import { syncMarketData, runBacktestApi, getExchangeList, getExchangeMarkets, uploadStrategyFile, generateStrategy, fetchCustomStrategyList, fetchStrategyCode } from '../../services/backtester';
+import { useBacktest } from '../../contexts/BacktestContext';
 import { AIFoundryIcon } from '../../constants';
 import SearchableSelect from '../../components/ui/SearchableSelect';
 import BacktestChart from '../../components/ui/BacktestChart';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
+import MonthlyReturnsHeatmap from '../../components/ui/MonthlyReturnsHeatmap';
 
 // কোড থেকে প্যারামিটার বের করার ফাংশন
 const parseParamsFromCode = (code: string): Record<string, any> => {
@@ -217,6 +219,21 @@ const CalendarIcon = () => (
 const Backtester: React.FC = () => {
     const { theme } = useTheme();
     const { showToast } = useToast();
+
+    // Use Context
+    const {
+        statusMessage,
+        isLoading: isContextLoading,
+        runBacktest: runContextBacktest,
+        setStrategy: setContextStrategy,
+        setSymbol: setContextSymbol,
+        setTimeframe: setContextTimeframe,
+        setStartDate: setContextStartDate,
+        setEndDate: setContextEndDate,
+        setParams: setContextParams,
+        singleResult: contextResult
+    } = useBacktest();
+
     const [strategies, setStrategies] = useState(MOCK_STRATEGIES);
     const [strategy, setStrategy] = useState('RSI Crossover');
     const [symbol, setSymbol] = useState('');
@@ -284,7 +301,25 @@ const Backtester: React.FC = () => {
 
     // Loading States
     const [isSyncing, setIsSyncing] = useState(false);
-    const [isLoading, setIsLoading] = useState(false);
+    const [isLoading, setIsLoading] = useState(false); // Local loading state for other ops
+
+    // Sync context state with local state when running backtest
+    useEffect(() => {
+        setContextStrategy(strategy);
+        setContextSymbol(symbol);
+        setContextTimeframe(timeframe);
+        setContextStartDate(startDate);
+        setContextEndDate(endDate);
+        setContextParams(params);
+    }, [strategy, symbol, timeframe, startDate, endDate, params]);
+
+    // Sync result from context
+    useEffect(() => {
+        if (contextResult) {
+            setSingleResult(contextResult);
+            setShowResults(true);
+        }
+    }, [contextResult]);
 
     // State for portfolio backtesting
     const [isPortfolioBacktest, setIsPortfolioBacktest] = useState(false);
@@ -548,59 +583,13 @@ def custom_objective(stats):
         setShowResults(false);
 
         if (backtestMode === 'single') {
-            setIsLoading(true);
-            try {
-                // রিয়েল এপিআই কল
-                const apiResult = await runBacktestApi({
-                    symbol: symbol,
-                    timeframe: timeframe,
-                    strategy: strategy,
-                    initial_cash: 10000, // হার্ডকোড বা ইনপুট নিতে পারেন
-                    start_date: startDate,
-                    end_date: endDate,
-                    params: params // ফর্ম থেকে নেয়া প্যারামিটার
-                });
-
-                // ব্যাকএন্ড ডেটাকে ফ্রন্টএন্ড মডেলে কনভার্ট
-                const mappedResult: BacktestResult = {
-                    id: Date.now().toString(),
-                    market: apiResult.symbol || symbol,
-                    strategy: apiResult.strategy || strategy,
-                    timeframe: timeframe,
-                    date: new Date().toISOString().split('T')[0],
-
-                    // আমাদের Types ফাইলে যে নাম আছে, সেই অনুযায়ী ম্যাপ করছি
-                    profitPercent: apiResult.profit_percent,
-                    maxDrawdown: apiResult.max_drawdown,
-                    winRate: apiResult.win_rate,
-                    sharpeRatio: apiResult.sharpe_ratio,
-
-                    // সাপোর্টের জন্য অরিজিনাল ভ্যালুও রাখা যেতে পারে
-                    profit_percent: apiResult.profit_percent,
-                    // max_drawdown: apiResult.max_drawdown, // Removed as per new interface
-                    // win_rate: apiResult.win_rate, // Removed as per new interface
-                    // sharpe_ratio: apiResult.sharpe_ratio, // Removed as per new interface
-                    trades_log: apiResult.trades_log,
-                    candle_data: apiResult.candle_data,
-
-                    // New Fields
-                    advanced_metrics: apiResult.advanced_metrics,
-                    heatmap_data: apiResult.heatmap_data,
-                    underwater_data: apiResult.underwater_data
-                };
-
-                setSingleResult(mappedResult);
-                setShowResults(true);
-                showToast('Backtest completed successfully!', 'success');
-
-            } catch (error: any) {
-                console.error(error);
-                const msg = error.response?.data?.detail || "Backtest failed. Did you sync data?";
-                showToast(msg, 'error');
-            } finally {
-                setIsLoading(false);
+            if (backtestMode === 'single') {
+                // Use Context for Single Backtest
+                await runContextBacktest();
+                return;
             }
-            return;
+
+
         }
 
         if (backtestMode === 'optimization') {
@@ -1222,8 +1211,13 @@ def custom_objective(stats):
                 {backtestMode === 'single' ? renderSingleParams() : renderOptimizationParams()}
 
                 <div className="mt-8 pt-6 border-t border-brand-border-light dark:border-brand-border-dark flex items-center gap-4">
-                    <Button onClick={handleRunBacktest} className="w-full md:w-auto" disabled={isLoading || isSyncing || isOptimizing || isBatchRunning}>
-                        {isLoading ? 'Running Strategy...' : isOptimizing ? 'Optimizing...' : backtestMode === 'single' ? 'Run Backtest' : 'Run Optimization'}
+                    <Button onClick={handleRunBacktest} className="w-full md:w-auto" disabled={isContextLoading || isLoading || isSyncing || isOptimizing || isBatchRunning}>
+                        {isContextLoading ? (
+                            <span className="flex items-center gap-2">
+                                <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none"></circle><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path></svg>
+                                {statusMessage || 'Processing...'}
+                            </span>
+                        ) : isOptimizing ? 'Optimizing...' : backtestMode === 'single' ? 'Run Backtest' : 'Run Optimization'}
                     </Button>
                     <Button variant="secondary" onClick={handleRunAllStrategies} disabled={isOptimizing || isBatchRunning}>
                         {isBatchRunning ? 'Running All...' : 'Run All Strategies'}
@@ -1367,29 +1361,18 @@ def custom_objective(stats):
                                     </div>
                                 )}
 
-                                {singleResult.heatmap_data && (
-                                    <div className="mt-8 animate-fade-in-down">
-                                        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Monthly Returns Heatmap</h3>
-                                        <div className="grid grid-cols-6 md:grid-cols-12 gap-2">
-                                            {singleResult.heatmap_data.map((item, idx) => (
-                                                <div
-                                                    key={idx}
-                                                    className={`p-2 text-xs text-center rounded font-medium ${item.value >= 0 ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}`}
-                                                    title={`${item.year}-${item.month}`}
-                                                >
-                                                    <div className="text-[10px] opacity-70">{item.year}-{item.month}</div>
-                                                    {item.value}%
-                                                </div>
-                                            ))}
-                                        </div>
-                                    </div>
+                                {singleResult.heatmap_data && singleResult.heatmap_data.length > 0 && (
+                                    <Card className="mt-6 staggered-fade-in">
+                                        <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Monthly Returns Heatmap</h3>
+                                        <MonthlyReturnsHeatmap data={singleResult.heatmap_data} />
+                                    </Card>
                                 )}
 
                                 {singleResult.underwater_data && (
                                     <Card className="mt-6">
                                         <h3 className="text-lg font-bold mb-4 text-slate-900 dark:text-white">Underwater Plot (Drawdown)</h3>
                                         <div className="h-64 w-full">
-                                            <ResponsiveContainer>
+                                            <ResponsiveContainer width="100%" height="100%">
                                                 <AreaChart data={singleResult.underwater_data}>
                                                     <defs>
                                                         <linearGradient id="colorDrawdown" x1="0" y1="0" x2="0" y2="1">

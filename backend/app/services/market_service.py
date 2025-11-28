@@ -132,6 +132,9 @@ class MarketService:
             return []
         except Exception as e:
             print(f"Error fetching markets for {exchange_id}: {e}")
+            # Fallback for development if API fails
+            if exchange_id == 'binance':
+                return ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT', 'XRP/USDT', 'ADA/USDT', 'DOGE/USDT', 'MATIC/USDT']
             return []
 
     # ৪. সাপোর্টেড এক্সচেঞ্জ লিস্ট

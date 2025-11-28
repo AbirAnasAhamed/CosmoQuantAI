@@ -26,7 +26,13 @@ export const syncMarketData = async (symbol: string, timeframe: string, startDat
 // রান ফাংশন আপডেট (ইন্টারফেস আগেই আপডেট করেছি, শুধু পাঠানো নিশ্চিত করা)
 export const runBacktestApi = async (payload: BacktestRequest) => {
     const response = await apiClient.post('/backtest/run', payload);
-    return response.data;
+    return response.data; // { task_id: "...", status: "Processing" }
+};
+
+// ২. নতুন: টাস্ক স্ট্যাটাস চেক করার ফাংশন
+export const getBacktestStatus = async (taskId: string) => {
+    const response = await apiClient.get(`/backtest/status/${taskId}`);
+    return response.data; // { status: "Processing" | "Completed" | "Failed", result: ... }
 };
 
 // ৩. এক্সচেঞ্জ লিস্ট পাওয়ার জন্য

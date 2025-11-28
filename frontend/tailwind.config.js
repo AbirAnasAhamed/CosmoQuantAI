@@ -57,6 +57,10 @@ export default {
                     '0%': { opacity: '0', transform: 'translateY(-20px)' },
                     '100%': { opacity: '1', transform: 'translateY(0)' },
                 }
+            },
+            gridTemplateColumns: {
+                // আগে ছিল 40px, এখন বাড়িয়ে 60px করা হলো
+                '13': 'minmax(60px, 0.5fr) repeat(12, minmax(0, 1fr))',
             }
         }
     },

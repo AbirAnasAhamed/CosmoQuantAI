@@ -183,20 +183,17 @@ class BacktestEngine:
         trade_analysis = first_strat.analyzers.trades.get_analysis()
         total_closed = trade_analysis.get('total', {}).get('closed', 0)
         
-        # Trade logs and candles for chart
-        executed_trades = getattr(first_strat, 'trade_history', [])
+        # --- Optimization: iterrows() এর পরিবর্তে to_dict ব্যবহার ---
+        # এটি অনেক দ্রুত চার্ট ডেটা তৈরি করবে
         
-        # ট্রেড বা স্ট্র্যাটেজি রেজাল্ট যাই হোক, ক্যান্ডেল ডেটা চার্টের জন্য প্রিপেয়ার করতেই হবে
-        chart_candles = []
-        # df (DataFrame) টি আগেই তৈরি করা ছিল
-        for index, row in df.iterrows():
-            chart_candles.append({
-                "time": int(index.timestamp()), 
-                "open": row['open'],
-                "high": row['high'],
-                "low": row['low'],
-                "close": row['close'],
-            })
+        # প্রথমে টাইমস্ট্যাম্প কলামটি তৈরি করে নিই (ইন্টিজার হিসেবে)
+        df['time'] = df.index.astype('int64') // 10**9 
+        
+        # সরাসরি ডিকশনারিতে কনভার্ট (লুপ ছাড়া)
+        chart_candles = df[['time', 'open', 'high', 'low', 'close', 'volume']].to_dict(orient='records')
+
+        # ট্রেড লগ এবং ক্যান্ডেল রিটার্ন করা
+        executed_trades = getattr(first_strat, 'trade_history', [])
 
         return {
             "status": "success",
@@ -207,14 +204,13 @@ class BacktestEngine:
             "profit_percent": round((end_value - start_value) / start_value * 100, 2),
             "total_trades": total_closed,
             
-            # Advanced Metrics
+            # মেট্রিক্স
             "advanced_metrics": {k: (round(v, 2) if isinstance(v, (int, float)) else 0) for k, v in qs_metrics.items()},
             "heatmap_data": heatmap_data,
             "underwater_data": underwater_data,
             "histogram_data": histogram_data,
-
             
-            # Chart Data
+            # চার্ট ডেটা
             "trades_log": executed_trades, 
             "candle_data": chart_candles 
         }
