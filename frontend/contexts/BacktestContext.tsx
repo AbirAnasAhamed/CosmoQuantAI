@@ -37,8 +37,13 @@ interface BacktestContextType {
     statusMessage: string; // ইউজারের জন্য স্ট্যাটাস মেসেজ
 
     // Actions
-    runBacktest: () => Promise<void>;
+    runBacktest: (options?: any) => Promise<void>;
     refreshStrategyList: () => Promise<void>;
+
+    // Aliases for compatibility with new Backtester
+    results: BacktestResult | null;
+    isRunning: boolean;
+    error: string | null;
 }
 
 const BacktestContext = createContext<BacktestContextType | undefined>(undefined);
@@ -62,6 +67,7 @@ export const BacktestProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [singleResult, setSingleResult] = useState<BacktestResult | null>(null);
     const [isLoading, setIsLoading] = useState(false);
     const [statusMessage, setStatusMessage] = useState(''); // নতুন স্টেট
+    const [error, setError] = useState<string | null>(null);
 
     // --- Actions ---
 
@@ -75,21 +81,30 @@ export const BacktestProvider: React.FC<{ children: ReactNode }> = ({ children }
     };
 
     // 🔴 নতুন পোলিং লজিক সহ Run Backtest
-    const runBacktest = async () => {
+    const runBacktest = async (options?: any) => {
         setIsLoading(true);
         setSingleResult(null);
+        setError(null);
         setStatusMessage('Initializing Backtest...');
+
+        // Update local state if options provided
+        if (options) {
+            if (options.symbol) setSymbol(options.symbol);
+            if (options.timeframe) setTimeframe(options.timeframe);
+            if (options.strategy) setStrategy(options.strategy);
+            if (options.params) setParams(options.params);
+        }
 
         try {
             // ১. ব্যাকটেস্ট টাস্ক শুরু করা
             const initialResponse = await runBacktestApi({
-                symbol,
-                timeframe,
-                strategy,
-                initial_cash: 10000,
+                symbol: options?.symbol || symbol,
+                timeframe: options?.timeframe || timeframe,
+                strategy: options?.strategy || strategy,
+                initial_cash: options?.initial_cash || 10000,
                 start_date: startDate,
                 end_date: endDate,
-                params
+                params: options?.params || params
             });
 
             const taskId = initialResponse.task_id;
@@ -108,15 +123,18 @@ export const BacktestProvider: React.FC<{ children: ReactNode }> = ({ children }
                         // রেজাল্ট ম্যাপিং
                         const mappedResult: BacktestResult = {
                             id: Date.now().toString(),
-                            market: apiResult.symbol || symbol,
-                            strategy: apiResult.strategy || strategy,
-                            timeframe: timeframe,
+                            market: apiResult.symbol || (options?.symbol || symbol),
+                            strategy: apiResult.strategy || (options?.strategy || strategy),
+                            timeframe: options?.timeframe || timeframe,
                             date: new Date().toISOString().split('T')[0],
                             profitPercent: apiResult.profit_percent,
                             maxDrawdown: apiResult.max_drawdown,
                             winRate: apiResult.win_rate,
                             sharpeRatio: apiResult.sharpe_ratio,
                             profit_percent: apiResult.profit_percent,
+                            initial_cash: options?.initial_cash || 10000,
+                            final_value: apiResult.final_value,
+                            total_trades: apiResult.total_trades,
                             // max_drawdown: apiResult.max_drawdown, // Removed: Not in type
                             // win_rate: apiResult.win_rate, // Removed: Not in type
                             // sharpe_ratio: apiResult.sharpe_ratio, // Removed: Not in type
@@ -136,6 +154,7 @@ export const BacktestProvider: React.FC<{ children: ReactNode }> = ({ children }
                         clearInterval(pollInterval);
                         setIsLoading(false);
                         setStatusMessage('');
+                        setError(statusData.error || 'Backtest failed');
                         showToast(`Backtest Failed: ${statusData.error}`, 'error');
                     } else {
                         // এখনও প্রসেস হচ্ছে
@@ -151,6 +170,7 @@ export const BacktestProvider: React.FC<{ children: ReactNode }> = ({ children }
         } catch (error: any) {
             console.error(error);
             const msg = error.response?.data?.detail || "Failed to start backtest.";
+            setError(msg);
             showToast(msg, 'error');
             setIsLoading(false);
             setStatusMessage('');
@@ -173,7 +193,11 @@ export const BacktestProvider: React.FC<{ children: ReactNode }> = ({ children }
             isLoading, setIsLoading,
             statusMessage, // এক্সপোর্ট করা হলো যাতে UI তে দেখানো যায়
             runBacktest,
-            refreshStrategyList
+            refreshStrategyList,
+            // Aliases
+            results: singleResult,
+            isRunning: isLoading,
+            error
         }}>
             {children}
         </BacktestContext.Provider>

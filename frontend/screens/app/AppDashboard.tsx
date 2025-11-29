@@ -13,7 +13,7 @@ import { BrainCore } from './omnitrade/BrainCore.tsx';
 import { VertexForge } from './omnitrade/VertexForge.tsx';
 import { BotManager } from './omnitrade/BotManager.tsx';
 import { ExecutionEngine } from './omnitrade/ExecutionEngine.tsx';
-import { Backtest as StrategyBacktester } from './omnitrade/Backtest.tsx';
+
 import PortfolioTracker from './PortfolioTracker';
 import Market from './Market';
 import SentimentEngine from './SentimentEngine';
@@ -136,9 +136,9 @@ const Sidebar: React.FC<{
             ]
         },
         {
-            title: 'OmniTrade Core',
+            title: 'Nural AI Bot',
             items: [
-                { view: AppView.OMNI_DASHBOARD, icon: <LayoutDashboard size={20} />, label: 'Overview' },
+                { view: AppView.OMNI_DASHBOARD, icon: <LayoutDashboard />, label: 'Command Center' },
                 { view: AppView.OMNI_NEXUS, icon: <Database size={20} />, label: 'Data Nexus' },
                 { view: AppView.OMNI_FEATURE_LAB, icon: <Activity size={20} />, label: 'Feature Lab' },
                 { view: AppView.OMNI_CHARTS, icon: <LineChart size={20} />, label: 'Pro Charts' },
@@ -146,7 +146,7 @@ const Sidebar: React.FC<{
                 { view: AppView.OMNI_VERTEX, icon: <CloudLightning size={20} />, label: 'Vertex Forge' },
                 { view: AppView.OMNI_BOTS, icon: <Bot size={20} />, label: 'Bot Fleet' },
                 { view: AppView.OMNI_EXECUTION, icon: <Zap size={20} />, label: 'Execution' },
-                { view: AppView.OMNI_BACKTEST, icon: <History size={20} />, label: 'Backtester' },
+
             ]
         },
         {
@@ -343,7 +343,7 @@ const AppDashboard: React.FC<AppDashboardProps> = ({ currentView, onNavigate, on
             case AppView.OMNI_VERTEX: return <div className="dark text-slate-200"><VertexForge bots={bots} onDeploy={handleDeploy} /></div>;
             case AppView.OMNI_BOTS: return <div className="dark text-slate-200"><BotManager bots={bots} setBots={setBots} /></div>;
             case AppView.OMNI_EXECUTION: return <div className="dark text-slate-200"><ExecutionEngine /></div>;
-            case AppView.OMNI_BACKTEST: return <div className="dark text-slate-200"><StrategyBacktester /></div>;
+
 
             case AppView.PORTFOLIO: return <PortfolioTracker />;
             case AppView.BACKTESTER: return <Backtester />;

@@ -36,3 +36,33 @@ export const analyzeMarketData = async (
         ],
     };
 };
+
+export const geminiService = {
+    generateContent: async (prompt: string): Promise<string> => {
+        // Simulate API delay
+        await new Promise((resolve) => setTimeout(resolve, 2000));
+
+        // Return mock Python code based on the prompt
+        return `
+import backtrader as bt
+
+class AIStrategy(bt.Strategy):
+    params = (
+        ('rsi_period', 14),
+        ('sma_period', 50),
+    )
+
+    def __init__(self):
+        self.rsi = bt.indicators.RSI(self.data.close, period=self.params.rsi_period)
+        self.sma = bt.indicators.SMA(self.data.close, period=self.params.sma_period)
+
+    def next(self):
+        if not self.position:
+            if self.rsi < 30 and self.data.close > self.sma:
+                self.buy()
+        else:
+            if self.rsi > 70:
+                self.sell()
+`;
+    }
+};

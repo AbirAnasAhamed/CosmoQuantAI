@@ -36,6 +36,19 @@ export interface ActiveBot {
   staticStopLoss?: number;
 }
 
+export interface BacktestMetrics {
+  net_profit: number;
+  net_profit_percent: number;
+  total_closed_trades: number;
+  percent_profitable: number;
+  profit_factor: number;
+  max_drawdown: number;
+  max_drawdown_percent: number;
+  avg_trade: number;
+  avg_trade_percent: number;
+  sharpe_ratio: number;
+}
+
 export interface BacktestResult {
   id?: string;
   market: string;
@@ -47,6 +60,7 @@ export interface BacktestResult {
   profit_percent: number;
   final_value?: number;
   total_trades?: number;
+  initial_cash?: number;
 
   // অ্যাডভান্সড মেট্রিক্স অবজেক্ট
   advanced_metrics?: {
@@ -60,6 +74,9 @@ export interface BacktestResult {
     expectancy: number;
     cagr: number;
   };
+
+  // New Metrics for TradingView Style Panel
+  metrics?: BacktestMetrics;
 
   // ভিজ্যুয়ালাইজেশন ডেটা
   heatmap_data?: { year: number; month: number; value: number }[];
@@ -531,7 +548,7 @@ export enum AppView {
   OMNI_VERTEX = 'Vertex Forge',
   OMNI_BOTS = 'Bot Fleet',
   OMNI_EXECUTION = 'Execution Engine',
-  OMNI_BACKTEST = 'Strategy Backtester',
+
 }
 
 export interface AiAnalysisResult {

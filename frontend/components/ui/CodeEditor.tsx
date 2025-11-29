@@ -1,23 +1,24 @@
 import React, { useRef, useEffect } from 'react';
 
 const pythonKeywords = [
-  'def', 'return', 'import', 'from', 'class', 'if', 'else', 'elif', 'for', 'while', 'in', 'and', 'or', 'not', 'is', 'None', 'True', 'False', 'with', 'as', 'try', 'except', 'finally', 'raise', 'assert', 'del', 'global', 'nonlocal', 'lambda', 'pass', 'yield'
+    'def', 'return', 'import', 'from', 'class', 'if', 'else', 'elif', 'for', 'while', 'in', 'and', 'or', 'not', 'is', 'None', 'True', 'False', 'with', 'as', 'try', 'except', 'finally', 'raise', 'assert', 'del', 'global', 'nonlocal', 'lambda', 'pass', 'yield'
 ];
 
 const highlightSyntax = (code: string) => {
-  return code
-    .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') // HTML escape
-    .replace(/(#.*$)/gm, '<span class="token-comment">$1</span>') // Comments
-    .replace(/('.*?'|".*?")/g, '<span class="token-string">$1</span>') // Strings
-    .replace(new RegExp(`\\b(${pythonKeywords.join('|')})\\b`, 'g'), '<span class="token-keyword">$1</span>') // Keywords
-    .replace(/\b(\d+\.?\d*)\b/g, '<span class="token-number">$1</span>') // Numbers
-    .replace(/([a-zA-Z_]\w*)\s*(?=\()/g, '<span class="token-function">$1</span>'); // Function names before parentheses
+    return code
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;') // HTML escape
+        .replace(/(#.*$)/gm, '<span class="token-comment">$1</span>') // Comments
+        .replace(/('.*?'|".*?")/g, '<span class="token-string">$1</span>') // Strings
+        .replace(new RegExp(`\\b(${pythonKeywords.join('|')})\\b`, 'g'), '<span class="token-keyword">$1</span>') // Keywords
+        .replace(/\b(\d+\.?\d*)\b/g, '<span class="token-number">$1</span>') // Numbers
+        .replace(/([a-zA-Z_]\w*)\s*(?=\()/g, '<span class="token-function">$1</span>'); // Function names before parentheses
 };
 
 
 interface CodeEditorProps {
     value: string;
     onChange: (value: string) => void;
+    language?: string;
 }
 
 const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange }) => {
@@ -31,13 +32,13 @@ const CodeEditor: React.FC<CodeEditorProps> = ({ value, onChange }) => {
             preRef.current.scrollLeft = textareaRef.current.scrollLeft;
         }
     };
-    
+
     useEffect(() => {
         syncScroll();
     }, [value]);
 
     // Add a newline to prevent last line from being cut off and for better scrolling
-    const highlightedCode = highlightSyntax(value) + '\n'; 
+    const highlightedCode = highlightSyntax(value) + '\n';
 
     return (
         <div className="relative h-full w-full">
