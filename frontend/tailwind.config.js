@@ -28,6 +28,16 @@ export default {
                 'brand-light': '#F8FAFC',         // slate-50
                 'brand-border-dark': '#334155',   // slate-700
                 'brand-border-light': '#E2E8F0',  // slate-200
+                omni: {
+                    bg: '#0B1120',      // Deep dark background
+                    panel: '#1e293b',   // Panel background (slate-800)
+                    accent: '#6366f1',  // Indigo-500 (Primary Accent)
+                    success: '#10b981', // Emerald-500
+                    warning: '#f59e0b', // Amber-500
+                    danger: '#ef4444',  // Red-500
+                    text: '#f8fafc',    // Slate-50
+                    muted: '#94a3b8',   // Slate-400
+                }
             },
             animation: {
                 'marquee-slow': 'marquee 40s linear infinite',

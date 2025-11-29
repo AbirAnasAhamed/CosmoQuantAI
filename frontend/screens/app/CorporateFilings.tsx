@@ -22,7 +22,7 @@ const SearchIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
 );
 const UserIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-     <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
 );
 
 const AddFilingModal: React.FC<{
@@ -110,8 +110,8 @@ const AddFilingModal: React.FC<{
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Type</label>
                                 <div className="flex rounded-xl bg-gray-100 dark:bg-slate-800/50 p-1">
-                                    <button type="button" onClick={() => setFormData({...formData, transactionType: 'Buy'})} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${formData.transactionType === 'Buy' ? 'bg-emerald-500 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}>Buy</button>
-                                    <button type="button" onClick={() => setFormData({...formData, transactionType: 'Sell'})} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${formData.transactionType === 'Sell' ? 'bg-rose-500 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}>Sell</button>
+                                    <button type="button" onClick={() => setFormData({ ...formData, transactionType: 'Buy' })} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${formData.transactionType === 'Buy' ? 'bg-emerald-500 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}>Buy</button>
+                                    <button type="button" onClick={() => setFormData({ ...formData, transactionType: 'Sell' })} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${formData.transactionType === 'Sell' ? 'bg-rose-500 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}>Sell</button>
                                 </div>
                             </div>
                             <div>
@@ -137,32 +137,32 @@ const CorporateFilings: React.FC = () => {
     const [watchlist, setWatchlist] = useState<string[]>(['AAPL', 'TSLA', 'MSFT', 'NVDA']);
     const [newTicker, setNewTicker] = useState('');
     const [filings, setFilings] = useState<InsiderFilingWithStatus[]>(() => [
-        {...generateNewFiling(['AAPL', 'TSLA', 'MSFT', 'NVDA']), isNew: false},
-        {...generateNewFiling(['AAPL', 'TSLA', 'MSFT', 'NVDA']), isNew: false},
-        {...generateNewFiling(['AAPL', 'TSLA', 'MSFT', 'NVDA']), isNew: false},
-        {...generateNewFiling(['AAPL', 'TSLA', 'MSFT', 'NVDA']), isNew: false},
-        {...generateNewFiling(['AAPL', 'TSLA', 'MSFT', 'NVDA']), isNew: false},
+        { ...generateNewFiling(['AAPL', 'TSLA', 'MSFT', 'NVDA']), isNew: false },
+        { ...generateNewFiling(['AAPL', 'TSLA', 'MSFT', 'NVDA']), isNew: false },
+        { ...generateNewFiling(['AAPL', 'TSLA', 'MSFT', 'NVDA']), isNew: false },
+        { ...generateNewFiling(['AAPL', 'TSLA', 'MSFT', 'NVDA']), isNew: false },
+        { ...generateNewFiling(['AAPL', 'TSLA', 'MSFT', 'NVDA']), isNew: false },
     ]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [filterType, setFilterType] = useState<'All' | 'Buy' | 'Sell'>('All');
-    
+
     const { showToast } = useToast();
     const timersRef = useRef<number[]>([]);
 
     useEffect(() => {
         const interval = setInterval(() => {
             if (watchlist.length > 0) {
-                const newFiling: InsiderFilingWithStatus = {...generateNewFiling(watchlist), isNew: true};
+                const newFiling: InsiderFilingWithStatus = { ...generateNewFiling(watchlist), isNew: true };
                 setFilings(currentFilings => [newFiling, ...currentFilings].slice(0, 50));
-                
+
                 showToast(`${newFiling.transactionType.toUpperCase()}: ${newFiling.insiderName} (${newFiling.ticker})`, newFiling.transactionType === 'Buy' ? 'success' : 'warning');
 
-                const timerId = setTimeout(() => {
+                const timerId = window.setTimeout(() => {
                     setFilings(current => current.map(f => f.id === newFiling.id ? { ...f, isNew: false } : f));
                 }, 2000);
                 timersRef.current.push(timerId);
             }
-        }, 6000); 
+        }, 6000);
 
         return () => {
             clearInterval(interval);
@@ -178,12 +178,12 @@ const CorporateFilings: React.FC = () => {
             setNewTicker('');
         }
     };
-    
+
     const handleAddFiling = (newFilingData: InsiderFiling) => {
         const newFiling: InsiderFilingWithStatus = { ...newFilingData, isNew: true };
         setFilings(currentFilings => [newFiling, ...currentFilings]);
         showToast('Filing logged manually.', 'success');
-        const timerId = setTimeout(() => {
+        const timerId = window.setTimeout(() => {
             setFilings(current => current.map(f => f.id === newFiling.id ? { ...f, isNew: false } : f));
         }, 2000);
         timersRef.current.push(timerId);
@@ -201,28 +201,28 @@ const CorporateFilings: React.FC = () => {
         const buyRatio = total > 0 ? (buys / total) * 100 : 50;
         return { buys, sells, total, buyRatio };
     }, [filings]);
-    
+
     const maxFilingValue = useMemo(() => Math.max(...filings.map(f => f.totalValue)), [filings]);
 
     return (
         <div className="h-[calc(100vh-140px)] flex flex-col gap-6">
             {isModalOpen && <AddFilingModal onClose={() => setIsModalOpen(false)} onAddFiling={handleAddFiling} />}
-            
+
             {/* Header / HUD */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-shrink-0 staggered-fade-in">
                 <Card className="bg-gradient-to-br from-slate-900 to-slate-800 text-white border-slate-700 !p-5 relative overflow-hidden">
                     <div className="relative z-10 flex justify-between items-center">
-                         <div>
-                             <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Insider Sentiment (30d)</p>
-                             <h2 className={`text-2xl font-bold ${sentimentStats.buyRatio > 50 ? 'text-emerald-400' : 'text-rose-400'}`}>
-                                 {sentimentStats.buyRatio > 50 ? 'Net Accumulation' : 'Net Distribution'}
-                             </h2>
-                         </div>
-                         <div className={`p-3 rounded-full ${sentimentStats.buyRatio > 50 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
-                             {sentimentStats.buyRatio > 50 ? <TrendingUpIcon /> : <TrendingDownIcon />}
-                         </div>
+                        <div>
+                            <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Insider Sentiment (30d)</p>
+                            <h2 className={`text-2xl font-bold ${sentimentStats.buyRatio > 50 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                {sentimentStats.buyRatio > 50 ? 'Net Accumulation' : 'Net Distribution'}
+                            </h2>
+                        </div>
+                        <div className={`p-3 rounded-full ${sentimentStats.buyRatio > 50 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`}>
+                            {sentimentStats.buyRatio > 50 ? <TrendingUpIcon /> : <TrendingDownIcon />}
+                        </div>
                     </div>
-                    
+
                     {/* Sentiment Bar */}
                     <div className="mt-4 h-2 bg-gray-700 rounded-full overflow-hidden flex">
                         <div className="h-full bg-emerald-500 transition-all duration-1000" style={{ width: `${sentimentStats.buyRatio}%` }}></div>
@@ -235,51 +235,50 @@ const CorporateFilings: React.FC = () => {
                 </Card>
 
                 <Card className="!p-5 flex flex-col justify-center">
-                     <div className="flex items-center gap-3 mb-2">
+                    <div className="flex items-center gap-3 mb-2">
                         <div className="p-2 bg-brand-primary/10 rounded-lg text-brand-primary"><BriefcaseIcon /></div>
                         <h3 className="font-bold text-slate-900 dark:text-white">Total Volume</h3>
-                     </div>
-                     <p className="text-3xl font-mono font-bold text-slate-900 dark:text-white">
+                    </div>
+                    <p className="text-3xl font-mono font-bold text-slate-900 dark:text-white">
                         ${(sentimentStats.total / 1000000).toFixed(2)}M
-                     </p>
-                     <p className="text-xs text-gray-500 mt-1">Aggregate transaction value tracked</p>
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">Aggregate transaction value tracked</p>
                 </Card>
 
                 <div className="flex flex-col gap-3">
-                     <div className="flex-1 bg-white dark:bg-brand-dark border border-gray-200 dark:border-brand-border-dark rounded-xl p-4 flex items-center justify-between">
-                         <span className="text-sm font-bold text-slate-700 dark:text-gray-300">Manual Entry</span>
-                         <Button size="sm" onClick={() => setIsModalOpen(true)} className="text-xs h-8">Add Filing</Button>
-                     </div>
-                     <div className="flex-1 bg-white dark:bg-brand-dark border border-gray-200 dark:border-brand-border-dark rounded-xl p-1 flex">
-                         {(['All', 'Buy', 'Sell'] as const).map(type => (
-                             <button 
-                                key={type} 
+                    <div className="flex-1 bg-white dark:bg-brand-dark border border-gray-200 dark:border-brand-border-dark rounded-xl p-4 flex items-center justify-between">
+                        <span className="text-sm font-bold text-slate-700 dark:text-gray-300">Manual Entry</span>
+                        <Button size="sm" onClick={() => setIsModalOpen(true)} className="text-xs h-8">Add Filing</Button>
+                    </div>
+                    <div className="flex-1 bg-white dark:bg-brand-dark border border-gray-200 dark:border-brand-border-dark rounded-xl p-1 flex">
+                        {(['All', 'Buy', 'Sell'] as const).map(type => (
+                            <button
+                                key={type}
                                 onClick={() => setFilterType(type)}
-                                className={`flex-1 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${
-                                    filterType === type 
-                                    ? 'bg-brand-primary text-white shadow-sm' 
-                                    : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5'
-                                }`}
+                                className={`flex-1 rounded-lg text-xs font-bold uppercase tracking-wider transition-all ${filterType === type
+                                        ? 'bg-brand-primary text-white shadow-sm'
+                                        : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5'
+                                    }`}
                             >
                                 {type}
                             </button>
-                         ))}
-                     </div>
+                        ))}
+                    </div>
                 </div>
             </div>
 
             {/* Main Content Split */}
             <div className="flex-1 grid grid-cols-1 lg:grid-cols-4 gap-6 min-h-0">
-                
+
                 {/* Left: Watchlist Sidebar */}
                 <div className="lg:col-span-1 flex flex-col gap-4 min-h-0 staggered-fade-in" style={{ animationDelay: '100ms' }}>
                     <Card className="flex-1 flex flex-col !p-0 overflow-hidden border-0 shadow-lg">
                         <div className="p-4 border-b border-gray-100 dark:border-brand-border-dark bg-gray-50 dark:bg-brand-darkest/30">
                             <h3 className="font-bold text-slate-900 dark:text-white text-sm">Monitoring List</h3>
                         </div>
-                        
+
                         <div className="p-3">
-                             <form onSubmit={handleAddTicker} className="relative">
+                            <form onSubmit={handleAddTicker} className="relative">
                                 <input
                                     type="text"
                                     value={newTicker}
@@ -319,31 +318,31 @@ const CorporateFilings: React.FC = () => {
                             <div className="col-span-2 text-right">Date</div>
                             <div className="col-span-3 text-right">Value</div>
                         </div>
-                        
+
                         <div className="flex-1 overflow-y-auto custom-scrollbar">
                             {filteredFilings.length > 0 ? (
                                 filteredFilings.map(filing => {
                                     const isBuy = filing.transactionType === 'Buy';
                                     const valuePercent = (filing.totalValue / maxFilingValue) * 100;
-                                    
+
                                     return (
-                                        <div 
-                                            key={filing.id} 
+                                        <div
+                                            key={filing.id}
                                             className={`relative grid grid-cols-12 items-center p-4 border-b border-gray-100 dark:border-brand-border-dark/50 hover:bg-gray-50 dark:hover:bg-brand-darkest/30 transition-all group overflow-hidden ${filing.isNew ? (isBuy ? 'animate-flash-green' : 'animate-flash-red') : ''}`}
                                         >
                                             {/* Volume Bar Background */}
-                                            <div 
-                                                className={`absolute left-0 top-0 bottom-0 opacity-5 transition-all duration-500 pointer-events-none ${isBuy ? 'bg-emerald-500' : 'bg-rose-500'}`} 
+                                            <div
+                                                className={`absolute left-0 top-0 bottom-0 opacity-5 transition-all duration-500 pointer-events-none ${isBuy ? 'bg-emerald-500' : 'bg-rose-500'}`}
                                                 style={{ width: `${valuePercent}%` }}
                                             ></div>
 
                                             <div className="col-span-2 relative z-10">
                                                 <span className="font-bold text-slate-900 dark:text-white bg-gray-100 dark:bg-white/10 px-2 py-1 rounded text-xs">{filing.ticker}</span>
                                             </div>
-                                            
+
                                             <div className="col-span-3 flex items-center gap-3 relative z-10">
                                                 <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-600 flex items-center justify-center text-[10px] font-bold text-gray-600 dark:text-gray-300">
-                                                    {filing.insiderName.split(' ').map(n => n[0]).join('').substring(0,2)}
+                                                    {filing.insiderName.split(' ').map(n => n[0]).join('').substring(0, 2)}
                                                 </div>
                                                 <div className="min-w-0">
                                                     <p className="font-semibold text-sm text-slate-900 dark:text-white truncate">{filing.insiderName}</p>

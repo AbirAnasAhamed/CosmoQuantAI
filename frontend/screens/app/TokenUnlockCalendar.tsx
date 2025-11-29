@@ -16,7 +16,7 @@ const ImpactGauge: React.FC<{ score: number }> = ({ score }) => {
     const radius = 18;
     const circumference = 2 * Math.PI * radius;
     const offset = circumference - (score / 10) * circumference;
-    
+
     let color = '#10B981'; // Green
     if (score >= 5) color = '#FBBF24'; // Yellow
     if (score >= 8) color = '#F43F5E'; // Red
@@ -25,13 +25,13 @@ const ImpactGauge: React.FC<{ score: number }> = ({ score }) => {
         <div className="relative flex items-center justify-center w-12 h-12">
             <svg className="transform -rotate-90 w-full h-full">
                 <circle cx="24" cy="24" r={radius} stroke="currentColor" strokeWidth="4" fill="transparent" className="text-gray-200 dark:text-gray-700" />
-                <circle 
-                    cx="24" cy="24" r={radius} 
-                    stroke={color} 
-                    strokeWidth="4" 
-                    fill="transparent" 
-                    strokeDasharray={circumference} 
-                    strokeDashoffset={offset} 
+                <circle
+                    cx="24" cy="24" r={radius}
+                    stroke={color}
+                    strokeWidth="4"
+                    fill="transparent"
+                    strokeDasharray={circumference}
+                    strokeDashoffset={offset}
                     strokeLinecap="round"
                     className="transition-all duration-1000 ease-out"
                 />
@@ -50,8 +50,8 @@ const VestingSparkline: React.FC<{ data: any[], color: string }> = ({ data, colo
             <AreaChart data={data}>
                 <defs>
                     <linearGradient id={`grad-${color}`} x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor={color} stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor={color} stopOpacity={0}/>
+                        <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={color} stopOpacity={0} />
                     </linearGradient>
                 </defs>
                 <Area type="stepAfter" dataKey="unlockedPercentage" stroke={color} strokeWidth={2} fill={`url(#grad-${color})`} isAnimationActive={false} />
@@ -68,15 +68,15 @@ const UnlockCountdown: React.FC<{ targetDate: string }> = ({ targetDate }) => {
         const calculateTime = () => {
             const diff = new Date(targetDate).getTime() - new Date().getTime();
             if (diff <= 0) return "UNLOCKED";
-            
+
             const days = Math.floor(diff / (1000 * 60 * 60 * 24));
             const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
             const mins = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-            
+
             if (days > 0) return `${days}d ${hours}h`;
             return `${hours}h ${mins}m`;
         };
-        
+
         setTimeLeft(calculateTime());
         const timer = setInterval(() => setTimeLeft(calculateTime()), 60000);
         return () => clearInterval(timer);
@@ -131,7 +131,7 @@ const EventDetailModal: React.FC<{ event: TokenUnlockEvent; onClose: () => void;
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-backdrop-fade-in" onClick={onClose}>
             <div className="bg-white dark:bg-[#0B1120] w-full max-w-5xl rounded-2xl shadow-2xl max-h-[90vh] flex flex-col border border-gray-200 dark:border-gray-800 animate-modal-content-slide-down overflow-hidden" onClick={e => e.stopPropagation()}>
-                
+
                 {/* Modal Header */}
                 <div className="relative overflow-hidden p-8 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#0F172A]">
                     <div className="absolute top-0 right-0 w-64 h-64 bg-brand-primary/5 rounded-full blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
@@ -153,25 +153,25 @@ const EventDetailModal: React.FC<{ event: TokenUnlockEvent; onClose: () => void;
                 </div>
 
                 <div className="flex-1 overflow-y-auto p-8 space-y-8 bg-white dark:bg-[#0B1120]">
-                    
+
                     {/* Top Metrics */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                         <div className="p-5 rounded-xl bg-gray-50 dark:bg-brand-darkest/50 border border-gray-100 dark:border-white/5">
+                        <div className="p-5 rounded-xl bg-gray-50 dark:bg-brand-darkest/50 border border-gray-100 dark:border-white/5">
                             <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Unlock Value</p>
                             <p className="text-2xl font-mono font-bold text-slate-900 dark:text-white mt-1">${event.unlockAmountUSD.toLocaleString()}</p>
-                         </div>
-                         <div className="p-5 rounded-xl bg-gray-50 dark:bg-brand-darkest/50 border border-gray-100 dark:border-white/5">
+                        </div>
+                        <div className="p-5 rounded-xl bg-gray-50 dark:bg-brand-darkest/50 border border-gray-100 dark:border-white/5">
                             <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Supply Impact</p>
                             <p className="text-2xl font-mono font-bold text-brand-primary mt-1">{event.unlockPercentageOfCirculating.toFixed(2)}%</p>
                             <p className="text-xs text-gray-400">of circulating supply</p>
-                         </div>
-                         <div className="p-5 rounded-xl bg-gray-50 dark:bg-brand-darkest/50 border border-gray-100 dark:border-white/5">
+                        </div>
+                        <div className="p-5 rounded-xl bg-gray-50 dark:bg-brand-darkest/50 border border-gray-100 dark:border-white/5">
                             <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Risk Score</p>
                             <div className="flex items-center gap-2 mt-1">
                                 <ImpactGauge score={event.impactScore} />
                                 <span className="text-sm text-gray-400">/ 10</span>
                             </div>
-                         </div>
+                        </div>
                     </div>
 
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
@@ -183,44 +183,44 @@ const EventDetailModal: React.FC<{ event: TokenUnlockEvent; onClose: () => void;
                             </h3>
                             <div className="h-64">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={event.vestingSchedule.map(d => ({...d, date: new Date(d.date).getTime()}))}>
+                                    <AreaChart data={event.vestingSchedule.map(d => ({ ...d, date: new Date(d.date).getTime() }))}>
                                         <defs>
                                             <linearGradient id="vestingGradientModal" x1="0" y1="0" x2="0" y2="1">
-                                                <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3}/>
-                                                <stop offset="95%" stopColor="#6366F1" stopOpacity={0}/>
+                                                <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3} />
+                                                <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
                                             </linearGradient>
                                         </defs>
                                         <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                                         <XAxis dataKey="date" type="number" domain={['dataMin', 'dataMax']} tickFormatter={(time) => new Date(time).toLocaleDateString('en-US', { year: '2-digit', month: 'short' })} stroke={axisColor} fontSize={10} tickLine={false} axisLine={false} dy={10} />
                                         <YAxis stroke={axisColor} fontSize={10} tickFormatter={(val) => `${val}%`} tickLine={false} axisLine={false} dx={-10} />
-                                        <Tooltip 
+                                        <Tooltip
                                             contentStyle={theme === 'dark' ? { backgroundColor: '#0F172A', border: '1px solid #334155', borderRadius: '8px' } : { borderRadius: '8px' }}
-                                            labelFormatter={(time) => new Date(time).toLocaleDateString()} 
-                                            formatter={(val: number) => [`${val.toFixed(1)}%`, 'Unlocked']} 
+                                            labelFormatter={(time) => new Date(time).toLocaleDateString()}
+                                            formatter={(val: number) => [`${val.toFixed(1)}%`, 'Unlocked']}
                                         />
                                         <Area type="stepAfter" dataKey="unlockedPercentage" stroke="#6366F1" strokeWidth={3} fill="url(#vestingGradientModal)" />
                                     </AreaChart>
                                 </ResponsiveContainer>
                             </div>
                         </Card>
-                        
+
                         {/* Allocation Pie */}
-                         <Card className="border border-gray-200 dark:border-white/5 shadow-none bg-transparent">
+                        <Card className="border border-gray-200 dark:border-white/5 shadow-none bg-transparent">
                             <h3 className="text-lg font-bold mb-6 text-slate-900 dark:text-white flex items-center gap-2">
                                 <svg className="w-5 h-5 text-purple-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20.488 9H15V3.512A9.025 9.025 0 0120.488 9z" /></svg>
                                 Token Distribution
                             </h3>
                             <div className="h-64">
-                               <ResponsiveContainer width="100%" height="100%">
+                                <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
-                                        <Pie 
-                                            data={allocationData} 
-                                            dataKey="value" 
-                                            nameKey="name" 
-                                            cx="50%" 
-                                            cy="50%" 
-                                            innerRadius={60} 
-                                            outerRadius={80} 
+                                        <Pie
+                                            data={allocationData as any}
+                                            dataKey="value"
+                                            nameKey="name"
+                                            cx="50%"
+                                            cy="50%"
+                                            innerRadius={60}
+                                            outerRadius={80}
                                             paddingAngle={5}
                                         >
                                             {allocationData.map((entry, index) => <Cell key={`cell-${index}`} fill={ALLOCATION_COLORS[index % ALLOCATION_COLORS.length]} stroke="none" />)}
@@ -232,9 +232,9 @@ const EventDetailModal: React.FC<{ event: TokenUnlockEvent; onClose: () => void;
                             </div>
                         </Card>
                     </div>
-                     
-                     {/* AI Terminal */}
-                     <Card className="bg-slate-900 border border-slate-800 text-blue-400 font-mono relative overflow-hidden">
+
+                    {/* AI Terminal */}
+                    <Card className="bg-slate-900 border border-slate-800 text-blue-400 font-mono relative overflow-hidden">
                         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
                         <div className="relative z-10">
                             <div className="flex justify-between items-center mb-4 pb-2 border-b border-blue-500/30">
@@ -246,17 +246,17 @@ const EventDetailModal: React.FC<{ event: TokenUnlockEvent; onClose: () => void;
                                     {isSummaryLoading ? 'PROCESSING...' : 'RUN_SIMULATION'}
                                 </Button>
                             </div>
-                            
+
                             <div className="min-h-[100px] text-sm leading-relaxed">
                                 {aiSummary ? (
                                     <div className="animate-fade-in-up">
-                                        <span className="text-purple-400">root@cosmo-quant:~$</span> analysis_complete<br/>
+                                        <span className="text-purple-400">root@cosmo-quant:~$</span> analysis_complete<br />
                                         <span className="text-white/90">{aiSummary}</span>
                                         <span className="inline-block w-2 h-4 bg-blue-500 ml-1 animate-pulse align-middle"></span>
                                     </div>
                                 ) : (
                                     <div className="text-blue-500/50">
-                                        <span className="text-purple-400">root@cosmo-quant:~$</span> waiting_for_command...<br/>
+                                        <span className="text-purple-400">root@cosmo-quant:~$</span> waiting_for_command...<br />
                                         Initialize impact assessment protocols.
                                     </div>
                                 )}
@@ -264,9 +264,9 @@ const EventDetailModal: React.FC<{ event: TokenUnlockEvent; onClose: () => void;
                         </div>
                     </Card>
                 </div>
-                
+
                 <div className="p-6 border-t border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#0F172A] flex justify-end gap-3">
-                     <Button variant="secondary" onClick={onClose}>Dismiss</Button>
+                    <Button variant="secondary" onClick={onClose}>Dismiss</Button>
                     <Button onClick={() => { showToast(`Alert set for ${event.tokenName} unlock`, 'success'); onClose(); }} variant="primary" className="shadow-lg shadow-brand-primary/25">
                         Set Smart Alert
                     </Button>
@@ -305,7 +305,7 @@ const TokenUnlockCalendar: React.FC = () => {
 
         return groups;
     }, [filteredEvents]);
-    
+
     const getImpactColor = (score: number) => {
         if (score >= 8) return '#F43F5E'; // Red
         if (score >= 5) return '#FBBF24'; // Amber
@@ -315,20 +315,20 @@ const TokenUnlockCalendar: React.FC = () => {
     return (
         <div className="space-y-10">
             {selectedEvent && <EventDetailModal event={selectedEvent} onClose={() => setSelectedEvent(null)} />}
-            
+
             {/* Header / Filter Bar */}
             <div className="bg-white dark:bg-brand-dark border border-gray-200 dark:border-brand-border-dark rounded-2xl p-6 shadow-lg flex flex-col md:flex-row items-center justify-between gap-6 animate-fade-in-down">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
-                        <span className="p-2 bg-brand-primary/10 rounded-lg text-brand-primary"><ClockIcon className="w-6 h-6"/></span>
+                        <span className="p-2 bg-brand-primary/10 rounded-lg text-brand-primary"><ClockIcon className="w-6 h-6" /></span>
                         Supply Shock Radar
                     </h1>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1 ml-11">Monitor vesting schedules to anticipate sell pressure.</p>
                 </div>
 
                 <div className="flex items-center gap-4 bg-gray-100 dark:bg-brand-darkest/50 p-2 rounded-xl w-full md:w-auto">
-                     <div className="px-3 text-xs font-bold uppercase tracking-wider text-gray-500">Impact Filter</div>
-                     <div className="flex-1 flex items-center gap-3 px-2">
+                    <div className="px-3 text-xs font-bold uppercase tracking-wider text-gray-500">Impact Filter</div>
+                    <div className="flex-1 flex items-center gap-3 px-2">
                         <span className="text-xs font-mono text-slate-600 dark:text-gray-300">0</span>
                         <input
                             type="range"
@@ -339,10 +339,10 @@ const TokenUnlockCalendar: React.FC = () => {
                             className="w-full md:w-48 h-2 bg-gray-300 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer slider-thumb accent-brand-primary"
                         />
                         <span className="text-xs font-mono text-slate-600 dark:text-gray-300">10</span>
-                     </div>
-                     <div className="px-3 py-1 bg-brand-primary text-white text-xs font-bold rounded-lg min-w-[3rem] text-center">
-                         {minImpact}+
-                     </div>
+                    </div>
+                    <div className="px-3 py-1 bg-brand-primary text-white text-xs font-bold rounded-lg min-w-[3rem] text-center">
+                        {minImpact}+
+                    </div>
                 </div>
             </div>
 
@@ -355,22 +355,22 @@ const TokenUnlockCalendar: React.FC = () => {
                                 <h2 className="text-xl font-bold text-slate-900 dark:text-white">{groupName}</h2>
                                 <div className="h-px flex-1 bg-gray-200 dark:bg-gray-800"></div>
                             </div>
-                            
+
                             <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6">
                                 {events.map((event, idx) => {
                                     const impactColor = getImpactColor(event.impactScore);
                                     // Mock linear data for the sparkline based on impact
-                                    const sparklineData = event.vestingSchedule.map(d => ({...d, date: new Date(d.date).getTime()}));
+                                    const sparklineData = event.vestingSchedule.map(d => ({ ...d, date: new Date(d.date).getTime() }));
 
                                     return (
-                                        <div 
-                                            key={event.id} 
-                                            onClick={() => setSelectedEvent(event)} 
+                                        <div
+                                            key={event.id}
+                                            onClick={() => setSelectedEvent(event)}
                                             className="group relative bg-white dark:bg-brand-dark border border-gray-200 dark:border-brand-border-dark rounded-2xl p-1 cursor-pointer hover:-translate-y-1 hover:shadow-xl transition-all duration-300 overflow-hidden"
                                         >
                                             {/* Top Glow Border */}
                                             <div className="absolute inset-x-0 top-0 h-1" style={{ background: `linear-gradient(90deg, transparent, ${impactColor}, transparent)` }}></div>
-                                            
+
                                             <div className="p-5 relative z-10">
                                                 <div className="flex justify-between items-start mb-4">
                                                     <div className="flex items-center gap-3">
@@ -384,7 +384,7 @@ const TokenUnlockCalendar: React.FC = () => {
                                                     </div>
                                                     <ImpactGauge score={event.impactScore} />
                                                 </div>
-                                                
+
                                                 <div className="grid grid-cols-2 gap-4 mb-6">
                                                     <div>
                                                         <p className="text-[10px] text-gray-400 uppercase tracking-wider">Unlock Value</p>
@@ -407,7 +407,7 @@ const TokenUnlockCalendar: React.FC = () => {
                                                     </div>
                                                 </div>
                                             </div>
-                                            
+
                                             {/* Hover Background Effect */}
                                             <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"></div>
                                         </div>

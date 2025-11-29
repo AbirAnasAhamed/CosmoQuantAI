@@ -40,7 +40,7 @@ const LiquidityRadar: React.FC<{ isActive: boolean }> = ({ isActive }) => (
         <div className={`absolute inset-0 rounded-full border border-brand-primary/50 ${isActive ? 'animate-ping' : ''}`}></div>
         <div className="w-2 h-2 bg-brand-primary rounded-full"></div>
         {isActive && (
-             <div className="absolute w-full h-1/2 bg-gradient-to-b from-transparent to-brand-primary/20 top-1/2 left-0 animate-spin origin-top"></div>
+            <div className="absolute w-full h-1/2 bg-gradient-to-b from-transparent to-brand-primary/20 top-1/2 left-0 animate-spin origin-top"></div>
         )}
     </div>
 );
@@ -48,7 +48,7 @@ const LiquidityRadar: React.FC<{ isActive: boolean }> = ({ isActive }) => (
 const TradeRow: React.FC<{ trade: BlockTradeWithStatus; maxTradeValue: number }> = ({ trade, maxTradeValue }) => {
     const isWhale = trade.value > 500000; // Highlight huge trades
     const widthPercent = Math.min((trade.value / maxTradeValue) * 100, 100);
-    
+
     let barColor = 'bg-gray-500/10';
     if (trade.condition === 'At Ask') barColor = 'bg-emerald-500/10';
     if (trade.condition === 'At Bid') barColor = 'bg-rose-500/10';
@@ -56,36 +56,35 @@ const TradeRow: React.FC<{ trade: BlockTradeWithStatus; maxTradeValue: number }>
     return (
         <div className={`relative group flex items-center justify-between py-3 px-4 border-b border-brand-border-light/50 dark:border-brand-border-dark/50 hover:bg-gray-50 dark:hover:bg-brand-darkest/30 transition-all duration-300 overflow-hidden ${trade.isNew ? 'animate-flash-blue' : ''}`}>
             {/* Volume Bar Background */}
-            <div 
-                className={`absolute top-0 bottom-0 left-0 transition-all duration-500 ${barColor}`} 
+            <div
+                className={`absolute top-0 bottom-0 left-0 transition-all duration-500 ${barColor}`}
                 style={{ width: `${widthPercent}%` }}
             ></div>
-            
+
             {/* Content */}
             <div className="relative z-10 flex items-center gap-4 w-1/3">
                 <span className="text-xs font-mono text-gray-400">{trade.time.split(' ')[0]}</span>
                 <div className="flex items-center gap-2">
-                     <span className={`font-bold text-base ${isWhale ? 'text-amber-400' : 'text-slate-900 dark:text-white'}`}>{trade.ticker}</span>
-                     {isWhale && <span className="text-[10px] font-bold bg-amber-400/20 text-amber-400 px-1.5 rounded border border-amber-400/30">WHALE</span>}
+                    <span className={`font-bold text-base ${isWhale ? 'text-amber-400' : 'text-slate-900 dark:text-white'}`}>{trade.ticker}</span>
+                    {isWhale && <span className="text-[10px] font-bold bg-amber-400/20 text-amber-400 px-1.5 rounded border border-amber-400/30">WHALE</span>}
                 </div>
             </div>
 
             <div className="relative z-10 w-1/3 text-right">
-                 <span className="text-sm font-mono text-gray-600 dark:text-gray-300">{trade.size.toLocaleString()} @ </span>
-                 <span className={`text-sm font-mono font-semibold ${trade.condition === 'At Ask' ? 'text-emerald-400' : trade.condition === 'At Bid' ? 'text-rose-400' : 'text-gray-400'}`}>
+                <span className="text-sm font-mono text-gray-600 dark:text-gray-300">{trade.size.toLocaleString()} @ </span>
+                <span className={`text-sm font-mono font-semibold ${trade.condition === 'At Ask' ? 'text-emerald-400' : trade.condition === 'At Bid' ? 'text-rose-400' : 'text-gray-400'}`}>
                     {trade.price.toFixed(2)}
-                 </span>
+                </span>
             </div>
 
             <div className="relative z-10 w-1/3 flex justify-end items-center gap-3">
-                 <span className="font-mono font-bold text-slate-900 dark:text-white">{formatValue(trade.value)}</span>
-                 <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${
-                     trade.condition === 'At Ask' ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/10' : 
-                     trade.condition === 'At Bid' ? 'border-rose-500/30 text-rose-500 bg-rose-500/10' : 
-                     'border-gray-500/30 text-gray-500 bg-gray-500/10'
-                 }`}>
-                     {trade.exchange}
-                 </span>
+                <span className="font-mono font-bold text-slate-900 dark:text-white">{formatValue(trade.value)}</span>
+                <span className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded-full border ${trade.condition === 'At Ask' ? 'border-emerald-500/30 text-emerald-500 bg-emerald-500/10' :
+                        trade.condition === 'At Bid' ? 'border-rose-500/30 text-rose-500 bg-rose-500/10' :
+                            'border-gray-500/30 text-gray-500 bg-gray-500/10'
+                    }`}>
+                    {trade.exchange}
+                </span>
             </div>
         </div>
     );
@@ -108,9 +107,9 @@ const DarkPoolRow: React.FC<{ print: DarkPoolPrintWithStatus }> = ({ print }) =>
 );
 
 const BlockTradeDetector: React.FC = () => {
-    const [blockTrades, setBlockTrades] = useState<BlockTradeWithStatus[]>(() => Array.from({ length: 15 }, () => ({...generateBlockTrade(), isNew: false})).sort((a, b) => b.time.localeCompare(a.time)));
-    const [darkPoolPrints, setDarkPoolPrints] = useState<DarkPoolPrintWithStatus[]>(() => Array.from({ length: 6 }, () => ({...generateDarkPoolPrint(), isNew: false})));
-    const [unusualVolume, setUnusualVolume] = useState<UnusualVolumeSpikeWithStatus[]>(() => Array.from({ length: 5 }, () => ({...generateUnusualVolumeSpike(), isUpdated: false})));
+    const [blockTrades, setBlockTrades] = useState<BlockTradeWithStatus[]>(() => Array.from({ length: 15 }, () => ({ ...generateBlockTrade(), isNew: false })).sort((a, b) => b.time.localeCompare(a.time)));
+    const [darkPoolPrints, setDarkPoolPrints] = useState<DarkPoolPrintWithStatus[]>(() => Array.from({ length: 6 }, () => ({ ...generateDarkPoolPrint(), isNew: false })));
+    const [unusualVolume, setUnusualVolume] = useState<UnusualVolumeSpikeWithStatus[]>(() => Array.from({ length: 5 }, () => ({ ...generateUnusualVolumeSpike(), isUpdated: false })));
     const [isLive, setIsLive] = useState(true);
     const timersRef = useRef<number[]>([]);
 
@@ -120,7 +119,7 @@ const BlockTradeDetector: React.FC = () => {
         const tradeInterval = setInterval(() => {
             const newTrade: BlockTradeWithStatus = { ...generateBlockTrade(), isNew: true };
             setBlockTrades(prev => [newTrade, ...prev].slice(0, 50));
-            const timerId = setTimeout(() => {
+            const timerId = window.setTimeout(() => {
                 setBlockTrades(current => current.map(t => (t.id === newTrade.id ? { ...t, isNew: false } : t)));
             }, 1000);
             timersRef.current.push(timerId);
@@ -133,25 +132,25 @@ const BlockTradeDetector: React.FC = () => {
                 let newState: UnusualVolumeSpikeWithStatus[];
 
                 if (existingIndex > -1) {
-                    newState = prev.map(s => ({...s, isUpdated: false}));
+                    newState = prev.map(s => ({ ...s, isUpdated: false }));
                     newState[existingIndex] = { ...newSpike, isUpdated: true };
                 } else {
-                    newState = [{...newSpike, isUpdated: true}, ...prev.map(s => ({...s, isUpdated: false}))].slice(0, 10);
+                    newState = [{ ...newSpike, isUpdated: true }, ...prev.map(s => ({ ...s, isUpdated: false }))].slice(0, 10);
                 }
-                
-                const timerId = setTimeout(() => {
-                    setUnusualVolume(current => current.map(s => s.ticker === newSpike.ticker ? {...s, isUpdated: false} : s));
+
+                const timerId = window.setTimeout(() => {
+                    setUnusualVolume(current => current.map(s => s.ticker === newSpike.ticker ? { ...s, isUpdated: false } : s));
                 }, 1000);
                 timersRef.current.push(timerId);
 
                 return newState;
             });
         }, 4000);
-        
+
         const darkPoolInterval = setInterval(() => {
             const newPrint: DarkPoolPrintWithStatus = { ...generateDarkPoolPrint(), isNew: true };
             setDarkPoolPrints(prev => [newPrint, ...prev].slice(0, 20));
-            const timerId = setTimeout(() => {
+            const timerId = window.setTimeout(() => {
                 setDarkPoolPrints(current => current.map(p => (p.id === newPrint.id ? { ...p, isNew: false } : p)));
             }, 1000);
             timersRef.current.push(timerId);
@@ -172,7 +171,7 @@ const BlockTradeDetector: React.FC = () => {
 
     return (
         <div className="h-[calc(100vh-140px)] flex flex-col gap-6 overflow-hidden">
-            
+
             {/* Header / Sonar Panel */}
             <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-3 gap-6 staggered-fade-in">
                 <Card className="flex items-center justify-between !p-4 bg-gradient-to-r from-slate-900 to-slate-800 text-white border-slate-700">
@@ -192,7 +191,7 @@ const BlockTradeDetector: React.FC = () => {
                 <Card className="flex items-center justify-between !p-4">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-amber-400/10 rounded-lg text-amber-500">
-                             <EyeIcon />
+                            <EyeIcon />
                         </div>
                         <div>
                             <h3 className="text-sm font-bold text-slate-900 dark:text-white">Whale Watch</h3>
@@ -203,15 +202,15 @@ const BlockTradeDetector: React.FC = () => {
                 </Card>
 
                 <div className="flex gap-2">
-                     <button onClick={() => setIsLive(!isLive)} className={`flex-1 rounded-xl border font-bold transition-all ${isLive ? 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 hover:bg-gray-100' : 'bg-brand-primary text-white border-brand-primary'}`}>
+                    <button onClick={() => setIsLive(!isLive)} className={`flex-1 rounded-xl border font-bold transition-all ${isLive ? 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 hover:bg-gray-100' : 'bg-brand-primary text-white border-brand-primary'}`}>
                         {isLive ? 'Pause Feed' : 'Resume Feed'}
-                     </button>
+                    </button>
                 </div>
             </div>
 
             {/* Main Content Grid */}
             <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6 min-h-0">
-                
+
                 {/* Left: Lit Market Block Trades */}
                 <div className="lg:col-span-2 flex flex-col min-h-0 staggered-fade-in" style={{ animationDelay: '100ms' }}>
                     <Card className="flex-1 flex flex-col !p-0 border-0 shadow-xl overflow-hidden bg-white dark:bg-brand-dark">
@@ -234,12 +233,12 @@ const BlockTradeDetector: React.FC = () => {
 
                 {/* Right: Dark Pool & Unusual Volume */}
                 <div className="flex flex-col gap-6 min-h-0 staggered-fade-in" style={{ animationDelay: '200ms' }}>
-                    
+
                     {/* Dark Pool Section */}
                     <Card className="flex-1 flex flex-col !p-0 border-purple-500/20 overflow-hidden bg-[#0F172A] dark:bg-[#0F172A] relative">
                         {/* Background pattern for "Dark" feel */}
                         <div className="absolute inset-0 opacity-5 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#A855F7 1px, transparent 1px)', backgroundSize: '10px 10px' }}></div>
-                        
+
                         <div className="p-4 border-b border-purple-500/20 flex justify-between items-center relative z-10 bg-purple-900/10">
                             <h3 className="font-bold text-white flex items-center gap-2">
                                 <ShieldIcon className="text-purple-400" />

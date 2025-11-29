@@ -2,8 +2,18 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Logo, DashboardIcon, PortfolioIcon, BacktesterIcon, BotLabIcon, MarketIcon, SentimentIcon, FilingsIcon, SettingsIcon, LogoutIcon, OnChainIcon, RegimeIcon, CorrelationIcon, MLModelIcon, IndicatorStudioIcon, EducationIcon, AIFoundryIcon, AlternativeDataIcon, MLModelMarketplaceIcon, RealTimeDataIcon, QuantScreenerIcon, AlertsWatchlistIcon, AnalystResearchIcon, InstitutionalHoldingsIcon, BlockTradeDetectorIcon, UnusualOptionsActivityIcon, LiquidationMapIcon, PineScriptIcon, TokenUnlockIcon, AssistantIcon, GeneralIcon, TradingIcon, AlphaEngineIcon, StudioIcon, ChevronDownIcon, UserCircleIcon, CreditCardIcon, KeyIcon, TaskManagerIcon } from '../../constants';
 // FIX: Updated AppView import to break circular dependency.
-import { AppView } from '../../types';
+import { AppView, TradingBot, IndicatorData } from '../../types';
+import { Cpu, LayoutDashboard, Database, Activity, LineChart, BrainCircuit, CloudLightning, Bot, Zap, History } from 'lucide-react';
 import Dashboard from './Dashboard';
+import { Dashboard as OmniDashboard } from './omnitrade/Dashboard.tsx';
+import { DataNexus } from './omnitrade/DataNexus.tsx';
+import { FeatureLab } from './omnitrade/FeatureLab.tsx';
+import { Charting as ProCharts } from './omnitrade/Charting.tsx';
+import { BrainCore } from './omnitrade/BrainCore.tsx';
+import { VertexForge } from './omnitrade/VertexForge.tsx';
+import { BotManager } from './omnitrade/BotManager.tsx';
+import { ExecutionEngine } from './omnitrade/ExecutionEngine.tsx';
+import { Backtest as StrategyBacktester } from './omnitrade/Backtest.tsx';
 import PortfolioTracker from './PortfolioTracker';
 import Market from './Market';
 import SentimentEngine from './SentimentEngine';
@@ -33,6 +43,7 @@ import AIAssistantModal from './AIAssistantModal';
 import ThemeToggle from '../../components/ui/ThemeToggle';
 import MarketTicker from '../../components/ui/MarketTicker';
 import TaskManager from './TaskManager';
+import NeuralArchitecture from './NeuralArchitecture';
 import Backtester from './Backtester';
 import BotLab from './BotLab';
 import { useSettings } from '../../contexts/SettingsContext';
@@ -125,6 +136,20 @@ const Sidebar: React.FC<{
             ]
         },
         {
+            title: 'OmniTrade Core',
+            items: [
+                { view: AppView.OMNI_DASHBOARD, icon: <LayoutDashboard size={20} />, label: 'Overview' },
+                { view: AppView.OMNI_NEXUS, icon: <Database size={20} />, label: 'Data Nexus' },
+                { view: AppView.OMNI_FEATURE_LAB, icon: <Activity size={20} />, label: 'Feature Lab' },
+                { view: AppView.OMNI_CHARTS, icon: <LineChart size={20} />, label: 'Pro Charts' },
+                { view: AppView.OMNI_BRAIN, icon: <BrainCircuit size={20} />, label: 'The Brain AI' },
+                { view: AppView.OMNI_VERTEX, icon: <CloudLightning size={20} />, label: 'Vertex Forge' },
+                { view: AppView.OMNI_BOTS, icon: <Bot size={20} />, label: 'Bot Fleet' },
+                { view: AppView.OMNI_EXECUTION, icon: <Zap size={20} />, label: 'Execution' },
+                { view: AppView.OMNI_BACKTEST, icon: <History size={20} />, label: 'Backtester' },
+            ]
+        },
+        {
             title: 'Core Engines',
             items: [
                 { view: AppView.BACKTESTER, icon: <BacktesterIcon />, label: 'Backtester' },
@@ -154,6 +179,7 @@ const Sidebar: React.FC<{
         {
             title: 'Developer Studio',
             items: [
+                { view: AppView.NURAL_CORE, icon: <Cpu size={20} />, label: 'Neural Core' },
                 { view: AppView.CUSTOM_ML_MODELS, icon: <MLModelIcon />, label: 'ML Registry' },
                 { view: AppView.ML_MODEL_MARKETPLACE, icon: <MLModelMarketplaceIcon />, label: 'Algo Marketplace' },
                 { view: AppView.CUSTOM_INDICATOR_STUDIO, icon: <IndicatorStudioIcon />, label: 'Indicator Studio' },
@@ -257,6 +283,22 @@ const AppDashboard: React.FC<AppDashboardProps> = ({ currentView, onNavigate, on
     const [modalView, setModalView] = useState<AppView | null>(null);
     const prevViewRef = useRef<AppView>(AppView.DASHBOARD);
 
+    // OmniTrade State
+    const [bots, setBots] = useState<TradingBot[]>([
+        { id: 'BOT-OMEGA', name: 'Omega Prime', strategy: 'Reinforcement Learning', pair: 'BTC/USDT', status: 'RUNNING', pnl: 12500.50, winRate: 78.5, allocation: 50000, modelVersion: 'v4.2.0' },
+        { id: 'BOT-ALPHA', name: 'Alpha Scalper', strategy: 'Scalping', pair: 'ETH/USDT', status: 'RUNNING', pnl: 3450.20, winRate: 65.2, allocation: 15000 },
+        { id: 'BOT-BETA', name: 'Beta Trend', strategy: 'Trend Following', pair: 'SOL/USDT', status: 'PAUSED', pnl: -120.50, winRate: 45.0, allocation: 10000 },
+    ]);
+
+    const dummyIndicatorData: IndicatorData[] = [
+        { price: 100, rsi: 55, macd: { histogram: 0.5, signal: 1.2, macd: 1.7 }, bollinger: { upper: 105, middle: 100, lower: 95 } },
+        { price: 102, rsi: 60, macd: { histogram: 0.6, signal: 1.3, macd: 1.9 }, bollinger: { upper: 106, middle: 101, lower: 96 } },
+    ];
+
+    const handleDeploy = (botId: string, modelVersion: string, computeNode: string) => {
+        console.log(`Deploying ${modelVersion} to ${botId} on ${computeNode}`);
+    };
+
     useEffect(() => {
         if (MODAL_VIEWS.includes(currentView)) {
             setModalView(currentView);
@@ -291,6 +333,18 @@ const AppDashboard: React.FC<AppDashboardProps> = ({ currentView, onNavigate, on
     const renderContent = () => {
         switch (viewToRender) {
             case AppView.DASHBOARD: return <Dashboard />;
+
+            // OmniTrade Views
+            case AppView.OMNI_DASHBOARD: return <div className="dark text-slate-200"><OmniDashboard /></div>;
+            case AppView.OMNI_NEXUS: return <div className="dark text-slate-200"><DataNexus /></div>;
+            case AppView.OMNI_FEATURE_LAB: return <div className="dark text-slate-200"><FeatureLab data={dummyIndicatorData} /></div>;
+            case AppView.OMNI_CHARTS: return <div className="dark text-slate-200"><ProCharts /></div>;
+            case AppView.OMNI_BRAIN: return <div className="dark text-slate-200"><BrainCore currentData={null} /></div>;
+            case AppView.OMNI_VERTEX: return <div className="dark text-slate-200"><VertexForge bots={bots} onDeploy={handleDeploy} /></div>;
+            case AppView.OMNI_BOTS: return <div className="dark text-slate-200"><BotManager bots={bots} setBots={setBots} /></div>;
+            case AppView.OMNI_EXECUTION: return <div className="dark text-slate-200"><ExecutionEngine /></div>;
+            case AppView.OMNI_BACKTEST: return <div className="dark text-slate-200"><StrategyBacktester /></div>;
+
             case AppView.PORTFOLIO: return <PortfolioTracker />;
             case AppView.BACKTESTER: return <Backtester />;
             case AppView.BOT_LAB: return <BotLab />;
@@ -316,6 +370,7 @@ const AppDashboard: React.FC<AppDashboardProps> = ({ currentView, onNavigate, on
             case AppView.CUSTOM_INDICATOR_STUDIO: return <CustomIndicatorStudio />;
             case AppView.PINE_SCRIPT_STUDIO: return <PineScriptStudio />;
             case AppView.EDUCATION_HUB: return <EducationHub />;
+            case AppView.NURAL_CORE: return <NeuralArchitecture />;
             case AppView.TASK_MANAGER: return <TaskManager />;
             case AppView.SETTINGS: return <Settings initialSection={activeSettingsSection} />;
             default: return <Dashboard />;

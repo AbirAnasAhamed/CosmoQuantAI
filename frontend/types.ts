@@ -386,10 +386,22 @@ export interface Holding {
 
 export interface Trade {
   id: string;
-  time: string;
+  time?: string;
+  timestamp?: string;
   price: number;
   amount: number;
-  type: 'buy' | 'sell';
+  type?: 'buy' | 'sell';
+  side?: 'BUY' | 'SELL';
+  symbol?: string;
+  status?: 'FILLED' | 'PENDING' | 'CANCELLED';
+  pnl?: number;
+  confidence?: number;
+  leverage?: number;
+  marketSnapshot?: {
+    volatilityIndex: number;
+    atr: number;
+    trend: number;
+  };
 }
 
 export interface Exchange {
@@ -505,7 +517,60 @@ export enum AppView {
   ANALYST_RESEARCH = 'Analyst Research',
   CUSTOM_INDICATOR_STUDIO = 'Indicator Studio',
   PINE_SCRIPT_STUDIO = 'Pine Script Studio',
+  NURAL_CORE = 'Neural Architecture',
   EDUCATION_HUB = 'Education Hub',
   TASK_MANAGER = 'Task Manager',
   SETTINGS = 'Settings',
+
+  // OmniTrade Views
+  OMNI_DASHBOARD = 'Omni Dashboard',
+  OMNI_NEXUS = 'Data Nexus (UDN)',
+  OMNI_FEATURE_LAB = 'Feature Lab',
+  OMNI_CHARTS = 'Pro Charts',
+  OMNI_BRAIN = 'The Brain (AI)',
+  OMNI_VERTEX = 'Vertex Forge',
+  OMNI_BOTS = 'Bot Fleet',
+  OMNI_EXECUTION = 'Execution Engine',
+  OMNI_BACKTEST = 'Strategy Backtester',
+}
+
+export interface AiAnalysisResult {
+  decision: 'BUY' | 'SELL' | 'HOLD';
+  confidence: number;
+  reasoning: string;
+  riskAssessment: string;
+  shapValues?: { feature: string; impact: number }[];
+}
+
+export interface IndicatorData {
+  price: number;
+  rsi?: number;
+  macd?: {
+    histogram: number;
+    signal: number;
+    macd: number;
+  };
+  bollinger?: {
+    upper: number;
+    middle: number;
+    lower: number;
+  };
+  [key: string]: any;
+}
+
+export interface TradingBot {
+  id: string;
+  name: string;
+  strategy: string;
+  pair: string;
+  status: 'RUNNING' | 'PAUSED' | 'STOPPED' | 'active' | 'inactive' | 'training';
+  modelVersion?: string;
+  pnl: number;
+  winRate: number;
+  allocation: number;
+  uptime?: string;
+  performance?: {
+    pnl: number;
+    winRate: number;
+  };
 }

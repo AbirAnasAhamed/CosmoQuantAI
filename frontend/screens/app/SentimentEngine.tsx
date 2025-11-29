@@ -29,7 +29,7 @@ const AnimatedNumber: React.FC<{ value: number; toFixed?: number; }> = ({ value,
             const progress = Math.min(elapsedTime / duration, 1);
             // Ease out quartic
             const ease = 1 - Math.pow(1 - progress, 4);
-            
+
             const animatedValue = startValue + (endValue - startValue) * ease;
             setDisplayValue(animatedValue);
 
@@ -51,7 +51,7 @@ const AnimatedNumber: React.FC<{ value: number; toFixed?: number; }> = ({ value,
 const SentimentOrb: React.FC<{ score: number }> = ({ score }) => {
     // Score is -1 to 1.
     // Map to color: -1 (Red) -> 0 (Blue/Grey) -> 1 (Green)
-    
+
     let colorShadow = '';
     let coreColor = '';
     let label = '';
@@ -75,7 +75,7 @@ const SentimentOrb: React.FC<{ score: number }> = ({ score }) => {
             <div className="relative">
                 {/* Outer Ring (Spinning) */}
                 <div className="absolute inset-[-10px] rounded-full border border-dashed border-gray-300 dark:border-gray-700 animate-[spin_10s_linear_infinite]"></div>
-                
+
                 {/* The Orb */}
                 <div className={`w-32 h-32 rounded-full ${coreColor} ${colorShadow} flex items-center justify-center relative overflow-hidden transition-all duration-1000`}>
                     {/* Inner sheen */}
@@ -102,7 +102,7 @@ const SentimentOrb: React.FC<{ score: number }> = ({ score }) => {
 const FearGreedFlux: React.FC<{ score: number }> = ({ score }) => {
     let label = 'Neutral';
     let colorClass = 'bg-yellow-500';
-    
+
     if (score >= 75) { label = 'Extreme Greed'; colorClass = 'bg-green-500'; }
     else if (score >= 55) { label = 'Greed'; colorClass = 'bg-emerald-400'; }
     else if (score <= 25) { label = 'Extreme Fear'; colorClass = 'bg-red-600'; }
@@ -116,7 +116,7 @@ const FearGreedFlux: React.FC<{ score: number }> = ({ score }) => {
                     <AnimatedNumber value={score} toFixed={0} />
                 </span>
             </div>
-            
+
             {/* Segmented Bar */}
             <div className="w-full h-4 flex gap-1">
                 {[...Array(20)].map((_, i) => {
@@ -130,10 +130,10 @@ const FearGreedFlux: React.FC<{ score: number }> = ({ score }) => {
                         else if (i < 15) segColor = 'bg-yellow-400';
                         else segColor = 'bg-green-500';
                     }
-                    
+
                     return (
-                        <div 
-                            key={i} 
+                        <div
+                            key={i}
                             className={`flex-1 rounded-sm transition-colors duration-300 ${segColor} ${isActive ? 'shadow-[0_0_5px_currentColor]' : ''}`}
                         ></div>
                     )
@@ -156,19 +156,19 @@ const SentimentEngine: React.FC = () => {
     const [aiSummary, setAiSummary] = useState('');
     const [isSummaryLoading, setIsSummaryLoading] = useState(false);
     const [newSourceId, setNewSourceId] = useState<string | null>(null);
-    
+
     const timersRef = useRef<number[]>([]);
 
     useEffect(() => {
         const dataInterval = setInterval(() => {
             setSentimentData(currentData => [...currentData.slice(1), generateNewSentimentPoint(currentData[currentData.length - 1])]);
         }, 3000);
-        
+
         const sourceInterval = setInterval(() => {
             const newSource = generateNewSentimentSource();
             setNewSourceId(newSource.id);
             setSentimentSources(currentSources => [newSource, ...currentSources].slice(0, 15));
-            const timerId = setTimeout(() => {
+            const timerId = window.setTimeout(() => {
                 setNewSourceId(null);
             }, 1000);
             timersRef.current.push(timerId);
@@ -200,7 +200,7 @@ const SentimentEngine: React.FC = () => {
             const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
             const headlines = sentimentSources.slice(0, 5).map(s => `"${s.content}" (${s.sentiment})`).join('; ');
             const prompt = `Based on these recent headlines for ${activePair.split('/')[0]}, provide a concise 2-sentence summary of the current market sentiment: ${headlines}.`;
-            
+
             const response = await ai.models.generateContent({
                 model: 'gemini-2.5-flash',
                 contents: prompt,
@@ -228,7 +228,7 @@ const SentimentEngine: React.FC = () => {
 
     return (
         <div className="space-y-8 animate-fade-in-slide-up">
-            
+
             {/* Header */}
             <Card className="!p-4 flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
@@ -242,29 +242,28 @@ const SentimentEngine: React.FC = () => {
                 </div>
 
                 <div className="flex items-center gap-3 bg-gray-100 dark:bg-brand-darkest/50 p-1 rounded-xl">
-                     {pairs.map(p => (
-                        <button 
+                    {pairs.map(p => (
+                        <button
                             key={p}
                             onClick={() => setActivePair(p)}
-                            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
-                                activePair === p 
-                                    ? 'bg-white dark:bg-brand-primary text-brand-primary dark:text-white shadow-sm' 
+                            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activePair === p
+                                    ? 'bg-white dark:bg-brand-primary text-brand-primary dark:text-white shadow-sm'
                                     : 'text-gray-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
-                            }`}
+                                }`}
                         >
                             {p}
                         </button>
-                     ))}
+                    ))}
                 </div>
             </Card>
 
             {/* Intelligence Dashboard */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                
+
                 {/* Left Column: Metrics */}
                 <div className="lg:col-span-1 space-y-6">
                     <Card className="h-64 !p-0 overflow-hidden relative">
-                         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
+                        <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
                         <SentimentOrb score={currentScore} />
                     </Card>
                     <Card className="h-40 !p-0 overflow-hidden">
@@ -276,16 +275,16 @@ const SentimentEngine: React.FC = () => {
                 <Card className="lg:col-span-2 flex flex-col">
                     <div className="flex justify-between items-center mb-6">
                         <div>
-                             <h3 className="text-lg font-bold text-slate-900 dark:text-white">Sentiment vs Price Correlation</h3>
-                             <p className="text-xs text-gray-500">Overlaying social sentiment score against asset price action.</p>
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Sentiment vs Price Correlation</h3>
+                            <p className="text-xs text-gray-500">Overlaying social sentiment score against asset price action.</p>
                         </div>
                         <div className="flex gap-4 text-xs font-mono">
-                             <div className="flex items-center gap-2">
-                                 <div className="w-3 h-3 rounded-full bg-brand-primary"></div> Sentiment
-                             </div>
-                             <div className="flex items-center gap-2">
-                                 <div className="w-3 h-3 rounded-full bg-emerald-400"></div> Price
-                             </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-brand-primary"></div> Sentiment
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-emerald-400"></div> Price
+                            </div>
                         </div>
                     </div>
                     <div className="flex-grow min-h-[300px]">
@@ -293,15 +292,15 @@ const SentimentEngine: React.FC = () => {
                             <ComposedChart data={combinedData}>
                                 <defs>
                                     <linearGradient id="sentimentGrad" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3}/>
-                                        <stop offset="95%" stopColor="#6366F1" stopOpacity={0}/>
+                                        <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} opacity={0.4} />
-                                <XAxis dataKey="time" stroke={axisColor} tickFormatter={time => new Date(time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} tick={{ fontSize: 10 }} minTickGap={50} axisLine={false} tickLine={false} dy={10} />
+                                <XAxis dataKey="time" stroke={axisColor} tickFormatter={time => new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} tick={{ fontSize: 10 }} minTickGap={50} axisLine={false} tickLine={false} dy={10} />
                                 <YAxis yAxisId="left" orientation="left" stroke="#6366F1" domain={[-1.2, 1.2]} tick={{ fontSize: 10 }} hide />
                                 <YAxis yAxisId="right" orientation="right" stroke="#10B981" domain={['auto', 'auto']} tickFormatter={val => `$${Math.round(val / 1000)}k`} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                                <Tooltip 
+                                <Tooltip
                                     contentStyle={theme === 'dark' ? { backgroundColor: '#0F172A', border: '1px solid #334155', borderRadius: '8px' } : { borderRadius: '8px' }}
                                     labelStyle={{ color: theme === 'dark' ? '#94A3B8' : '#64748B', marginBottom: '5px' }}
                                 />
@@ -319,16 +318,16 @@ const SentimentEngine: React.FC = () => {
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Signal Sources</h3>
                     <div className="flex items-center justify-between h-full">
                         <div className="h-48 w-48 relative">
-                             <ResponsiveContainer width="100%" height="100%">
+                            <ResponsiveContainer width="100%" height="100%">
                                 <PieChart>
-                                    <Pie 
-                                        data={sourceBreakdownData} 
-                                        dataKey="value" 
-                                        nameKey="name" 
-                                        cx="50%" 
-                                        cy="50%" 
-                                        innerRadius={60} 
-                                        outerRadius={80} 
+                                    <Pie
+                                        data={sourceBreakdownData}
+                                        dataKey="value"
+                                        nameKey="name"
+                                        cx="50%"
+                                        cy="50%"
+                                        innerRadius={60}
+                                        outerRadius={80}
                                         paddingAngle={5}
                                         stroke="none"
                                     >
@@ -345,25 +344,25 @@ const SentimentEngine: React.FC = () => {
                             </div>
                         </div>
                         <div className="flex-1 ml-8 space-y-3">
-                             {sourceBreakdownData.map(entry => (
-                                 <div key={entry.name} className="flex items-center justify-between">
-                                     <div className="flex items-center gap-2">
-                                         <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getSentimentColor(entry.name as SentimentLabel) }}></div>
-                                         <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{entry.name}</span>
-                                     </div>
-                                     <span className="text-sm font-bold text-slate-900 dark:text-white">{entry.value}</span>
-                                 </div>
-                             ))}
+                            {sourceBreakdownData.map(entry => (
+                                <div key={entry.name} className="flex items-center justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-3 h-3 rounded-full" style={{ backgroundColor: getSentimentColor(entry.name as SentimentLabel) }}></div>
+                                        <span className="text-sm font-medium text-gray-600 dark:text-gray-300">{entry.name}</span>
+                                    </div>
+                                    <span className="text-sm font-bold text-slate-900 dark:text-white">{entry.value}</span>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 </Card>
 
                 {/* AI Intelligence Unit */}
                 <Card className="flex flex-col bg-slate-900 border-slate-800 relative overflow-hidden">
-                     {/* Scanline effect */}
-                     <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-0 pointer-events-none bg-[length:100%_2px,3px_100%]"></div>
-                     
-                     <div className="relative z-10 flex flex-col h-full">
+                    {/* Scanline effect */}
+                    <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-0 pointer-events-none bg-[length:100%_2px,3px_100%]"></div>
+
+                    <div className="relative z-10 flex flex-col h-full">
                         <div className="flex justify-between items-center mb-4">
                             <h3 className="text-lg font-bold text-white flex items-center gap-2">
                                 <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
@@ -373,7 +372,7 @@ const SentimentEngine: React.FC = () => {
                                 {isSummaryLoading ? 'Analyzing...' : 'Synthesize Summary'}
                             </Button>
                         </div>
-                        
+
                         <div className="flex-grow bg-black/40 rounded-xl p-4 border border-white/5 font-mono text-sm text-blue-300 overflow-y-auto custom-scrollbar min-h-[150px]">
                             {isSummaryLoading ? (
                                 <div className="flex items-center gap-2">
@@ -396,7 +395,7 @@ const SentimentEngine: React.FC = () => {
                                 </div>
                             )}
                         </div>
-                     </div>
+                    </div>
                 </Card>
             </div>
 
@@ -405,15 +404,14 @@ const SentimentEngine: React.FC = () => {
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white">Live Data Stream</h3>
                     <div className="flex gap-2">
-                         {(['All', 'Positive', 'Negative', 'Neutral'] as const).map(filter => (
-                            <button 
-                                key={filter} 
-                                onClick={() => setActiveFilter(filter)} 
-                                className={`px-3 py-1 text-xs font-bold uppercase rounded-full transition-colors border ${
-                                    activeFilter === filter 
-                                        ? 'bg-brand-primary text-white border-brand-primary' 
+                        {(['All', 'Positive', 'Negative', 'Neutral'] as const).map(filter => (
+                            <button
+                                key={filter}
+                                onClick={() => setActiveFilter(filter)}
+                                className={`px-3 py-1 text-xs font-bold uppercase rounded-full transition-colors border ${activeFilter === filter
+                                        ? 'bg-brand-primary text-white border-brand-primary'
                                         : 'bg-transparent text-gray-500 border-gray-300 dark:border-gray-700 hover:border-brand-primary'
-                                }`}
+                                    }`}
                             >
                                 {filter}
                             </button>
@@ -425,10 +423,10 @@ const SentimentEngine: React.FC = () => {
                     {filteredSources.map((source) => {
                         const isNew = source.id === newSourceId;
                         const borderColor = source.sentiment === 'Positive' ? 'border-l-emerald-500' : source.sentiment === 'Negative' ? 'border-l-rose-500' : 'border-l-gray-400';
-                        
+
                         return (
-                            <div 
-                                key={source.id} 
+                            <div
+                                key={source.id}
                                 className={`relative bg-white dark:bg-brand-dark border border-gray-100 dark:border-brand-border-dark rounded-lg p-4 pl-5 border-l-4 shadow-sm hover:shadow-md transition-all duration-500 ${borderColor} ${isNew ? 'animate-fade-in-right bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
                             >
                                 <div className="flex justify-between items-start">
@@ -440,11 +438,10 @@ const SentimentEngine: React.FC = () => {
                                         </div>
                                         <p className="text-slate-800 dark:text-slate-200 font-medium">{source.content}</p>
                                     </div>
-                                    <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${
-                                        source.sentiment === 'Positive' ? 'bg-emerald-500/10 text-emerald-500' : 
-                                        source.sentiment === 'Negative' ? 'bg-rose-500/10 text-rose-500' : 
-                                        'bg-gray-500/10 text-gray-500'
-                                    }`}>
+                                    <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${source.sentiment === 'Positive' ? 'bg-emerald-500/10 text-emerald-500' :
+                                            source.sentiment === 'Negative' ? 'bg-rose-500/10 text-rose-500' :
+                                                'bg-gray-500/10 text-gray-500'
+                                        }`}>
                                         {source.sentiment}
                                     </span>
                                 </div>
