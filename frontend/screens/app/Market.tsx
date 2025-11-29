@@ -22,18 +22,18 @@ const NewsTickerBar: React.FC = () => {
         <>
             <div className="flex items-center gap-4 overflow-hidden bg-white dark:bg-brand-dark border border-brand-border-light dark:border-brand-border-dark rounded-xl p-2 shadow-sm flex-shrink-0">
                 <div className="flex items-center gap-2 px-3 py-1 bg-red-500/10 border border-red-500/20 rounded-lg flex-shrink-0">
-                     <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
+                    <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-500 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
                     </span>
                     <span className="text-[10px] font-bold text-red-500 uppercase tracking-wider whitespace-nowrap">Breaking News</span>
                 </div>
-                
+
                 <div className="flex-1 overflow-hidden relative h-6">
-                     <div className="animate-marquee-slow whitespace-nowrap absolute top-0 left-0 flex items-center h-full" style={{ animationDuration: '80s' }}>
+                    <div className="animate-marquee-slow whitespace-nowrap absolute top-0 left-0 flex items-center h-full" style={{ animationDuration: '80s' }}>
                         {[...MOCK_CRYPTO_NEWS, ...MOCK_CRYPTO_NEWS].map((news, i) => (
-                            <div 
-                                key={`${news.id}-${i}`} 
+                            <div
+                                key={`${news.id}-${i}`}
                                 className="flex items-center mx-8 cursor-pointer hover:text-brand-primary transition-colors"
                                 onClick={() => setSelectedNews(news)}
                             >
@@ -41,20 +41,20 @@ const NewsTickerBar: React.FC = () => {
                                 <span className="text-sm text-slate-600 dark:text-slate-400 font-medium">{news.text}</span>
                             </div>
                         ))}
-                     </div>
+                    </div>
                 </div>
             </div>
 
             {/* News Modal */}
             {selectedNews && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-modal-fade-in" onClick={() => setSelectedNews(null)}>
-                    <div 
+                    <div
                         className="bg-white dark:bg-[#0F172A] w-full max-w-md rounded-2xl shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden animate-modal-content-slide-down"
                         onClick={e => e.stopPropagation()}
                     >
                         <div className="p-6 relative">
-                            <button 
-                                onClick={() => setSelectedNews(null)} 
+                            <button
+                                onClick={() => setSelectedNews(null)}
                                 className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 dark:hover:text-white transition-colors"
                             >
                                 <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -77,12 +77,12 @@ const NewsTickerBar: React.FC = () => {
                                 <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
                                     <strong className="block mb-1 text-slate-900 dark:text-white text-xs uppercase tracking-wider">Summary</strong>
                                     This is a mock detail view. In a live environment, the full story content would be fetched here.
-                                    <br/><br/>
+                                    <br /><br />
                                     Sentiment Analysis: <span className={`font-bold capitalize ${selectedNews.sentiment === 'positive' ? 'text-green-500' : selectedNews.sentiment === 'negative' ? 'text-red-500' : 'text-yellow-500'}`}>{selectedNews.sentiment}</span>
                                 </p>
                             </div>
 
-                            <Button className="w-full" size="sm" onClick={() => setSelectedNews(null)}>
+                            <Button className="w-full" onClick={() => setSelectedNews(null)}>
                                 Close
                             </Button>
                         </div>
@@ -103,24 +103,24 @@ const OrderBook: React.FC<{ bids: OrderBookEntry[], asks: OrderBookEntry[], spre
     const OrderRow: React.FC<OrderBookEntry & { type: 'bid' | 'ask' }> = ({ price, amount, total, type }) => {
         const depth = (total / maxTotal) * 100;
         // Modern gradient depth bars
-        const bgStyle = type === 'bid' 
+        const bgStyle = type === 'bid'
             ? { background: `linear-gradient(90deg, transparent 0%, rgba(16, 185, 129, 0.15) ${100 - depth}%, rgba(16, 185, 129, 0.3) 100%)` }
             : { background: `linear-gradient(90deg, transparent 0%, rgba(244, 63, 94, 0.15) ${100 - depth}%, rgba(244, 63, 94, 0.3) 100%)` };
-        
+
         const textColor = type === 'bid' ? 'text-emerald-400' : 'text-rose-400';
-        
+
         return (
             <div className="relative grid grid-cols-3 text-xs font-mono py-1 px-2 hover:bg-white/5 cursor-pointer group transition-colors">
                 {/* Depth Bar */}
                 <div className="absolute top-0 bottom-0 right-0 transition-all duration-300" style={{ ...bgStyle, width: '100%' }}></div>
-                
+
                 <span className={`relative z-10 ${textColor} font-semibold group-hover:brightness-110`}>{price.toFixed(2)}</span>
                 <span className="relative z-10 text-right text-gray-500 dark:text-gray-400 group-hover:text-gray-300">{amount.toFixed(4)}</span>
                 <span className="relative z-10 text-right text-gray-400 dark:text-gray-500 group-hover:text-gray-300">{total.toFixed(2)}</span>
             </div>
         );
     };
-    
+
     return (
         <div className="flex flex-col h-full bg-slate-50 dark:bg-brand-darkest/30 rounded-lg overflow-hidden">
             <div className="grid grid-cols-3 text-[10px] uppercase tracking-wider text-gray-400 p-2 border-b border-gray-200 dark:border-white/5 font-semibold">
@@ -132,7 +132,7 @@ const OrderBook: React.FC<{ bids: OrderBookEntry[], asks: OrderBookEntry[], spre
                 <div className="flex flex-col-reverse">
                     {asks.map((ask, index) => <OrderRow key={index} {...ask} type="ask" />)}
                 </div>
-                 <div className="py-1.5 my-0.5 text-center border-y border-gray-200 dark:border-white/5 bg-gray-100 dark:bg-white/5 backdrop-blur-sm sticky top-0 bottom-0 z-20">
+                <div className="py-1.5 my-0.5 text-center border-y border-gray-200 dark:border-white/5 bg-gray-100 dark:bg-white/5 backdrop-blur-sm sticky top-0 bottom-0 z-20">
                     <span className={`text-xs font-bold font-mono ${spread > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
                         Spread: {spread.toFixed(2)} ({spreadPercent.toFixed(3)}%)
                     </span>
@@ -247,7 +247,7 @@ const Market: React.FC = () => {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [exchanges, setExchanges] = useState<Exchange[]>(SUPPORTED_EXCHANGES);
     const [activeExchangeId, setActiveExchangeId] = useState('binance');
-    
+
     const [isChartFullScreen, setIsChartFullScreen] = useState(false);
     const [widgetKey, setWidgetKey] = useState(Date.now());
     const [isResizing, setIsResizing] = useState(false);
@@ -286,12 +286,12 @@ const Market: React.FC = () => {
             document.removeEventListener('mouseup', handleMouseUp);
         };
     }, [isResizing, handleMouseMove, handleMouseUp]);
-    
+
     const toggleFullScreen = () => {
         setIsChartFullScreen(prev => !prev);
         setWidgetKey(Date.now());
     };
-    
+
     useEffect(() => {
         if (isChartFullScreen) {
             document.body.classList.add('body-no-scroll');
@@ -342,36 +342,70 @@ const Market: React.FC = () => {
             asks.push({ price: currentPrice, amount, total: totalAmount });
             currentPrice += (Math.random() * 2.5);
         }
-        return { bids, asks: asks.sort((a,b) => b.price - a.price) };
+        return { bids, asks: asks.sort((a, b) => b.price - a.price) };
     };
 
+    // WebSocket এর জন্য রেফ
+    const ws = useRef<WebSocket | null>(null);
+
+    // ✅ নতুন: WebSocket কানেকশন লজিক
     useEffect(() => {
-        const interval = setInterval(() => {
-            let newTrade: TradeWithStatus | null = null;
-            setLastPrice(prev => {
-                const change = (Math.random() - 0.5) * 10;
-                const newPrice = prev + change;
-                setPriceUpdateStatus(change > 0 ? 'up' : 'down');
-                setTimeout(() => setPriceUpdateStatus('none'), 500);
+        let socket: WebSocket | null = null;
+        let timeoutId: NodeJS.Timeout;
 
-                if(Math.random() > 0.3) {
-                    newTrade = { ...generateTrade(newPrice), isNew: true };
-                }
-                return newPrice;
-            });
+        const connect = () => {
+            // ১. WebSocket কানেকশন তৈরি (আপনার ব্যাকএন্ড URL অনুযায়ী)
+            // লোকালহোস্টে Docker এ ব্যাকএন্ড 8000 পোর্টে চলছে
+            socket = new WebSocket(`ws://localhost:8000/ws/market-data/${activePair.replace('/', '')}`);
+            ws.current = socket;
 
-            if (newTrade) {
+            socket.onopen = () => {
+                console.log(`Connected to live feed for ${activePair}`);
+            };
+
+            socket.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+
+                // ২. রিয়েল-টাইম প্রাইস আপডেট
+                setLastPrice(prev => {
+                    const newPrice = data.price;
+                    // প্রাইস বাড়লে বা কমলে কালার ইন্ডিকেটরের জন্য স্ট্যাটাস সেট করা
+                    const change = newPrice - prev;
+                    setPriceUpdateStatus(change > 0 ? 'up' : change < 0 ? 'down' : 'none');
+                    setTimeout(() => setPriceUpdateStatus('none'), 500);
+
+                    return newPrice;
+                });
+
+                // ৩. ট্রেড ফিড আপডেট (অপশনাল: রিয়েল ট্রেড ডাটা না থাকলে প্রাইস দিয়ে জেনারেট করা যেতে পারে)
+                // লাইভ এফেক্টের জন্য আমরা নতুন প্রাইস দিয়ে একটি ট্রেড অবজেক্ট বানাচ্ছি
+                const newTrade = { ...generateTrade(data.price), isNew: true };
                 setRecentTrades(prevTrades => {
-                    const updatedTrades = [newTrade!, ...prevTrades.map(t => ({...t, isNew: false}))].slice(0, 50);
-                    setTimeout(() => {
-                        setRecentTrades(current => current.map(t => t.id === newTrade!.id ? {...t, isNew: false} : t));
-                    }, 700);
+                    const updatedTrades = [newTrade, ...prevTrades.map(t => ({ ...t, isNew: false }))].slice(0, 50);
                     return updatedTrades;
                 });
+            };
+
+            socket.onerror = (error) => {
+                console.error("WebSocket Error:", error);
+            };
+
+            socket.onclose = () => {
+                console.log("Disconnected from live feed");
+            };
+        };
+
+        // React Strict Mode এ ডাবল মাউন্ট এড়াতে সামান্য ডিলে
+        timeoutId = setTimeout(connect, 100);
+
+        // ক্লিনআপ: কম্পোনেন্ট আনমাউন্ট বা পেয়ার চেঞ্জ হলে কানেকশন বন্ধ করা
+        return () => {
+            clearTimeout(timeoutId);
+            if (socket) {
+                socket.close();
             }
-        }, 1500);
-        return () => clearInterval(interval);
-    }, []);
+        };
+    }, [activePair]); // activePair বদলালে নতুন কানেকশন হবে
 
     useEffect(() => {
         setOrderBookData(generateOrderBookData(lastPrice));
@@ -381,16 +415,16 @@ const Market: React.FC = () => {
 
     useEffect(() => {
         const containerId = isChartFullScreen ? `tradingview_fullscreen_chart_${widgetKey}` : `tradingview_market_chart_${widgetKey}`;
-        
+
         const createWidget = () => {
             const container = document.getElementById(containerId);
             if (!container) return;
 
             if (widgetRef.current) {
-                try { widgetRef.current.remove(); } catch(e) {}
+                try { widgetRef.current.remove(); } catch (e) { }
                 widgetRef.current = null;
             }
-            
+
             const widget = new window.TradingView.widget({
                 symbol: getTradingViewSymbol(activePair),
                 interval: "60",
@@ -404,8 +438,8 @@ const Market: React.FC = () => {
                 hide_side_toolbar: false,
                 allow_symbol_change: true,
                 studies: [
-                  "MASimple@tv-basicstudies",
-                  "RSI@tv-basicstudies"
+                    "MASimple@tv-basicstudies",
+                    "RSI@tv-basicstudies"
                 ]
             });
             widgetRef.current = widget;
@@ -418,21 +452,21 @@ const Market: React.FC = () => {
                 setTimeout(checkLibraryAndCreate, 100);
             }
         }
-        
+
         checkLibraryAndCreate();
 
         return () => {
             if (widgetRef.current) {
-                try { widgetRef.current.remove(); widgetRef.current = null; } catch(e) {}
+                try { widgetRef.current.remove(); widgetRef.current = null; } catch (e) { }
             }
         };
     }, [activePair, theme, widgetKey, isChartFullScreen]);
-    
+
     const change24h = lastPrice - price24hAgo;
     const changePercent24h = (change24h / price24hAgo) * 100;
     const isPositive = change24h >= 0;
     const { bids, asks } = orderBookData;
-    const spread = (asks[asks.length-1]?.price || 0) - (bids[0]?.price || 0);
+    const spread = (asks[asks.length - 1]?.price || 0) - (bids[0]?.price || 0);
     const spreadPercent = bids[0]?.price ? (spread / bids[0].price) * 100 : 0;
 
     // --- UI Helpers ---
@@ -456,7 +490,7 @@ const Market: React.FC = () => {
 
             {/* News Ticker */}
             <NewsTickerBar />
-            
+
             {/* Market HUD */}
             <div className="flex-shrink-0 staggered-fade-in bg-white dark:bg-brand-dark rounded-2xl border border-brand-border-light dark:border-brand-border-dark p-4 shadow-lg relative overflow-hidden">
                 {/* Ambient Glow based on price movement */}
@@ -466,11 +500,11 @@ const Market: React.FC = () => {
                     {/* Left: Symbol & Selector */}
                     <div className="flex items-center gap-4">
                         <div className="relative group cursor-pointer" onClick={() => setIsModalOpen(true)}>
-                             <div className={`w-10 h-10 rounded-xl bg-gray-100 dark:bg-white/10 flex items-center justify-center transition-all ${activeExchange?.isConnected ? 'border-2 border-emerald-500/50' : ''}`}>
-                                 {activeExchange?.logo}
-                             </div>
-                             <div className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-brand-dark"></div>
-                             <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/10 dark:group-hover:bg-white/5 transition-colors"></div>
+                            <div className={`w-10 h-10 rounded-xl bg-gray-100 dark:bg-white/10 flex items-center justify-center transition-all ${activeExchange?.isConnected ? 'border-2 border-emerald-500/50' : ''}`}>
+                                {activeExchange?.logo}
+                            </div>
+                            <div className="absolute -bottom-1 -right-1 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-brand-dark"></div>
+                            <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/10 dark:group-hover:bg-white/5 transition-colors"></div>
                         </div>
                         <div>
                             <h2 className="text-2xl font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
@@ -484,12 +518,12 @@ const Market: React.FC = () => {
                     {/* Center: Price Ticker */}
                     <div className="flex-1 text-center md:text-left flex items-center justify-center md:justify-start gap-8">
                         <div>
-                             <p className={`text-3xl font-mono font-bold transition-colors duration-300 ${priceUpdateStatus === 'up' ? 'text-emerald-400' : priceUpdateStatus === 'down' ? 'text-rose-400' : 'text-slate-900 dark:text-white'}`}>
+                            <p className={`text-3xl font-mono font-bold transition-colors duration-300 ${priceUpdateStatus === 'up' ? 'text-emerald-400' : priceUpdateStatus === 'down' ? 'text-rose-400' : 'text-slate-900 dark:text-white'}`}>
                                 ${lastPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                             </p>
-                             <p className={`text-sm font-medium flex items-center gap-1 justify-center md:justify-start ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
+                            <p className={`text-sm font-medium flex items-center gap-1 justify-center md:justify-start ${isPositive ? 'text-emerald-500' : 'text-rose-500'}`}>
                                 {isPositive ? '▲' : '▼'} ${Math.abs(change24h).toFixed(2)} ({Math.abs(changePercent24h).toFixed(2)}%)
-                             </p>
+                            </p>
                         </div>
                         <div className="hidden lg:flex gap-8 text-sm">
                             <div>
@@ -502,25 +536,25 @@ const Market: React.FC = () => {
                             </div>
                             <div>
                                 <p className="text-gray-400 text-xs uppercase">24h Vol (BTC)</p>
-                                <p className="font-mono text-slate-900 dark:text-white">{volume24h.toLocaleString(undefined, {maximumFractionDigits: 0})}</p>
+                                <p className="font-mono text-slate-900 dark:text-white">{volume24h.toLocaleString(undefined, { maximumFractionDigits: 0 })}</p>
                             </div>
                         </div>
                     </div>
 
                     {/* Right: Actions */}
                     <div className="flex items-center gap-3">
-                         <Button variant="secondary" className="!p-2.5" onClick={() => {/* Add alert logic */}}>
-                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
-                         </Button>
-                         <Button variant="primary" className="shadow-lg shadow-brand-primary/20" onClick={() => setActiveSidePanelTab('trade')}>Trade Now</Button>
+                        <Button variant="secondary" className="!p-2.5" onClick={() => {/* Add alert logic */ }}>
+                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" /></svg>
+                        </Button>
+                        <Button variant="primary" className="shadow-lg shadow-brand-primary/20" onClick={() => setActiveSidePanelTab('trade')}>Trade Now</Button>
                     </div>
                 </div>
             </div>
-            
+
             {/* Main Workspace */}
-            <div ref={containerRef} className="flex-1 flex gap-3 min-h-0 relative staggered-fade-in" style={{animationDelay: '100ms'}}>
-                 {isResizing && <div className="absolute inset-0 z-50 cursor-col-resize" />}
-                
+            <div ref={containerRef} className="flex-1 flex gap-3 min-h-0 relative staggered-fade-in" style={{ animationDelay: '100ms' }}>
+                {isResizing && <div className="absolute inset-0 z-50 cursor-col-resize" />}
+
                 {/* Chart Area */}
                 <div className="h-full flex flex-col transition-all duration-75" style={{ width: `${leftPaneWidth}%` }}>
                     <Card className="h-full p-0 overflow-hidden border-0 shadow-xl bg-white dark:bg-brand-dark relative group">
@@ -532,7 +566,7 @@ const Market: React.FC = () => {
                 </div>
 
                 {/* Dragger */}
-                <div 
+                <div
                     className="w-1.5 cursor-col-resize flex items-center justify-center group flex-shrink-0 hover:scale-x-150 transition-transform"
                     onMouseDown={handleMouseDown}
                 >
@@ -541,30 +575,29 @@ const Market: React.FC = () => {
 
                 {/* Right Panel (Order Book & Trade) */}
                 <div className="h-full flex flex-col gap-3" style={{ width: `calc(${100 - leftPaneWidth}% - 12px)` }}>
-                    
+
                     {/* Tab Switcher */}
                     <div className="flex p-1 bg-gray-200 dark:bg-brand-dark rounded-xl">
-                         {(['trade', 'orderBook', 'trades'] as const).map(tab => (
+                        {(['trade', 'orderBook', 'trades'] as const).map(tab => (
                             <button
                                 key={tab}
                                 onClick={() => setActiveSidePanelTab(tab)}
-                                className={`flex-1 py-2 text-xs font-bold uppercase tracking-wide rounded-lg transition-all duration-200 ${
-                                    activeSidePanelTab === tab 
-                                        ? 'bg-white dark:bg-brand-darkest text-brand-primary shadow-sm' 
-                                        : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'
-                                }`}
+                                className={`flex-1 py-2 text-xs font-bold uppercase tracking-wide rounded-lg transition-all duration-200 ${activeSidePanelTab === tab
+                                    ? 'bg-white dark:bg-brand-darkest text-brand-primary shadow-sm'
+                                    : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'
+                                    }`}
                             >
                                 {tab === 'orderBook' ? 'Book' : tab}
                             </button>
-                         ))}
+                        ))}
                     </div>
 
                     {/* Panel Content */}
                     <Card className="flex-1 flex flex-col p-0 overflow-hidden border-0 shadow-lg relative">
-                         {/* Background Ambient */}
-                         {activeSidePanelTab === 'trade' && (
+                        {/* Background Ambient */}
+                        {activeSidePanelTab === 'trade' && (
                             <div className={`absolute inset-0 bg-gradient-to-b ${activeGradientClass} pointer-events-none opacity-20`}></div>
-                         )}
+                        )}
 
                         <div className="flex-1 min-h-0 p-4 overflow-y-auto">
                             {activeSidePanelTab === 'trade' && (
@@ -578,9 +611,9 @@ const Market: React.FC = () => {
                                     {/* Order Type */}
                                     <div className="flex gap-4 mb-6 overflow-x-auto pb-2 no-scrollbar">
                                         {(['Market', 'Limit', 'Stop-Limit'] as const).map(type => (
-                                            <button 
-                                                key={type} 
-                                                onClick={() => setActiveOrderType(type)} 
+                                            <button
+                                                key={type}
+                                                onClick={() => setActiveOrderType(type)}
                                                 className={`whitespace-nowrap text-xs font-bold uppercase border-b-2 pb-1 transition-colors ${activeOrderType === type ? activeColorClass : 'border-transparent text-gray-400 hover:text-gray-300'}`}
                                             >
                                                 {type}
@@ -597,7 +630,7 @@ const Market: React.FC = () => {
                                                 <span className="absolute right-3 top-2.5 text-xs text-gray-500 font-mono">USDT</span>
                                             </div>
                                         </div>
-                                        
+
                                         <div>
                                             <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Amount ({activePair.split('/')[0]})</label>
                                             <div className="relative">
@@ -611,13 +644,13 @@ const Market: React.FC = () => {
                                             <div className="flex justify-between text-[10px] text-gray-400 font-mono mb-2">
                                                 <span>0%</span><span>25%</span><span>50%</span><span>75%</span><span>100%</span>
                                             </div>
-                                            <input 
-                                                type="range" 
-                                                min="0" 
-                                                max="100" 
-                                                step="25" 
-                                                value={orderAmountSlider} 
-                                                onChange={e => setOrderAmountSlider(Number(e.target.value))} 
+                                            <input
+                                                type="range"
+                                                min="0"
+                                                max="100"
+                                                step="25"
+                                                value={orderAmountSlider}
+                                                onChange={e => setOrderAmountSlider(Number(e.target.value))}
                                                 className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-lg appearance-none cursor-pointer slider-thumb accent-brand-primary"
                                                 style={{
                                                     background: `linear-gradient(to right, ${activeOrderFormTab === 'buy' ? '#10B981' : '#F43F5E'} ${orderAmountSlider}%, #334155 ${orderAmountSlider}%)`
@@ -637,11 +670,11 @@ const Market: React.FC = () => {
                                     </div>
                                 </div>
                             )}
-                            
+
                             {activeSidePanelTab === 'orderBook' && (
                                 <OrderBook bids={bids} asks={asks} spread={spread} spreadPercent={spreadPercent} />
                             )}
-                            
+
                             {activeSidePanelTab === 'trades' && (
                                 <RecentTrades trades={recentTrades} />
                             )}
@@ -653,7 +686,7 @@ const Market: React.FC = () => {
             {isChartFullScreen && (
                 <div className="fixed inset-0 z-[100] bg-white dark:bg-brand-darkest p-0 animate-modal-fade-in">
                     <div id={`tradingview_fullscreen_chart_${widgetKey}`} className="w-full h-full" />
-                     <button onClick={toggleFullScreen} className="absolute top-4 right-4 z-20 p-2 bg-brand-darkest/50 backdrop-blur-md rounded-lg text-white hover:bg-brand-darkest transition-colors">
+                    <button onClick={toggleFullScreen} className="absolute top-4 right-4 z-20 p-2 bg-brand-darkest/50 backdrop-blur-md rounded-lg text-white hover:bg-brand-darkest transition-colors">
                         <CollapseIcon />
                     </button>
                 </div>

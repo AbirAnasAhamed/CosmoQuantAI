@@ -10,6 +10,20 @@ interface BacktestRequest {
     params: Record<string, any>;
 }
 
+export interface OptimizationRequest {
+    symbol: string;
+    timeframe: string;
+    strategy: string;
+    initial_cash: number;
+    start_date?: string;
+    end_date?: string;
+    params: Record<string, { start: number; end: number; step: number }>;
+    // 👇 নতুন ফিল্ডগুলো যোগ করা হয়েছে
+    method: 'grid' | 'genetic';
+    population_size?: number;
+    generations?: number;
+}
+
 // সিঙ্ক ফাংশন আপডেট: start_date প্যারামিটার যোগ
 export const syncMarketData = async (symbol: string, timeframe: string, startDate?: string, endDate?: string) => {
     // ডিফল্ট URL
@@ -27,6 +41,12 @@ export const syncMarketData = async (symbol: string, timeframe: string, startDat
 export const runBacktestApi = async (payload: BacktestRequest) => {
     const response = await apiClient.post('/backtest/run', payload);
     return response.data; // { task_id: "...", status: "Processing" }
+};
+
+// ✅ নতুন: অপটিমাইজেশন রান করার ফাংশন
+export const runOptimizationApi = async (payload: OptimizationRequest) => {
+    const response = await apiClient.post('/backtest/optimize', payload);
+    return response.data; // রিটার্ন করবে: { task_id: "...", status: "Processing" }
 };
 
 // ২. নতুন: টাস্ক স্ট্যাটাস চেক করার ফাংশন
@@ -76,4 +96,10 @@ export const fetchCustomStrategyList = async () => {
 export const fetchStrategyCode = async (strategyName: string) => {
     const response = await apiClient.get(`/strategies/source/${strategyName}`);
     return response.data; // returns { code: "..." }
+};
+
+// ✅ নতুন: টাস্ক স্টপ করার ফাংশন
+export const revokeBacktestTask = async (taskId: string) => {
+    const response = await apiClient.post(`/backtest/revoke/${taskId}`);
+    return response.data;
 };

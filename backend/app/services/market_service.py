@@ -8,7 +8,7 @@ from app.constants import VALID_TIMEFRAMES
 class MarketService:
     def __init__(self):
         # We don't instantiate self.exchange here anymore to avoid unclosed session warnings
-        pass
+        self._markets_cache = {} # Simple in-memory cache: {exchange_id: [symbols]}
 
     # ১. টাইমফ্রেম কনভার্সন হেল্পার
     def timeframe_to_ms(self, timeframe):
@@ -118,24 +118,40 @@ class MarketService:
 
     # ৩. নির্দিষ্ট এক্সচেঞ্জের মার্কেট পেয়ার খোঁজা (এই মেথডটিই মিসিং ছিল)
     async def get_exchange_markets(self, exchange_id: str):
+        # Check cache first
+        if exchange_id in self._markets_cache:
+            return self._markets_cache[exchange_id]
+
         try:
             # ডাইনামিক এক্সচেঞ্জ লোডিং (Async ক্লায়েন্ট দিয়ে)
             if hasattr(ccxt, exchange_id):
                 exchange_class = getattr(ccxt, exchange_id)
                 # নতুন ইনস্ট্যান্স তৈরি করছি শুধু পেয়ার লোড করার জন্য
                 temp_exchange = exchange_class()
-                markets = await temp_exchange.load_markets()
-                await temp_exchange.close()
-                
-                # সিম্বল লিস্ট
-                return list(markets.keys())
+                try:
+                    markets = await temp_exchange.load_markets()
+                    symbols = list(markets.keys())
+                    
+                    # Update cache
+                    self._markets_cache[exchange_id] = symbols
+                    return symbols
+                finally:
+                    await temp_exchange.close()
             return []
         except Exception as e:
+            # Log only once per session/startup to avoid spam, or use a specific logger
             print(f"Error fetching markets for {exchange_id}: {e}")
+            
             # Fallback for development if API fails
+            fallback_symbols = []
             if exchange_id == 'binance':
-                return ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT', 'XRP/USDT', 'ADA/USDT', 'DOGE/USDT', 'MATIC/USDT']
-            return []
+                fallback_symbols = ['BTC/USDT', 'ETH/USDT', 'BNB/USDT', 'SOL/USDT', 'XRP/USDT', 'ADA/USDT', 'DOGE/USDT', 'MATIC/USDT']
+            
+            # Cache the fallback so we don't keep trying and failing
+            if fallback_symbols:
+                self._markets_cache[exchange_id] = fallback_symbols
+                
+            return fallback_symbols
 
     # ৪. সাপোর্টেড এক্সচেঞ্জ লিস্ট
     def get_supported_exchanges(self):

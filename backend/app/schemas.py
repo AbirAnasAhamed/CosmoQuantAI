@@ -69,3 +69,23 @@ class BacktestRequest(BaseModel):
 # AI Strategy Generation Request
 class GenerateStrategyRequest(BaseModel):
     prompt: str
+
+# অপটিমাইজেশনের জন্য প্যারামিটার স্ট্রাকচার
+class OptimizationParam(BaseModel):
+    start: float
+    end: float
+    step: float
+
+# অপটিমাইজেশন রিকোয়েস্ট
+class OptimizationRequest(BaseModel):
+    symbol: str
+    timeframe: str
+    strategy: str
+    initial_cash: float = 10000.0
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    # এখানে আমরা সাধারণ dict নিচ্ছি, কারণ প্যারামিটারের নাম ডাইনামিক হবে
+    params: dict[str, OptimizationParam]
+    method: str = "grid" # ✅ নতুন ফিল্ড: "grid" অথবা "genetic"
+    population_size: int = 50 # GA এর জন্য অপশনাল
+    generations: int = 10     # GA এর জন্য অপশনাল

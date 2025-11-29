@@ -13,7 +13,7 @@ import CodeEditor from '../../components/ui/CodeEditor';
 import type { BacktestResult } from '../../types';
 
 import { useToast } from '../../contexts/ToastContext';
-import { syncMarketData, runBacktestApi, getExchangeList, getExchangeMarkets, uploadStrategyFile, generateStrategy, fetchCustomStrategyList, fetchStrategyCode } from '../../services/backtester';
+import { syncMarketData, runBacktestApi, runOptimizationApi, getBacktestStatus, getExchangeList, getExchangeMarkets, uploadStrategyFile, generateStrategy, fetchCustomStrategyList, fetchStrategyCode, OptimizationRequest, revokeBacktestTask } from '../../services/backtester';
 import { useBacktest } from '../../contexts/BacktestContext';
 import { AIFoundryIcon } from '../../constants';
 import SearchableSelect from '../../components/ui/SearchableSelect';
@@ -299,6 +299,16 @@ const Backtester: React.FC = () => {
     const [startDate, setStartDate] = useState('2023-01-01');
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
 
+    // Polling Ref to clear interval on unmount
+    const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+    // Cleanup polling on unmount
+    useEffect(() => {
+        return () => {
+            if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+        };
+    }, []);
+
     // Loading States
     const [isSyncing, setIsSyncing] = useState(false);
     const [isLoading, setIsLoading] = useState(false); // Local loading state for other ops
@@ -552,6 +562,75 @@ def custom_objective(stats):
         setBacktestMode('single');
     };
 
+    // পোলিং ফাংশন (যাতে রিউজ করা যায়)
+    const pollOptimizationStatus = useCallback((taskId: string) => {
+        // Clear any existing interval
+        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+
+        const pollInterval = setInterval(async () => {
+            try {
+                const statusData = await getBacktestStatus(taskId);
+
+                // ✅ প্রগ্রেস আপডেট (যদি ব্যাকএন্ড থেকে আসে)
+                if (statusData.percent) {
+                    setOptimizationProgress(statusData.percent);
+                }
+
+                if (statusData.status === 'Completed') {
+                    clearInterval(pollInterval);
+                    setIsOptimizing(false);
+                    setOptimizationProgress(100);
+                    localStorage.removeItem('activeOptimizationId'); // কাজ শেষ, স্টোরেজ ক্লিয়ার
+
+                    // ... রেজাল্ট সেট করার বাকি কোড ...
+                    const rawResults = statusData.result;
+
+                    // ফ্রন্টএন্ডের টেবিলে দেখানোর জন্য ম্যাপ করা
+                    const formattedResults: BacktestResult[] = rawResults.map((res: any, index: number) => ({
+                        id: `opt-${index}`,
+                        market: symbol || 'BTC/USDT',
+                        strategy: strategy,
+                        timeframe: timeframe,
+                        date: endDate,
+                        profitPercent: res.profitPercent,
+                        maxDrawdown: res.maxDrawdown,
+                        winRate: 0,
+                        sharpeRatio: res.sharpeRatio,
+                        profit_percent: res.profitPercent,
+                        params: res.params
+                    }));
+
+                    if (isMultiObjectiveEnabled) {
+                        setMultiObjectiveResults(formattedResults);
+                    } else {
+                        setBatchResults(formattedResults);
+                    }
+
+                    setShowResults(true);
+                    showToast('Optimization Completed!', 'success');
+
+                } else if (statusData.status === 'Failed' || statusData.status === 'REVOKED') {
+                    clearInterval(pollInterval);
+                    setIsOptimizing(false);
+                    localStorage.removeItem('activeOptimizationId');
+                    showToast(statusData.status === 'REVOKED' ? 'Optimization Revoked' : `Failed: ${statusData.error}`, 'error');
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }, 2000);
+
+        pollIntervalRef.current = pollInterval;
+    }, [symbol, strategy, timeframe, endDate, isMultiObjectiveEnabled, showToast]);
+
+    // পেজ লোড হলে চেক করবে কোনো চলমান টাস্ক আছে কিনা
+    useEffect(() => {
+        const savedTaskId = localStorage.getItem('activeOptimizationId');
+        if (savedTaskId) {
+            setIsOptimizing(true);
+            pollOptimizationStatus(savedTaskId); // পোলিং ফাংশন কল
+        }
+    }, [pollOptimizationStatus]);
 
 
 
@@ -572,68 +651,83 @@ def custom_objective(stats):
         }
     };
 
-    // ২. ব্যাকটেস্ট রান হ্যান্ডেলার (Run Backtest)
+    // ২. ব্যাকটেস্ট এবং অপটিমাইজেশন রান হ্যান্ডেলার
     const handleRunBacktest = async () => {
-        // Reset all result states for a clean run
+        // স্টেট রিসেট করা
         setBatchResults(null);
         setMultiObjectiveResults(null);
         setSingleResult(null);
         setIsReplayActive(false);
-        setReplayIndex(0);
         setShowResults(false);
 
+        // সিঙ্গেল ব্যাকটেস্ট মোড
         if (backtestMode === 'single') {
-            if (backtestMode === 'single') {
-                // Use Context for Single Backtest
-                await runContextBacktest();
-                return;
-            }
-
-
+            await runContextBacktest();
+            return;
         }
 
+        // অপটিমাইজেশন মোড (Grid Search / Genetic Algorithm)
         if (backtestMode === 'optimization') {
-            if (optimizationMethod === 'geneticAlgorithm') {
-                setIsOptimizing(true);
-                setOptimizationProgress(0);
+            setIsOptimizing(true); // লোডিং স্পিনার চালু
 
-                const totalGenerations = gaParams.generations;
-                let currentGeneration = 0;
-                const interval = setInterval(() => {
-                    currentGeneration++;
-                    const progress = (currentGeneration / totalGenerations) * 100;
-                    setOptimizationProgress(progress);
-                    if (currentGeneration >= totalGenerations) {
-                        clearInterval(interval);
-                        setIsOptimizing(false);
-                        if (isMultiObjectiveEnabled) {
-                            const paretoFront: BacktestResult[] = [
-                                { id: 'mo1', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 125.5, maxDrawdown: 22.1, winRate: 68, sharpeRatio: 2.1, profit_percent: 125.5, params: { period: 10, overbought: 80, oversold: 25 } },
-                                { id: 'mo2', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 92.3, maxDrawdown: 11.5, winRate: 65, sharpeRatio: 2.8, profit_percent: 92.3, params: { period: 14, overbought: 75, oversold: 30 } },
-                                { id: 'mo3', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 61.8, maxDrawdown: 5.2, winRate: 61, sharpeRatio: 1.9, profit_percent: 61.8, params: { period: 20, overbought: 70, oversold: 35 } },
-                            ];
-                            setMultiObjectiveResults(paretoFront);
-                        } else {
-                            setSingleResult(MOCK_BACKTEST_RESULTS[1]); // Show the best result
-                        }
-                        setShowResults(true);
-                    }
-                }, 200);
-            } else { // Grid Search
-                if (isMultiObjectiveEnabled) {
-                    const paretoFront: BacktestResult[] = [
+            try {
+                // ✅ ১. API পে-লোড তৈরি করা
+                const payload: any = {
+                    symbol: symbol,
+                    timeframe: timeframe,
+                    strategy: strategy,
+                    initial_cash: 10000,
+                    start_date: startDate,
+                    end_date: endDate,
+                    params: optimizationParams,
+                    // মেথড ডিটেকশন
+                    method: optimizationMethod === 'geneticAlgorithm' ? 'genetic' : 'grid'
+                };
 
-                        { id: 'mo1', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 110.2, maxDrawdown: 19.8, winRate: 67, sharpeRatio: 2.3, profit_percent: 110.2, params: { period: 12, overbought: 78, oversold: 28 } },
-                        { id: 'mo2', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 78.6, maxDrawdown: 9.1, winRate: 64, sharpeRatio: 2.6, profit_percent: 78.6, params: { period: 16, overbought: 72, oversold: 32 } },
-                        { id: 'mo3', market: 'BTC/USDT', strategy, timeframe: '4h', date: new Date().toISOString().split('T')[0], profitPercent: 45.1, maxDrawdown: 4.8, winRate: 59, sharpeRatio: 1.7, profit_percent: 45.1, params: { period: 22, overbought: 68, oversold: 38 } },
-                    ];
-                    setMultiObjectiveResults(paretoFront);
-                } else {
-                    setSingleResult(MOCK_BACKTEST_RESULTS[1]); // Show the best result
+                // যদি জেনেটিক অ্যালগরিদম হয়, তবে বাড়তি প্যারামিটার যোগ করা
+                if (optimizationMethod === 'geneticAlgorithm') {
+                    payload.population_size = gaParams.populationSize;
+                    payload.generations = gaParams.generations;
                 }
-                setShowResults(true);
+
+                // ২. ব্যাকএন্ডে রিকোয়েস্ট পাঠানো
+                const initialResponse = await runOptimizationApi(payload);
+                const taskId = initialResponse.task_id;
+
+                // টাস্ক আইডি লোকাল স্টোরেজে সেভ রাখা (পেজ রিফ্রেশ হ্যান্ডেল করার জন্য)
+                localStorage.setItem('activeOptimizationId', taskId);
+
+                showToast(`Optimization started via ${optimizationMethod === 'geneticAlgorithm' ? 'Genetic Algorithm' : 'Grid Search'}...`, 'info');
+
+                // ৩. পোলিং শুরু করা
+                pollOptimizationStatus(taskId);
+
+            } catch (error: any) {
+                console.error(error);
+                const errMsg = error.response?.data?.detail || 'Failed to start optimization.';
+                showToast(errMsg, 'error');
+                setIsOptimizing(false);
             }
         }
+    };
+
+    // ✅ স্টপ বাটন হ্যান্ডেলার
+    const handleStopOptimization = async () => {
+        const taskId = localStorage.getItem('activeOptimizationId');
+        if (taskId) {
+            try {
+                await revokeBacktestTask(taskId);
+                showToast('Optimization stopped by user.', 'warning');
+            } catch (error) {
+                console.error("Error stopping task:", error);
+            }
+        }
+
+        // ক্লিনআপ
+        if (pollIntervalRef.current) clearInterval(pollIntervalRef.current);
+        setIsOptimizing(false);
+        setOptimizationProgress(0);
+        localStorage.removeItem('activeOptimizationId');
     };
 
     const handleRunAllStrategies = () => {
@@ -797,11 +891,13 @@ def custom_objective(stats):
                             <div key={key} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start mb-6 pb-4 border-b border-brand-border-light/50 dark:border-brand-border-dark/50 last:border-b-0 last:mb-0 last:pb-0">
                                 <label className="md:col-span-1 block text-sm font-medium text-gray-500 dark:text-gray-400 pt-1.5">{config.label}</label>
                                 <div className="md:col-span-3">
-                                    <RangeSliderInput
-                                        config={config}
-                                        value={optimizationParams[key]}
-                                        onChange={(newValue) => handleOptimizationParamChange(key, newValue)}
-                                    />
+                                    {optimizationParams[key] && (
+                                        <RangeSliderInput
+                                            config={config}
+                                            value={optimizationParams[key]}
+                                            onChange={(newValue) => handleOptimizationParamChange(key, newValue)}
+                                        />
+                                    )}
                                 </div>
                             </div>
                         ))}
@@ -823,12 +919,14 @@ def custom_objective(stats):
                             <div key={key} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start mb-6 pb-4 border-b border-brand-border-light/50 dark:border-brand-border-dark/50 last:border-b-0 last:mb-0 last:pb-0">
                                 <label className="md:col-span-1 block text-sm font-medium text-gray-500 dark:text-gray-400 pt-1.5">{config.label} Range</label>
                                 <div className="md:col-span-3">
-                                    <RangeSliderInput
-                                        config={config}
-                                        value={optimizationParams[key]}
-                                        onChange={(newValue) => handleOptimizationParamChange(key, newValue)}
-                                        hideStepInput={true}
-                                    />
+                                    {optimizationParams[key] && (
+                                        <RangeSliderInput
+                                            config={config}
+                                            value={optimizationParams[key]}
+                                            onChange={(newValue) => handleOptimizationParamChange(key, newValue)}
+                                            hideStepInput={true}
+                                        />
+                                    )}
                                 </div>
                             </div>
                         ))}
@@ -1226,12 +1324,39 @@ def custom_objective(stats):
             </Card >
 
             {isOptimizing && (
-                <Card className="staggered-fade-in" style={{ animationDelay: '300ms' }}>
-                    <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-4">Genetic Algorithm Progress</h2>
-                    <div className="w-full bg-gray-200 rounded-full h-4 dark:bg-brand-dark">
-                        <div className="bg-brand-primary h-4 rounded-full" style={{ width: `${optimizationProgress}%`, transition: 'width 0.2s ease-in-out' }}></div>
+                <Card className="staggered-fade-in mt-6 border border-brand-primary/20 bg-brand-primary/5">
+                    <div className="flex justify-between items-center mb-4">
+                        <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <svg className="animate-spin h-5 w-5 text-brand-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            Optimization in Progress...
+                        </h2>
+
+                        {/* 🔴 স্টপ বাটন */}
+                        <Button
+                            variant="outline"
+                            className="text-red-500 border-red-500 hover:bg-red-500 hover:text-white text-xs h-8 px-3"
+                            onClick={handleStopOptimization}
+                        >
+                            Stop Process
+                        </Button>
                     </div>
-                    <p className="text-center text-sm text-gray-500 dark:text-gray-400 mt-2">{Math.round(optimizationProgress)}% Complete</p>
+
+                    <div className="w-full bg-gray-200 rounded-full h-4 dark:bg-gray-700 overflow-hidden relative">
+                        <div
+                            className="bg-brand-primary h-4 rounded-full transition-all duration-500 ease-out flex items-center justify-center text-[10px] font-bold text-white"
+                            style={{ width: `${optimizationProgress}%` }}
+                        >
+                            {optimizationProgress > 5 && `${Math.round(optimizationProgress)}%`}
+                        </div>
+                        <div className="absolute top-0 left-0 w-full h-full bg-[linear-gradient(45deg,rgba(255,255,255,.15)_25%,transparent_25%,transparent_50%,rgba(255,255,255,.15)_50%,rgba(255,255,255,.15)_75%,transparent_75%,transparent)] bg-[length:1rem_1rem] animate-pulse"></div>
+                    </div>
+
+                    <p className="text-center text-xs text-gray-500 dark:text-gray-400 mt-3">
+                        Simulating market scenarios. This may take a while depending on the range.
+                    </p>
                 </Card>
             )}
 
@@ -1265,6 +1390,7 @@ def custom_objective(stats):
                                                 <th className="p-4 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Max Drawdown %</th>
                                                 <th className="p-4 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Win Rate %</th>
                                                 <th className="p-4 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Sharpe Ratio</th>
+                                                <th className="p-4 text-sm font-semibold text-gray-500 dark:text-gray-400 text-right">Params</th>
                                             </tr>
                                         </thead>
                                         <tbody>
@@ -1277,6 +1403,9 @@ def custom_objective(stats):
                                                     <td className="p-4 text-gray-600 dark:text-gray-300 text-right">{result.maxDrawdown.toFixed(2)}%</td>
                                                     <td className="p-4 text-gray-600 dark:text-gray-300 text-right">{result.winRate.toFixed(1)}%</td>
                                                     <td className="p-4 text-gray-600 dark:text-gray-300 text-right">{result.sharpeRatio.toFixed(2)}</td>
+                                                    <td className="p-4 text-xs font-mono text-slate-500 text-right">
+                                                        {JSON.stringify(result.params)}
+                                                    </td>
                                                 </tr>
                                             ))}
                                         </tbody>

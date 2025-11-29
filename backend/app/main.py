@@ -1,4 +1,8 @@
-from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile
+from fastapi import FastAPI, Depends, HTTPException, status, File, UploadFile, WebSocket, WebSocketDisconnect
+from app.services.websocket_manager import manager
+import asyncio
+import json
+import random  # ডামি ডাটার জন্য, প্রোডাকশনে CCXT Pro ব্যবহার করবেন
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from typing import List
@@ -12,19 +16,23 @@ import sys
 import ast
 
 from . import models, database, schemas, crud, utils, auth, email_utils
+from .utils import get_redis_client
 from .services.market_service import MarketService
 from .services.backtest_engine import BacktestEngine
 from .services import ai_service
 from celery.result import AsyncResult
-from .tasks import run_backtest_task
+from .tasks import run_backtest_task, run_optimization_task
+from .celery_app import celery_app
 
 UPLOAD_DIR = "app/strategies/custom"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 # ডাটাবেস টেবিল তৈরি
-models.Base.metadata.create_all(bind=database.engine)
+# models.Base.metadata.create_all(bind=database.engine)
 
 # 🔴 পরিবর্তন: টাইটেল এবং মেটাডেটা যোগ করা হয়েছে
+import logging
+
 app = FastAPI(
     title="FastAPI Backend for CosmoQuantAI",
     description="CosmoQuantAI_Api Server__Developed by 'ABIR AHAMED'",
@@ -36,11 +44,19 @@ app = FastAPI(
     }
 )
 
+# ✅ ১. কাস্টম লগ ফিল্টার ক্লাস
+class EndpointFilter(logging.Filter):
+    def filter(self, record: logging.LogRecord) -> bool:
+        # যদি লগের মেসেজে এই পাথটি থাকে, তবে False রিটার্ন করবে (প্রিন্ট হবে না)
+        return record.getMessage().find("/api/backtest/status") == -1
+
 @app.on_event("startup")
 def startup_event():
     db = database.SessionLocal()
-    # crud.seed_strategy_templates(db) # Removed
     db.close()
+    
+    # ✅ ২. Uvicorn এর এক্সেস লগারের সাথে ফিল্টারটি জুড়ে দেওয়া
+    logging.getLogger("uvicorn.access").addFilter(EndpointFilter())
 
 # ডাটাবেস সেশন ডিপেন্ডেন্সি
 def get_db():
@@ -248,6 +264,35 @@ def get_market_data(
     
     return formatted_data
 
+# WebSocket এন্ডপয়েন্ট
+@app.websocket("/ws/market-data/{symbol}")
+async def websocket_endpoint(websocket: WebSocket, symbol: str):
+    await manager.connect(websocket)
+    try:
+        while True:
+            # এখানে CCXT Pro বা অন্য সোর্স থেকে রিয়েল ডাটা আসবে।
+            # উদাহরণের জন্য আমরা ডামি প্রাইস জেনারেট করছি:
+            
+            # TODO: Replace with real CCXT Pro logic
+            # example: ticker = await exchange.watch_ticker(symbol)
+            
+            dummy_price = 60000 + random.uniform(-50, 50)
+            data = {
+                "symbol": symbol,
+                "price": round(dummy_price, 2),
+                "timestamp": str(datetime.utcnow())
+            }
+            
+            # ক্লায়েন্টকে ডাটা পাঠানো
+            await websocket.send_json(data)
+            
+            # ১ সেকেন্ড বিরতি (রিয়েল লাইফে ইভেন্ট-ড্রিভেন হবে)
+            await asyncio.sleep(1)
+            
+    except WebSocketDisconnect:
+        manager.disconnect(websocket)
+        print(f"Client disconnected from {symbol} stream")
+
 # --- Strategy Upload Endpoint ---
 @app.post("/api/strategies/upload")
 async def upload_strategy(file: UploadFile = File(...), current_user: models.User = Depends(auth.get_current_user)):
@@ -410,12 +455,68 @@ def get_backtest_status(task_id: str):
     task_result = AsyncResult(task_id)
     
     if task_result.state == 'PENDING':
-        return {"status": "Pending", "result": None}
-    elif task_result.state == 'STARTED':
-        return {"status": "Processing", "result": None}
+        return {"status": "Pending", "percent": 0, "result": None}
+    
+    elif task_result.state == 'PROGRESS':
+        # প্রগ্রেস ইনফো রিটার্ন করা
+        info = task_result.info
+        return {
+            "status": "Processing",
+            "percent": info.get('percent', 0),
+            "current": info.get('current', 0),
+            "total": info.get('total', 0),
+            "result": None
+        }
+        
     elif task_result.state == 'SUCCESS':
-        return {"status": "Completed", "result": task_result.result}
+        return {"status": "Completed", "percent": 100, "result": task_result.result}
+        
     elif task_result.state == 'FAILURE':
         return {"status": "Failed", "error": str(task_result.result)}
     
     return {"status": task_result.state}
+
+# --- Optimization Endpoint ---
+# --- Optimization Endpoint ---
+@app.post("/api/backtest/optimize")
+def run_optimization(
+    request: schemas.OptimizationRequest,
+    current_user: models.User = Depends(auth.get_current_user)
+):
+    # 🔴 ফিক্স: Pydantic মডেলকে সাধারণ ডিকশনারিতে কনভার্ট করা হচ্ছে
+    # request.params হলো dict[str, OptimizationParam]
+    # আমরা একে dict[str, dict] এ কনভার্ট করব
+    params_dict = {k: v.model_dump() for k, v in request.params.items()}
+    
+    # Celery টাস্কে পাঠানো
+    task = run_optimization_task.delay(
+        symbol=request.symbol,
+        timeframe=request.timeframe,
+        strategy_name=request.strategy,
+        initial_cash=request.initial_cash,
+        params=params_dict,
+        start_date=request.start_date,
+        end_date=request.end_date,
+        # ✅ নতুন প্যারামিটার
+        method=request.method,
+        population_size=request.population_size,
+        generations=request.generations
+    )
+    
+    return {"task_id": task.id, "status": "Processing"}
+
+# ✅ নতুন: টাস্ক ফোর্স স্টপ করার এন্ডপয়েন্ট
+@app.post("/api/backtest/revoke/{task_id}")
+def revoke_task(task_id: str, current_user: models.User = Depends(auth.get_current_user)):
+    # ১. স্ট্যান্ডার্ড Celery Revoke (এটি প্রসেস কিলের চেষ্টা করবে)
+    celery_app.control.revoke(task_id, terminate=True)
+    
+    # ২. ✅ ফোর্স স্টপ (Redis Flag): লুপ ব্রেক করার জন্য ফ্ল্যাগ সেট করা
+    try:
+        r = utils.get_redis_client()
+        # ফ্ল্যাগ সেট করা যা ১ ঘণ্টা পর অটো ডিলিট হবে (ex=3600)
+        r.set(f"abort_task:{task_id}", "true", ex=3600)
+    except Exception as e:
+        print(f"⚠️ Redis Error in revoke: {e}")
+        
+    return {"status": "Revoked", "message": f"Stop signal sent for Task {task_id}."}

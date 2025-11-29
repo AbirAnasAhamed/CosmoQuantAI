@@ -1,0 +1,5 @@
+{
+  "name": "OmniTrade AI Core",
+  "description": "A professional HFT and Swing Trading Command Center featuring real-time data visualization, AI-driven market analysis via Gemini, and comprehensive risk management controls.",
+  "requestFramePermissions": []
+}
