@@ -31,7 +31,7 @@ const SettingsIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
 );
 
 const ChartIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
-     <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+    <svg xmlns="http://www.w3.org/2000/svg" className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" />
     </svg>
 );
@@ -56,17 +56,17 @@ const AnimatedNumber: React.FC<{ value: number; decimals?: number; prefix?: stri
         let start = 0;
         const end = value;
         if (start === end) return;
-        
+
         const duration = 1000;
         const startTime = performance.now();
 
         const animate = (currentTime: number) => {
             const elapsed = currentTime - startTime;
             const progress = Math.min(elapsed / duration, 1);
-            
+
             // Ease out function
             const easeOut = 1 - Math.pow(1 - progress, 3);
-            
+
             const current = start + (end - start) * easeOut;
             setDisplayValue(current);
 
@@ -93,7 +93,7 @@ const MiniEquityChart: React.FC<{ isPositive: boolean; id: string }> = ({ isPosi
         let val = 100;
         const volatility = isPositive ? 2 : 3;
         const trend = isPositive ? 1 : -0.8;
-        
+
         return Array.from({ length: 20 }, (_, i) => {
             val = val + trend + (Math.random() - 0.5) * volatility * 5;
             return { i, value: val };
@@ -108,16 +108,16 @@ const MiniEquityChart: React.FC<{ isPositive: boolean; id: string }> = ({ isPosi
                 <AreaChart data={data}>
                     <defs>
                         <linearGradient id={`gradient-${id}`} x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="5%" stopColor={color} stopOpacity={0.3}/>
-                            <stop offset="95%" stopColor={color} stopOpacity={0}/>
+                            <stop offset="5%" stopColor={color} stopOpacity={0.3} />
+                            <stop offset="95%" stopColor={color} stopOpacity={0} />
                         </linearGradient>
                     </defs>
-                    <Area 
-                        type="monotone" 
-                        dataKey="value" 
-                        stroke={color} 
-                        strokeWidth={2} 
-                        fill={`url(#gradient-${id})`} 
+                    <Area
+                        type="monotone"
+                        dataKey="value"
+                        stroke={color}
+                        strokeWidth={2}
+                        fill={`url(#gradient-${id})`}
                         isAnimationActive={true}
                     />
                 </AreaChart>
@@ -126,8 +126,8 @@ const MiniEquityChart: React.FC<{ isPositive: boolean; id: string }> = ({ isPosi
     );
 };
 
-const BotCard: React.FC<{ 
-    bot: ActiveBot; 
+const BotCard: React.FC<{
+    bot: ActiveBot;
     index: number;
     onRunBacktest: (bot: ActiveBot) => void;
     onToggleStatus: (id: string) => void;
@@ -137,7 +137,7 @@ const BotCard: React.FC<{
     const statusGlow = bot.status === 'active' ? 'shadow-[0_0_10px_rgba(16,185,129,0.5)]' : '';
 
     return (
-        <div 
+        <div
             className="relative group bg-white dark:bg-brand-dark border border-brand-border-light dark:border-brand-border-dark rounded-2xl overflow-hidden hover:shadow-2xl hover:border-brand-primary/50 transition-all duration-300 transform hover:-translate-y-1 flex flex-col staggered-fade-in"
             style={{ animationDelay: `${index * 100}ms` }}
         >
@@ -150,15 +150,15 @@ const BotCard: React.FC<{
                     <div>
                         <div className="flex items-center gap-2">
                             <h3 className="font-bold text-lg text-slate-900 dark:text-white group-hover:text-brand-primary transition-colors">{bot.name}</h3>
-                             {bot.isRegimeAware && <div className="text-brand-primary" title="Regime Aware"><RegimeIcon /></div>}
+                            {bot.isRegimeAware && <div className="text-brand-primary" title="Regime Aware"><RegimeIcon /></div>}
                         </div>
                         <div className="flex items-center gap-2 mt-1">
                             <span className="text-xs font-mono bg-gray-100 dark:bg-brand-darkest/50 px-2 py-0.5 rounded text-gray-600 dark:text-gray-300">{bot.market}</span>
                             <span className="text-xs text-gray-400 truncate max-w-[120px]">{bot.strategy}</span>
                         </div>
                     </div>
-                    
-                    <button 
+
+                    <button
                         onClick={(e) => { e.stopPropagation(); onToggleStatus(bot.id); }}
                         className={`relative w-8 h-5 rounded-full transition-colors duration-300 focus:outline-none ${bot.status === 'active' ? 'bg-brand-success/20' : 'bg-gray-200 dark:bg-gray-700'}`}
                     >
@@ -175,10 +175,10 @@ const BotCard: React.FC<{
                         </div>
                     </div>
                     <div className="text-right">
-                         <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">ROI</p>
-                         <div className={`text-lg font-bold mt-1 ${isPositive ? 'text-brand-success' : 'text-brand-danger'}`}>
+                        <p className="text-xs text-gray-400 uppercase tracking-wider font-medium">ROI</p>
+                        <div className={`text-lg font-bold mt-1 ${isPositive ? 'text-brand-success' : 'text-brand-danger'}`}>
                             {isPositive ? '▲' : '▼'} {Math.abs(bot.pnlPercent).toFixed(2)}%
-                         </div>
+                        </div>
                     </div>
                 </div>
 
@@ -187,18 +187,18 @@ const BotCard: React.FC<{
 
                 {/* Actions Footer */}
                 <div className="flex justify-between items-center mt-4 pt-4 border-t border-brand-border-light/50 dark:border-brand-border-dark/50 z-20 relative">
-                     <div className="flex gap-2">
+                    <div className="flex gap-2">
                         <button className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-brand-darkest text-gray-500 dark:text-gray-400 transition-colors" title="Settings">
                             <SettingsIcon />
                         </button>
                         <button className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-brand-darkest text-gray-500 dark:text-gray-400 transition-colors" title="Analytics">
                             <ChartIcon />
                         </button>
-                     </div>
-                    
-                    <Button 
-                        size="sm" 
-                        variant="secondary" 
+                    </div>
+
+                    <Button
+                        size="sm"
+                        variant="secondary"
                         className="text-xs px-3 h-8 bg-white dark:bg-brand-darkest border border-gray-200 dark:border-brand-border-dark shadow-sm hover:shadow-md"
                         onClick={() => onRunBacktest(bot)}
                     >
@@ -220,7 +220,7 @@ const BotLabHeader: React.FC<{ bots: ActiveBot[], onOpenCreate: () => void }> = 
 
     return (
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 staggered-fade-in">
-             <div className="bg-gradient-to-br from-brand-primary/80 to-brand-primary rounded-xl p-4 text-white shadow-lg relative overflow-hidden">
+            <div className="bg-gradient-to-br from-brand-primary/80 to-brand-primary rounded-xl p-4 text-white shadow-lg relative overflow-hidden">
                 <div className="relative z-10">
                     <p className="text-xs font-medium text-white/80 uppercase">Total Active PnL</p>
                     <p className="text-2xl font-bold mt-1">
@@ -228,35 +228,35 @@ const BotLabHeader: React.FC<{ bots: ActiveBot[], onOpenCreate: () => void }> = 
                     </p>
                 </div>
                 <div className="absolute right-0 bottom-0 opacity-10 transform translate-x-2 translate-y-2">
-                    <svg className="w-24 h-24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+                    <svg className="w-24 h-24" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z" /></svg>
                 </div>
-             </div>
+            </div>
 
-             <div className="bg-white dark:bg-brand-dark rounded-xl p-4 border border-brand-border-light dark:border-brand-border-dark shadow-sm">
+            <div className="bg-white dark:bg-brand-dark rounded-xl p-4 border border-brand-border-light dark:border-brand-border-dark shadow-sm">
                 <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">Active Bots</p>
                 <div className="flex items-baseline gap-2 mt-1">
                     <p className="text-2xl font-bold text-slate-900 dark:text-white">{activeCount}</p>
                     <span className="text-xs text-gray-400">/ {bots.length} total</span>
                 </div>
-                 <div className="w-full bg-gray-200 dark:bg-brand-darkest rounded-full h-1.5 mt-3">
+                <div className="w-full bg-gray-200 dark:bg-brand-darkest rounded-full h-1.5 mt-3">
                     <div className="bg-brand-success h-1.5 rounded-full" style={{ width: `${(activeCount / bots.length) * 100}%` }}></div>
                 </div>
-             </div>
+            </div>
 
-             <div className="bg-white dark:bg-brand-dark rounded-xl p-4 border border-brand-border-light dark:border-brand-border-dark shadow-sm">
+            <div className="bg-white dark:bg-brand-dark rounded-xl p-4 border border-brand-border-light dark:border-brand-border-dark shadow-sm">
                 <p className="text-xs text-gray-500 dark:text-gray-400 uppercase font-semibold">Avg. Win Rate</p>
                 <p className="text-2xl font-bold text-slate-900 dark:text-white mt-1">{winRate}%</p>
                 <p className="text-xs text-brand-success mt-1 flex items-center">
                     <span className="mr-1">▲</span> 2.4% vs last week
                 </p>
-             </div>
+            </div>
 
-             <div onClick={onOpenCreate} className="bg-white dark:bg-brand-dark rounded-xl p-4 border border-brand-border-light dark:border-brand-border-dark shadow-sm flex flex-col justify-center items-center text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-brand-darkest/50 transition-colors group">
+            <div onClick={onOpenCreate} className="bg-white dark:bg-brand-dark rounded-xl p-4 border border-brand-border-light dark:border-brand-border-dark shadow-sm flex flex-col justify-center items-center text-center cursor-pointer hover:bg-gray-50 dark:hover:bg-brand-darkest/50 transition-colors group">
                 <div className="w-10 h-10 rounded-full bg-brand-primary/10 text-brand-primary flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
                     <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" /></svg>
                 </div>
                 <p className="text-sm font-bold text-brand-primary">Deploy New Bot</p>
-             </div>
+            </div>
         </div>
     )
 }
@@ -267,7 +267,7 @@ const VisualStrategyBuilderModal: React.FC<{ onClose: () => void; onSave: (name:
     return createPortal(
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[60] flex items-center justify-center p-4 animate-backdrop-fade-in" onClick={onClose}>
             <div className="bg-brand-darkest w-full h-full max-w-7xl rounded-xl shadow-2xl border border-brand-border-dark flex flex-col overflow-hidden animate-modal-content-slide-down" onClick={e => e.stopPropagation()}>
-                
+
                 {/* Header */}
                 <div className="h-16 border-b border-brand-border-dark flex items-center justify-between px-6 bg-brand-dark flex-shrink-0">
                     <div className="flex items-center gap-4">
@@ -277,15 +277,15 @@ const VisualStrategyBuilderModal: React.FC<{ onClose: () => void; onSave: (name:
                         <h2 className="text-xl font-bold text-white">Visual Strategy Builder</h2>
                     </div>
                     <div className="flex items-center gap-4">
-                        <input 
-                            type="text" 
-                            placeholder="Strategy Name" 
+                        <input
+                            type="text"
+                            placeholder="Strategy Name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             className="bg-brand-darkest border border-brand-border-dark rounded-md px-3 py-1.5 text-white text-sm focus:border-brand-primary outline-none"
                         />
                         <Button variant="secondary" onClick={onClose}>Cancel</Button>
-                        <Button onClick={() => { if(name) onSave(name); }}>Save & Deploy</Button>
+                        <Button onClick={() => { if (name) onSave(name); }}>Save & Deploy</Button>
                     </div>
                 </div>
 
@@ -338,8 +338,8 @@ const VisualStrategyBuilderModal: React.FC<{ onClose: () => void; onSave: (name:
                     {/* Canvas Area */}
                     <div className="flex-1 bg-[#0B1120] relative overflow-hidden">
                         {/* Grid Pattern */}
-                        <div className="absolute inset-0 opacity-20 pointer-events-none" 
-                             style={{ backgroundImage: 'radial-gradient(#6366F1 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
+                        <div className="absolute inset-0 opacity-20 pointer-events-none"
+                            style={{ backgroundImage: 'radial-gradient(#6366F1 1px, transparent 1px)', backgroundSize: '20px 20px' }}>
                         </div>
 
                         {/* Connecting Lines (Static Mock) */}
@@ -350,34 +350,34 @@ const VisualStrategyBuilderModal: React.FC<{ onClose: () => void; onSave: (name:
 
                         {/* Nodes */}
                         <div className="p-10 relative w-full h-full">
-                             {/* Static Layout for Demo */}
-                             <div className="absolute top-12 left-12 bg-brand-dark border border-brand-border-dark rounded-xl shadow-lg p-4 w-64 border-l-4 border-l-blue-500">
+                            {/* Static Layout for Demo */}
+                            <div className="absolute top-12 left-12 bg-brand-dark border border-brand-border-dark rounded-xl shadow-lg p-4 w-64 border-l-4 border-l-blue-500">
                                 <div className="flex justify-between items-center mb-2">
                                     <span className="font-bold text-white text-sm">Trigger</span>
                                     <span className="text-xs text-gray-500">1m Candle</span>
                                 </div>
                                 <p className="text-gray-300 text-sm">BTC/USDT Price Update</p>
-                             </div>
+                            </div>
 
-                             <div className="absolute top-48 left-12 bg-brand-dark border border-brand-border-dark rounded-xl shadow-lg p-4 w-64 border-l-4 border-l-yellow-500">
+                            <div className="absolute top-48 left-12 bg-brand-dark border border-brand-border-dark rounded-xl shadow-lg p-4 w-64 border-l-4 border-l-yellow-500">
                                 <div className="flex justify-between items-center mb-2">
                                     <span className="font-bold text-white text-sm">Condition</span>
                                 </div>
                                 <p className="text-gray-300 text-sm">RSI(14) &lt; 30</p>
-                             </div>
+                            </div>
 
-                             <div className="absolute top-[22rem] left-12 bg-brand-dark border border-brand-border-dark rounded-xl shadow-lg p-4 w-64 border-l-4 border-l-green-500">
+                            <div className="absolute top-[22rem] left-12 bg-brand-dark border border-brand-border-dark rounded-xl shadow-lg p-4 w-64 border-l-4 border-l-green-500">
                                 <div className="flex justify-between items-center mb-2">
                                     <span className="font-bold text-white text-sm">Action</span>
                                 </div>
                                 <p className="text-gray-300 text-sm">Place Buy Market Order</p>
                                 <p className="text-xs text-gray-500 mt-1">Size: 5% Equity</p>
-                             </div>
-                             
-                             <div className="absolute top-12 right-12 bg-brand-dark/50 border border-brand-border-dark p-4 rounded-lg max-w-xs">
-                                 <h4 className="text-white font-bold mb-2 text-sm">Builder Hint</h4>
-                                 <p className="text-gray-400 text-xs">Drag blocks from the left sidebar to build your logic flow. Connect triggers to actions to automate your strategy.</p>
-                             </div>
+                            </div>
+
+                            <div className="absolute top-12 right-12 bg-brand-dark/50 border border-brand-border-dark p-4 rounded-lg max-w-xs">
+                                <h4 className="text-white font-bold mb-2 text-sm">Builder Hint</h4>
+                                <p className="text-gray-400 text-xs">Drag blocks from the left sidebar to build your logic flow. Connect triggers to actions to automate your strategy.</p>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -398,10 +398,10 @@ const BacktestResultModal: React.FC<{
 
     const StatBox = ({ label, value, isPositive }: any) => (
         <div className="bg-gray-50 dark:bg-brand-darkest/50 p-4 rounded-lg text-center">
-             <p className="text-xs text-gray-500 dark:text-gray-400 uppercase">{label}</p>
-             <p className={`text-xl font-bold ${isPositive === true ? 'text-brand-success' : isPositive === false ? 'text-brand-danger' : 'text-slate-900 dark:text-white'}`}>
-                 {value}
-             </p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 uppercase">{label}</p>
+            <p className={`text-xl font-bold ${isPositive === true ? 'text-brand-success' : isPositive === false ? 'text-brand-danger' : 'text-slate-900 dark:text-white'}`}>
+                {value}
+            </p>
         </div>
     );
 
@@ -426,7 +426,7 @@ const BacktestResultModal: React.FC<{
                         <h3 className="text-md font-semibold text-slate-900 dark:text-white mb-4">Equity Curve</h3>
                         <div className="h-80 w-full bg-gray-50 dark:bg-brand-darkest/30 rounded-xl p-4 border border-brand-border-light dark:border-brand-border-dark">
                             <ResponsiveContainer width="100%" height="100%">
-                               <LineChart data={EQUITY_CURVE_DATA}>
+                                <LineChart data={EQUITY_CURVE_DATA}>
                                     <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} />
                                     <XAxis dataKey="name" stroke={axisColor} axisLine={false} tickLine={false} dy={10} />
                                     <YAxis stroke={axisColor} tickFormatter={(value) => `$${Number(value) / 1000}k`} axisLine={false} tickLine={false} dx={-10} />
@@ -449,12 +449,12 @@ const BacktestResultModal: React.FC<{
     );
 };
 
-const CreateBotModal: React.FC<{ 
+const CreateBotModal: React.FC<{
     onClose: () => void;
     onCreateBot: (newBot: ActiveBot) => void;
     showToast: (message: string, type?: 'success' | 'info' | 'error' | 'warning') => void;
 }> = ({ onClose, onCreateBot, showToast }) => {
-    
+
     const { apiKeys } = useSettings();
     const [botName, setBotName] = useState('');
     const [tradeValue, setTradeValue] = useState('100');
@@ -466,7 +466,7 @@ const CreateBotModal: React.FC<{
     const [timeframe, setTimeframe] = useState('1h');
     const [deploymentTarget, setDeploymentTarget] = useState<'Spot' | 'Futures' | 'Margin'>('Spot');
     const [orderType, setOrderType] = useState<'Market' | 'Limit'>('Market');
-    
+
     // Strategy Params (Mock)
     const [strategyParams, setStrategyParams] = useState({
         bbLength: 20,
@@ -498,7 +498,7 @@ const CreateBotModal: React.FC<{
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
         if (!botName.trim()) { showToast('Enter a name', 'error'); return; }
-        
+
         const newBot: ActiveBot = {
             id: `bot_${Date.now()}`,
             name: botName,
@@ -530,7 +530,7 @@ const CreateBotModal: React.FC<{
     return (
         <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-backdrop-fade-in" onClick={onClose}>
             <div className="bg-white dark:bg-brand-dark w-full max-w-3xl rounded-3xl shadow-2xl flex flex-col max-h-[90vh] animate-modal-content-slide-down overflow-hidden border border-gray-200 dark:border-brand-border-dark" onClick={e => e.stopPropagation()}>
-                
+
                 {/* Header */}
                 <div className="p-6 border-b border-gray-100 dark:border-brand-border-dark flex justify-between items-center bg-gray-50 dark:bg-brand-darkest/30">
                     <h2 className="text-xl font-extrabold text-slate-900 dark:text-white tracking-tight">Create New Trading Bot</h2>
@@ -540,7 +540,7 @@ const CreateBotModal: React.FC<{
                 {/* Scrollable Form Body */}
                 <div className="flex-1 overflow-y-auto p-8 custom-scrollbar">
                     <form id="create-bot-form" onSubmit={handleSubmit} className="space-y-8">
-                        
+
                         {/* Section 1: General & Config */}
                         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div className="md:col-span-1">
@@ -574,7 +574,7 @@ const CreateBotModal: React.FC<{
                                     <option>Kraken</option>
                                 </select>
                             </div>
-                             <div className="md:col-span-3">
+                            <div className="md:col-span-3">
                                 <label className={labelClasses}>Asset Pair</label>
                                 <select className={inputClasses} value={assetPair} onChange={e => setAssetPair(e.target.value)}>
                                     {['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'ADA/USDT'].map(s => <option key={s} value={s}>{s}</option>)}
@@ -590,7 +590,7 @@ const CreateBotModal: React.FC<{
                             <div className="md:col-span-1">
                                 <label className={labelClasses}>Timeframe</label>
                                 <select className={inputClasses} value={timeframe} onChange={e => setTimeframe(e.target.value)}>
-                                    {['1m', '5m', '15m', '1h', '4h', '1d'].map(t => <option key={t} value={t}>{t}</option>)}
+                                    {['1s', '5s', '10s', '15s', '30s', '45s', '1m', '3m', '5m', '15m', '30m', '45m', '1h', '2h', '3h', '4h', '6h', '8h', '12h', '1d', '3d', '1w', '1M'].map(t => <option key={t} value={t}>{t}</option>)}
                                 </select>
                             </div>
                         </div>
@@ -636,15 +636,15 @@ const CreateBotModal: React.FC<{
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div>
                                     <label className={labelClasses}>Bollinger Band Length</label>
-                                    <input type="number" className={inputClasses} value={strategyParams.bbLength} onChange={e => setStrategyParams({...strategyParams, bbLength: Number(e.target.value)})} />
+                                    <input type="number" className={inputClasses} value={strategyParams.bbLength} onChange={e => setStrategyParams({ ...strategyParams, bbLength: Number(e.target.value) })} />
                                 </div>
                                 <div>
                                     <label className={labelClasses}>BB Standard Deviation</label>
-                                    <input type="number" className={inputClasses} value={strategyParams.bbStd} onChange={e => setStrategyParams({...strategyParams, bbStd: Number(e.target.value)})} />
+                                    <input type="number" className={inputClasses} value={strategyParams.bbStd} onChange={e => setStrategyParams({ ...strategyParams, bbStd: Number(e.target.value) })} />
                                 </div>
                                 <div>
                                     <label className={labelClasses}>S/R Lookback Period</label>
-                                    <input type="number" className={inputClasses} value={strategyParams.lookback} onChange={e => setStrategyParams({...strategyParams, lookback: Number(e.target.value)})} />
+                                    <input type="number" className={inputClasses} value={strategyParams.lookback} onChange={e => setStrategyParams({ ...strategyParams, lookback: Number(e.target.value) })} />
                                 </div>
                             </div>
                         </div>
@@ -657,15 +657,15 @@ const CreateBotModal: React.FC<{
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                 <div>
                                     <label className={labelClasses}>Static Stop Loss %</label>
-                                    <input type="number" className={inputClasses} value={riskParams.stopLoss} onChange={e => setRiskParams({...riskParams, stopLoss: Number(e.target.value)})} />
+                                    <input type="number" className={inputClasses} value={riskParams.stopLoss} onChange={e => setRiskParams({ ...riskParams, stopLoss: Number(e.target.value) })} />
                                 </div>
                                 <div>
                                     <label className={labelClasses}>Static Take Profit %</label>
-                                    <input type="number" className={inputClasses} value={riskParams.takeProfit} onChange={e => setRiskParams({...riskParams, takeProfit: Number(e.target.value)})} />
+                                    <input type="number" className={inputClasses} value={riskParams.takeProfit} onChange={e => setRiskParams({ ...riskParams, takeProfit: Number(e.target.value) })} />
                                 </div>
                                 <div>
                                     <label className={labelClasses}>Position Size % of Portfolio</label>
-                                    <input type="number" className={inputClasses} value={riskParams.positionSize} onChange={e => setRiskParams({...riskParams, positionSize: Number(e.target.value)})} />
+                                    <input type="number" className={inputClasses} value={riskParams.positionSize} onChange={e => setRiskParams({ ...riskParams, positionSize: Number(e.target.value) })} />
                                 </div>
                             </div>
                         </div>
@@ -677,28 +677,28 @@ const CreateBotModal: React.FC<{
                             <h3 className={sectionTitleClasses}>Advanced Tools</h3>
                             <div className="space-y-4">
                                 <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-brand-darkest/30 rounded-xl border border-gray-200 dark:border-brand-border-dark">
-                                    <Checkbox checked={advanced.trailingSl} onChange={v => setAdvanced({...advanced, trailingSl: v})} label="Enable Trailing Stop Loss" />
+                                    <Checkbox checked={advanced.trailingSl} onChange={v => setAdvanced({ ...advanced, trailingSl: v })} label="Enable Trailing Stop Loss" />
                                     {advanced.trailingSl && (
                                         <div className="flex items-center gap-2">
                                             <span className="text-xs text-gray-500">Trail %:</span>
-                                            <input type="number" className={`${inputClasses} !w-24 !py-1`} value={advanced.trailingSlVal} onChange={e => setAdvanced({...advanced, trailingSlVal: Number(e.target.value)})} />
+                                            <input type="number" className={`${inputClasses} !w-24 !py-1`} value={advanced.trailingSlVal} onChange={e => setAdvanced({ ...advanced, trailingSlVal: Number(e.target.value) })} />
                                         </div>
                                     )}
                                 </div>
                                 <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-brand-darkest/30 rounded-xl border border-gray-200 dark:border-brand-border-dark">
-                                    <Checkbox checked={advanced.dailyLoss} onChange={v => setAdvanced({...advanced, dailyLoss: v})} label="Enable Daily Loss Limit" />
+                                    <Checkbox checked={advanced.dailyLoss} onChange={v => setAdvanced({ ...advanced, dailyLoss: v })} label="Enable Daily Loss Limit" />
                                     {advanced.dailyLoss && (
                                         <div className="flex items-center gap-2">
                                             <span className="text-xs text-gray-500">Limit %:</span>
-                                            <input type="number" className={`${inputClasses} !w-24 !py-1`} value={advanced.dailyLossVal} onChange={e => setAdvanced({...advanced, dailyLossVal: Number(e.target.value)})} />
+                                            <input type="number" className={`${inputClasses} !w-24 !py-1`} value={advanced.dailyLossVal} onChange={e => setAdvanced({ ...advanced, dailyLossVal: Number(e.target.value) })} />
                                         </div>
                                     )}
                                 </div>
                                 <div className="p-4 bg-gray-50 dark:bg-brand-darkest/30 rounded-xl border border-gray-200 dark:border-brand-border-dark">
-                                    <Checkbox checked={advanced.regimeFilter} onChange={v => setAdvanced({...advanced, regimeFilter: v})} label="Enable Market Regime Filter (using EMA)" />
+                                    <Checkbox checked={advanced.regimeFilter} onChange={v => setAdvanced({ ...advanced, regimeFilter: v })} label="Enable Market Regime Filter (using EMA)" />
                                 </div>
                                 <div className="p-4 bg-gray-50 dark:bg-brand-darkest/30 rounded-xl border border-gray-200 dark:border-brand-border-dark">
-                                    <Checkbox checked={advanced.sentiment} onChange={v => setAdvanced({...advanced, sentiment: v})} label="Enable Sentiment Analysis" />
+                                    <Checkbox checked={advanced.sentiment} onChange={v => setAdvanced({ ...advanced, sentiment: v })} label="Enable Sentiment Analysis" />
                                 </div>
                             </div>
                         </div>
@@ -709,7 +709,7 @@ const CreateBotModal: React.FC<{
                         <div>
                             <h3 className={sectionTitleClasses}>Notification Settings</h3>
                             <div className="p-4 bg-gray-50 dark:bg-brand-darkest/30 rounded-xl border border-gray-200 dark:border-brand-border-dark">
-                                <Checkbox checked={notifications.telegram} onChange={v => setNotifications({...notifications, telegram: v})} label="Enable Telegram Notifications" />
+                                <Checkbox checked={notifications.telegram} onChange={v => setNotifications({ ...notifications, telegram: v })} label="Enable Telegram Notifications" />
                             </div>
                         </div>
 
@@ -732,7 +732,7 @@ const BotLab: React.FC = () => {
     const [isVisualBuilderOpen, setIsVisualBuilderOpen] = useState(false);
     const [bots, setBots] = useState<ActiveBot[]>(MOCK_ACTIVE_BOTS);
     const { showToast } = useToast();
-    
+
     const [isBacktestModalOpen, setIsBacktestModalOpen] = useState(false);
     const [selectedBot, setSelectedBot] = useState<ActiveBot | null>(null);
     const [backtestResult, setBacktestResult] = useState<BacktestResult | null>(null);
@@ -746,7 +746,7 @@ const BotLab: React.FC = () => {
                 market: bot.market,
                 strategy: bot.strategy,
                 date: new Date().toISOString().split('T')[0],
-                profitPercent: (Math.random() * 120) - 20, 
+                profitPercent: (Math.random() * 120) - 20,
                 maxDrawdown: Math.random() * 30,
                 winRate: 40 + Math.random() * 50,
                 sharpeRatio: Math.random() * 3,
@@ -754,14 +754,14 @@ const BotLab: React.FC = () => {
             setBacktestResult(mockResult);
             setSelectedBot(bot);
             setIsBacktestModalOpen(true);
-        }, 1500); 
+        }, 1500);
     };
 
     const handleCreateBot = (newBot: ActiveBot) => {
         setBots(prev => [newBot, ...prev]);
         showToast(`Bot "${newBot.name}" launched successfully!`, 'success');
     };
-    
+
     const handleSaveVisualStrategy = (name: string) => {
         const newBot: ActiveBot = {
             id: `bot_visual_${Date.now()}`,
@@ -793,22 +793,22 @@ const BotLab: React.FC = () => {
         <div className="space-y-8">
             {isCreating && <CreateBotModal onClose={() => setIsCreating(false)} onCreateBot={handleCreateBot} showToast={showToast} />}
             {isVisualBuilderOpen && <VisualStrategyBuilderModal onClose={() => setIsVisualBuilderOpen(false)} onSave={handleSaveVisualStrategy} />}
-            
+
             {isBacktestModalOpen && selectedBot && backtestResult && (
-                <BacktestResultModal 
+                <BacktestResultModal
                     bot={selectedBot}
                     result={backtestResult}
                     onClose={() => setIsBacktestModalOpen(false)}
                 />
             )}
-            
+
             <div className="flex justify-between items-end staggered-fade-in" style={{ animationDelay: '50ms' }}>
                 <div>
                     <h2 className="text-2xl font-bold text-slate-900 dark:text-white">Bot Laboratory</h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Monitor, manage, and deploy your algorithmic trading fleet.</p>
                 </div>
                 <div className="flex gap-3">
-                     <Button variant="outline" onClick={() => setIsVisualBuilderOpen(true)} className="flex items-center gap-2">
+                    <Button variant="outline" onClick={() => setIsVisualBuilderOpen(true)} className="flex items-center gap-2">
                         <BuildIcon /> Visual Builder
                     </Button>
                     <Button variant="primary" onClick={() => setIsCreating(true)} className="shadow-lg shadow-brand-primary/20 hover:shadow-brand-primary/40 transition-shadow flex items-center gap-2">
@@ -821,17 +821,17 @@ const BotLab: React.FC = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                 {bots.map((bot, index) => (
-                    <BotCard 
-                        key={bot.id} 
-                        bot={bot} 
-                        index={index} 
-                        onRunBacktest={handleRunBacktest} 
+                    <BotCard
+                        key={bot.id}
+                        bot={bot}
+                        index={index}
+                        onRunBacktest={handleRunBacktest}
                         onToggleStatus={handleToggleStatus}
                     />
                 ))}
-                
+
                 {/* Add New Placeholder Card */}
-                <button 
+                <button
                     onClick={() => setIsCreating(true)}
                     className="group relative h-full min-h-[320px] border-2 border-dashed border-gray-300 dark:border-brand-border-dark rounded-2xl flex flex-col items-center justify-center text-center hover:border-brand-primary hover:bg-brand-primary/5 transition-all duration-300 staggered-fade-in"
                     style={{ animationDelay: `${bots.length * 100}ms` }}

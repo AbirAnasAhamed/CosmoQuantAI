@@ -9,7 +9,7 @@ import {
 import { EQUITY_CURVE_DATA, MOCK_BACKTEST_RESULTS, MOCK_STRATEGIES, MOCK_STRATEGY_PARAMS, MOCK_CUSTOM_MODELS } from '../../constants';
 import { useTheme } from '../../contexts/ThemeContext';
 import CodeEditor from '../../components/ui/CodeEditor';
-import type { BacktestResult } from '../../types';
+import type { BacktestResult, Timeframe } from '../../types';
 
 import { useToast } from '../../contexts/ToastContext';
 import { syncMarketData, runBacktestApi, runOptimizationApi, getBacktestStatus, getExchangeList, getExchangeMarkets, uploadStrategyFile, generateStrategy, fetchCustomStrategyList, fetchStrategyCode, revokeBacktestTask } from '../../services/backtester';
@@ -27,6 +27,21 @@ import { Activity, Layers } from 'lucide-react';
 const CodeIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>;
 const PlayIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>;
 const SaveIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>;
+
+// --- Constants ---
+const TIMEFRAME_OPTIONS: Timeframe[] = [
+    // Seconds
+    "1s", "5s", "10s", "15s", "30s", "45s",
+
+    // Minutes
+    "1m", "3m", "5m", "15m", "30m", "45m",
+
+    // Hours
+    "1h", "2h", "3h", "4h", "6h", "8h", "12h",
+
+    // Days & Weeks & Months
+    "1d", "3d", "1w", "1M"
+];
 
 // --- Helper Functions ---
 const parseParamsFromCode = (code: string): Record<string, any> => {
@@ -766,10 +781,13 @@ const Backtester: React.FC = () => {
                                 <SearchableSelect label="Market Pair" options={markets} value={symbol} onChange={setSymbol} placeholder="Search pair" disabled={isLoadingMarkets} />
                             </div>
                             <div>
-                                <label className="block text-sm font-medium text-gray-500 mb-1">Timeframe</label>
-                                <select value={timeframe} onChange={(e) => setTimeframe(e.target.value)} className={inputBaseClasses}>
-                                    <option value="15m">15 Minutes</option><option value="1h">1 Hour</option><option value="4h">4 Hours</option><option value="1d">1 Day</option>
-                                </select>
+                                <SearchableSelect
+                                    label="Timeframe"
+                                    options={TIMEFRAME_OPTIONS}
+                                    value={timeframe}
+                                    onChange={(val) => setTimeframe(val)}
+                                    placeholder="Select timeframe"
+                                />
                             </div>
                             <div>
                                 <label className="block text-sm font-medium text-gray-500 mb-1">Strategy</label>

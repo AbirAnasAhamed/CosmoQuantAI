@@ -3,7 +3,7 @@ services:
   backend:
     build: ./backend
     container_name: cosmoquant_backend
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    command: bash -c "bash prestart.sh && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
     volumes:
       - ./backend:/app
     ports:
@@ -61,7 +61,7 @@ services:
 
   # 5. Database Service
   db:
-    image: postgres:15-alpine
+    image: postgres:17-alpine
     container_name: cosmoquant_db
     restart: always
     environment:

@@ -39,11 +39,35 @@ class BacktestEngine:
     
     def run(self, db: Session, symbol: str, timeframe: str, strategy_name: str, initial_cash: float, params: dict, start_date: str = None, end_date: str = None):
         
-        # 1. Fetch data from DB
+        # ডাটাবেস থেকে ডাটা আনার চেষ্টা
         candles = market_service.get_candles_from_db(db, symbol, timeframe, start_date, end_date)
         
+        # রিস্যাম্পলিং লজিক (45m এর জন্য 15m খোঁজা ইত্যাদি)
+        base_timeframe = timeframe
+        resample_compression = 1
+        
         if not candles or len(candles) < 20:
-            return {"error": "Insufficient Data"}
+             # লজিক আপডেট: এখানে চেক করুন অন্য টাইমফ্রেম দিয়ে কাজ হবে কিনা
+            if timeframe == '45m':
+                base_timeframe = '15m'
+                resample_compression = 3
+                candles = market_service.get_candles_from_db(db, symbol, '15m', start_date, end_date)
+            elif timeframe == '2h':
+                base_timeframe = '1h'
+                resample_compression = 2
+                candles = market_service.get_candles_from_db(db, symbol, '1h', start_date, end_date)
+
+        # 🛑 আপডেট করা এরর মেসেজ ব্লক
+        if not candles or len(candles) < 20:
+            date_info = f" between {start_date} and {end_date}" if start_date and end_date else " (All available dates)"
+            
+            # যদি রিস্যাম্পলিং চেষ্টা করা হয়ে থাকে
+            if resample_compression > 1:
+                error_msg = f"Insufficient Data for '{timeframe}' (tried resampling from '{base_timeframe}'){date_info}. Please sync '{base_timeframe}' data for this date range."
+            else:
+                error_msg = f"Insufficient Data for '{symbol}' on '{timeframe}'{date_info}. Found {len(candles)} candles. Please sync Market Data for this specific date range."
+                
+            return {"error": error_msg}
 
         # 2. Convert to Pandas DataFrame
         df = pd.DataFrame([{
@@ -67,8 +91,25 @@ class BacktestEngine:
 
         # 4. Backtrader setup
         cerebro = bt.Cerebro()
+        
+        # ✅ ২. Resampling বা সরাসরি ডাটা লোড
         data_feed = bt.feeds.PandasData(dataname=df)
-        cerebro.adddata(data_feed)
+        
+        if resample_compression > 1:
+            # যদি কনভার্সন দরকার হয় (যেমন 15m -> 45m)
+            # Backtrader এ টাইমফ্রেম সেট করা
+            tf_mapping = {
+                'm': bt.TimeFrame.Minutes,
+                'h': bt.TimeFrame.Hours,
+                'd': bt.TimeFrame.Days
+            }
+            # শেষের অক্ষর (m, h, d) বের করা
+            unit_char = base_timeframe[-1] 
+            bt_timeframe = tf_mapping.get(unit_char, bt.TimeFrame.Minutes)
+            
+            cerebro.resampledata(data_feed, timeframe=bt_timeframe, compression=resample_compression)
+        else:
+            cerebro.adddata(data_feed)
 
         # 5. Strategy Loading
         strategy_class = STRATEGY_MAP.get(strategy_name)

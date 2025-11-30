@@ -20,7 +20,7 @@ interface BacktestChartProps {
     trades: TradeMarker[];
 }
 
-const BacktestChart: React.FC<BacktestChartProps> = ({ data, trades }) => {
+const BacktestChart: React.FC<BacktestChartProps> = ({ data = [], trades = [] }) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<IChartApi | null>(null);
 
