@@ -1,5 +1,6 @@
 import React from 'react';
-import { X, Download, AlertCircle } from 'lucide-react';
+import { X, Download, AlertCircle, ChevronLeft, ChevronRight, Calendar, Clock } from 'lucide-react';
+import { getYear, getMonth } from 'date-fns';
 import Button from '@/components/common/Button';
 import SearchableSelect from '@/components/common/SearchableSelect';
 import DatePicker from "react-datepicker";
@@ -58,6 +59,83 @@ export const DownloadDataModal: React.FC<DownloadDataModalProps> = ({
     handleStartDownload,
     handleStopDownload
 }) => {
+
+    // --- Helper Function ---
+    const range = (start: number, end: number, step = 1) => {
+        const result = [];
+        for (let i = start; i <= end; i += step) {
+            result.push(i);
+        }
+        return result;
+    };
+
+    const inputBaseClasses = "w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-gray-700 rounded-md p-2 text-slate-900 dark:text-white focus:ring-brand-primary focus:border-brand-primary";
+
+    // --- Custom Header Component ---
+    const CustomInputHeader = ({
+        date,
+        changeYear,
+        changeMonth,
+        decreaseMonth,
+        increaseMonth,
+        prevMonthButtonDisabled,
+        nextMonthButtonDisabled,
+    }: any) => {
+        const years = range(2010, getYear(new Date()) + 1, 1); // 2010 থেকে বর্তমান সাল পর্যন্ত
+        const months = [
+            "January", "February", "March", "April", "May", "June",
+            "July", "August", "September", "October", "November", "December",
+        ];
+
+        return (
+            <div className="m-2 flex items-center justify-between px-2 py-2 bg-white dark:bg-slate-800 rounded-lg border-b border-gray-200 dark:border-gray-700">
+                <button
+                    onClick={decreaseMonth}
+                    disabled={prevMonthButtonDisabled}
+                    className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full text-slate-600 dark:text-slate-300 transition-colors disabled:opacity-50"
+                    type="button"
+                >
+                    <ChevronLeft size={18} />
+                </button>
+
+                <div className="flex gap-2">
+                    <select
+                        value={months[getMonth(date)]}
+                        onChange={({ target: { value } }) => changeMonth(months.indexOf(value))}
+                        className="bg-transparent text-sm font-bold text-slate-800 dark:text-white cursor-pointer focus:outline-none hover:text-brand-primary transition-colors appearance-none text-center"
+                    >
+                        {months.map((option) => (
+                            <option key={option} value={option} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+                                {option}
+                            </option>
+                        ))}
+                    </select>
+
+                    <select
+                        value={getYear(date)}
+                        onChange={({ target: { value } }) => changeYear(Number(value))}
+                        className="bg-transparent text-sm font-bold text-slate-800 dark:text-white cursor-pointer focus:outline-none hover:text-brand-primary transition-colors appearance-none text-center"
+                    >
+                        {years.map((option) => (
+                            <option key={option} value={option} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+                                {option}
+                            </option>
+                        ))}
+                    </select>
+                </div>
+
+                <button
+                    onClick={increaseMonth}
+                    disabled={nextMonthButtonDisabled}
+                    className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full text-slate-600 dark:text-slate-300 transition-colors disabled:opacity-50"
+                    type="button"
+                >
+                    <ChevronRight size={18} />
+                </button>
+            </div>
+        );
+    };
+
     if (!isOpen) return null;
 
     return (
@@ -128,24 +206,49 @@ export const DownloadDataModal: React.FC<DownloadDataModalProps> = ({
                             </div>
                         )}
 
-                        <div className="col-span-2 md:col-span-1">
-                            <label className="block text-xs font-medium text-gray-500 mb-1">Start Date</label>
-                            <DatePicker
-                                selected={dlStartDate ? new Date(dlStartDate) : null}
-                                onChange={(date: Date) => setDlStartDate(date?.toISOString().split('T')[0] || '')}
-                                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white"
-                                dateFormat="yyyy-MM-dd"
-                            />
-                        </div>
-                        <div className="col-span-2 md:col-span-1">
-                            <label className="block text-xs font-medium text-gray-500 mb-1">End Date (Optional)</label>
-                            <DatePicker
-                                selected={dlEndDate ? new Date(dlEndDate) : null}
-                                onChange={(date: Date) => setDlEndDate(date?.toISOString().split('T')[0] || '')}
-                                className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-white"
-                                dateFormat="yyyy-MM-dd"
-                                placeholderText="Till Now"
-                            />
+                        {/* Date Selection Grid */}
+                        <div className="col-span-2 grid grid-cols-2 gap-4 mb-4">
+                            {/* Start Date */}
+                            <div className="relative group">
+                                <label className="text-xs font-semibold text-gray-500 mb-1.5 block ml-1">Start Date</label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                                        <Calendar size={14} className="text-gray-400 group-focus-within:text-brand-primary transition-colors" />
+                                    </div>
+                                    <DatePicker
+                                        selected={dlStartDate ? new Date(dlStartDate) : null}
+                                        onChange={(date: Date) => setDlStartDate(date?.toISOString().split('T')[0] || '')}
+                                        className={`${inputBaseClasses} pl-9 font-medium transition-all hover:border-brand-primary/50 cursor-pointer`}
+                                        dateFormat="yyyy-MM-dd"
+                                        placeholderText="Select start"
+                                        renderCustomHeader={CustomInputHeader} // আমাদের কাস্টম হেডার
+                                        calendarClassName="!bg-white dark:!bg-slate-900 !border-gray-200 dark:!border-gray-700 !font-sans !text-slate-900 dark:!text-slate-100 shadow-xl rounded-xl overflow-hidden"
+                                        dayClassName={() => "dark:text-slate-200 hover:!bg-brand-primary hover:!text-white rounded-full"}
+                                        popperClassName="!z-50"
+                                    />
+                                </div>
+                            </div>
+
+                            {/* End Date */}
+                            <div className="relative group">
+                                <label className="text-xs font-semibold text-gray-500 mb-1.5 block ml-1">End Date</label>
+                                <div className="relative">
+                                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                                        <Clock size={14} className="text-gray-400 group-focus-within:text-brand-primary transition-colors" />
+                                    </div>
+                                    <DatePicker
+                                        selected={dlEndDate ? new Date(dlEndDate) : null}
+                                        onChange={(date: Date) => setDlEndDate(date?.toISOString().split('T')[0] || '')}
+                                        className={`${inputBaseClasses} pl-9 font-medium transition-all hover:border-brand-primary/50 cursor-pointer`}
+                                        dateFormat="yyyy-MM-dd"
+                                        placeholderText="Select end"
+                                        renderCustomHeader={CustomInputHeader} // আমাদের কাস্টম হেডার
+                                        calendarClassName="!bg-white dark:!bg-slate-900 !border-gray-200 dark:!border-gray-700 !font-sans !text-slate-900 dark:!text-slate-100 shadow-xl rounded-xl overflow-hidden"
+                                        dayClassName={() => "dark:text-slate-200 hover:!bg-brand-primary hover:!text-white rounded-full"}
+                                        popperClassName="!z-50"
+                                    />
+                                </div>
+                            </div>
                         </div>
                     </div>
 
