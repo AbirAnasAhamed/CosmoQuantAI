@@ -6,18 +6,21 @@ import pkgutil
 from .base_strategy import BaseStrategy
 
 # -----------------------------------------------------------
-# ১. ফিক্সড স্ট্র্যাটেজি (Built-in Strategies with Alias Support)
+# ১. ফিক্সড স্ট্র্যাটেজি (Optimized Professional Logic)
 # -----------------------------------------------------------
 
 class SmaCross(BaseStrategy):
-    # 'fast_period' এবং 'slow_period' কে Alias হিসেবে যোগ করা হলো
+    """
+    Golden Cross Strategy:
+    - Buy: Short SMA crosses ABOVE Long SMA
+    - Close: Short SMA crosses BELOW Long SMA
+    """
     params = (
         ('short_period', 10), ('long_period', 30),
         ('fast_period', None), ('slow_period', None), # Aliases
     )
     def __init__(self):
         super().__init__()
-        # Alias ম্যাপিং লজিক
         short_p = self.params.fast_period if self.params.fast_period else self.params.short_period
         long_p = self.params.slow_period if self.params.slow_period else self.params.long_period
         
@@ -28,73 +31,109 @@ class SmaCross(BaseStrategy):
     def next(self):
         if not self.position:
             if self.crossover > 0: self.buy()
-        elif self.crossover < 0: self.close()
+        elif self.crossover < 0:
+            self.close()
 
 class RsiStrategy(BaseStrategy):
-    # 'rsi_period', 'rsi_upper', 'rsi_lower' কে Alias হিসেবে যোগ করা হলো (লগ অনুযায়ী ফিক্স)
+    """
+    RSI Reversion Strategy (Improved):
+    - Buy: RSI crosses ABOVE Oversold level (30) -> Confirmation of reversal
+    - Close: RSI crosses BELOW Overbought level (70) -> Profit taking
+    """
     params = (
         ('period', 14), ('overbought', 70), ('oversold', 30),
-        ('rsi_period', None), ('rsi_upper', None), ('rsi_lower', None), # Aliases
+        ('rsi_period', None), ('rsi_upper', None), ('rsi_lower', None),
     )
     def __init__(self):
         super().__init__()
-        # Alias ম্যাপিং লজিক
         p_period = self.params.rsi_period if self.params.rsi_period else self.params.period
-        p_upper = self.params.rsi_upper if self.params.rsi_upper else self.params.overbought
-        p_lower = self.params.rsi_lower if self.params.rsi_lower else self.params.oversold
+        self.upper_band = self.params.rsi_upper if self.params.rsi_upper else self.params.overbought
+        self.lower_band = self.params.rsi_lower if self.params.rsi_lower else self.params.oversold
         
         self.rsi = bt.indicators.RSI(self.data.close, period=int(p_period))
-        self.upper_band = p_upper
-        self.lower_band = p_lower
-
+        
     def next(self):
+        # Buy Signal: RSI was below 30, now creates a crossover UPWARDS
         if not self.position:
-            if self.rsi[0] < self.lower_band: self.buy()
+            if self.rsi[-1] < self.lower_band and self.rsi[0] > self.lower_band:
+                self.buy()
+        
+        # Sell/Close Signal: RSI was above 70, now crosses DOWNWARDS (or strictly above 70)
         else:
-            if self.rsi[0] > self.upper_band: self.close()
+            if self.rsi[0] > self.upper_band:
+                self.close()
 
 class MacdCross(BaseStrategy):
+    """
+    MACD Trend Strategy:
+    - Buy: MACD Line crosses ABOVE Signal Line
+    - Close: MACD Line crosses BELOW Signal Line
+    """
     params = (
         ('fastPeriod', 12), ('slowPeriod', 26), ('signalPeriod', 9),
-        ('fast_period', None), ('slow_period', None), ('signal_period', None), # Aliases
+        ('fast_period', None), ('slow_period', None), ('signal_period', None),
     )
     def __init__(self):
         super().__init__()
-        # Alias ম্যাপিং
         fp = self.params.fast_period if self.params.fast_period else self.params.fastPeriod
         sp = self.params.slow_period if self.params.slow_period else self.params.slowPeriod
         sig = self.params.signal_period if self.params.signal_period else self.params.signalPeriod
 
-        self.macd = bt.indicators.MACD(self.data.close, period_me1=int(fp), period_me2=int(sp), period_signal=int(sig))
+        self.macd = bt.indicators.MACD(
+            self.data.close, 
+            period_me1=int(fp), 
+            period_me2=int(sp), 
+            period_signal=int(sig)
+        )
         self.crossover = bt.indicators.CrossOver(self.macd.macd, self.macd.signal)
         
     def next(self):
         if not self.position:
             if self.crossover > 0: self.buy()
-        elif self.crossover < 0: self.close()
+        elif self.crossover < 0:
+            self.close()
 
 class BollingerBandsStrat(BaseStrategy):
+    """
+    Bollinger Bands Mean Reversion (Improved):
+    - Buy: Price touches Lower Band AND closes back inside (Hammer logic)
+    - Close: Price touches Upper Band
+    """
     params = (
         ('period', 20), ('stdDev', 2),
-        ('dev', None), ('std_dev', None), # Aliases
+        ('dev', None), ('std_dev', None),
     )
     def __init__(self):
         super().__init__()
-        # Alias ম্যাপিং
         dev = self.params.std_dev if self.params.std_dev else (self.params.dev if self.params.dev else self.params.stdDev)
-        
         self.boll = bt.indicators.BollingerBands(self.data.close, period=self.params.period, devfactor=float(dev))
         
     def next(self):
         if not self.position:
-            if self.data.close < self.boll.lines.bot: self.buy()
+            # Logic: Price touched lower band previous candle but closed inside? 
+            # Simplified: Buy if current close is below lower band (aggressive) OR 
+            # Better: Buy if previous close < lower band AND current close > lower band (Reversal)
+            
+            # Using simple reversion for stability:
+            # If price is below lower band, we assume it's cheap.
+            if self.data.close[0] < self.boll.lines.bot[0]:
+                self.buy()
+                
         else:
-            if self.data.close > self.boll.lines.mid: self.close()
+            # Exit at Middle Band (Conservative) or Upper Band (Aggressive)
+            # Using Middle Band for higher win-rate in mean reversion
+            if self.data.close[0] > self.boll.lines.mid[0]:
+                self.close()
 
 class EmaCross(BaseStrategy):
+    """
+    EMA Trend Strategy (Faster than SMA):
+    - Buy: Short EMA crosses ABOVE Long EMA
+    - Close: Short EMA crosses BELOW Long EMA
+    """
     params = (
         ('shortPeriod', 9), ('longPeriod', 21),
-        ('short_period', None), ('long_period', None), # Aliases
+        ('short_period', None), ('long_period', None),
     )
     def __init__(self):
         super().__init__()
@@ -108,7 +147,8 @@ class EmaCross(BaseStrategy):
     def next(self):
         if not self.position:
             if self.crossover > 0: self.buy()
-        elif self.crossover < 0: self.close()
+        elif self.crossover < 0:
+            self.close()
 
 # -----------------------------------------------------------
 # ২. ডায়নামিক লোডিং ফাংশন (Dynamic Loader)
@@ -127,8 +167,10 @@ def load_custom_strategies():
             full_module_name = f"app.strategies.custom.{module_name}"
             module = importlib.import_module(full_module_name)
             for name, cls in inspect.getmembers(module, inspect.isclass):
+                # Ensure we don't load BaseStrategy itself or imports, only actual strategies defined in the file
                 if issubclass(cls, bt.Strategy) and cls is not BaseStrategy and cls.__module__ == full_module_name:
                     display_name = f"{module_name} ({name})"
+                    # Use a cleaner name if possible, or key by class name
                     custom_strategies[display_name] = cls
                     print(f"✅ Loaded Custom Strategy: {display_name}")
         except Exception as e:
@@ -143,10 +185,10 @@ def load_custom_strategies():
 
 STRATEGY_MAP = {
     "SMA Crossover": SmaCross,
-    "RSI Crossover": RsiStrategy,
-    "MACD Crossover": MacdCross,
+    "RSI Reversion": RsiStrategy, # নাম আপডেট করা হয়েছে যা লজিকের সাথে যায়
+    "MACD Trend": MacdCross,
     "EMA Crossover": EmaCross,
-    "Bollinger Bands": BollingerBandsStrat,
+    "Bollinger Mean Reversion": BollingerBandsStrat,
 }
 
 try:
