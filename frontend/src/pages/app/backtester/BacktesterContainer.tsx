@@ -481,19 +481,45 @@ export const BacktesterContainer: React.FC = () => {
                     {/* Run Section with PROGRESS BAR FIX */}
                     <div className="mt-8 pt-6 border-t border-brand-border-light dark:border-brand-border-dark">
 
-                        {/* Visual Progress Bar */}
+                        {/* Visual Progress Bar (Modernized) */}
                         {(isRunning || isOptimizing || isBatchRunning) && (
-                            <div className="mb-4 space-y-2 animate-fade-in">
-                                <div className="flex justify-between text-xs font-semibold text-gray-500 dark:text-gray-400">
-                                    <span>Status: {isOptimizing ? 'Optimizing Strategies...' : (isBatchRunning ? batchStatusMsg : 'Running Backtest...')}</span>
-                                    <span>{isOptimizing ? optimizationProgress : (isBatchRunning ? batchProgress : progress)}%</span>
+                            <div className="mb-8 bg-brand-dark/40 p-5 rounded-xl border border-brand-primary/20 backdrop-blur-sm shadow-lg shadow-brand-primary/5 relative overflow-hidden animate-fade-in">
+
+                                {/* Header part */}
+                                <div className="flex justify-between text-sm mb-3 items-center z-10 relative">
+                                    <span className="text-gray-300 font-medium flex items-center gap-2">
+                                        {/* Spinner Icon */}
+                                        <svg className="animate-spin h-4 w-4 text-brand-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                        </svg>
+                                        {isOptimizing ? 'Optimizing Strategies...' : (isBatchRunning ? batchStatusMsg : 'Backtesting in progress...')}
+                                    </span>
+                                    <span className="text-brand-primary font-bold font-mono">{(isOptimizing ? optimizationProgress : (isBatchRunning ? batchProgress : progress)).toFixed(1)}%</span>
                                 </div>
-                                <div className="w-full h-3 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+
+                                {/* The Modern Animated Progress Bar Container */}
+                                <div className="h-3 bg-brand-dark/80 rounded-full overflow-hidden p-[2px] shadow-inner border border-brand-primary/10 relative z-10">
+                                    {/* The Animated Bar */}
                                     <div
-                                        className={`h-full rounded-full transition-all duration-300 ${isBatchRunning ? 'bg-purple-500' : 'bg-brand-primary'} striped-progress`}
+                                        className="h-full rounded-full bg-brand-primary 
+                                                   bg-striped-gradient bg-[length:30px_30px] animate-striped-flow 
+                                                   transition-all duration-500 ease-out
+                                                   relative overflow-hidden shadow-[0_0_10px_rgba(var(--brand-primary),0.6)]"
                                         style={{ width: `${isOptimizing ? optimizationProgress : (isBatchRunning ? batchProgress : progress)}%` }}
-                                    />
+                                    >
+                                        {/* Optional: A subtle "shine" effect overlaid */}
+                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12 animate-pulse opacity-50"></div>
+                                    </div>
                                 </div>
+
+                                {/* Sub-text */}
+                                <p className="text-center text-xs text-gray-400 mt-3 animate-pulse z-10 relative">
+                                    Crunching historical data and simulating trades...
+                                </p>
+
+                                {/* Background Glow Effect */}
+                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-1/2 bg-brand-primary/10 blur-[50px] rounded-full -z-0"></div>
                             </div>
                         )}
 

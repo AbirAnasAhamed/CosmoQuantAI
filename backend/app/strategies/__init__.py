@@ -164,12 +164,17 @@ class ParabolicSarStrategy(BaseStrategy):
 
 class AdxStrategy(BaseStrategy):
     params = (('period', 14), ('threshold', 25))
+
     def __init__(self):
         super().__init__()
+        # ✅ ১. SMA ইন্ডিকেটরটি এখানে তৈরি করতে হবে (আগে এটি next() এর ভেতরে ছিল)
         self.adx = bt.indicators.ADX(period=self.params.period)
+        self.sma = bt.indicators.SMA(self.data.close, period=20)
+
     def next(self):
         if not self.position:
-            if self.adx > self.params.threshold and self.data.close > bt.indicators.SMA(period=20):
+            # ✅ ২. এখানে self.sma ব্যবহার করুন (নতুন করে তৈরি করবেন না)
+            if self.adx > self.params.threshold and self.data.close > self.sma:
                  self.buy()
         elif self.adx < self.params.threshold:
             self.close()

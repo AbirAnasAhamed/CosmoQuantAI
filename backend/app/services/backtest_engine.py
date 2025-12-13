@@ -269,9 +269,28 @@ class BacktestEngine:
         try:
             results = cerebro.run() 
             first_strat = results[0]
+        except IndexError as e:
+            # ✅ বিশেষ লজিক: ইনডেক্স এরর ধরলে ইউজারকে গাইড করা
+            error_msg = str(e)
+            print(f"❌ Backtest Critical Error: {error_msg}")
+            return {
+                "status": "error",
+                "message": "Critical Error: 'Array Index Out of Range'. This usually happens if you define Indicators (like SMA, RSI) inside the next() method. Please move them to __init__()."
+            }
         except Exception as e:
-            print(f"❌ Backtest Runtime Error: {e}")
-            return {"error": f"Backtest execution failed: {str(e)}"}
+            # ✅ সাধারণ এরর হ্যান্ডলিং
+            import traceback
+            trace_str = traceback.format_exc()
+            print(f"❌ Backtest Runtime Error: {e}\n{trace_str}")
+            
+            # যদি এরর মেসেজে ইনডেক্স এরর থাকে
+            if "array index out of range" in str(e).lower() or "list index out of range" in str(e).lower():
+                 return {
+                    "status": "error",
+                    "message": "Critical Error: 'Index Out of Range'. You likely instantiated an Indicator inside the next() method. Please move it to __init__()."
+                }
+
+            return {"status": "error", "message": f"Backtest execution failed: {str(e)}"}
 
         end_value = cerebro.broker.getvalue()
 
