@@ -234,8 +234,18 @@ class BacktestEngine:
         if not strategy_class:
             return {"error": f"Strategy '{strategy_name}' not found via Map or File."}
         
-        valid_params = self._filter_params(strategy_class, clean_params)
-        cerebro.addstrategy(strategy_class, **valid_params)
+        valid_params = self._smart_filter_params(strategy_class, clean_params)
+        
+        # Risk Management Params (SL/TP) যদি ফিল্টারে বাদ পড়ে যায়, তবুও জোর করে অ্যাড করা
+        # কারণ BaseStrategy তে এগুলো থাকে, কিন্তু মাঝে মাঝে ডিটেক্ট হয় না।
+        if 'stop_loss' in clean_params: valid_params['stop_loss'] = clean_params['stop_loss']
+        if 'take_profit' in clean_params: valid_params['take_profit'] = clean_params['take_profit']
+        if 'trailing_stop' in clean_params: valid_params['trailing_stop'] = clean_params['trailing_stop']
+
+        try:
+            cerebro.addstrategy(strategy_class, **valid_params)
+        except Exception as e:
+            return {"error": f"Failed to initialize strategy parameters: {str(e)}"}
 
         cerebro.broker.setcash(initial_cash)
         cerebro.broker.setcommission(
@@ -554,7 +564,12 @@ class BacktestEngine:
         if not strategy_class:
             return {"profitPercent": 0, "maxDrawdown": 0, "sharpeRatio": 0, "total_trades": 0, "winRate": 0}
 
-        valid_params = self._filter_params(strategy_class, clean_params)
+        valid_params = self._smart_filter_params(strategy_class, clean_params)
+        
+        # Risk Params Injection (Safety)
+        if 'stop_loss' in clean_params: valid_params['stop_loss'] = clean_params['stop_loss']
+        if 'take_profit' in clean_params: valid_params['take_profit'] = clean_params['take_profit']
+
         cerebro.addstrategy(strategy_class, **valid_params)
         
         cerebro.broker.setcash(initial_cash)
@@ -638,18 +653,41 @@ class BacktestEngine:
                 
         return strategy_class
 
-    def _filter_params(self, strategy_class, params):
+    # ✅ অপটিমাইজড প্যারামিটার ফিল্টার (Smart Matcher)
+    def _smart_filter_params(self, strategy_class, params):
         valid_params = {}
-        if hasattr(strategy_class, 'params') and hasattr(strategy_class.params, '_getkeys'):
-            allowed_keys = strategy_class.params._getkeys()
-            normalized_allowed = {k.lower().replace('_', ''): k for k in allowed_keys}
+        
+        # ১. স্ট্র্যাটেজির নিজস্ব প্যারামিটার লিস্ট বের করা
+        if hasattr(strategy_class, 'params'):
+            # Backtrader এর params dict বা tuple হতে পারে
+            if hasattr(strategy_class.params, '_getkeys'):
+                allowed_keys = strategy_class.params._getkeys()
+            elif isinstance(strategy_class.params, dict):
+                allowed_keys = strategy_class.params.keys()
+            else:
+                # Fallback for tuple based params
+                allowed_keys = dict(strategy_class.params).keys()
+
+            # ২. নরমাল এবং লোয়ারকেস ম্যাপ তৈরি (Case Insensitive Matching)
+            # এটি fast_period, fastPeriod, FastPeriod সব কিছুকে একই ধরবে
+            key_map = {k.lower().replace('_', ''): k for k in allowed_keys}
+            
+            # ৩. ইউজার ইনপুট চেক করা
             for k, v in params.items():
-                if k in allowed_keys: valid_params[k] = v
+                # সরাসরি ম্যাচ করলে
+                if k in allowed_keys:
+                    valid_params[k] = v
                 else:
-                    norm_k = k.lower().replace('_', '')
-                    if norm_k in normalized_allowed: valid_params[normalized_allowed[norm_k]] = v
-                    else: print(f"⚠️ Warning: Parameter '{k}' ignored.")
-        else: valid_params = params
+                    # যদি নাম হুবহু না মিলে, তবে লোয়ারকেস চেক করা
+                    clean_k = k.lower().replace('_', '')
+                    if clean_k in key_map:
+                        real_key = key_map[clean_k]
+                        valid_params[real_key] = v
+                        # print(f"🔧 Param Fixed: '{k}' -> '{real_key}'") # Debugging log
+                    else:
+                        # যদি তাও না মিলে, ইগনোর করবে (Risk params বাদে)
+                        pass 
+
         return valid_params
 
     def _calculate_metrics(self, first_strat, start_value, end_value):

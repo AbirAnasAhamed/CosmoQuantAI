@@ -4,7 +4,8 @@ import { useBacktest } from '@/context/BacktestContext';
 import SearchableSelect from '@/components/common/SearchableSelect';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { UploadCloud, RefreshCw, ShieldCheck, ShieldAlert, Wallet, Calendar, Clock, History, ChevronLeft, ChevronRight } from 'lucide-react';
+import { UploadCloud, RefreshCw, ShieldCheck, ShieldAlert, Wallet, Calendar, Clock, History, ChevronLeft, ChevronRight, PlusCircle } from 'lucide-react';
+import { StrategyBuilderModal } from './StrategyBuilderModal';
 import { getYear, getMonth } from 'date-fns';
 import Button from '@/components/common/Button';
 
@@ -107,6 +108,9 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
     // ✅ নতুন স্টেট: ডাইনামিক টাইমফ্রেম স্টোর করার জন্য
     const [availableTimeframes, setAvailableTimeframes] = useState<string[]>(DEFAULT_TIMEFRAMES);
     const [isLoadingTimeframes, setIsLoadingTimeframes] = useState(false);
+
+    // Strategy Builder State
+    const [isBuilderOpen, setIsBuilderOpen] = useState(false);
 
     // ✅ এফেক্ট: যখনই selectedExchange চেঞ্জ হবে, নতুন টাইমফ্রেম আনবে
     useEffect(() => {
@@ -340,10 +344,25 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
 
                 {/* Strategies */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-500 mb-1">Strategy</label>
+                    <div className="flex justify-between items-center mb-1">
+                        <label className="block text-sm font-medium text-gray-500">Strategy</label>
+                        <button
+                            onClick={() => setIsBuilderOpen(true)}
+                            className="text-xs flex items-center gap-1 text-brand-primary hover:text-brand-primary/80 font-semibold transition-colors"
+                        >
+                            <PlusCircle size={12} /> New
+                        </button>
+                    </div>
                     <select className={inputBaseClasses} value={strategy} onChange={(e) => setStrategy(e.target.value)}>
-                        <option value="" disabled>Select Strategy</option>
-                        {customStrategies.map(s => <option key={s} value={s}>{s}</option>)}
+                        <optgroup label="Strategy Library">
+                            {strategies.map(s => <option key={s} value={s}>{s}</option>)}
+                        </optgroup>
+
+                        {customStrategies.length > 0 && (
+                            <optgroup label="My Custom Strategies">
+                                {customStrategies.map(s => <option key={s} value={s}>{s}</option>)}
+                            </optgroup>
+                        )}
                     </select>
                 </div>
 
@@ -510,6 +529,16 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                     </div>
                 </div>
             </div>
+
+            {/* Strategy Builder Modal */}
+            <StrategyBuilderModal
+                isOpen={isBuilderOpen}
+                onClose={() => setIsBuilderOpen(false)}
+                onSuccess={() => {
+                    // Reload page to refresh strategy list
+                    window.location.reload();
+                }}
+            />
         </div>
     );
 }
