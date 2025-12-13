@@ -96,3 +96,13 @@ async def upload_market_data(file: UploadFile = File(...), current_user: models.
         "filename": file.filename,
         "message": "Data file uploaded successfully."
     }
+
+@router.get("/timeframes/{exchange_id}")
+async def get_timeframes(exchange_id: str):
+    try:
+        timeframes = await market_service.get_exchange_timeframes(exchange_id)
+        if not timeframes:
+            return ["1m", "5m", "15m", "1h", "4h", "1d"]
+        return timeframes
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

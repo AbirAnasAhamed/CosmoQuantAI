@@ -11,5 +11,11 @@ export const marketDataService = {
     getExchangePairs: async (exchangeId: string): Promise<string[]> => {
         const response = await apiClient.get<string[]>(`/v1/market-data/pairs/${exchangeId}`);
         return response.data;
+    },
+
+    // ৩. নির্দিষ্ট এক্সচেঞ্জের টাইমফ্রেম আনা
+    getExchangeTimeframes: async (exchangeId: string): Promise<string[]> => {
+        const response = await apiClient.get<string[]>(`/v1/market-data/timeframes/${exchangeId}`);
+        return response.data;
     }
 };

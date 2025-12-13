@@ -14,6 +14,33 @@ from fastapi.concurrency import run_in_threadpool
 class MarketService:
     def __init__(self):
         self._markets_cache = {} 
+        self._timeframes_cache = {}
+
+    async def get_exchange_timeframes(self, exchange_id: str):
+        # 1. Check cache
+        if exchange_id in self._timeframes_cache:
+            return self._timeframes_cache[exchange_id]
+
+        try:
+            if hasattr(ccxt, exchange_id):
+                exchange_class = getattr(ccxt, exchange_id)
+                exchange = exchange_class()
+                
+                # Load markets to populate timeframes
+                await exchange.load_markets()
+                
+                if exchange.timeframes:
+                    timeframes = list(exchange.timeframes.keys())
+                    self._timeframes_cache[exchange_id] = timeframes
+                    await exchange.close()
+                    return timeframes
+                
+                await exchange.close()
+        except Exception as e:
+            print(f"Error fetching timeframes for {exchange_id}: {e}")
+        
+        # Fallback timeframes
+        return ["1m", "5m", "15m", "1h", "4h", "1d"] 
 
     def timeframe_to_ms(self, timeframe):
         seconds = 0

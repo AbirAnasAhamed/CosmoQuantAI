@@ -72,27 +72,11 @@ def get_standard_strategy_params():
 @router.get("/list")
 def get_all_strategies(current_user: models.User = Depends(deps.get_current_user)):
     """
-    Returns a clean combined list of Standard Strategies and Custom Uploaded Strategies without duplicates.
+    Returns list of available strategies (Custom only).
     """
     try:
-        # Standard strategies (Hardcoded names to keep list clean)
-        standard_strategies = [
-            "SMA Crossover", 
-            "RSI Crossover", 
-            "MACD Crossover", 
-            "EMA Crossover", 
-            "Bollinger Bands"
-        ]
-
-        # Custom strategies from folder
-        custom_strategies = []
-        if os.path.exists(UPLOAD_DIR):
-            files = os.listdir(UPLOAD_DIR)
-            custom_strategies = [f[:-3] for f in files if f.endswith(".py")]
-
-        # Merge and remove duplicates
-        combined_strategies = sorted(list(set(standard_strategies + custom_strategies)))
-        return combined_strategies
+        # STRATEGY_MAP now contains only loaded custom strategies
+        return sorted(list(STRATEGY_MAP.keys()))
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))

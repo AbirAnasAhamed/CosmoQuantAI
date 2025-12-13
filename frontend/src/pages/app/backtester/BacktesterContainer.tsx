@@ -72,7 +72,7 @@ export const BacktesterContainer: React.FC = () => {
 
     // --- Local State ---
     const [activeTab, setActiveTabState] = useState<'single' | 'batch' | 'optimization' | 'editor'>('single');
-    const [strategies, setStrategies] = useState(MOCK_STRATEGIES);
+    const [strategies, setStrategies] = useState<string[]>([]);
     const [customStrategies, setCustomStrategies] = useState<string[]>([]);
     const [strategy, setStrategy] = useState('RSI Crossover');
     const [timeframe, setTimeframe] = useState('1h');

@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
+import { marketDataService } from '@/services/marketData';
 import { useBacktest } from '@/context/BacktestContext';
 import SearchableSelect from '@/components/common/SearchableSelect';
 import DatePicker from "react-datepicker";
@@ -16,12 +17,8 @@ const range = (start: number, end: number, step = 1) => {
     return result;
 };
 
-const TIMEFRAME_OPTIONS = [
-    "1s", "5s", "10s", "15s", "30s", "45s",
-    "1m", "3m", "5m", "15m", "30m", "45m",
-    "1h", "2h", "3h", "4h", "6h", "8h", "12h",
-    "1d", "3d", "1w", "1M"
-];
+// ডিফল্ট টাইমফ্রেম লিস্ট (যদি লোড হতে দেরি হয়)
+const DEFAULT_TIMEFRAMES = ["1m", "5m", "15m", "1h", "4h", "1d"];
 
 interface BacktestFormProps {
     strategies: string[];
@@ -106,6 +103,35 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
         takeProfit, setTakeProfit,
         trailingStop, setTrailingStop
     } = useBacktest();
+
+    // ✅ নতুন স্টেট: ডাইনামিক টাইমফ্রেম স্টোর করার জন্য
+    const [availableTimeframes, setAvailableTimeframes] = useState<string[]>(DEFAULT_TIMEFRAMES);
+    const [isLoadingTimeframes, setIsLoadingTimeframes] = useState(false);
+
+    // ✅ এফেক্ট: যখনই selectedExchange চেঞ্জ হবে, নতুন টাইমফ্রেম আনবে
+    useEffect(() => {
+        const fetchTimeframes = async () => {
+            if (!selectedExchange) return;
+
+            setIsLoadingTimeframes(true);
+            try {
+                const tfs = await marketDataService.getExchangeTimeframes(selectedExchange);
+                setAvailableTimeframes(tfs);
+
+                // যদি বর্তমান সিলেক্ট করা timeframe টি নতুন লিস্টে না থাকে, তবে প্রথমটি সেট করে দিন
+                if (tfs.length > 0 && !tfs.includes(timeframe)) {
+                    // setTimeframe(tfs[0]); // Optional: auto-select first available
+                }
+            } catch (error) {
+                console.error("Failed to fetch timeframes:", error);
+                setAvailableTimeframes(DEFAULT_TIMEFRAMES);
+            } finally {
+                setIsLoadingTimeframes(false);
+            }
+        };
+
+        fetchTimeframes();
+    }, [selectedExchange]);
 
     const inputBaseClasses = "w-full bg-white dark:bg-brand-dark/50 border border-brand-border-light dark:border-brand-border-dark rounded-md p-2 text-slate-900 dark:text-white focus:ring-brand-primary focus:border-brand-primary";
 
@@ -316,22 +342,26 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                 <div>
                     <label className="block text-sm font-medium text-gray-500 mb-1">Strategy</label>
                     <select className={inputBaseClasses} value={strategy} onChange={(e) => setStrategy(e.target.value)}>
-                        <optgroup label="Standard Strategies">
-                            {strategies.map(s => <option key={s} value={s}>{s}</option>)}
-                        </optgroup>
-                        {customStrategies.length > 0 && (
-                            <optgroup label="My Strategies">
-                                {customStrategies.map(s => <option key={s} value={s}>{s}</option>)}
-                            </optgroup>
-                        )}
+                        <option value="" disabled>Select Strategy</option>
+                        {customStrategies.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                 </div>
 
                 {/* Timeframe */}
                 <div>
-                    <label className="block text-sm font-medium text-gray-500 mb-1">Timeframe</label>
-                    <select className={inputBaseClasses} value={timeframe} onChange={(e) => setTimeframe(e.target.value)}>
-                        {TIMEFRAME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                    <label className="block text-sm font-medium text-gray-500 mb-1">
+                        Timeframe
+                        {isLoadingTimeframes && <span className="text-xs text-brand-primary ml-2 animate-pulse">Loading...</span>}
+                    </label>
+                    <select
+                        className={inputBaseClasses}
+                        value={timeframe}
+                        onChange={(e) => setTimeframe(e.target.value)}
+                        disabled={isLoadingTimeframes}
+                    >
+                        {availableTimeframes.map(t => (
+                            <option key={t} value={t}>{t}</option>
+                        ))}
                     </select>
                 </div>
 
@@ -342,7 +372,9 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                     </label>
                     <select className={inputBaseClasses} value={secondaryTimeframe} onChange={(e) => setSecondaryTimeframe(e.target.value)}>
                         <option value="">None</option>
-                        {TIMEFRAME_OPTIONS.map(t => <option key={t} value={t}>{t}</option>)}
+                        {availableTimeframes.map(t => (
+                            <option key={t} value={t}>{t}</option>
+                        ))}
                     </select>
                 </div>
 
