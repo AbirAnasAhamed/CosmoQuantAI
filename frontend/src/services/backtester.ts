@@ -55,6 +55,8 @@ export interface WalkForwardRequest {
     train_window_days: number;
     test_window_days: number;
     method?: string;
+    population_size?: number;
+    generations?: number;
     commission?: number;
     slippage?: number;
     leverage?: number;

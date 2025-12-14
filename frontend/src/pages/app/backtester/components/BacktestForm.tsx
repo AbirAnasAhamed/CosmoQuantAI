@@ -4,7 +4,7 @@ import { useBacktest } from '@/context/BacktestContext';
 import SearchableSelect from '@/components/common/SearchableSelect';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { UploadCloud, RefreshCw, ShieldCheck, ShieldAlert, Wallet, Calendar, Clock, History, ChevronLeft, ChevronRight, PlusCircle, Play, Layers, GitMerge } from 'lucide-react';
+import { UploadCloud, RefreshCw, ShieldCheck, ShieldAlert, Wallet, Calendar, Clock, History, ChevronLeft, ChevronRight, PlusCircle, Play, Layers, GitMerge, Settings, Cpu, BarChart2 } from 'lucide-react';
 import { StrategyBuilderModal } from './StrategyBuilderModal';
 import { getYear, getMonth } from 'date-fns';
 import Button from '@/components/common/Button';
@@ -59,10 +59,18 @@ interface BacktestFormProps {
     setInitialCash: (v: number) => void;
     mode: 'backtest' | 'optimization' | 'walk_forward';
     setMode: (m: 'backtest' | 'optimization' | 'walk_forward') => void;
+
+    // WFA Specific State Props
     wfaTrainWindow: number;
     setWfaTrainWindow: (n: number) => void;
     wfaTestWindow: number;
     setWfaTestWindow: (n: number) => void;
+    wfaMethod: string;
+    setWfaMethod: (s: string) => void;
+    wfaPopSize: number;
+    setWfaPopSize: (n: number) => void;
+    wfaGenerations: number;
+    setWfaGenerations: (n: number) => void;
 }
 
 export const BacktestForm: React.FC<BacktestFormProps> = ({
@@ -103,7 +111,10 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
     setInitialCash,
     mode, setMode,
     wfaTrainWindow, setWfaTrainWindow,
-    wfaTestWindow, setWfaTestWindow
+    wfaTestWindow, setWfaTestWindow,
+    wfaMethod, setWfaMethod,
+    wfaPopSize, setWfaPopSize,
+    wfaGenerations, setWfaGenerations,
 }) => {
     const {
         commission, setCommission,
@@ -261,26 +272,21 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                 </Button>
             </div>
 
-            {/* ✅ NEW: Mode Selection Tab */}
-            <div className="bg-gray-100 dark:bg-slate-800 p-1 rounded-lg flex text-sm font-medium mb-4">
-                <button
-                    onClick={() => setMode('backtest')}
-                    className={`flex-1 py-2 rounded-md flex items-center justify-center gap-2 transition-all ${mode === 'backtest' ? 'bg-white dark:bg-slate-700 shadow text-brand-primary' : 'text-gray-500 hover:text-gray-700'}`}
+            {/* 1. Analysis Mode Selector (Clean Dropdown instead of Buttons) */}
+            <div className="flex justify-between items-center bg-gray-50 dark:bg-slate-800/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700 mb-4">
+                <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                    <BarChart2 size={18} className="text-brand-primary" />
+                    Analysis Mode
+                </label>
+                <select
+                    value={mode}
+                    onChange={(e) => setMode(e.target.value as any)}
+                    className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-gray-600 rounded px-3 py-1.5 text-sm font-medium focus:ring-2 focus:ring-brand-primary outline-none"
                 >
-                    <Play size={16} /> Standard Backtest
-                </button>
-                <button
-                    onClick={() => setMode('optimization')}
-                    className={`flex-1 py-2 rounded-md flex items-center justify-center gap-2 transition-all ${mode === 'optimization' ? 'bg-white dark:bg-slate-700 shadow text-brand-primary' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                    <Layers size={16} /> Optimization
-                </button>
-                <button
-                    onClick={() => setMode('walk_forward')}
-                    className={`flex-1 py-2 rounded-md flex items-center justify-center gap-2 transition-all ${mode === 'walk_forward' ? 'bg-white dark:bg-slate-700 shadow text-brand-primary' : 'text-gray-500 hover:text-gray-700'}`}
-                >
-                    <GitMerge size={16} /> Walk-Forward
-                </button>
+                    <option value="backtest">Standard Backtest</option>
+                    <option value="optimization">Parameter Optimization</option>
+                    <option value="walk_forward">Walk-Forward Analysis (WFA)</option>
+                </select>
             </div>
 
             {/* Sync Progress */}
@@ -398,35 +404,81 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                     </select>
                 </div>
 
-                {/* ✅ NEW: Walk-Forward Settings Panel */}
+                {/* 2. Walk-Forward Dynamic Settings Section */}
                 {mode === 'walk_forward' && (
-                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-4 animate-fade-in col-span-1 md:col-span-2 lg:col-span-3">
-                        <h3 className="text-sm font-bold text-blue-800 dark:text-blue-300 mb-3 flex items-center gap-2">
-                            <GitMerge size={16} /> Walk-Forward Analysis Config
-                        </h3>
+                    <div className="col-span-1 md:col-span-2 lg:col-span-3 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl p-4 animate-fade-in space-y-4 mb-6">
+                        <div className="flex items-center gap-2 border-b border-blue-200 dark:border-blue-800 pb-2">
+                            <GitMerge size={18} className="text-blue-600 dark:text-blue-400" />
+                            <h3 className="text-sm font-bold text-blue-800 dark:text-blue-300">WFA Configuration</h3>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
+                            {/* Time Windows */}
                             <div>
-                                <label className="text-xs text-gray-500 font-semibold mb-1 block">Training Window (Days)</label>
+                                <label className="text-xs font-semibold text-gray-500 mb-1 block">Training Window (Days)</label>
                                 <input
                                     type="number"
                                     value={wfaTrainWindow}
                                     onChange={(e) => setWfaTrainWindow(Number(e.target.value))}
-                                    className="w-full bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded p-2 text-sm"
-                                    placeholder="e.g. 90"
+                                    className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-gray-700 rounded p-2 text-sm"
                                 />
-                                <p className="text-[10px] text-gray-400 mt-1">In-sample period for optimization</p>
                             </div>
                             <div>
-                                <label className="text-xs text-gray-500 font-semibold mb-1 block">Testing Window (Days)</label>
+                                <label className="text-xs font-semibold text-gray-500 mb-1 block">Testing Window (Days)</label>
                                 <input
                                     type="number"
                                     value={wfaTestWindow}
                                     onChange={(e) => setWfaTestWindow(Number(e.target.value))}
-                                    className="w-full bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded p-2 text-sm"
-                                    placeholder="e.g. 30"
+                                    className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-gray-700 rounded p-2 text-sm"
                                 />
-                                <p className="text-[10px] text-gray-400 mt-1">Out-of-sample period for validation</p>
                             </div>
+
+                            {/* Optimization Method */}
+                            <div className="col-span-2">
+                                <label className="text-xs font-semibold text-gray-500 mb-1 block">Optimization Logic</label>
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => setWfaMethod('grid')}
+                                        className={`flex-1 py-2 text-xs font-medium rounded border ${wfaMethod === 'grid' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-slate-900 text-gray-600 border-gray-300'}`}
+                                    >
+                                        Grid Search (Precise)
+                                    </button>
+                                    <button
+                                        onClick={() => setWfaMethod('genetic')}
+                                        className={`flex-1 py-2 text-xs font-medium rounded border ${wfaMethod === 'genetic' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-slate-900 text-gray-600 border-gray-300'}`}
+                                    >
+                                        Genetic Algorithm (Fast)
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Genetic Params (Conditional) */}
+                            {wfaMethod === 'genetic' && (
+                                <>
+                                    <div className="animate-fade-in">
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block flex items-center gap-1">
+                                            <Cpu size={12} /> Population Size
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={wfaPopSize}
+                                            onChange={(e) => setWfaPopSize(Number(e.target.value))}
+                                            className="w-full bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-800 rounded p-2 text-sm"
+                                        />
+                                    </div>
+                                    <div className="animate-fade-in">
+                                        <label className="text-xs font-semibold text-gray-500 mb-1 block flex items-center gap-1">
+                                            <Settings size={12} /> Generations
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={wfaGenerations}
+                                            onChange={(e) => setWfaGenerations(Number(e.target.value))}
+                                            className="w-full bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-800 rounded p-2 text-sm"
+                                        />
+                                    </div>
+                                </>
+                            )}
                         </div>
                     </div>
                 )}

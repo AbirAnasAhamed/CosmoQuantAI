@@ -521,15 +521,18 @@ class BacktestEngine:
         }
 
     def optimize(self, db: Session, symbol: str, timeframe: str, strategy_name: str, initial_cash: float, params: dict, 
-                 start_date: str = None, end_date: str = None, custom_data_file: str = None,  # ✅ Added custom_data_file
-
+                 start_date: str = None, end_date: str = None, custom_data_file: str = None, 
                  method="grid", population_size=50, generations=10, progress_callback=None, abort_callback=None,
-                 commission: float = 0.001, slippage: float = 0.0, leverage: float = 1.0):
+                 commission: float = 0.001, slippage: float = 0.0, leverage: float = 1.0,
+                 df_data: pd.DataFrame = None): # 👈 NEW: Allow passing dataframe directly
         
         df = None
 
-        # ✅ 1. OPTIMIZATION: Load Data ONCE (CSV or DB) before the loop
-        if custom_data_file:
+        # ✅ Data Handling: Use passed dataframe if available
+        if df_data is not None:
+            df = df_data.copy()
+        
+        elif custom_data_file:
             file_path = f"app/data_feeds/{custom_data_file}"
             if os.path.exists(file_path):
                 try:
@@ -695,24 +698,44 @@ class BacktestEngine:
 
             print(f"🔄 Step {step+1}: Training [{current_start.date()} - {train_end.date()}] | Testing [{train_end.date()} - {test_end.date()}]")
 
-            # Training (Optimization) - Simplified for now
-            # In a real scenario, run optimize() on full_df.loc[current_start:train_end]
-            best_params = params 
+            # ✅ A. TRAINING PHASE (Dynamic Optimization)
+            train_slice_df = full_df.loc[current_start:train_end]
+            
+            if len(train_slice_df) < 10:
+                print("⚠️ Skipping step: Not enough training data.")
+                current_start += pd.Timedelta(days=test_window_days)
+                continue
 
-            # Testing (Validation)
-            # ✅ CRITICAL: Data Slicing (নির্দিষ্ট সময়ের ডাটা কেটে নেওয়া)
+            # Optimize using the sliced data
+            opt_results = self.optimize(
+                db=db, symbol=symbol, timeframe=timeframe, strategy_name=strategy_name,
+                initial_cash=cumulative_equity, 
+                params=params, 
+                method=method, 
+                population_size=population_size, generations=generations,
+                commission=commission, slippage=slippage, leverage=leverage,
+                df_data=train_slice_df # 👈 Sliced Training Data
+            )
+
+            # সেরা প্যারামিটার নির্বাচন
+            if not opt_results or isinstance(opt_results, dict) and "error" in opt_results:
+                print("⚠️ Optimization failed, using default params.")
+                best_params = {k: v['start'] if isinstance(v, dict) else v for k, v in params.items()}
+            else:
+                best_params = opt_results[0]['params']
+                # print(f"✨ Best Params for Step {step+1}: {best_params}")
+
+            # ✅ B. TESTING PHASE (Validation)
             test_slice_df = full_df.loc[train_end:test_end]
             
-            if len(test_slice_df) < 1:
-                break
+            if len(test_slice_df) < 1: break
 
-            # ✅ df_data পাঠিয়ে run কল করা
             test_result = self.run(
                 db=db, symbol=symbol, timeframe=timeframe, strategy_name=strategy_name,
                 initial_cash=cumulative_equity,
-                params=best_params,
+                params=best_params, # সেরা প্যারামিটার ব্যবহার
                 commission=commission, slippage=slippage, leverage=leverage,
-                df_data=test_slice_df # 👈 Sliced Data Passed Here
+                df_data=test_slice_df # 👈 Sliced Testing Data
             )
 
             if test_result.get('status') == 'success':
@@ -726,7 +749,8 @@ class BacktestEngine:
                     "end_equity": round(test_result['final_value'], 2),
                     "profit": round(profit, 2),
                     "profit_percent": round(profit_pct, 2),
-                    "drawdown": test_result['advanced_metrics'].get('max_drawdown', 0)
+                    "drawdown": test_result['advanced_metrics'].get('max_drawdown', 0),
+                    "best_params": best_params # রেজাল্টে প্যারামিটার সেভ রাখা
                 })
                 
                 cumulative_equity = test_result['final_value']

@@ -79,6 +79,9 @@ export const BacktesterContainer: React.FC = () => {
     const [mode, setMode] = useState<'backtest' | 'optimization' | 'walk_forward'>('backtest');
     const [wfaTrainWindow, setWfaTrainWindow] = useState(90);
     const [wfaTestWindow, setWfaTestWindow] = useState(30);
+    const [wfaMethod, setWfaMethod] = useState('grid');
+    const [wfaPopSize, setWfaPopSize] = useState(20);
+    const [wfaGenerations, setWfaGenerations] = useState(5);
 
     // Params State
     const [params, setParams] = useState<Record<string, any>>({});
@@ -259,7 +262,9 @@ export const BacktesterContainer: React.FC = () => {
                 ...commonParams,
                 train_window_days: wfaTrainWindow,
                 test_window_days: wfaTestWindow,
-                method: 'grid' // Defaulting to grid for inner loop
+                method: wfaMethod,
+                population_size: wfaPopSize,
+                generations: wfaGenerations
             }, 'walk_forward');
         } else if (mode === 'optimization') {
             execute({
@@ -452,6 +457,9 @@ export const BacktesterContainer: React.FC = () => {
                         setWfaTrainWindow={setWfaTrainWindow}
                         wfaTestWindow={wfaTestWindow}
                         setWfaTestWindow={setWfaTestWindow}
+                        wfaMethod={wfaMethod} setWfaMethod={setWfaMethod}
+                        wfaPopSize={wfaPopSize} setWfaPopSize={setWfaPopSize}
+                        wfaGenerations={wfaGenerations} setWfaGenerations={setWfaGenerations}
                     />
 
                     <StrategyParams
