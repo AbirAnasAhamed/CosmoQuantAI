@@ -71,6 +71,10 @@ interface BacktestFormProps {
     setWfaPopSize: (n: number) => void;
     wfaGenerations: number;
     setWfaGenerations: (n: number) => void;
+    wfaOptTarget: string; // ✅ New
+    setWfaOptTarget: (s: string) => void; // ✅ New
+    wfaMinTrades: number; // ✅ New
+    setWfaMinTrades: (n: number) => void; // ✅ New
 }
 
 export const BacktestForm: React.FC<BacktestFormProps> = ({
@@ -115,6 +119,8 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
     wfaMethod, setWfaMethod,
     wfaPopSize, setWfaPopSize,
     wfaGenerations, setWfaGenerations,
+    wfaOptTarget, setWfaOptTarget, // ✅ New
+    wfaMinTrades, setWfaMinTrades, // ✅ New
 }) => {
     const {
         commission, setCommission,
@@ -431,6 +437,33 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                                     onChange={(e) => setWfaTestWindow(Number(e.target.value))}
                                     className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-gray-700 rounded p-2 text-sm"
                                 />
+                            </div>
+
+                            {/* ✅ NEW: Optimization Objective & Constraints */}
+                            <div className="col-span-2 grid grid-cols-2 gap-4 pt-2 border-t border-blue-200 dark:border-blue-800">
+                                <div>
+                                    <label className="text-xs font-semibold text-gray-500 mb-1 block">Optimization Target</label>
+                                    <select
+                                        value={wfaOptTarget}
+                                        onChange={(e) => setWfaOptTarget(e.target.value)}
+                                        className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-gray-700 rounded p-2 text-sm"
+                                    >
+                                        <option value="profit">Maximize Profit</option>
+                                        <option value="sharpe">Maximize Sharpe Ratio</option>
+                                        <option value="win_rate">Maximize Win Rate</option>
+                                        <option value="drawdown">Minimize Drawdown</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="text-xs font-semibold text-gray-500 mb-1 block">Min Trades (Constraint)</label>
+                                    <input
+                                        type="number"
+                                        value={wfaMinTrades}
+                                        onChange={(e) => setWfaMinTrades(Number(e.target.value))}
+                                        className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-gray-700 rounded p-2 text-sm"
+                                        placeholder="e.g. 5"
+                                    />
+                                </div>
                             </div>
 
                             {/* Optimization Method */}

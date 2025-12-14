@@ -130,6 +130,8 @@ class WalkForwardRequest(BaseModel):
     commission: float = 0.001
     slippage: float = 0.0
     leverage: float = 1.0
+    opt_target: str = "profit"  # ✅ New
+    min_trades: int = 5         # ✅ New
 
 # Download Data Schema
 class DownloadRequest(BaseModel):

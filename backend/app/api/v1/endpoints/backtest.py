@@ -62,7 +62,9 @@ def run_walk_forward(
         generations=getattr(request, 'generations', 5),
         commission=request.commission,
         slippage=request.slippage,
-        leverage=request.leverage
+        leverage=request.leverage,
+        opt_target=getattr(request, 'opt_target', 'profit'), # ✅ Pass
+        min_trades=getattr(request, 'min_trades', 5)         # ✅ Pass
     )
     
     return {"task_id": task.id, "status": "Processing WFA"}

@@ -82,6 +82,8 @@ export const BacktesterContainer: React.FC = () => {
     const [wfaMethod, setWfaMethod] = useState('grid');
     const [wfaPopSize, setWfaPopSize] = useState(20);
     const [wfaGenerations, setWfaGenerations] = useState(5);
+    const [wfaOptTarget, setWfaOptTarget] = useState('profit'); // ✅ New
+    const [wfaMinTrades, setWfaMinTrades] = useState(5);        // ✅ New
 
     // Params State
     const [params, setParams] = useState<Record<string, any>>({});
@@ -264,7 +266,11 @@ export const BacktesterContainer: React.FC = () => {
                 test_window_days: wfaTestWindow,
                 method: wfaMethod,
                 population_size: wfaPopSize,
-                generations: wfaGenerations
+                generations: wfaGenerations,
+
+                // ✅ Passing New Params
+                opt_target: wfaOptTarget,
+                min_trades: wfaMinTrades
             }, 'walk_forward');
         } else if (mode === 'optimization') {
             execute({
@@ -460,6 +466,9 @@ export const BacktesterContainer: React.FC = () => {
                         wfaMethod={wfaMethod} setWfaMethod={setWfaMethod}
                         wfaPopSize={wfaPopSize} setWfaPopSize={setWfaPopSize}
                         wfaGenerations={wfaGenerations} setWfaGenerations={setWfaGenerations}
+                        // ✅ Pass new props
+                        wfaOptTarget={wfaOptTarget} setWfaOptTarget={setWfaOptTarget}
+                        wfaMinTrades={wfaMinTrades} setWfaMinTrades={setWfaMinTrades}
                     />
 
                     <StrategyParams

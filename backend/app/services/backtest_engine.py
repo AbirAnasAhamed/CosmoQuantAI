@@ -524,7 +524,9 @@ class BacktestEngine:
                  start_date: str = None, end_date: str = None, custom_data_file: str = None, 
                  method="grid", population_size=50, generations=10, progress_callback=None, abort_callback=None,
                  commission: float = 0.001, slippage: float = 0.0, leverage: float = 1.0,
-                 df_data: pd.DataFrame = None): # 👈 NEW: Allow passing dataframe directly
+                 df_data: pd.DataFrame = None, # 👈 NEW: Allow passing dataframe directly
+                 opt_target: str = "profit", # ✅ New
+                 min_trades: int = 5):       # ✅ New
         
         df = None
 
@@ -619,6 +621,10 @@ class BacktestEngine:
                 # ✅ Pass the pre-loaded 'strategy_class' instead of 'strategy_name'
                 metrics = self._run_single_backtest(df, strategy_class, initial_cash, instance_params, fixed_params, commission, slippage, leverage)
                 
+                # ✅ Filter by Min Trades
+                if metrics['total_trades'] < min_trades:
+                    continue # ট্রেড কম হলে রেজাল্ট বাদ
+
                 metrics['params'] = instance_params
                 results.append(metrics)
                 
@@ -644,16 +650,26 @@ class BacktestEngine:
                 df, strategy_class, initial_cash, param_ranges, fixed_params, 
                 pop_size=population_size, generations=generations, 
                 progress_callback=progress_callback, abort_callback=abort_callback,
-                commission=commission, slippage=slippage, leverage=leverage
+                commission=commission, slippage=slippage, leverage=leverage,
+                opt_target=opt_target, min_trades=min_trades # ✅ Pass args
             )
 
-        results.sort(key=lambda x: x['profitPercent'], reverse=True)
+        # ✅ Dynamic Sorting Logic Helper
+        def get_sort_key(res):
+            if opt_target == 'sharpe': return res.get('sharpeRatio', -99)
+            if opt_target == 'win_rate': return res.get('winRate', 0)
+            if opt_target == 'drawdown': return -res.get('maxDrawdown', 99) # নেগেটিভ ভ্যালু বড় মানে ড্রডাউন কম (e.g. -5 > -20)
+            return res.get('profitPercent', -float('inf'))
+
+        # ✅ Sort Results
+        results.sort(key=get_sort_key, reverse=True)
         return results
     def walk_forward(self, db: Session, symbol: str, timeframe: str, strategy_name: str, initial_cash: float, 
                      params: dict, start_date: str, end_date: str, 
                      train_window_days: int = 90, test_window_days: int = 30, 
                      method="grid", population_size=20, generations=5, 
                      commission: float = 0.001, slippage: float = 0.0, leverage: float = 1.0,
+                     opt_target="profit", min_trades=5, # ✅ New
                      progress_callback=None):
         
         print(f"🚀 Starting Walk-Forward Analysis for {symbol}...")
@@ -714,7 +730,9 @@ class BacktestEngine:
                 method=method, 
                 population_size=population_size, generations=generations,
                 commission=commission, slippage=slippage, leverage=leverage,
-                df_data=train_slice_df # 👈 Sliced Training Data
+                df_data=train_slice_df, # 👈 Sliced Training Data
+                opt_target=opt_target, # ✅ Pass
+                min_trades=min_trades  # ✅ Pass
             )
 
             # সেরা প্যারামিটার নির্বাচন
@@ -773,7 +791,11 @@ class BacktestEngine:
             "average_drawdown": round(avg_dd, 2),
             "steps_detail": wfa_results
         }
-        # ... (Genetic setup same as before) ...
+    # ২. Genetic Algorithm আপডেট
+    def _run_genetic_algorithm(self, df, strategy_class, initial_cash, param_ranges, fixed_params, pop_size=50, generations=10, 
+                               progress_callback=None, abort_callback=None, commission=0.001, slippage=0.0, leverage=1.0,
+                               opt_target="profit", min_trades=5): # ✅ Args added
+        
         param_keys = list(param_ranges.keys())
         population = []
         for _ in range(pop_size):
@@ -801,6 +823,17 @@ class BacktestEngine:
                     metrics['params'] = individual
                     history_cache[param_signature] = metrics
                 
+                # Genetic Algorithm এ খারাপ রেজাল্ট একদম বাদ দিলে পপুলেশন কমে যাবে, 
+                # তাই আমরা পেনাল্টি স্কোর দেব (Score -9999)
+                if metrics['total_trades'] < min_trades:
+                    metrics['fitness_score'] = -9999
+                else:
+                    # টার্গেট অনুযায়ী স্কোর সেট করা
+                    if opt_target == 'sharpe': metrics['fitness_score'] = metrics['sharpeRatio']
+                    elif opt_target == 'drawdown': metrics['fitness_score'] = -metrics['maxDrawdown']
+                    elif opt_target == 'win_rate': metrics['fitness_score'] = metrics['winRate']
+                    else: metrics['fitness_score'] = metrics['profitPercent']
+
                 evaluated_pop.append(metrics)
                 
                 if metrics['profitPercent'] > best_profit_so_far:
@@ -820,7 +853,8 @@ class BacktestEngine:
                         }
                     )
             
-            evaluated_pop.sort(key=lambda x: x['profitPercent'], reverse=True)
+            # ✅ Sort by Fitness Score
+            evaluated_pop.sort(key=lambda x: x.get('fitness_score', -9999), reverse=True)
             best_results.extend(evaluated_pop[:5]) 
             
             elite_count = int(pop_size * 0.2)

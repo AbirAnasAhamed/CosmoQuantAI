@@ -60,6 +60,8 @@ export interface WalkForwardRequest {
     commission?: number;
     slippage?: number;
     leverage?: number;
+    opt_target?: string; // ✅ New
+    min_trades?: number; // ✅ New
 }
 
 // --- API Calls Updated with '/v1' prefix and correct router paths ---
