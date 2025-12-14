@@ -222,7 +222,7 @@ def run_optimization_task(self, symbol: str, timeframe: str, strategy_name: str,
 @celery_app.task(bind=True)
 def run_walk_forward_task(self, symbol, timeframe, strategy_name, initial_cash, params, start_date, end_date, 
                           train_window_days, test_window_days, method, population_size, generations, 
-                          commission, slippage, leverage, opt_target='profit', min_trades=5): # ✅ ১. আর্গুমেন্ট যোগ করা হলো
+                          commission, slippage, leverage, opt_target='profit', min_trades=2): # ✅ ফিক্স: এখানেও ডিফল্ট ২ করা হলো
     
     # Callback Wrapper for Celery
     def progress_callback(percent, meta=None):
@@ -252,7 +252,7 @@ def run_walk_forward_task(self, symbol, timeframe, strategy_name, initial_cash, 
             train_window_days=train_window_days, test_window_days=test_window_days,
             method=method, population_size=population_size, generations=generations,
             commission=commission, slippage=slippage, leverage=leverage,
-            opt_target=opt_target, min_trades=min_trades, # ✅ ২. ইঞ্জিনে পাস করা হলো
+            opt_target=opt_target, min_trades=min_trades, # আপডেটেড ভ্যালু পাস হচ্ছে
             progress_callback=progress_callback
         )
         

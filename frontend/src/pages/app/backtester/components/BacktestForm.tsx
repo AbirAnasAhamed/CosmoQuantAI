@@ -530,8 +530,8 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                     </div>
                 )}
 
-                {/* ✅ Shared Optimization Engine Settings (For Optimization AND WFA) */}
-                {isOptimizationOrWfa && (
+                {/* ✅ Optimization Engine Settings (Only for Optimization) */}
+                {activeTab === 'optimization' && (
                     <div className="col-span-1 md:col-span-2 lg:col-span-3 bg-purple-50/50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800 rounded-xl p-4 animate-fade-in space-y-4 mb-6">
                         <div className="flex items-center gap-2 border-b border-purple-200 dark:border-purple-800 pb-2">
                             <Settings size={18} className="text-purple-600 dark:text-purple-400" />
@@ -544,14 +544,14 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                                 <label className="text-xs font-semibold text-gray-500 mb-1 block">Method</label>
                                 <div className="flex gap-2">
                                     <button
-                                        onClick={() => setWfaMethod('grid')}
-                                        className={`flex-1 py-2 text-xs font-medium rounded border ${wfaMethod === 'grid' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-slate-900 text-gray-600 border-gray-300'}`}
+                                        onClick={() => setOptimizationMethod('gridSearch')}
+                                        className={`flex-1 py-2 text-xs font-medium rounded border ${optimizationMethod === 'gridSearch' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-slate-900 text-gray-600 border-gray-300'}`}
                                     >
                                         Grid Search
                                     </button>
                                     <button
-                                        onClick={() => setWfaMethod('genetic')}
-                                        className={`flex-1 py-2 text-xs font-medium rounded border ${wfaMethod === 'genetic' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-slate-900 text-gray-600 border-gray-300'}`}
+                                        onClick={() => setOptimizationMethod('geneticAlgorithm')}
+                                        className={`flex-1 py-2 text-xs font-medium rounded border ${optimizationMethod === 'geneticAlgorithm' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-slate-900 text-gray-600 border-gray-300'}`}
                                     >
                                         Genetic Algo
                                     </button>
@@ -559,7 +559,7 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                             </div>
 
                             {/* Genetic Params */}
-                            {wfaMethod === 'genetic' && (
+                            {optimizationMethod === 'geneticAlgorithm' && (
                                 <>
                                     <div className="animate-fade-in">
                                         <label className="text-xs font-semibold text-gray-500 mb-1 block flex items-center gap-1">
@@ -567,8 +567,8 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                                         </label>
                                         <input
                                             type="number"
-                                            value={wfaPopSize}
-                                            onChange={(e) => setWfaPopSize(Number(e.target.value))}
+                                            value={gaParams.populationSize}
+                                            onChange={(e) => setGaParams({ ...gaParams, populationSize: Number(e.target.value) })}
                                             className="w-full bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-800 rounded p-2 text-sm"
                                         />
                                     </div>
@@ -578,8 +578,8 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                                         </label>
                                         <input
                                             type="number"
-                                            value={wfaGenerations}
-                                            onChange={(e) => setWfaGenerations(Number(e.target.value))}
+                                            value={gaParams.generations}
+                                            onChange={(e) => setGaParams({ ...gaParams, generations: Number(e.target.value) })}
                                             className="w-full bg-white dark:bg-slate-900 border border-purple-300 dark:border-purple-800 rounded p-2 text-sm"
                                         />
                                     </div>

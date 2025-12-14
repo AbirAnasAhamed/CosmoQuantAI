@@ -85,7 +85,7 @@ export const BacktesterContainer: React.FC = () => {
     const [wfaTrainWindow, setWfaTrainWindow] = useState(90);
     const [wfaTestWindow, setWfaTestWindow] = useState(30);
     const [wfaMethod, setWfaMethod] = useState('grid');
-    const [wfaPopSize, setWfaPopSize] = useState(20);
+    const [wfaPopSize, setWfaPopSize] = useState(10);
     const [wfaGenerations, setWfaGenerations] = useState(5);
     const [wfaOptTarget, setWfaOptTarget] = useState('profit');
     const [wfaMinTrades, setWfaMinTrades] = useState(5);

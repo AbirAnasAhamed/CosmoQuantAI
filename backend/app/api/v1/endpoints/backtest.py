@@ -64,7 +64,7 @@ def run_walk_forward(
         slippage=request.slippage,
         leverage=request.leverage,
         opt_target=getattr(request, 'opt_target', 'profit'), # ✅ Pass
-        min_trades=getattr(request, 'min_trades', 5)         # ✅ Pass
+        min_trades=getattr(request, 'min_trades', 2)  # ✅ ফিক্স: ডিফল্ট ৫ থেকে কমিয়ে ২ করা হলো
     )
     
     return {"task_id": task.id, "status": "Processing WFA"}
