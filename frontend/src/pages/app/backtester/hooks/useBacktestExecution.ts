@@ -6,7 +6,7 @@ export const useBacktestExecution = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [progress, setProgress] = useState(0);
     const [results, setResults] = useState<any>(null);
-    const [mode, setMode] = useState<'backtest' | 'optimization' | 'walk_forward'>('backtest'); // ✅ Added 'walk_forward'
+    const [mode, setMode] = useState<'backtest' | 'optimization' | 'walk_forward' | 'batch'>('backtest'); // ✅ Added 'batch'
     const { showToast } = useToast();
 
     const [taskId, setTaskId] = useState<string | null>(null); // ✅ Store Task ID
@@ -47,8 +47,8 @@ export const useBacktestExecution = () => {
 
     // ✅ NEW: Execute Logic
     const execute = useCallback(async (
-        payload: BacktestRequest | OptimizationRequest | WalkForwardRequest,
-        currentMode: 'backtest' | 'optimization' | 'walk_forward'
+        payload: any, // Relaxed type to include batch
+        currentMode: 'backtest' | 'optimization' | 'walk_forward' | 'batch'
     ) => {
         setIsLoading(true);
         setResults(null);
@@ -63,6 +63,9 @@ export const useBacktestExecution = () => {
             } else if (currentMode === 'walk_forward') {
                 // ✅ Call Walk-Forward Service
                 response = await backtestService.runWalkForward(payload as WalkForwardRequest);
+            } else if (currentMode === 'batch') {
+                // ✅ Call Batch API
+                response = await backtestService.runBatchBacktest(payload);
             } else {
                 response = await backtestService.runBacktest(payload as BacktestRequest);
             }

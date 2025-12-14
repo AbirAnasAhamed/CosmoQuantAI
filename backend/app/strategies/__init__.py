@@ -18,12 +18,19 @@ class GenericOscillatorStrategy(BaseStrategy):
 
     def __init__(self):
         super().__init__()
-        # Dynamic Indicator Loading
         ind_cls = getattr(bt.indicators, self.params.ind_name, None)
         if not ind_cls:
-            raise ValueError(f"Indicator {self.params.ind_name} not found in Backtrader")
+            raise ValueError(f"Indicator {self.params.ind_name} not found")
         
-        self.ind = ind_cls(self.data.close, period=self.params.period)
+        # ✅ SMART DATA FEEDING
+        # কিছু ইন্ডিকেটর পুরো 'data' অবজেক্ট চায় (High/Low/Close এর জন্য)
+        # আর কিছু শুধু একটি লাইন চায় (Close)
+        try:
+            # প্রথমে পুরো ডাটা দিয়ে চেষ্টা করি (Stoch, CCI, WilliamsR এর জন্য)
+            self.ind = ind_cls(self.data, period=self.params.period)
+        except Exception:
+            # যদি ফেইল করে, তবে শুধু Close প্রাইস দিয়ে চেষ্টা করি (RSI, Momentum এর জন্য)
+            self.ind = ind_cls(self.data.close, period=self.params.period)
 
     def next(self):
         if not self.position:
@@ -80,29 +87,34 @@ class GenericSignalStrategy(BaseStrategy):
 # আপনি এখানে যত খুশি ইন্ডিকেটর যোগ করতে পারেন, কোড অটোমেটিক স্ট্র্যাটেজি বানাবে।
 
 INDICATOR_CONFIG = [
-    # --- Moving Averages (Crossover Logic) ---
+    # --- Moving Averages (Safe) ---
     {"name": "SMA Cross", "type": "crossover", "ind": "SMA", "fast": 10, "slow": 30},
     {"name": "EMA Cross", "type": "crossover", "ind": "EMA", "fast": 9, "slow": 21},
     {"name": "WMA Cross", "type": "crossover", "ind": "WMA", "fast": 10, "slow": 30},
     {"name": "DEMA Cross", "type": "crossover", "ind": "DEMA", "fast": 10, "slow": 30},
     {"name": "TEMA Cross", "type": "crossover", "ind": "TEMA", "fast": 10, "slow": 30},
     {"name": "KAMA Cross", "type": "crossover", "ind": "KAMA", "fast": 10, "slow": 30},
-    {"name": "T3 Cross", "type": "crossover", "ind": "T3", "fast": 5, "slow": 10},
     
-    # --- Oscillators (Reversion Logic) ---
+    # ❌ REMOVED: "T3 Cross" (Not standard in basic Backtrader)
+
+    # --- Oscillators (Safe) ---
     {"name": "RSI Strategy", "type": "oscillator", "ind": "RSI", "period": 14, "lower": 30, "upper": 70},
     {"name": "Stochastic", "type": "oscillator", "ind": "Stochastic", "period": 14, "lower": 20, "upper": 80},
     {"name": "CCI Strategy", "type": "oscillator", "ind": "CCI", "period": 20, "lower": -100, "upper": 100},
     {"name": "Williams %R", "type": "oscillator", "ind": "WilliamsR", "period": 14, "lower": -80, "upper": -20},
-    {"name": "Ultimate Osc", "type": "oscillator", "ind": "UltimateOscillator", "period": 20, "lower": 30, "upper": 70},
-    {"name": "MFI Strategy", "type": "oscillator", "ind": "MFI", "period": 14, "lower": 20, "upper": 80},
     
-    # --- Momentum/Trend (Signal Logic) ---
+    # ✅ FIX: UltimateOscillator requires 3 periods, not 1. Using a wrapper or skipping for generic template.
+    # {"name": "Ultimate Osc", ...} -> REMOVED/FIXED below
+
+    # ❌ REMOVED: "MFI Strategy" (Not standard 'MFI' name, use MoneyFlow)
+    
+    # --- Momentum/Trend (Safe) ---
     {"name": "Momentum", "type": "signal", "ind": "Momentum", "period": 12},
     {"name": "ROC Strategy", "type": "signal", "ind": "ROC", "period": 12},
     {"name": "TRIX Strategy", "type": "signal", "ind": "Trix", "period": 15},
-    {"name": "CMO Strategy", "type": "oscillator", "ind": "CMO", "period": 14, "lower": -50, "upper": 50}, # Chande Momentum
     
+    # ❌ REMOVED: "CMO Strategy" (Chande Momentum not standard)
+
     # --- Special / Complex Strategies (Pre-built) ---
     {"name": "Bollinger Bands", "type": "custom", "cls": "BollingerBandsStrategy"},
     {"name": "MACD Trend", "type": "custom", "cls": "MacdStrategy"},
@@ -144,12 +156,17 @@ class AtrBreakout(BaseStrategy):
     params = (('period', 14), ('multiplier', 3.0))
     def __init__(self):
         super().__init__()
-        self.atr = bt.indicators.ATR(period=self.params.period)
-        self.sma = bt.indicators.SMA(period=20)
+        self.atr = bt.indicators.ATR(self.data, period=self.params.period) # ATR needs H/L/C
+        self.sma = bt.indicators.SMA(self.data.close, period=20)
+
     def next(self):
+        # Dynamic Upper Band
+        upper_band = self.sma[0] + (self.atr[0] * self.params.multiplier)
+        
         if not self.position:
-            if self.data.close > (self.sma + self.atr * self.params.multiplier): self.buy()
-        elif self.data.close < self.sma:
+            if self.data.close[0] > upper_band: 
+                self.buy()
+        elif self.data.close[0] < self.sma[0]:
             self.close()
 
 class ParabolicSarStrategy(BaseStrategy):
@@ -164,19 +181,16 @@ class ParabolicSarStrategy(BaseStrategy):
 
 class AdxStrategy(BaseStrategy):
     params = (('period', 14), ('threshold', 25))
-
     def __init__(self):
         super().__init__()
-        # ✅ ১. SMA ইন্ডিকেটরটি এখানে তৈরি করতে হবে (আগে এটি next() এর ভেতরে ছিল)
-        self.adx = bt.indicators.ADX(period=self.params.period)
-        self.sma = bt.indicators.SMA(self.data.close, period=20)
+        self.adx = bt.indicators.ADX(self.data, period=self.params.period) # ADX needs H/L/C
+        self.sma = bt.indicators.SMA(self.data.close, period=20) # ✅ Defined here
 
     def next(self):
         if not self.position:
-            # ✅ ২. এখানে self.sma ব্যবহার করুন (নতুন করে তৈরি করবেন না)
-            if self.adx > self.params.threshold and self.data.close > self.sma:
-                 self.buy()
-        elif self.adx < self.params.threshold:
+            if self.adx[0] > self.params.threshold and self.data.close[0] > self.sma[0]:
+                self.buy()
+        elif self.adx[0] < self.params.threshold:
             self.close()
 
 # -----------------------------------------------------------

@@ -4,7 +4,11 @@ import { useBacktest } from '@/context/BacktestContext';
 import SearchableSelect from '@/components/common/SearchableSelect';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { UploadCloud, RefreshCw, ShieldCheck, ShieldAlert, Wallet, Calendar, Clock, History, ChevronLeft, ChevronRight, PlusCircle, Play, Layers, GitMerge, Settings, Cpu, BarChart2, Target, Filter } from 'lucide-react';
+import {
+    UploadCloud, RefreshCw, ShieldCheck, ShieldAlert, Wallet, Calendar, Clock, History,
+    ChevronLeft, ChevronRight, PlusCircle, Play, Layers, GitMerge, Settings, Cpu,
+    BarChart2, Target, Filter, CheckSquare, Square // ✅ Added CheckSquare, Square
+} from 'lucide-react';
 import { StrategyBuilderModal } from './StrategyBuilderModal';
 import { StrategyParams } from './StrategyParams'; // Import StrategyParams
 import { getYear, getMonth } from 'date-fns';
@@ -58,8 +62,8 @@ interface BacktestFormProps {
     setEnableRiskManagement: (v: boolean) => void;
     initialCash: number;
     setInitialCash: (v: number) => void;
-    mode: 'backtest' | 'optimization' | 'walk_forward';
-    setMode: (m: 'backtest' | 'optimization' | 'walk_forward') => void;
+    mode: 'backtest' | 'optimization' | 'walk_forward' | 'batch'; // ✅ Added 'batch'
+    setMode: (m: 'backtest' | 'optimization' | 'walk_forward' | 'batch') => void; // ✅ Added 'batch'
 
     // WFA Specific State Props
     wfaTrainWindow: number;
@@ -72,10 +76,14 @@ interface BacktestFormProps {
     setWfaPopSize: (n: number) => void;
     wfaGenerations: number;
     setWfaGenerations: (n: number) => void;
-    wfaOptTarget: string; // ✅ New
-    setWfaOptTarget: (s: string) => void; // ✅ New
-    wfaMinTrades: number; // ✅ New
-    setWfaMinTrades: (n: number) => void; // ✅ New
+    wfaOptTarget: string; // ✅ Added missing prop
+    setWfaOptTarget: (s: string) => void;
+    wfaMinTrades: number;
+    setWfaMinTrades: (n: number) => void;
+
+    // Batch Props (New)
+    batchStrategies: string[];
+    setBatchStrategies: (list: string[]) => void;
 
     // New Props for StrategyParams
     activeTab: string;
@@ -128,8 +136,9 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
     wfaMethod, setWfaMethod,
     wfaPopSize, setWfaPopSize,
     wfaGenerations, setWfaGenerations,
-    wfaOptTarget, setWfaOptTarget, // ✅ New
-    wfaMinTrades, setWfaMinTrades, // ✅ New
+    wfaOptTarget, setWfaOptTarget,
+    wfaMinTrades, setWfaMinTrades,
+    batchStrategies, setBatchStrategies, // ✅ New
     activeTab,
     params, setParams,
     optimizationParams, setOptimizationParams,
@@ -140,12 +149,25 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
     const {
         commission, setCommission,
         slippage, setSlippage,
-        leverage, setLeverage, // ✅ NEW
+        leverage, setLeverage,
         secondaryTimeframe, setSecondaryTimeframe,
         stopLoss, setStopLoss,
         takeProfit, setTakeProfit,
         trailingStop, setTrailingStop
     } = useBacktest();
+
+    const toggleBatchStrategy = (strat: string) => {
+        if (batchStrategies.includes(strat)) {
+            setBatchStrategies(batchStrategies.filter(s => s !== strat));
+        } else {
+            setBatchStrategies([...batchStrategies, strat]);
+        }
+    };
+
+    const isOptimizationOrWfa = activeTab === 'optimization' || activeTab === 'walk_forward';
+
+    // ✅ FIX: Filter out duplicates from Custom Strategies
+    const uniqueCustomStrategies = customStrategies.filter(s => !strategies.includes(s));
 
     // ✅ নতুন স্টেট: ডাইনামিক টাইমফ্রেম স্টোর করার জন্য
     const [availableTimeframes, setAvailableTimeframes] = useState<string[]>(DEFAULT_TIMEFRAMES);
@@ -386,29 +408,51 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                     </div>
                 )}
 
-                {/* Strategies */}
-                <div>
-                    <div className="flex justify-between items-center mb-1">
-                        <label className="block text-sm font-medium text-gray-500">Strategy</label>
-                        <button
-                            onClick={() => setIsBuilderOpen(true)}
-                            className="text-xs flex items-center gap-1 text-brand-primary hover:text-brand-primary/80 font-semibold transition-colors"
-                        >
-                            <PlusCircle size={12} /> New
-                        </button>
-                    </div>
-                    <select className={inputBaseClasses} value={strategy} onChange={(e) => setStrategy(e.target.value)}>
-                        <optgroup label="Strategy Library">
-                            {strategies.map(s => <option key={s} value={s}>{s}</option>)}
-                        </optgroup>
-
-                        {customStrategies.length > 0 && (
-                            <optgroup label="My Custom Strategies">
-                                {customStrategies.map(s => <option key={s} value={s}>{s}</option>)}
+                {/* Strategy Selection Logic */}
+                {activeTab !== 'batch' ? (
+                    <div>
+                        <div className="flex justify-between items-center mb-1">
+                            <label className="block text-sm font-medium text-gray-500">Strategy</label>
+                            <button
+                                onClick={() => setIsBuilderOpen(true)}
+                                className="text-xs flex items-center gap-1 text-brand-primary hover:text-brand-primary/80 font-semibold transition-colors"
+                            >
+                                <PlusCircle size={12} /> New
+                            </button>
+                        </div>
+                        <select className={inputBaseClasses} value={strategy} onChange={(e) => setStrategy(e.target.value)}>
+                            <optgroup label="Strategy Library">
+                                {strategies.map(s => <option key={`lib-${s}`} value={s}>{s}</option>)}
                             </optgroup>
-                        )}
-                    </select>
-                </div>
+
+                            {uniqueCustomStrategies.length > 0 && (
+                                <optgroup label="My Custom Strategies">
+                                    {uniqueCustomStrategies.map(s => <option key={`cust-${s}`} value={s}>{s}</option>)}
+                                </optgroup>
+                            )}
+                        </select>
+                    </div>
+                ) : (
+                    /* ✅ BATCH MODE: Multi-Strategy Selector */
+                    <div className="bg-gray-50 dark:bg-slate-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 col-span-1 md:col-span-2 lg:col-span-3">
+                        <h3 className="text-sm font-bold mb-3 flex items-center gap-2 text-slate-700 dark:text-slate-300">
+                            <CheckSquare size={16} /> Select Strategies for Batch Run
+                        </h3>
+                        {/* Combine and Deduplicate for Batch List */}
+                        <div className="h-40 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded p-2 bg-white dark:bg-slate-900 grid grid-cols-2 md:grid-cols-3 gap-2">
+                            {Array.from(new Set([...strategies, ...customStrategies])).map(s => (
+                                <div key={`batch-${s}`}
+                                    onClick={() => toggleBatchStrategy(s)}
+                                    className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${batchStrategies.includes(s) ? 'bg-blue-100 dark:bg-blue-900/30 border border-blue-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800 border border-transparent'}`}
+                                >
+                                    {batchStrategies.includes(s) ? <CheckSquare size={14} className="text-blue-600" /> : <Square size={14} className="text-gray-400" />}
+                                    <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{s}</span>
+                                </div>
+                            ))}
+                        </div>
+                        <p className="text-xs text-gray-500 mt-2">Selected: {batchStrategies.length}</p>
+                    </div>
+                )}
 
                 {/* ✅ Strategy Parameters Section */}
                 {activeTab !== 'batch' && (
@@ -428,7 +472,7 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                     </div>
                 )}
 
-                {/* 2. Walk-Forward Dynamic Settings Section */}
+                {/* ✅ WFA Configuration (Only for WFA) */}
                 {activeTab === 'walk_forward' && (
                     <div className="col-span-1 md:col-span-2 lg:col-span-3 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl p-4 animate-fade-in space-y-4 mb-6">
                         <div className="flex items-center gap-2 border-b border-blue-200 dark:border-blue-800 pb-2">
@@ -456,8 +500,7 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                                     className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-gray-700 rounded p-2 text-sm"
                                 />
                             </div>
-
-                            {/* ✅ NEW: Optimization Objective & Constraints */}
+                            {/* Optimization Target */}
                             <div className="col-span-2 grid grid-cols-2 gap-4 pt-2 border-t border-blue-200 dark:border-blue-800">
                                 <div>
                                     <label className="text-xs font-semibold text-gray-500 mb-1 block">Optimization Target</label>
@@ -483,27 +526,39 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                                     />
                                 </div>
                             </div>
+                        </div>
+                    </div>
+                )}
 
+                {/* ✅ Shared Optimization Engine Settings (For Optimization AND WFA) */}
+                {isOptimizationOrWfa && (
+                    <div className="col-span-1 md:col-span-2 lg:col-span-3 bg-purple-50/50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800 rounded-xl p-4 animate-fade-in space-y-4 mb-6">
+                        <div className="flex items-center gap-2 border-b border-purple-200 dark:border-purple-800 pb-2">
+                            <Settings size={18} className="text-purple-600 dark:text-purple-400" />
+                            <h3 className="text-sm font-bold text-purple-800 dark:text-purple-300">Optimization Engine</h3>
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
                             {/* Optimization Method */}
                             <div className="col-span-2">
-                                <label className="text-xs font-semibold text-gray-500 mb-1 block">Optimization Logic</label>
+                                <label className="text-xs font-semibold text-gray-500 mb-1 block">Method</label>
                                 <div className="flex gap-2">
                                     <button
                                         onClick={() => setWfaMethod('grid')}
-                                        className={`flex-1 py-2 text-xs font-medium rounded border ${wfaMethod === 'grid' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white dark:bg-slate-900 text-gray-600 border-gray-300'}`}
+                                        className={`flex-1 py-2 text-xs font-medium rounded border ${wfaMethod === 'grid' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-slate-900 text-gray-600 border-gray-300'}`}
                                     >
-                                        Grid Search (Precise)
+                                        Grid Search
                                     </button>
                                     <button
                                         onClick={() => setWfaMethod('genetic')}
                                         className={`flex-1 py-2 text-xs font-medium rounded border ${wfaMethod === 'genetic' ? 'bg-purple-600 text-white border-purple-600' : 'bg-white dark:bg-slate-900 text-gray-600 border-gray-300'}`}
                                     >
-                                        Genetic Algorithm (Fast)
+                                        Genetic Algo
                                     </button>
                                 </div>
                             </div>
 
-                            {/* Genetic Params (Conditional) */}
+                            {/* Genetic Params */}
                             {wfaMethod === 'genetic' && (
                                 <>
                                     <div className="animate-fade-in">

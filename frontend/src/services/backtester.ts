@@ -214,6 +214,7 @@ export const backtestService = {
     runBacktest: runBacktestApi,
     runOptimization: runOptimizationApi,
     runWalkForward: runWalkForwardApi,
+    runBatchBacktest: runBatchBacktest, // ✅ Added Batch
     getStatus: getTaskStatus,
     revokeTask: revokeBacktestTask
 };
