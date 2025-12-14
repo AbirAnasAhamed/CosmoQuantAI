@@ -108,6 +108,19 @@ export interface BacktestRequest {
   trailing_stop?: number;
 }
 
+
+// 1. নতুন ইন্টারফেস যোগ করুন
+export interface MonteCarloMetrics {
+  simulations: number;
+  median_equity: number;
+  median_profit: number;
+  worst_case_equity_95: number;
+  best_case_equity_95: number;
+  risk_of_ruin_percent: number;
+  expected_max_drawdown: number;
+  worst_case_drawdown_95: number;
+}
+
 export interface BacktestResult {
   id?: string;
   market: string;
@@ -137,6 +150,7 @@ export interface BacktestResult {
 
   // New Metrics for TradingView Style Panel
   metrics?: BacktestMetrics;
+  monte_carlo?: MonteCarloMetrics; // 👈 এই লাইনটি যোগ করুন (অপশনাল হিসেবে)
   trade_analysis?: TradeAnalysisMetrics;
   equity_curve?: { time: number; value: number }[]; // ✅ Add this line
 

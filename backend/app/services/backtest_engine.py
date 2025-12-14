@@ -342,6 +342,13 @@ class BacktestEngine:
             print(f"⚠️ Error extracting equity curve: {e}")
             equity_curve = []
 
+        # ✅ NEW: Run Monte Carlo Simulation
+        monte_carlo_results = self.perform_monte_carlo(first_strat, initial_cash)
+        
+        # ✅ PRINT: Monte Carlo Summary
+        if monte_carlo_results:
+            print(f"🎲 Monte Carlo (1000 Runs): Risk of Ruin: {monte_carlo_results['risk_of_ruin_percent']}% | Median Profit: {monte_carlo_results['median_profit']}")
+
         # ✅ PRINT: with Leverage Info
         print(f"\n📊 Backtest Result for {symbol} ({timeframe}) | Lev: {leverage}x")
         print(f"------------------------------------------------")
@@ -368,7 +375,8 @@ class BacktestEngine:
             "trades_log": executed_trades, 
             "candle_data": chart_candles,
             "trade_analysis": detailed_trade_analysis,
-            "equity_curve": equity_curve
+            "equity_curve": equity_curve,
+            "monte_carlo": monte_carlo_results
         }
 
     def _format_trade_analysis(self, strategy):
@@ -439,8 +447,76 @@ class BacktestEngine:
         except Exception as e:
             return {}
 
+    # ✅ NEW: Monte Carlo Simulation Implementation
+    def perform_monte_carlo(self, strategy, initial_cash, simulations=1000, confidence_level=0.95):
+        """
+        ট্রেডগুলোকে এলোমেলো (Shuffle) করে ১০০০ বার সিমুলেশন চালায়
+        Risk of Ruin এবং সম্ভাব্য ড্রডাউন বের করার জন্য।
+        """
+        trades_pnl = []
+        
+        # ১. সমস্ত ক্লোজড ট্রেডের PnL বের করা
+        if hasattr(strategy, '_trades'):
+            for feed in strategy._trades:
+                # strategy._trades[feed] একটি লিস্ট, যার [0] ইনডেক্সে ক্লোজড ট্রেড থাকে
+                for t in strategy._trades[feed][0]:
+                    trades_pnl.append(t.pnl) # নেট PnL
+        
+        if not trades_pnl or len(trades_pnl) < 10:
+            return None # পর্যাপ্ত ট্রেড না থাকলে মন্টে কার্লো করা যাবে না
+
+        trades_pnl = np.array(trades_pnl)
+        final_equities = []
+        max_drawdowns = []
+        ruin_count = 0
+        
+        # ২. সিমুলেশন লুপ
+        for _ in range(simulations):
+            # ট্রেডগুলোকে এলোমেলো করা (Sequence Risk টেস্ট করার জন্য)
+            shuffled_pnl = np.random.permutation(trades_pnl)
+            
+            # ইকুইটি কার্ভ তৈরি করা (Cumulative Sum)
+            equity_curve = np.cumsum(np.insert(shuffled_pnl, 0, initial_cash))
+            
+            final_equity = equity_curve[-1]
+            final_equities.append(final_equity)
+            
+            # Bankruptcy Check (যদি ইকুইটি ২০% এর নিচে চলে যায় বা ০ হয়)
+            if np.min(equity_curve) < (initial_cash * 0.2): # ধরা যাক ২০% ক্যাশ বাকি থাকলে দেউলিয়া
+                ruin_count += 1
+                
+            # Max Drawdown Calculation for this simulation
+            peak = np.maximum.accumulate(equity_curve)
+            drawdown = (equity_curve - peak) / peak
+            max_drawdowns.append(np.min(drawdown) * 100)
+
+        # ৩. স্ট্যাটিস্টিক্স ক্যালকুলেশন
+        final_equities = np.sort(final_equities)
+        max_drawdowns = np.sort(max_drawdowns)
+
+        median_return = np.median(final_equities) - initial_cash
+        worst_case_return = np.percentile(final_equities, 5) - initial_cash # ৯৫% কনফিডেন্স
+        best_case_return = np.percentile(final_equities, 95) - initial_cash
+        
+        avg_drawdown = np.mean(max_drawdowns)
+        worst_drawdown = np.percentile(max_drawdowns, 5) # মনে রাখবেন ড্রডাউন নেগেটিভ ভ্যালু
+        
+        risk_of_ruin = (ruin_count / simulations) * 100
+
+        return {
+            "simulations": simulations,
+            "median_equity": round(float(np.median(final_equities)), 2),
+            "median_profit": round(float(median_return), 2),
+            "worst_case_equity_95": round(float(np.percentile(final_equities, 5)), 2), # VaR (Value at Risk)
+            "best_case_equity_95": round(float(np.percentile(final_equities, 95)), 2),
+            "risk_of_ruin_percent": round(risk_of_ruin, 2),
+            "expected_max_drawdown": round(float(avg_drawdown), 2),
+            "worst_case_drawdown_95": round(float(worst_drawdown), 2)
+        }
+
     def optimize(self, db: Session, symbol: str, timeframe: str, strategy_name: str, initial_cash: float, params: dict, 
                  start_date: str = None, end_date: str = None, custom_data_file: str = None,  # ✅ Added custom_data_file
+
                  method="grid", population_size=50, generations=10, progress_callback=None, abort_callback=None,
                  commission: float = 0.001, slippage: float = 0.0, leverage: float = 1.0):
         

@@ -3,6 +3,7 @@ import { Activity, Layers } from 'lucide-react';
 import BacktestChart from '@/components/features/backtest/BacktestChart';
 import UnderwaterChart from '@/components/features/backtest/UnderwaterChart';
 import EquityChart from '@/components/features/backtest/EquityChart';
+import MonteCarloCard from './MonteCarloCard';
 import { BacktestResult } from '@/types';
 
 // --- Helper Components ---
@@ -108,6 +109,13 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ singleResult, result
                     />
                 </div>
             </div>
+
+            {/* ✅ NEW: Monte Carlo Section */}
+            {singleResult.monte_carlo && (
+                <div className="mt-6 h-[400px]">
+                    <MonteCarloCard metrics={singleResult.monte_carlo} />
+                </div>
+            )}
 
             {/* B. Performance Summary Panel */}
             <div className="bg-[#131722] border border-[#2A2E39] rounded-lg overflow-hidden shadow-lg animate-fade-in">
