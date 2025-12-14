@@ -222,7 +222,7 @@ def run_optimization_task(self, symbol: str, timeframe: str, strategy_name: str,
 @celery_app.task(bind=True)
 def run_walk_forward_task(self, symbol, timeframe, strategy_name, initial_cash, params, start_date, end_date, 
                           train_window_days, test_window_days, method, population_size, generations, 
-                          commission, slippage, leverage):
+                          commission, slippage, leverage, opt_target='profit', min_trades=5): # ✅ ১. আর্গুমেন্ট যোগ করা হলো
     
     # Callback Wrapper for Celery
     def progress_callback(percent, meta=None):
@@ -237,7 +237,7 @@ def run_walk_forward_task(self, symbol, timeframe, strategy_name, initial_cash, 
         # Add publish for WFA realtime updates
         publish_task_status('WFA', self.request.id, 'processing', percent, data=meta)
 
-    db = SessionLocal() # Ensure DB session is created
+    db = SessionLocal()
     engine = BacktestEngine()
     
     try:
@@ -245,14 +245,15 @@ def run_walk_forward_task(self, symbol, timeframe, strategy_name, initial_cash, 
         progress_callback(0, meta={"status": "Initializing WFA..."})
 
         result = engine.walk_forward(
-            db=db, # Pass the session correctly
+            db=db,
             symbol=symbol, timeframe=timeframe, strategy_name=strategy_name,
             initial_cash=initial_cash, params=params,
             start_date=start_date, end_date=end_date,
             train_window_days=train_window_days, test_window_days=test_window_days,
             method=method, population_size=population_size, generations=generations,
             commission=commission, slippage=slippage, leverage=leverage,
-            progress_callback=progress_callback # ✅ Passing the callback
+            opt_target=opt_target, min_trades=min_trades, # ✅ ২. ইঞ্জিনে পাস করা হলো
+            progress_callback=progress_callback
         )
         
         if result.get("status") == "success":
