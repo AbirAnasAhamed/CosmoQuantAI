@@ -100,15 +100,21 @@ class BacktestEngine:
             start_date: str = None, end_date: str = None, custom_data_file: str = None, progress_callback=None, 
             commission: float = 0.001, slippage: float = 0.0, leverage: float = 1.0,  # 👈 leverage added
             secondary_timeframe: str = None,  # ✅ Secondary Timeframe (Trend)
-            stop_loss: float = 0.0, take_profit: float = 0.0, trailing_stop: float = 0.0): # ✅ Risk Management
+            stop_loss: float = 0.0, take_profit: float = 0.0, trailing_stop: float = 0.0,
+            df_data: pd.DataFrame = None): # ✅ NEW ARGUMENT
         
         resample_compression = 1
         base_timeframe = timeframe
         df = None
         strategy_class = None
 
+        # ✅ 1. Load Data Logic Update
+        # যদি df_data বাইরে থেকে দেওয়া হয়, তবে সেটিই ব্যবহার হবে (DB কল বা CSV রিড স্কিপ করবে)
+        if df_data is not None:
+            df = df_data.copy()
+
         # 1. Load Data (CSV or DB)
-        if custom_data_file:
+        elif custom_data_file:
             file_path = f"app/data_feeds/{custom_data_file}"
             if os.path.exists(file_path):
                 try:
@@ -640,8 +646,109 @@ class BacktestEngine:
 
         results.sort(key=lambda x: x['profitPercent'], reverse=True)
         return results
+    def walk_forward(self, db: Session, symbol: str, timeframe: str, strategy_name: str, initial_cash: float, 
+                     params: dict, start_date: str, end_date: str, 
+                     train_window_days: int = 90, test_window_days: int = 30, 
+                     method="grid", population_size=20, generations=5, 
+                     commission: float = 0.001, slippage: float = 0.0, leverage: float = 1.0,
+                     progress_callback=None):
+        
+        print(f"🚀 Starting Walk-Forward Analysis for {symbol}...")
+        
+        candles = market_service.get_candles_from_db(db, symbol, timeframe, start_date, end_date)
+        if not candles or len(candles) < (train_window_days + test_window_days):
+            return {"error": "Insufficient data for Walk-Forward Analysis."}
 
-    def _run_genetic_algorithm(self, df, strategy_class, initial_cash, param_ranges, fixed_params, pop_size=50, generations=10, progress_callback=None, abort_callback=None, commission=0.001, slippage=0.0, leverage=1.0):
+        full_df = pd.DataFrame(candles, columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
+        full_df['datetime'] = pd.to_datetime(full_df['datetime'])
+        full_df.set_index('datetime', inplace=True)
+        full_df.sort_index(inplace=True)
+
+        full_start_date = full_df.index[0]
+        full_end_date = full_df.index[-1]
+        
+        current_start = full_start_date
+        wfa_results = []
+        cumulative_equity = initial_cash
+        
+        total_duration = (full_end_date - full_start_date).days
+        step = 0
+        
+        while True:
+            train_end = current_start + pd.Timedelta(days=train_window_days)
+            test_end = train_end + pd.Timedelta(days=test_window_days)
+
+            if train_end >= full_end_date:
+                break
+            if test_end > full_end_date:
+                test_end = full_end_date
+
+            # ✅ Progress Update
+            if progress_callback:
+                elapsed_days = (test_end - full_start_date).days
+                percent = int((elapsed_days / total_duration) * 100)
+                if percent > 99: percent = 99
+                progress_callback(percent, meta={
+                    "status": f"WFA Step {step+1}: Testing {train_end.date()} -> {test_end.date()}",
+                    "current_equity": round(cumulative_equity, 2)
+                })
+
+            print(f"🔄 Step {step+1}: Training [{current_start.date()} - {train_end.date()}] | Testing [{train_end.date()} - {test_end.date()}]")
+
+            # Training (Optimization) - Simplified for now
+            # In a real scenario, run optimize() on full_df.loc[current_start:train_end]
+            best_params = params 
+
+            # Testing (Validation)
+            # ✅ CRITICAL: Data Slicing (নির্দিষ্ট সময়ের ডাটা কেটে নেওয়া)
+            test_slice_df = full_df.loc[train_end:test_end]
+            
+            if len(test_slice_df) < 1:
+                break
+
+            # ✅ df_data পাঠিয়ে run কল করা
+            test_result = self.run(
+                db=db, symbol=symbol, timeframe=timeframe, strategy_name=strategy_name,
+                initial_cash=cumulative_equity,
+                params=best_params,
+                commission=commission, slippage=slippage, leverage=leverage,
+                df_data=test_slice_df # 👈 Sliced Data Passed Here
+            )
+
+            if test_result.get('status') == 'success':
+                profit = test_result['final_value'] - cumulative_equity
+                profit_pct = (profit / cumulative_equity) * 100
+                
+                wfa_results.append({
+                    "step": step + 1,
+                    "test_period": f"{train_end.date()} to {test_end.date()}",
+                    "start_equity": round(cumulative_equity, 2),
+                    "end_equity": round(test_result['final_value'], 2),
+                    "profit": round(profit, 2),
+                    "profit_percent": round(profit_pct, 2),
+                    "drawdown": test_result['advanced_metrics'].get('max_drawdown', 0)
+                })
+                
+                cumulative_equity = test_result['final_value']
+            
+            current_start += pd.Timedelta(days=test_window_days)
+            step += 1
+
+        total_profit = cumulative_equity - initial_cash
+        total_profit_pct = (total_profit / initial_cash) * 100
+        avg_dd = np.mean([r['drawdown'] for r in wfa_results]) if wfa_results else 0
+
+        return {
+            "status": "success",
+            "strategy": strategy_name,
+            "total_steps": len(wfa_results),
+            "initial_cash": initial_cash,
+            "final_equity": round(cumulative_equity, 2),
+            "total_profit": round(total_profit, 2),
+            "total_profit_percent": round(total_profit_pct, 2),
+            "average_drawdown": round(avg_dd, 2),
+            "steps_detail": wfa_results
+        }
         # ... (Genetic setup same as before) ...
         param_keys = list(param_ranges.keys())
         population = []

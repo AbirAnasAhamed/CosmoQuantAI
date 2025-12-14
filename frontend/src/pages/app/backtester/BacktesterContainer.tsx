@@ -5,7 +5,7 @@ import { MOCK_STRATEGIES, MOCK_STRATEGY_PARAMS } from '@/constants';
 import {
     fetchCustomStrategyList, fetchStrategyCode, generateStrategy,
     fetchStandardStrategyParams, uploadStrategyFile,
-    fetchTradeFiles
+    fetchTradeFiles, revokeBacktestTask
 } from '@/services/backtester';
 import { useMarketData } from './hooks/useMarketData';
 import { useBacktestExecution } from './hooks/useBacktestExecution';
@@ -18,7 +18,8 @@ import { StrategyParams } from './components/StrategyParams';
 import { DownloadDataModal } from './components/DownloadDataModal';
 import { useDownloadData } from './hooks/useDownloadData';
 
-import { Activity, Layers, PlayIcon, CodeIcon, Download } from 'lucide-react';
+import { WalkForwardResults } from './components/WalkForwardResults'; // ✅ Import new component
+import { Activity, Layers, PlayIcon, CodeIcon, Download, GitMerge, RotateCcw, Square, Loader2 } from 'lucide-react';
 
 // --- Helper Functions ---
 const parseParamsFromCode = (code: string): Record<string, any> => {
@@ -54,11 +55,7 @@ export const BacktesterContainer: React.FC = () => {
     } = useDownloadData();
 
     const {
-        isRunning, progress, isOptimizing, optimizationProgress,
-        isBatchRunning, batchProgress, batchStatusMsg,
-        singleResult, batchResults, multiObjectiveResults,
-        runBacktest, runOptimization, runBatch, stopOptimization,
-        setSingleResult
+        execute, isLoading, progress, results, mode: currentMode, taskId // ✅ Get taskId
     } = useBacktestExecution();
 
     const {
@@ -78,6 +75,10 @@ export const BacktesterContainer: React.FC = () => {
     const [timeframe, setTimeframe] = useState('1h');
     const [startDate, setStartDate] = useState('2023-01-01');
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+    // ✅ NEW States for WFA & Mode
+    const [mode, setMode] = useState<'backtest' | 'optimization' | 'walk_forward'>('backtest');
+    const [wfaTrainWindow, setWfaTrainWindow] = useState(90);
+    const [wfaTestWindow, setWfaTestWindow] = useState(30);
 
     // Params State
     const [params, setParams] = useState<Record<string, any>>({});
@@ -113,33 +114,11 @@ export const BacktesterContainer: React.FC = () => {
 
 
     // --- Fix: Handle "View Chart" Click from Optimization Results ---
+    // Legacy Effect removed
     useEffect(() => {
         if (selectedBatchResult) {
-            // 1. Load Parameters from the selected result
-            if (selectedBatchResult.params) {
-                setParams(selectedBatchResult.params);
-            }
-
-            // 2. Set Strategy SAFELY
-            // If result has strategy name and it is not "Unknown", set it.
-            // Otherwise, keep using the current form strategy (likely what was just optimized).
-            if (selectedBatchResult.strategy && selectedBatchResult.strategy !== 'Unknown') {
-                setStrategy(selectedBatchResult.strategy);
-            } else {
-                console.warn("Strategy name missing in result, using current form strategy:", strategy);
-            }
-
-            // 2. Switch to Single Tab
-            setActiveTabState('single');
-
-            // 3. Logic: If result has no candle data (lightweight), we MUST run it to show chart
-            if (!selectedBatchResult.candle_data || selectedBatchResult.candle_data.length === 0) {
-                showToast('Re-running backtest to generate chart...', 'info');
-                setAutoRunTrigger(true); // Trigger the useEffect below
-            } else {
-                // If data exists, just show it
-                setSingleResult(selectedBatchResult);
-            }
+            // Logic disabled due to refactor
+            // setSingleResult(selectedBatchResult);
         }
     }, [selectedBatchResult]);
 
@@ -257,49 +236,42 @@ export const BacktesterContainer: React.FC = () => {
 
     const onRun = () => {
         // --- SAFETY CHECK ---
-        // Run check if strategy is "Unknown"
         if (strategy === 'Unknown') {
             showToast("Error: Strategy is Unknown. Please select a valid strategy.", "error");
             return;
         }
 
-        // Fix: Prepare payload respecting Risk Toggle
-        const riskPayload = enableRiskManagement ? {
-            stop_loss: stopLoss,
-            take_profit: takeProfit,
-            trailing_stop: trailingStop
-        } : {
-            stop_loss: 0,
-            take_profit: 0,
-            trailing_stop: 0
-        };
-
-        const commonPayload = {
+        const commonParams = {
             symbol: dataSource === 'csv' ? `FILE: ${csvFileName}` : symbol,
             timeframe,
             strategy,
             initial_cash: initialCash,
+            params, // Using params state
             start_date: startDate,
             end_date: endDate,
             commission,
             slippage,
-            ...riskPayload
+            leverage: 1 // Default leverage
         };
 
-        if (activeTab === 'single') {
-            runBacktest({
-                ...commonPayload,
-                params,
-                custom_data_file: dataSource === 'csv' ? uploadedDataFile : null,
-            });
-        } else if (activeTab === 'optimization') {
-            runOptimization({
-                ...commonPayload,
+        if (mode === 'walk_forward') {
+            execute({
+                ...commonParams,
+                train_window_days: wfaTrainWindow,
+                test_window_days: wfaTestWindow,
+                method: 'grid' // Defaulting to grid for inner loop
+            }, 'walk_forward');
+        } else if (mode === 'optimization') {
+            execute({
+                ...commonParams,
                 params: optimizationParams,
                 method: optimizationMethod === 'gridSearch' ? 'grid' : 'genetic',
                 population_size: gaParams.populationSize,
-                generations: gaParams.generations,
-            });
+                generations: gaParams.generations
+            }, 'optimization');
+        } else {
+            // Standard Backtest
+            execute(commonParams, 'backtest');
         }
     };
 
@@ -377,6 +349,18 @@ export const BacktesterContainer: React.FC = () => {
             showToast('Generated!', 'success');
         } catch (e) { console.error(e); }
         finally { setIsGenerating(false); }
+
+    };
+
+    // ✅ Stop/Revoke Handler
+    const handleStop = async () => {
+        if (!taskId) return;
+        try {
+            await revokeBacktestTask(taskId);
+            showToast('Task stopping...', 'info');
+        } catch (e) {
+            console.error(e);
+        }
     };
 
     return (
@@ -462,6 +446,12 @@ export const BacktesterContainer: React.FC = () => {
                         setEnableRiskManagement={setEnableRiskManagement}
                         initialCash={initialCash}
                         setInitialCash={setInitialCash}
+                        mode={mode}
+                        setMode={setMode}
+                        wfaTrainWindow={wfaTrainWindow}
+                        setWfaTrainWindow={setWfaTrainWindow}
+                        wfaTestWindow={wfaTestWindow}
+                        setWfaTestWindow={setWfaTestWindow}
                     />
 
                     <StrategyParams
@@ -482,81 +472,70 @@ export const BacktesterContainer: React.FC = () => {
                     <div className="mt-8 pt-6 border-t border-brand-border-light dark:border-brand-border-dark">
 
                         {/* Visual Progress Bar (Modernized) */}
-                        {(isRunning || isOptimizing || isBatchRunning) && (
-                            <div className="mb-8 bg-brand-dark/40 p-5 rounded-xl border border-brand-primary/20 backdrop-blur-sm shadow-lg shadow-brand-primary/5 relative overflow-hidden animate-fade-in">
-
-                                {/* Header part */}
-                                <div className="flex justify-between text-sm mb-3 items-center z-10 relative">
-                                    <span className="text-gray-300 font-medium flex items-center gap-2">
-                                        {/* Spinner Icon */}
-                                        <svg className="animate-spin h-4 w-4 text-brand-primary" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                                        </svg>
-                                        {isOptimizing ? 'Optimizing Strategies...' : (isBatchRunning ? batchStatusMsg : 'Backtesting in progress...')}
+                        {isLoading && (
+                            <div className="mb-4">
+                                <div className="flex justify-between text-sm mb-2 items-center">
+                                    <span className="text-gray-500 dark:text-gray-400 font-medium flex items-center gap-2">
+                                        <Loader2 className="animate-spin h-4 w-4 text-brand-primary" />
+                                        {mode === 'optimization' ? 'Optimizing...' : (mode === 'walk_forward' ? 'Walk-Forward Analysis...' : 'Running Backtest...')}
                                     </span>
-                                    <span className="text-brand-primary font-bold font-mono">{(isOptimizing ? optimizationProgress : (isBatchRunning ? batchProgress : progress)).toFixed(1)}%</span>
+                                    <span className="text-brand-primary font-bold">{progress.toFixed(0)}%</span>
                                 </div>
-
-                                {/* The Modern Animated Progress Bar Container */}
-                                <div className="h-3 bg-brand-dark/80 rounded-full overflow-hidden p-[2px] shadow-inner border border-brand-primary/10 relative z-10">
-                                    {/* The Animated Bar */}
+                                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
                                     <div
-                                        className="h-full rounded-full bg-brand-primary 
-                                                   bg-striped-gradient bg-[length:30px_30px] animate-striped-flow 
-                                                   transition-all duration-500 ease-out
-                                                   relative overflow-hidden shadow-[0_0_10px_rgba(var(--brand-primary),0.6)]"
-                                        style={{ width: `${isOptimizing ? optimizationProgress : (isBatchRunning ? batchProgress : progress)}%` }}
+                                        className="bg-brand-primary h-2.5 rounded-full transition-all duration-500 ease-out relative"
+                                        style={{ width: `${progress}%` }}
                                     >
-                                        {/* Optional: A subtle "shine" effect overlaid */}
-                                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent -skew-x-12 animate-pulse opacity-50"></div>
+                                        <div className="absolute inset-0 bg-white/20 animate-pulse"></div>
                                     </div>
                                 </div>
-
-                                {/* Sub-text */}
-                                <p className="text-center text-xs text-gray-400 mt-3 animate-pulse z-10 relative">
-                                    Crunching historical data and simulating trades...
-                                </p>
-
-                                {/* Background Glow Effect */}
-                                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-3/4 h-1/2 bg-brand-primary/10 blur-[50px] rounded-full -z-0"></div>
                             </div>
                         )}
 
                         <div className="flex items-center gap-4">
-                            {activeTab !== 'batch' && (
-                                <button onClick={onRun} disabled={isRunning || isOptimizing} className="bg-brand-primary text-white px-6 py-2 rounded-lg font-bold hover:opacity-90 disabled:opacity-50">
-                                    {isOptimizing ? `Optimizing (${optimizationProgress}%)` : (isRunning ? `Running (${progress}%)` : (activeTab === 'optimization' ? 'Run Optimization' : 'Run Backtest'))}
-                                </button>
-                            )}
-                            {activeTab === 'optimization' && isOptimizing && (
-                                <button onClick={stopOptimization} className="text-red-500 border border-red-500 px-4 py-2 rounded-lg hover:bg-red-50">Stop</button>
-                            )}
-                            {activeTab === 'batch' && (
+                            <button
+                                onClick={onRun}
+                                disabled={isLoading}
+                                className="flex-1 py-3 text-lg shadow-lg shadow-brand-primary/20 bg-brand-primary text-white rounded-lg font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                            >
+                                {isLoading ? (
+                                    <span className="flex items-center gap-2">
+                                        Processing...
+                                    </span>
+                                ) : (
+                                    <span className="flex items-center gap-2">
+                                        {mode === 'walk_forward' ? <GitMerge size={20} /> : <PlayIcon size={20} />}
+                                        Run {mode === 'walk_forward' ? 'Walk-Forward' : mode === 'optimization' ? 'Optimization' : 'Backtest'}
+                                    </span>
+                                )}
+                            </button>
+
+                            {/* ✅ Stop Button */}
+                            {isLoading && (
                                 <button
-                                    onClick={() => runBatch({ strategies: strategies.concat(customStrategies), symbol, timeframe, start_date: startDate, end_date: endDate, initial_cash: initialCash })}
-                                    disabled={isBatchRunning}
-                                    className="bg-purple-600 text-white px-6 py-2 rounded-lg font-bold hover:opacity-90 disabled:opacity-50"
+                                    onClick={handleStop}
+                                    className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg shadow-lg font-bold transition-all flex items-center justify-center"
+                                    title="Stop Execution"
                                 >
-                                    {isBatchRunning ? batchStatusMsg : 'Start Batch Run'}
+                                    <Square size={20} fill="currentColor" />
                                 </button>
                             )}
                         </div>
                     </div>
 
-                    <ResultsPanel
-                        singleResult={singleResult!}
-                        resultsTab={resultsTab}
-                        setResultsTab={setResultsTab}
-                    />
+                    {results ? (
+                        mode === 'walk_forward' ? (
+                            <WalkForwardResults results={results} />
+                        ) : (
+                            <ResultsPanel
+                                singleResult={results!}
+                                resultsTab={resultsTab}
+                                setResultsTab={setResultsTab}
+                            />
+                        )
+                    ) : null}
 
-                    <BatchResults
-                        batchResults={batchResults || []}
-                        multiObjectiveResults={multiObjectiveResults || []}
-                        viewMode={viewMode}
-                        setViewMode={setViewMode}
-                        setSelectedBatchResult={setSelectedBatchResult}
-                    />
+                    {/* BatchResults disabled */}
                 </>
             )}
 

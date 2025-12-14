@@ -187,6 +187,55 @@ def run_optimization_task(self, symbol: str, timeframe: str, strategy_name: str,
         db.close()
 
 @celery_app.task(bind=True)
+def run_walk_forward_task(self, symbol, timeframe, strategy_name, initial_cash, params, start_date, end_date, 
+                          train_window_days, test_window_days, method, population_size, generations, 
+                          commission, slippage, leverage):
+    
+    # Callback Wrapper for Celery
+    def progress_callback(percent, meta=None):
+        self.update_state(
+            state='PROGRESS',
+            meta={
+                'percent': percent,
+                'status': meta.get('status', 'Processing...') if meta else 'Processing...',
+                'current_equity': meta.get('current_equity', 0) if meta else 0
+            }
+        )
+
+    db = SessionLocal() # Ensure DB session is created
+    engine = BacktestEngine()
+    
+    try:
+        # Initial status
+        progress_callback(0, meta={"status": "Initializing WFA..."})
+
+        result = engine.walk_forward(
+            db=db, # Pass the session correctly
+            symbol=symbol, timeframe=timeframe, strategy_name=strategy_name,
+            initial_cash=initial_cash, params=params,
+            start_date=start_date, end_date=end_date,
+            train_window_days=train_window_days, test_window_days=test_window_days,
+            method=method, population_size=population_size, generations=generations,
+            commission=commission, slippage=slippage, leverage=leverage,
+            progress_callback=progress_callback # ✅ Passing the callback
+        )
+        
+        if result.get("status") == "success":
+             publish_task_status('WFA', self.request.id, 'completed', 100, result)
+        else:
+             publish_task_status('WFA', self.request.id, 'failed', 0, result)
+             
+        return result
+
+    except Exception as e:
+        print(f"❌ WFA Task Error: {e}", flush=True)
+        publish_task_status('WFA', self.request.id, 'failed', 0, {"error": str(e)})
+        return {"status": "error", "message": str(e)}
+        
+    finally:
+        db.close()
+
+@celery_app.task(bind=True)
 def run_batch_backtest_task(self, symbol: str, timeframe: str, initial_cash: float, strategies: list = None, start_date: str = None, end_date: str = None, commission: float = 0.001, slippage: float = 0.0):
     db = SessionLocal()
     engine = BacktestEngine()

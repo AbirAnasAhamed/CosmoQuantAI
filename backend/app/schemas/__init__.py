@@ -114,6 +114,23 @@ class OptimizationRequest(BaseModel):
     slippage: float = 0.0
     leverage: float = 1.0 # ✅ NEW
 
+class WalkForwardRequest(BaseModel):
+    symbol: str
+    timeframe: str
+    strategy: str
+    initial_cash: float = 10000.0
+    params: Dict[str, Any]
+    start_date: str
+    end_date: str
+    train_window_days: int = 90  # ডিফল্ট ৩ মাস ট্রেনিং
+    test_window_days: int = 30   # ডিফল্ট ১ মাস টেস্টিং
+    method: str = "grid"
+    population_size: int = 20  # ✅ Add this
+    generations: int = 5       # ✅ Add this
+    commission: float = 0.001
+    slippage: float = 0.0
+    leverage: float = 1.0
+
 # Download Data Schema
 class DownloadRequest(BaseModel):
     exchange: str

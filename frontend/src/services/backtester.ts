@@ -44,6 +44,22 @@ export interface BatchBacktestParams {
     slippage?: number;
 }
 
+export interface WalkForwardRequest {
+    symbol: string;
+    timeframe: string;
+    strategy: string;
+    initial_cash: number;
+    params: Record<string, any>;
+    start_date: string;
+    end_date: string;
+    train_window_days: number;
+    test_window_days: number;
+    method?: string;
+    commission?: number;
+    slippage?: number;
+    leverage?: number;
+}
+
 // --- API Calls Updated with '/v1' prefix and correct router paths ---
 
 export const runBacktestApi = async (payload: BacktestRequest) => {
@@ -61,6 +77,11 @@ export const runBatchBacktest = async (params: BatchBacktestParams) => {
 export const runOptimizationApi = async (payload: OptimizationRequest) => {
     // আগে ছিল: '/backtest/optimize' -> এখন: '/v1/backtest/optimize'
     const response = await apiClient.post('/v1/backtest/optimize', payload);
+    return response.data;
+};
+
+export const runWalkForwardApi = async (payload: WalkForwardRequest) => {
+    const response = await apiClient.post('/v1/backtest/walk-forward', payload);
     return response.data;
 };
 
@@ -183,4 +204,12 @@ export const convertData = async (payload: { filename: string; timeframe: string
     // ✅ সঠিক রাউট: '/v1/backtest/convert-data'
     const response = await apiClient.post('/v1/backtest/convert-data', payload);
     return response.data;
+};
+
+export const backtestService = {
+    runBacktest: runBacktestApi,
+    runOptimization: runOptimizationApi,
+    runWalkForward: runWalkForwardApi,
+    getStatus: getTaskStatus,
+    revokeTask: revokeBacktestTask
 };

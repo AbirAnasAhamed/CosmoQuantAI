@@ -5,7 +5,7 @@ import os
 import pandas as pd
 from app import models, schemas
 from app.api import deps
-from app.tasks import run_backtest_task, run_optimization_task, download_candles_task, download_trades_task, run_batch_backtest_task
+from app.tasks import run_backtest_task, run_optimization_task, download_candles_task, download_trades_task, run_batch_backtest_task, run_walk_forward_task
 from app.celery_app import celery_app
 from app import utils
 
@@ -35,6 +35,37 @@ def run_backtest(
         trailing_stop=request.trailing_stop
     )
     return {"task_id": task.id, "status": "Processing"}
+
+
+@router.post("/walk-forward")
+def run_walk_forward(
+    request: schemas.WalkForwardRequest
+):
+    # প্যারামিটার ডিকশনারিতে কনভার্ট করা
+    params_dict = {}
+    for k, v in request.params.items():
+        params_dict[k] = v.model_dump() if hasattr(v, 'model_dump') else v
+
+    # টাস্ক কল করা (সতর্কতা: এখানে কোনো ডুপ্লিকেট আর্গুমেন্ট নেই)
+    task = run_walk_forward_task.delay(
+        symbol=request.symbol,
+        timeframe=request.timeframe,
+        strategy_name=request.strategy,
+        initial_cash=request.initial_cash,
+        params=params_dict,
+        start_date=request.start_date,
+        end_date=request.end_date,
+        train_window_days=request.train_window_days,
+        test_window_days=request.test_window_days,
+        method=request.method,
+        population_size=getattr(request, 'population_size', 20), 
+        generations=getattr(request, 'generations', 5),
+        commission=request.commission,
+        slippage=request.slippage,
+        leverage=request.leverage
+    )
+    
+    return {"task_id": task.id, "status": "Processing WFA"}
 
 @router.post("/batch")
 def run_batch_backtest(

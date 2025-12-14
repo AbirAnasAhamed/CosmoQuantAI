@@ -4,7 +4,7 @@ import { useBacktest } from '@/context/BacktestContext';
 import SearchableSelect from '@/components/common/SearchableSelect';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { UploadCloud, RefreshCw, ShieldCheck, ShieldAlert, Wallet, Calendar, Clock, History, ChevronLeft, ChevronRight, PlusCircle } from 'lucide-react';
+import { UploadCloud, RefreshCw, ShieldCheck, ShieldAlert, Wallet, Calendar, Clock, History, ChevronLeft, ChevronRight, PlusCircle, Play, Layers, GitMerge } from 'lucide-react';
 import { StrategyBuilderModal } from './StrategyBuilderModal';
 import { getYear, getMonth } from 'date-fns';
 import Button from '@/components/common/Button';
@@ -57,6 +57,12 @@ interface BacktestFormProps {
     setEnableRiskManagement: (v: boolean) => void;
     initialCash: number;
     setInitialCash: (v: number) => void;
+    mode: 'backtest' | 'optimization' | 'walk_forward';
+    setMode: (m: 'backtest' | 'optimization' | 'walk_forward') => void;
+    wfaTrainWindow: number;
+    setWfaTrainWindow: (n: number) => void;
+    wfaTestWindow: number;
+    setWfaTestWindow: (n: number) => void;
 }
 
 export const BacktestForm: React.FC<BacktestFormProps> = ({
@@ -94,7 +100,10 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
     enableRiskManagement,
     setEnableRiskManagement,
     initialCash,
-    setInitialCash
+    setInitialCash,
+    mode, setMode,
+    wfaTrainWindow, setWfaTrainWindow,
+    wfaTestWindow, setWfaTestWindow
 }) => {
     const {
         commission, setCommission,
@@ -252,6 +261,28 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                 </Button>
             </div>
 
+            {/* ✅ NEW: Mode Selection Tab */}
+            <div className="bg-gray-100 dark:bg-slate-800 p-1 rounded-lg flex text-sm font-medium mb-4">
+                <button
+                    onClick={() => setMode('backtest')}
+                    className={`flex-1 py-2 rounded-md flex items-center justify-center gap-2 transition-all ${mode === 'backtest' ? 'bg-white dark:bg-slate-700 shadow text-brand-primary' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                    <Play size={16} /> Standard Backtest
+                </button>
+                <button
+                    onClick={() => setMode('optimization')}
+                    className={`flex-1 py-2 rounded-md flex items-center justify-center gap-2 transition-all ${mode === 'optimization' ? 'bg-white dark:bg-slate-700 shadow text-brand-primary' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                    <Layers size={16} /> Optimization
+                </button>
+                <button
+                    onClick={() => setMode('walk_forward')}
+                    className={`flex-1 py-2 rounded-md flex items-center justify-center gap-2 transition-all ${mode === 'walk_forward' ? 'bg-white dark:bg-slate-700 shadow text-brand-primary' : 'text-gray-500 hover:text-gray-700'}`}
+                >
+                    <GitMerge size={16} /> Walk-Forward
+                </button>
+            </div>
+
             {/* Sync Progress */}
             {isSyncing && (
                 <div className="mb-4 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 bg-blue-50/50 dark:bg-blue-900/10 backdrop-blur-sm shadow-sm animate-fade-in">
@@ -366,6 +397,39 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                         )}
                     </select>
                 </div>
+
+                {/* ✅ NEW: Walk-Forward Settings Panel */}
+                {mode === 'walk_forward' && (
+                    <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-xl p-4 mb-4 animate-fade-in col-span-1 md:col-span-2 lg:col-span-3">
+                        <h3 className="text-sm font-bold text-blue-800 dark:text-blue-300 mb-3 flex items-center gap-2">
+                            <GitMerge size={16} /> Walk-Forward Analysis Config
+                        </h3>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div>
+                                <label className="text-xs text-gray-500 font-semibold mb-1 block">Training Window (Days)</label>
+                                <input
+                                    type="number"
+                                    value={wfaTrainWindow}
+                                    onChange={(e) => setWfaTrainWindow(Number(e.target.value))}
+                                    className="w-full bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded p-2 text-sm"
+                                    placeholder="e.g. 90"
+                                />
+                                <p className="text-[10px] text-gray-400 mt-1">In-sample period for optimization</p>
+                            </div>
+                            <div>
+                                <label className="text-xs text-gray-500 font-semibold mb-1 block">Testing Window (Days)</label>
+                                <input
+                                    type="number"
+                                    value={wfaTestWindow}
+                                    onChange={(e) => setWfaTestWindow(Number(e.target.value))}
+                                    className="w-full bg-white dark:bg-slate-900 border border-blue-200 dark:border-blue-800 rounded p-2 text-sm"
+                                    placeholder="e.g. 30"
+                                />
+                                <p className="text-[10px] text-gray-400 mt-1">Out-of-sample period for validation</p>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* Timeframe */}
                 <div>
