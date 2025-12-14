@@ -18,8 +18,8 @@ import { StrategyParams } from './components/StrategyParams';
 import { DownloadDataModal } from './components/DownloadDataModal';
 import { useDownloadData } from './hooks/useDownloadData';
 
-import { WalkForwardResults } from './components/WalkForwardResults'; // ✅ Import new component
-import { Activity, Layers, PlayIcon, CodeIcon, Download, GitMerge, RotateCcw, Square, Loader2 } from 'lucide-react';
+import { WalkForwardResults } from './components/WalkForwardResults';
+import { Activity, Layers, PlayIcon, CodeIcon, Download, GitMerge, RotateCcw, Square, Loader2, LayoutGrid } from 'lucide-react';
 
 // --- Helper Functions ---
 const parseParamsFromCode = (code: string): Record<string, any> => {
@@ -68,7 +68,8 @@ export const BacktesterContainer: React.FC = () => {
     const [enableRiskManagement, setEnableRiskManagement] = useState(true);
 
     // --- Local State ---
-    const [activeTab, setActiveTabState] = useState<'single' | 'batch' | 'optimization' | 'editor'>('single');
+    // --- Local State ---
+    const [activeTab, setActiveTabState] = useState<'single' | 'batch' | 'optimization' | 'walk_forward' | 'editor'>('single');
     const [strategies, setStrategies] = useState<string[]>([]);
     const [customStrategies, setCustomStrategies] = useState<string[]>([]);
     const [strategy, setStrategy] = useState('RSI Crossover');
@@ -234,9 +235,11 @@ export const BacktesterContainer: React.FC = () => {
 
 
     // --- Handlers ---
-    const handleTabChange = (tab: 'single' | 'batch' | 'optimization' | 'editor') => {
+    const handleTabChange = (tab: 'single' | 'batch' | 'optimization' | 'walk_forward' | 'editor') => {
         setActiveTabState(tab);
-        // Clear results if needed or keep them? Keeping is better UX.
+        if (tab === 'walk_forward') setMode('walk_forward');
+        else if (tab === 'optimization') setMode('optimization');
+        else if (tab === 'single' || tab === 'batch') setMode('backtest');
     };
 
     const onRun = () => {
@@ -259,7 +262,7 @@ export const BacktesterContainer: React.FC = () => {
             leverage: 1 // Default leverage
         };
 
-        if (mode === 'walk_forward') {
+        if (activeTab === 'walk_forward') {
             execute({
                 ...commonParams,
                 train_window_days: wfaTrainWindow,
@@ -267,12 +270,10 @@ export const BacktesterContainer: React.FC = () => {
                 method: wfaMethod,
                 population_size: wfaPopSize,
                 generations: wfaGenerations,
-
-                // ✅ Passing New Params
                 opt_target: wfaOptTarget,
                 min_trades: wfaMinTrades
             }, 'walk_forward');
-        } else if (mode === 'optimization') {
+        } else if (activeTab === 'optimization') {
             execute({
                 ...commonParams,
                 params: optimizationParams,
@@ -280,8 +281,11 @@ export const BacktesterContainer: React.FC = () => {
                 population_size: gaParams.populationSize,
                 generations: gaParams.generations
             }, 'optimization');
+        } else if (activeTab === 'batch') {
+            // Batch logic placeholder
+            execute(commonParams, 'backtest');
         } else {
-            // Standard Backtest
+            // Standard Single Backtest
             execute(commonParams, 'backtest');
         }
     };
@@ -382,18 +386,21 @@ export const BacktesterContainer: React.FC = () => {
                     Algo Backtester & AI Lab (Refactored)
                 </h1>
 
-                <div className="flex bg-gray-200 dark:bg-brand-dark p-1 rounded-lg">
-                    <button onClick={() => handleTabChange('single')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'single' ? 'bg-white dark:bg-brand-primary text-slate-900 dark:text-white shadow' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>
-                        <PlayIcon size={16} /> Single
+                <div className="flex bg-gray-200 dark:bg-brand-dark p-1 rounded-lg flex-wrap">
+                    <button onClick={() => handleTabChange('single')} className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition-colors ${activeTab === 'single' ? 'bg-white dark:bg-brand-primary text-slate-900 dark:text-white shadow' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>
+                        <PlayIcon size={14} /> Single
                     </button>
-                    <button onClick={() => handleTabChange('batch')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'batch' ? 'bg-white dark:bg-brand-primary text-slate-900 dark:text-white shadow' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>
-                        <Layers size={16} /> Batch
+                    <button onClick={() => handleTabChange('batch')} className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition-colors ${activeTab === 'batch' ? 'bg-white dark:bg-brand-primary text-slate-900 dark:text-white shadow' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>
+                        <LayoutGrid size={14} /> Batch
                     </button>
-                    <button onClick={() => handleTabChange('optimization')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'optimization' ? 'bg-white dark:bg-brand-primary text-slate-900 dark:text-white shadow' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>
-                        <Activity size={16} /> Optimize
+                    <button onClick={() => handleTabChange('optimization')} className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition-colors ${activeTab === 'optimization' ? 'bg-white dark:bg-brand-primary text-slate-900 dark:text-white shadow' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>
+                        <Layers size={14} /> Optimize
                     </button>
-                    <button onClick={() => handleTabChange('editor')} className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${activeTab === 'editor' ? 'bg-white dark:bg-brand-primary text-slate-900 dark:text-white shadow' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>
-                        <CodeIcon size={16} /> Editor
+                    <button onClick={() => handleTabChange('walk_forward')} className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition-colors ${activeTab === 'walk_forward' ? 'bg-white dark:bg-brand-primary text-slate-900 dark:text-white shadow' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>
+                        <GitMerge size={14} /> WFA
+                    </button>
+                    <button onClick={() => handleTabChange('editor')} className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition-colors ${activeTab === 'editor' ? 'bg-white dark:bg-brand-primary text-slate-900 dark:text-white shadow' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>
+                        <CodeIcon size={14} /> Editor
                     </button>
                 </div>
 
@@ -401,7 +408,7 @@ export const BacktesterContainer: React.FC = () => {
                     onClick={() => setIsDownloadModalOpen(true)}
                     className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-lg transition-all"
                 >
-                    <Download size={16} /> Download Data
+                    <Download size={16} /> Data
                 </button>
             </div>
 
@@ -469,19 +476,13 @@ export const BacktesterContainer: React.FC = () => {
                         // ✅ Pass new props
                         wfaOptTarget={wfaOptTarget} setWfaOptTarget={setWfaOptTarget}
                         wfaMinTrades={wfaMinTrades} setWfaMinTrades={setWfaMinTrades}
-                    />
-
-                    <StrategyParams
-                        mode={activeTab === 'optimization' ? 'optimization' : 'single'}
-                        activeParamsConfig={optimizableParams}
-                        params={params}
-                        setParams={setParams}
-                        optimizationParams={optimizationParams}
-                        setOptimizationParams={setOptimizationParams}
-                        optimizationMethod={optimizationMethod}
-                        setOptimizationMethod={setOptimizationMethod}
-                        gaParams={gaParams}
-                        setGaParams={setGaParams}
+                        activeTab={activeTab}
+                        // Params Props
+                        params={params} setParams={setParams}
+                        optimizationParams={optimizationParams} setOptimizationParams={setOptimizationParams}
+                        optimizableParams={optimizableParams}
+                        optimizationMethod={optimizationMethod} setOptimizationMethod={setOptimizationMethod}
+                        gaParams={gaParams} setGaParams={setGaParams}
                     />
 
 

@@ -4,8 +4,9 @@ import { useBacktest } from '@/context/BacktestContext';
 import SearchableSelect from '@/components/common/SearchableSelect';
 import DatePicker from "react-datepicker";
 import "react-datepicker/dist/react-datepicker.css";
-import { UploadCloud, RefreshCw, ShieldCheck, ShieldAlert, Wallet, Calendar, Clock, History, ChevronLeft, ChevronRight, PlusCircle, Play, Layers, GitMerge, Settings, Cpu, BarChart2 } from 'lucide-react';
+import { UploadCloud, RefreshCw, ShieldCheck, ShieldAlert, Wallet, Calendar, Clock, History, ChevronLeft, ChevronRight, PlusCircle, Play, Layers, GitMerge, Settings, Cpu, BarChart2, Target, Filter } from 'lucide-react';
 import { StrategyBuilderModal } from './StrategyBuilderModal';
+import { StrategyParams } from './StrategyParams'; // Import StrategyParams
 import { getYear, getMonth } from 'date-fns';
 import Button from '@/components/common/Button';
 
@@ -75,6 +76,14 @@ interface BacktestFormProps {
     setWfaOptTarget: (s: string) => void; // ✅ New
     wfaMinTrades: number; // ✅ New
     setWfaMinTrades: (n: number) => void; // ✅ New
+
+    // New Props for StrategyParams
+    activeTab: string;
+    params: any; setParams: any;
+    optimizationParams: any; setOptimizationParams: any;
+    optimizableParams: any;
+    optimizationMethod: any; setOptimizationMethod: any;
+    gaParams: any; setGaParams: any;
 }
 
 export const BacktestForm: React.FC<BacktestFormProps> = ({
@@ -121,6 +130,12 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
     wfaGenerations, setWfaGenerations,
     wfaOptTarget, setWfaOptTarget, // ✅ New
     wfaMinTrades, setWfaMinTrades, // ✅ New
+    activeTab,
+    params, setParams,
+    optimizationParams, setOptimizationParams,
+    optimizableParams,
+    optimizationMethod, setOptimizationMethod,
+    gaParams, setGaParams
 }) => {
     const {
         commission, setCommission,
@@ -278,22 +293,7 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                 </Button>
             </div>
 
-            {/* 1. Analysis Mode Selector (Clean Dropdown instead of Buttons) */}
-            <div className="flex justify-between items-center bg-gray-50 dark:bg-slate-800/50 p-3 rounded-lg border border-gray-200 dark:border-gray-700 mb-4">
-                <label className="text-sm font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
-                    <BarChart2 size={18} className="text-brand-primary" />
-                    Analysis Mode
-                </label>
-                <select
-                    value={mode}
-                    onChange={(e) => setMode(e.target.value as any)}
-                    className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-gray-600 rounded px-3 py-1.5 text-sm font-medium focus:ring-2 focus:ring-brand-primary outline-none"
-                >
-                    <option value="backtest">Standard Backtest</option>
-                    <option value="optimization">Parameter Optimization</option>
-                    <option value="walk_forward">Walk-Forward Analysis (WFA)</option>
-                </select>
-            </div>
+            {/* ❌ Analysis Mode Selector (REMOVED) */}
 
             {/* Sync Progress */}
             {isSyncing && (
@@ -410,8 +410,26 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                     </select>
                 </div>
 
+                {/* ✅ Strategy Parameters Section */}
+                {activeTab !== 'batch' && (
+                    <div className="col-span-1 md:col-span-2 lg:col-span-3">
+                        <StrategyParams
+                            mode={(activeTab === 'optimization' || activeTab === 'walk_forward') ? 'optimization' : 'single'}
+                            activeParamsConfig={optimizableParams}
+                            params={params}
+                            setParams={setParams}
+                            optimizationParams={optimizationParams}
+                            setOptimizationParams={setOptimizationParams}
+                            optimizationMethod={optimizationMethod}
+                            setOptimizationMethod={setOptimizationMethod}
+                            gaParams={gaParams}
+                            setGaParams={setGaParams}
+                        />
+                    </div>
+                )}
+
                 {/* 2. Walk-Forward Dynamic Settings Section */}
-                {mode === 'walk_forward' && (
+                {activeTab === 'walk_forward' && (
                     <div className="col-span-1 md:col-span-2 lg:col-span-3 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl p-4 animate-fade-in space-y-4 mb-6">
                         <div className="flex items-center gap-2 border-b border-blue-200 dark:border-blue-800 pb-2">
                             <GitMerge size={18} className="text-blue-600 dark:text-blue-400" />
