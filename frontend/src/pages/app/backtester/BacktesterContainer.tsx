@@ -53,7 +53,7 @@ export const BacktesterContainer: React.FC = () => {
     } = useDownloadData();
 
     const {
-        execute, isLoading, progress, results, mode: currentMode, taskId
+        execute, isLoading, progress, statusMessage, results, mode: currentMode, taskId
     } = useBacktestExecution();
 
     const {
@@ -364,16 +364,21 @@ export const BacktesterContainer: React.FC = () => {
                     {/* Run Section */}
                     <div className="mt-8 pt-6 border-t border-brand-border-light dark:border-brand-border-dark">
                         {isLoading && (
-                            <div className="mb-4">
-                                <div className="flex justify-between text-sm mb-2 items-center">
-                                    <span className="text-gray-500 dark:text-gray-400 font-medium flex items-center gap-2">
-                                        <Loader2 className="animate-spin h-4 w-4 text-brand-primary" />
-                                        Processing...
-                                    </span>
-                                    <span className="text-brand-primary font-bold">{progress.toFixed(0)}%</span>
+                            <div className="w-full mt-4 animate-fade-in">
+                                <div className="flex justify-between text-xs text-blue-400 mb-1 font-mono uppercase">
+                                    <span>{statusMessage || 'Processing...'}</span>
+                                    <span>{progress}%</span>
                                 </div>
-                                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2.5 overflow-hidden">
-                                    <div className="bg-brand-primary h-2.5 rounded-full transition-all duration-500" style={{ width: `${progress}%` }} />
+                                {/* Glowing Progress Bar Container */}
+                                <div className="h-3 w-full bg-[#131722] rounded-full overflow-hidden border border-[#2A2E39] relative shadow-[0_0_10px_rgba(41,98,255,0.1)]">
+                                    {/* Animated Gradient Bar */}
+                                    <div
+                                        className="h-full bg-gradient-to-r from-blue-600 via-purple-500 to-blue-400 transition-all duration-300 ease-out relative"
+                                        style={{ width: `${progress}%` }}
+                                    >
+                                        {/* Shine Effect */}
+                                        <div className="absolute top-0 left-0 w-full h-full bg-white/20 animate-pulse"></div>
+                                    </div>
                                 </div>
                             </div>
                         )}

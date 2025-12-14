@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Activity, Layers } from 'lucide-react';
+import { Activity, Layers, Trophy, BarChart2 } from 'lucide-react';
 import BacktestChart from '@/components/features/backtest/BacktestChart';
 import UnderwaterChart from '@/components/features/backtest/UnderwaterChart';
 import EquityChart from '@/components/features/backtest/EquityChart';
@@ -69,6 +69,85 @@ interface ResultsPanelProps {
 
 export const ResultsPanel: React.FC<ResultsPanelProps> = ({ singleResult, resultsTab, setResultsTab }) => {
     if (!singleResult) return null;
+
+    // ✅ 1. Check: Is it an optimization result (Array)?
+    const isOptimization = Array.isArray(singleResult);
+
+    // 🚀 INNOVATIVE OPTIMIZATION VIEW
+    if (isOptimization) {
+        // Find best result
+        const sortedResults = [...singleResult].sort((a, b) => b.profitPercent - a.profitPercent);
+        const bestResult = sortedResults[0];
+
+        return (
+            <div className="animate-fade-in space-y-6 mt-6">
+                {/* Best Result Highlight Card */}
+                <div className="bg-gradient-to-r from-blue-900/40 to-purple-900/40 border border-blue-500/30 p-6 rounded-lg flex items-center justify-between">
+                    <div>
+                        <div className="flex items-center gap-2 mb-2">
+                            <Trophy className="text-yellow-400 h-6 w-6" />
+                            <h2 className="text-xl font-bold text-white">Optimization Champion</h2>
+                        </div>
+                        <p className="text-gray-300">Best Parameter Combination Found</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-3xl font-bold text-green-400">+{bestResult.profitPercent}%</p>
+                        <p className="text-sm text-gray-400">Win Rate: {bestResult.winRate}% | Sharpe: {bestResult.sharpeRatio}</p>
+                    </div>
+                </div>
+
+                {/* Best Parameters Display */}
+                <div className="bg-[#131722] border border-[#2A2E39] rounded-lg p-4">
+                    <h3 className="text-sm font-semibold text-gray-400 mb-3 uppercase">Winning Parameters</h3>
+                    <div className="flex flex-wrap gap-3">
+                        {bestResult.params && Object.entries(bestResult.params).map(([key, value]) => (
+                            <span key={key} className="px-3 py-1 bg-[#2A2E39] rounded text-sm text-blue-300 font-mono border border-blue-900/50">
+                                {key}: <span className="text-white font-bold">{String(value)}</span>
+                            </span>
+                        ))}
+                    </div>
+                </div>
+
+                {/* Optimization Table */}
+                <div className="bg-[#131722] border border-[#2A2E39] rounded-lg overflow-hidden shadow-lg">
+                    <div className="px-6 py-4 border-b border-[#2A2E39] bg-[#1e222d] flex items-center gap-2">
+                        <BarChart2 className="h-4 w-4 text-[#2962FF]" />
+                        <h3 className="text-sm font-semibold text-gray-200">Top Configurations</h3>
+                    </div>
+                    <div className="overflow-x-auto">
+                        <table className="w-full text-sm text-left">
+                            <thead className="bg-[#1e222d] text-gray-400">
+                                <tr>
+                                    <th className="px-6 py-3">Rank</th>
+                                    <th className="px-6 py-3">Profit %</th>
+                                    <th className="px-6 py-3">Win Rate</th>
+                                    <th className="px-6 py-3">Drawdown</th>
+                                    <th className="px-6 py-3">Trades</th>
+                                    <th className="px-6 py-3">Parameters</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-[#2A2E39]">
+                                {sortedResults.slice(0, 50).map((res: any, idx: number) => (
+                                    <tr key={idx} className="hover:bg-[#2A2E39]/50 transition-colors">
+                                        <td className="px-6 py-3 font-mono text-gray-500">#{idx + 1}</td>
+                                        <td className={`px-6 py-3 font-bold ${res.profitPercent >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                            {res.profitPercent}%
+                                        </td>
+                                        <td className="px-6 py-3 text-gray-300">{res.winRate}%</td>
+                                        <td className="px-6 py-3 text-red-300">-{Math.abs(res.maxDrawdown)}%</td>
+                                        <td className="px-6 py-3 text-gray-400">{res.total_trades}</td>
+                                        <td className="px-6 py-3 text-xs text-gray-500 font-mono">
+                                            {JSON.stringify(res.params).replace(/{|}|"/g, '').replace(/,/g, ', ')}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="animate-fade-in space-y-6 mt-6">

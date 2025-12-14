@@ -24,6 +24,24 @@ def publish_task_status(task_type, task_id, status, progress, data=None):
     except Exception as e:
         print(f"⚠️ Redis Publish Error: {e}")
 
+# ✅ Innovative Progress Bar Helper
+def print_custom_progress_bar(percent, prefix='', suffix='', length=40):
+    percent = max(0, min(100, percent))
+    filled_length = int(length * percent // 100)
+    
+    # Custom UTF-8 Blocks for smoother look
+    bar = '█' * filled_length + '░' * (length - filled_length)
+    
+    # Color Codes
+    BLUE = '\033[94m'
+    GREEN = '\033[92m'
+    RESET = '\033[0m'
+    BOLD = '\033[1m'
+    
+    color = BLUE if percent < 100 else GREEN
+    sys.stdout.write(f"\r{color}{BOLD}{prefix} |{bar}| {percent}% {suffix}{RESET}")
+    sys.stdout.flush()
+
 # ✅ নতুন হেল্পার ফাংশন: NaN চেক করার জন্য
 def clean_metric(value):
     try:
@@ -127,14 +145,16 @@ def run_optimization_task(self, symbol: str, timeframe: str, strategy_name: str,
         current = meta.get('current', 0)
         total = meta.get('total', 0)
         
-        # Terminal Progress Bar Visualization
-        bar_length = 30 
-        filled_length = int(bar_length * percent // 100)
-        bar = '█' * filled_length + '-' * (bar_length - filled_length)
-        
-        # ✅ Show Total Parameters Count in Log
-        sys.stdout.write(f"\r🚀 Optimization: |{bar}| {percent}% Complete ({current}/{total})")
-        sys.stdout.flush()
+        current = meta.get('current', 0)
+        total = meta.get('total', 0)
+        best_profit = meta.get('best_profit', 0)
+
+        # 🚀 Innovative Console Output
+        print_custom_progress_bar(
+            percent, 
+            prefix=f"🧬 OPTIMIZING", 
+            suffix=f"[Iter: {current}/{total} | Best: {best_profit}%]"
+        )
 
         if percent == 100:
             print("\n✅ Optimization Completed!") 
