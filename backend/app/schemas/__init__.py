@@ -72,6 +72,7 @@ class BacktestRequest(BaseModel):
     # নতুন ফিল্ডস (Slippage & Commission)
     commission: float = 0.001
     slippage: float = 0.0
+    leverage: float = 1.0  # ✅ NEW: লেভারেজ প্যারামিটার
 
     # Risk Management Fields (New)
     stop_loss: Optional[float] = 0.0      # % ভিত্তিক (যেমন 2.0 মানে 2%)
@@ -111,6 +112,7 @@ class OptimizationRequest(BaseModel):
     # নতুন ফিল্ডস
     commission: float = 0.001
     slippage: float = 0.0
+    leverage: float = 1.0 # ✅ NEW
 
 # Download Data Schema
 class DownloadRequest(BaseModel):

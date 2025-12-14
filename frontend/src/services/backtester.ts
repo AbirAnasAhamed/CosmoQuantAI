@@ -12,6 +12,7 @@ export interface BacktestRequest {
     custom_data_file?: string | null;
     commission?: number;
     slippage?: number;
+    leverage?: number; // ✅ NEW
     stop_loss?: number;
     take_profit?: number;
     trailing_stop?: number;

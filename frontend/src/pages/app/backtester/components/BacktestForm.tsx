@@ -99,6 +99,7 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
     const {
         commission, setCommission,
         slippage, setSlippage,
+        leverage, setLeverage, // ✅ NEW
         secondaryTimeframe, setSecondaryTimeframe,
         stopLoss, setStopLoss,
         takeProfit, setTakeProfit,
@@ -513,6 +514,34 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                     <div>
                         <label className="block text-xs text-gray-500 mb-1">Slippage (%)</label>
                         <input type="number" step="0.01" value={slippage} onChange={(e) => setSlippage(parseFloat(e.target.value))} className={inputBaseClasses} />
+                    </div>
+                    {/* ✅ Leverage Input Section */}
+                    <div className="col-span-2 md:col-span-3"> {/* Full width or partial */}
+                        <div className="space-y-2 border border-gray-700 p-2 rounded-lg">
+                            <label className="text-xs font-medium text-gray-300 flex justify-between">
+                                <span>Leverage (x{leverage})</span>
+                                <span className="text-[10px] text-gray-500">{leverage > 1 ? "Futures Mode" : "Spot Mode"}</span>
+                            </label>
+                            <div className="flex items-center gap-4">
+                                <input
+                                    type="range"
+                                    min="1"
+                                    max="20"
+                                    step="1"
+                                    value={leverage}
+                                    onChange={(e) => setLeverage(Number(e.target.value))}
+                                    className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500"
+                                />
+                                <input
+                                    type="number"
+                                    min="1"
+                                    max="125"
+                                    value={leverage}
+                                    onChange={(e) => setLeverage(Number(e.target.value))}
+                                    className="w-16 px-2 py-1 bg-gray-800 border border-gray-700 rounded-md text-white text-xs focus:outline-none focus:border-blue-500"
+                                />
+                            </div>
+                        </div>
                     </div>
                     {/* Only disable these if risk is off, commission/slippage usually apply always but user might want full off */}
                     <div>

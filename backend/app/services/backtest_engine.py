@@ -55,8 +55,33 @@ class ProgressObserver(bt.Observer):
             
             # প্রতি ১% পর পর আপডেট পাঠাবে
             if percent % 1 == 0: 
-                # কলব্যাক ফাংশনে শুধু পার্সেন্টেজ পাঠানো হচ্ছে
+                # Call callback with percentage
                 self.params.callback(percent)
+
+# ✅ NEW: Custom Analyzer for accurate Equity Curve (TradingView Style)
+class EquityAnalyzer(bt.Analyzer):
+    def __init__(self):
+        self.equity_data = []
+
+    def start(self):
+        self.equity_data = []
+
+    def next(self):
+        # Save correct time and cash value after each candle process
+        # self.datas[0] is primary data feed
+        try:
+            current_time = self.datas[0].datetime.datetime(0)
+            current_equity = self.strategy.broker.getvalue()
+            
+            self.equity_data.append({
+                "time": int(current_time.timestamp()), # Unix Timestamp for Frontend
+                "value": round(current_equity, 2)
+            })
+        except Exception:
+            pass
+
+    def get_analysis(self):
+        return self.equity_data
 
 class FractionalPercentSizer(bt.Sizer):
     params = (
@@ -73,7 +98,7 @@ class BacktestEngine:
     
     def run(self, db: Session, symbol: str, timeframe: str, strategy_name: str, initial_cash: float, params: dict, 
             start_date: str = None, end_date: str = None, custom_data_file: str = None, progress_callback=None, 
-            commission: float = 0.001, slippage: float = 0.0, 
+            commission: float = 0.001, slippage: float = 0.0, leverage: float = 1.0,  # 👈 leverage added
             secondary_timeframe: str = None,  # ✅ Secondary Timeframe (Trend)
             stop_loss: float = 0.0, take_profit: float = 0.0, trailing_stop: float = 0.0): # ✅ Risk Management
         
@@ -219,13 +244,17 @@ class BacktestEngine:
             return {"error": f"Failed to initialize strategy parameters: {str(e)}"}
 
         cerebro.broker.setcash(initial_cash)
+        
+        # Leveage / Futures Logic
+        is_futures = leverage > 1.0
+        
         cerebro.broker.setcommission(
             commission=commission, 
             commtype=bt.CommInfoBase.COMM_PERC, 
-            margin=None, 
-            mult=1.0, 
-            stocklike=True 
+            leverage=leverage, 
+            stocklike=not is_futures
         )
+
         if slippage > 0:
             cerebro.broker.set_slippage_perc(perc=slippage)
         
@@ -235,6 +264,9 @@ class BacktestEngine:
         cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name="trades")
         cerebro.addanalyzer(bt.analyzers.DrawDown, _name="drawdown")
         cerebro.addanalyzer(bt.analyzers.Transactions, _name="transactions")
+        
+        # ✅ NEW: Adding Custom Equity Analyzer
+        cerebro.addanalyzer(EquityAnalyzer, _name='equity_curve')
 
         start_value = cerebro.broker.getvalue()
         try:
@@ -294,25 +326,24 @@ class BacktestEngine:
         chart_candles = df[['time', 'open', 'high', 'low', 'close', 'volume']].values.tolist()
         
         # Extract Equity Curve
+        # ---------------------------------------------------------
+        # 👇 2. Equity Curve Extraction: Using Custom Analyzer
+        # ---------------------------------------------------------
         equity_curve = []
         try:
-            if hasattr(first_strat, 'observers') and len(first_strat.observers) > 0:
-                observer_values = first_strat.observers[0].lines.value.array
-                data_len = len(df)
-                obs_len = len(observer_values)
-                limit = min(data_len, obs_len)
-                timestamps = df.index.astype('int64') // 10**9 
-                vals = observer_values[:limit]
-                times = timestamps[-limit:]
-                for t, v in zip(times, vals):
-                    if not np.isnan(v):
-                        equity_curve.append({"time": int(t), "value": round(v, 2)})
+            # Get data directly from custom Analyzer
+            equity_curve = first_strat.analyzers.equity_curve.get_analysis()
+            
+            # Safety check: if data empty, add initial cash
+            if not equity_curve:
+                equity_curve = [{"time": int(df.index[0].timestamp()), "value": initial_cash}]
+                
         except Exception as e:
             print(f"⚠️ Error extracting equity curve: {e}")
             equity_curve = []
 
-        # ✅ PRINT: এখন আর এরর দিবে না কারণ profit_percent উপরে ডিফাইন করা হয়েছে
-        print(f"\n📊 Backtest Result for {symbol} ({timeframe})")
+        # ✅ PRINT: with Leverage Info
+        print(f"\n📊 Backtest Result for {symbol} ({timeframe}) | Lev: {leverage}x")
         print(f"------------------------------------------------")
         print(f"🕯️  Total Candles : {total_candles}")
         print(f"💰 Final Value   : {round(end_value, 2)}")
@@ -325,9 +356,10 @@ class BacktestEngine:
             "symbol": symbol,
             "strategy": strategy_name,
             "initial_cash": initial_cash,
+            "leverage": leverage,
             "final_value": round(end_value, 2),
             "profit_percent": profit_percent,
-            "total_candles": total_candles,  # ✅ NEW
+            "total_candles": total_candles,
             "total_trades": detailed_trade_analysis.get('total_closed', 0),
             "advanced_metrics": qs_metrics["metrics"],
             "heatmap_data": qs_metrics["heatmap"],
@@ -407,27 +439,67 @@ class BacktestEngine:
         except Exception as e:
             return {}
 
-    def optimize(self, db: Session, symbol: str, timeframe: str, strategy_name: str, initial_cash: float, params: dict, start_date: str = None, end_date: str = None, method="grid", population_size=50, generations=10, progress_callback=None, abort_callback=None,
-                 commission: float = 0.001, slippage: float = 0.0):
+    def optimize(self, db: Session, symbol: str, timeframe: str, strategy_name: str, initial_cash: float, params: dict, 
+                 start_date: str = None, end_date: str = None, custom_data_file: str = None,  # ✅ Added custom_data_file
+                 method="grid", population_size=50, generations=10, progress_callback=None, abort_callback=None,
+                 commission: float = 0.001, slippage: float = 0.0, leverage: float = 1.0):
         
-        candles = market_service.get_candles_from_db(db, symbol, timeframe, start_date, end_date)
-        if not candles or len(candles) < 20:
-            print(f"Data missing for {symbol} {timeframe}. Auto-syncing...")
-            if progress_callback: progress_callback(0, 100)
-            try:
-                async_to_sync(market_service.fetch_and_store_candles)(
-                    db=db, symbol=symbol, timeframe=timeframe, start_date=start_date, end_date=end_date, limit=1000
-                )
-                candles = market_service.get_candles_from_db(db, symbol, timeframe, start_date, end_date)
-            except Exception as e:
-                print(f"Auto-sync failed: {e}")
+        df = None
 
-        if not candles or len(candles) < 20:
-            return {"error": f"Insufficient Data for {symbol}."}
+        # ✅ 1. OPTIMIZATION: Load Data ONCE (CSV or DB) before the loop
+        if custom_data_file:
+            file_path = f"app/data_feeds/{custom_data_file}"
+            if os.path.exists(file_path):
+                try:
+                    df = pd.read_csv(file_path)
+                    df.columns = [c.lower().strip() for c in df.columns]
+                    
+                    if 'datetime' in df.columns:
+                        df['datetime'] = pd.to_datetime(df['datetime'], errors='coerce') 
+                        df.dropna(subset=['datetime'], inplace=True)
+                        df.set_index('datetime', inplace=True)
+                    elif 'date' in df.columns:
+                        df['datetime'] = pd.to_datetime(df['date'], errors='coerce')
+                        df.dropna(subset=['datetime'], inplace=True)
+                        df.set_index('datetime', inplace=True)
+                        
+                    required_cols = ['open', 'high', 'low', 'close', 'volume']
+                    if not all(col in df.columns for col in required_cols):
+                         return {"error": f"CSV file must contain columns: {required_cols}"}
+                    
+                    df = df[required_cols]
+                except Exception as e:
+                    return {"error": f"Error reading CSV file: {str(e)}"}
+            else:
+                return {"error": "Custom data file not found on server."}
 
-        df = pd.DataFrame(candles, columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
-        df.set_index('datetime', inplace=True)
+        # If CSV not used or failed, try DB
+        if df is None:
+            candles = market_service.get_candles_from_db(db, symbol, timeframe, start_date, end_date)
+            if not candles or len(candles) < 20:
+                print(f"Data missing for {symbol} {timeframe}. Auto-syncing...")
+                if progress_callback: progress_callback(0, meta={"status": "Syncing Data..."})
+                try:
+                    async_to_sync(market_service.fetch_and_store_candles)(
+                        db=db, symbol=symbol, timeframe=timeframe, start_date=start_date, end_date=end_date, limit=1000
+                    )
+                    candles = market_service.get_candles_from_db(db, symbol, timeframe, start_date, end_date)
+                except Exception as e:
+                    print(f"Auto-sync failed: {e}")
+
+            if not candles or len(candles) < 20:
+                return {"error": f"Insufficient Data for {symbol}."}
+
+            df = pd.DataFrame(candles, columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
+            df.set_index('datetime', inplace=True)
         
+        # ✅ 2. OPTIMIZATION: Load Strategy Class ONCE before the loop
+        # This prevents disk I/O (file check/import) in every iteration
+        strategy_class = self._load_strategy_class(strategy_name)
+        if not strategy_class:
+            return {"error": f"Strategy '{strategy_name}' not found."}
+
+        # Parameter processing logic...
         param_ranges = {} 
         fixed_params = {}
         for k, v in params.items():
@@ -445,38 +517,33 @@ class BacktestEngine:
                 fixed_params[k] = v
 
         results = []
-        best_profit_so_far = -float('inf') # Track best profit locally
+        best_profit_so_far = -float('inf')
 
+        # Grid Search
         if method == "grid":
             param_names = list(param_ranges.keys())
             param_values = list(param_ranges.values())
             combinations = list(itertools.product(*param_values))
             total = len(combinations)
             
-            # 🚀 SmartProgressBar removed. No print.
-            
             for i, combo in enumerate(combinations):
                 if abort_callback and abort_callback(): 
                     break
                 instance_params = dict(zip(param_names, combo))
                 
-                metrics = self._run_single_backtest(df, strategy_name, initial_cash, instance_params, fixed_params, commission, slippage)
+                # ✅ Pass the pre-loaded 'strategy_class' instead of 'strategy_name'
+                metrics = self._run_single_backtest(df, strategy_class, initial_cash, instance_params, fixed_params, commission, slippage, leverage)
                 
                 metrics['params'] = instance_params
                 results.append(metrics)
                 
-                # Update Best Profit
                 if metrics['profitPercent'] > best_profit_so_far:
                     best_profit_so_far = metrics['profitPercent']
 
-                # ✅ UPDATED: Call progress callback with structured data
                 if progress_callback:
-                    # আমরা 'percent' এবং 'extra' ডেটা পাঠাচ্ছি
                     percent = int(((i + 1) / total) * 100)
                     progress_callback(
-                        percent, # Main progress
-                        # Optional: You can pass a dict as a second arg if your task supports it,
-                        # or update the task logic to handle (current, total, meta)
+                        percent, 
                         meta={
                             "current": i + 1,
                             "total": total,
@@ -485,18 +552,21 @@ class BacktestEngine:
                         }
                     )
 
+        # Genetic Algorithm
         elif method == "genetic" or method == "geneticAlgorithm":
+            # Pass strategy_class to GA method as well
             results = self._run_genetic_algorithm(
-                df, strategy_name, initial_cash, param_ranges, fixed_params, 
+                df, strategy_class, initial_cash, param_ranges, fixed_params, 
                 pop_size=population_size, generations=generations, 
                 progress_callback=progress_callback, abort_callback=abort_callback,
-                commission=commission, slippage=slippage
+                commission=commission, slippage=slippage, leverage=leverage
             )
 
         results.sort(key=lambda x: x['profitPercent'], reverse=True)
         return results
 
-    def _run_genetic_algorithm(self, df, strategy_name, initial_cash, param_ranges, fixed_params, pop_size=50, generations=10, progress_callback=None, abort_callback=None, commission=0.001, slippage=0.0):
+    def _run_genetic_algorithm(self, df, strategy_class, initial_cash, param_ranges, fixed_params, pop_size=50, generations=10, progress_callback=None, abort_callback=None, commission=0.001, slippage=0.0, leverage=1.0):
+        # ... (Genetic setup same as before) ...
         param_keys = list(param_ranges.keys())
         population = []
         for _ in range(pop_size):
@@ -519,7 +589,8 @@ class BacktestEngine:
                 if param_signature in history_cache:
                     metrics = history_cache[param_signature]
                 else:
-                    metrics = self._run_single_backtest(df, strategy_name, initial_cash, individual, fixed_params, commission, slippage)
+                    # ✅ Pass pre-loaded strategy_class
+                    metrics = self._run_single_backtest(df, strategy_class, initial_cash, individual, fixed_params, commission, slippage, leverage)
                     metrics['params'] = individual
                     history_cache[param_signature] = metrics
                 
@@ -530,7 +601,6 @@ class BacktestEngine:
 
                 current_step = (gen * pop_size) + (i + 1)
                 
-                # ✅ UPDATED Callback
                 if progress_callback:
                     percent = int((current_step / total_steps) * 100)
                     progress_callback(
@@ -565,8 +635,8 @@ class BacktestEngine:
         unique_results = {json.dumps(r['params'], sort_keys=True): r for r in best_results}
         return list(unique_results.values())
 
-    def _run_single_backtest(self, df, strategy_name, initial_cash, variable_params, fixed_params, commission=0.001, slippage=0.0):
-        # ... (আগের কোডই থাকবে, কোনো পরিবর্তন নেই) ...
+    # ✅ UPDATED: Accepts strategy_class object instead of name string
+    def _run_single_backtest(self, df, strategy_class, initial_cash, variable_params, fixed_params, commission=0.001, slippage=0.0, leverage=1.0):
         full_params = {**fixed_params, **variable_params}
         clean_params = {}
         for k, v in full_params.items():
@@ -575,20 +645,16 @@ class BacktestEngine:
                 try: clean_params[k] = float(v)
                 except: clean_params[k] = v
 
-        # ✅ FIX: stdstats=False ব্যবহার করুন (Stdout হাইজ্যাক করার বদলে)
-        # এটি ডিফল্ট প্রিন্ট বা observer আউটপুট বন্ধ রাখবে, কিন্তু এরর দেখাবে।
         cerebro = bt.Cerebro(stdstats=False) 
         
+        # ✅ Data is already loaded in memory (df), so this is fast
         data_feed = bt.feeds.PandasData(dataname=df)
         cerebro.adddata(data_feed)
         
-        strategy_class = self._load_strategy_class(strategy_name)
-        if not strategy_class:
-            return {"profitPercent": 0, "maxDrawdown": 0, "sharpeRatio": 0, "total_trades": 0, "winRate": 0}
-
+        # ✅ Removed _load_strategy_class call from here to avoid repetitive Disk I/O
+        
         valid_params = self._smart_filter_params(strategy_class, clean_params)
         
-        # Risk Params Injection (Safety)
         if 'stop_loss' in clean_params: valid_params['stop_loss'] = clean_params['stop_loss']
         if 'take_profit' in clean_params: valid_params['take_profit'] = clean_params['take_profit']
 
@@ -596,6 +662,16 @@ class BacktestEngine:
         
         cerebro.broker.setcash(initial_cash)
         cerebro.broker.setcommission(commission=commission, commtype=bt.CommInfoBase.COMM_PERC, margin=None, mult=1.0, stocklike=True)
+        
+        # ✅ Leveage / Futures Logic
+        is_futures = leverage > 1.0
+        cerebro.broker.setcommission(
+            commission=commission, 
+            commtype=bt.CommInfoBase.COMM_PERC, 
+            leverage=leverage, 
+            stocklike=not is_futures
+        )
+
         if slippage > 0: cerebro.broker.set_slippage_perc(perc=slippage)
             
         cerebro.addsizer(bt.sizers.PercentSizer, percents=90)
@@ -628,7 +704,7 @@ class BacktestEngine:
                 "winRate": round(win_rate, 2),
                 "final_value": round(end_value, 2),
                 "initial_cash": initial_cash,
-                "total_candles": len(df)  # ✅ NEW
+                "total_candles": len(df)
             }
         except Exception:
             return {

@@ -29,6 +29,8 @@ interface BacktestContextType {
     setCommission: (c: number) => void;
     slippage: number;
     setSlippage: (s: number) => void;
+    leverage: number; // ✅ NEW
+    setLeverage: (l: number) => void; // ✅ NEW
     secondaryTimeframe: string;
     setSecondaryTimeframe: (t: string) => void;
 
@@ -82,6 +84,7 @@ export const BacktestProvider: React.FC<{ children: ReactNode }> = ({ children }
     // ✅ নতুন স্টেট (ডিফল্ট: 0.1% কমিশন, 0% স্লিপেজ)
     const [commission, setCommission] = useState(0.001);
     const [slippage, setSlippage] = useState(0.0);
+    const [leverage, setLeverage] = useState(1.0); // ✅ NEW (Default 1x)
     const [secondaryTimeframe, setSecondaryTimeframe] = useState('');
 
     const [stopLoss, setStopLoss] = useState(0.0);
@@ -130,9 +133,9 @@ export const BacktestProvider: React.FC<{ children: ReactNode }> = ({ children }
                 end_date: endDate,
                 params: options?.params || params,
 
-                // ✅ নতুন: API তে পাঠানো হচ্ছে
                 commission: commission,
                 slippage: slippage,
+                leverage: leverage, // ✅ Pass Leverage
                 secondary_timeframe: options?.secondary_timeframe || secondaryTimeframe || undefined,
                 stop_loss: stopLoss,
                 take_profit: takeProfit,
@@ -170,6 +173,7 @@ export const BacktestProvider: React.FC<{ children: ReactNode }> = ({ children }
                             // max_drawdown: apiResult.max_drawdown, // Removed: Not in type
                             // win_rate: apiResult.win_rate, // Removed: Not in type
                             // sharpe_ratio: apiResult.sharpe_ratio, // Removed: Not in type
+                            leverage: apiResult.leverage, // ✅ Capture Leverage in Result
                             trades_log: apiResult.trades_log,
                             candle_data: apiResult.candle_data,
                             advanced_metrics: apiResult.advanced_metrics,
@@ -230,6 +234,7 @@ export const BacktestProvider: React.FC<{ children: ReactNode }> = ({ children }
             // ✅ নতুন ভ্যালু এক্সপোর্ট
             commission, setCommission,
             slippage, setSlippage,
+            leverage, setLeverage, // ✅ Export
             secondaryTimeframe, setSecondaryTimeframe,
             stopLoss, setStopLoss,
             takeProfit, setTakeProfit,

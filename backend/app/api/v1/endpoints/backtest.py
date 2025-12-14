@@ -28,6 +28,7 @@ def run_backtest(
         custom_data_file=request.custom_data_file,
         commission=request.commission,
         slippage=request.slippage,
+        leverage=request.leverage, # ✅ Pass Leverage
         secondary_timeframe=request.secondary_timeframe,
         stop_loss=request.stop_loss,
         take_profit=request.take_profit,
@@ -102,7 +103,8 @@ def run_optimization(
         population_size=request.population_size,
         generations=request.generations,
         commission=request.commission,
-        slippage=request.slippage
+        slippage=request.slippage,
+        leverage=request.leverage # ✅ Pass Leverage
     )
     
     return {"task_id": task.id, "status": "Processing"}

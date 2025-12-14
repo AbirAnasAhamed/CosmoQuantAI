@@ -90,6 +90,24 @@ export interface TradeAnalysisMetrics {
   largest_loss_percent: number;
 }
 
+// ✅ NEW: BacktestRequest interface
+export interface BacktestRequest {
+  symbol: string;
+  timeframe: string;
+  strategy: string;
+  initial_cash: number;
+  params: Record<string, any>;
+  start_date?: string;
+  end_date?: string;
+  commission: number;
+  slippage: number;
+  leverage: number; // ✅ NEW: লেভারেজ প্যারামিটার
+  secondary_timeframe?: string;
+  stop_loss?: number;
+  take_profit?: number;
+  trailing_stop?: number;
+}
+
 export interface BacktestResult {
   id?: string;
   market: string;
@@ -102,6 +120,7 @@ export interface BacktestResult {
   final_value?: number;
   total_trades?: number;
   initial_cash?: number;
+  leverage?: number; // ✅ NEW
 
   // অ্যাডভান্সড মেট্রিক্স অবজেক্ট
   advanced_metrics?: {

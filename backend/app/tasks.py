@@ -62,7 +62,7 @@ def print_pretty_result(result):
 
 # টাস্কটি ব্যাকগ্রাউন্ডে রান হবে
 @celery_app.task(bind=True)
-def run_backtest_task(self, symbol: str, timeframe: str, strategy_name: str, initial_cash: float, params: dict, start_date: str = None, end_date: str = None, custom_data_file: str = None, commission: float = 0.001, slippage: float = 0.0, secondary_timeframe: str = None, stop_loss: float = 0.0, take_profit: float = 0.0, trailing_stop: float = 0.0):
+def run_backtest_task(self, symbol: str, timeframe: str, strategy_name: str, initial_cash: float, params: dict, start_date: str = None, end_date: str = None, custom_data_file: str = None, commission: float = 0.001, slippage: float = 0.0, leverage: float = 1.0, secondary_timeframe: str = None, stop_loss: float = 0.0, take_profit: float = 0.0, trailing_stop: float = 0.0):
     db = SessionLocal()
     engine = BacktestEngine()
     
@@ -96,6 +96,7 @@ def run_backtest_task(self, symbol: str, timeframe: str, strategy_name: str, ini
             progress_callback=on_progress,
             commission=commission,
             slippage=slippage,
+            leverage=leverage, # ✅ Pass Leverage
             secondary_timeframe=secondary_timeframe,
             stop_loss=stop_loss,
             take_profit=take_profit,
@@ -115,7 +116,7 @@ def run_backtest_task(self, symbol: str, timeframe: str, strategy_name: str, ini
         db.close()
 
 @celery_app.task(bind=True)
-def run_optimization_task(self, symbol: str, timeframe: str, strategy_name: str, initial_cash: float, params: dict, start_date: str = None, end_date: str = None, method="grid", population_size=50, generations=10, commission: float = 0.001, slippage: float = 0.0):
+def run_optimization_task(self, symbol: str, timeframe: str, strategy_name: str, initial_cash: float, params: dict, start_date: str = None, end_date: str = None, method="grid", population_size=50, generations=10, commission: float = 0.001, slippage: float = 0.0, leverage: float = 1.0):
     db = SessionLocal()
     engine = BacktestEngine()
     
@@ -165,7 +166,8 @@ def run_optimization_task(self, symbol: str, timeframe: str, strategy_name: str,
             progress_callback=on_progress,
             abort_callback=check_abort,
             commission=commission,
-            slippage=slippage
+            slippage=slippage,
+            leverage=leverage
         )
         
         try:
