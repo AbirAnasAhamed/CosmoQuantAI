@@ -31,51 +31,11 @@ market_service = MarketService()
 import logging
 
 # ✅ SAFE LOGGING CONFIGURATION
-# শুধুমাত্র Warning বা Error লেভেলের লগ দেখাবে, ইনফো লগ হাইড করবে।
 logging.getLogger('matplotlib').setLevel(logging.WARNING)
 logging.getLogger('backtrader').setLevel(logging.WARNING)
 
-
-# ✅ 2. Smart Terminal Progress Bar (সরাসরি টার্মিনালে প্রিন্ট করার জন্য)
-class SmartProgressBar:
-    def __init__(self, total, prefix='', suffix='', decimals=1, length=40, fill='█'):
-        self.total = total
-        self.prefix = prefix
-        self.suffix = suffix
-        self.decimals = decimals
-        self.length = length
-        self.fill = fill
-        self.start_time = time.time()
-        self.best_profit = -float('inf')
-
-    def update(self, iteration, current_profit=None):
-        # Calculate Percentage
-        percent = ("{0:." + str(self.decimals) + "f}").format(100 * (iteration / float(self.total)))
-        filledLength = int(self.length * iteration // self.total)
-        bar = self.fill * filledLength + '-' * (self.length - filledLength)
-        
-        # Calculate ETA
-        elapsed_time = time.time() - self.start_time
-        avg_time_per_step = elapsed_time / iteration if iteration > 0 else 0
-        remaining_steps = self.total - iteration
-        eta_seconds = remaining_steps * avg_time_per_step
-        eta_str = time.strftime("%M:%S", time.gmtime(eta_seconds))
-        
-        # Track Best Profit
-        if current_profit is not None and current_profit > self.best_profit:
-            self.best_profit = current_profit
-
-        # Status String
-        status = f"\033[94mETA: {eta_str}\033[0m | \033[93mBest: {self.best_profit:.2f}%\033[0m"
-        
-        # Force print to original stdout (Bypassing Suppression)
-        sys.__stdout__.write(f'\r\033[92m{self.prefix}\033[0m |{bar}| {percent}% {self.suffix} [{status}]')
-        sys.__stdout__.flush()
-        
-        if iteration == self.total: 
-            sys.__stdout__.write('\n')
-
-# ✅ 1. Progress Observer (Backtrader internal)
+# ✅ 1. Progress Observer (Backtrader internal for 'run' method)
+# এটি সরাসরি টার্মিনালে প্রিন্ট না করে কলব্যাক ফাংশন ব্যবহার করবে
 class ProgressObserver(bt.Observer):
     lines = ('progress',)
     params = (
@@ -88,8 +48,14 @@ class ProgressObserver(bt.Observer):
         total = self.params.total_len
 
         if total > 0 and self.params.callback:
+            # কম্প্রেশন বা রিস্যাম্পলিং থাকলে ইনডেক্স এডজাস্ট করা হতে পারে
+            # আমরা সহজভাবে পার্সেন্টেজ পাঠাচ্ছি
             percent = int((current_idx / total) * 100)
+            if percent > 100: percent = 100
+            
+            # প্রতি ১% পর পর আপডেট পাঠাবে
             if percent % 1 == 0: 
+                # কলব্যাক ফাংশনে শুধু পার্সেন্টেজ পাঠানো হচ্ছে
                 self.params.callback(percent)
 
 class FractionalPercentSizer(bt.Sizer):
@@ -176,6 +142,11 @@ class BacktestEngine:
 
             df = pd.DataFrame(candles, columns=['datetime', 'open', 'high', 'low', 'close', 'volume'])
             df.set_index('datetime', inplace=True)
+
+
+
+        # ✅ NEW: Calculate total candles
+        total_candles = len(df) if df is not None else 0
 
         clean_params = {}
         for k, v in params.items():
@@ -294,11 +265,16 @@ class BacktestEngine:
 
         end_value = cerebro.broker.getvalue()
 
+        # ✅ FIX: ভেরিয়েবলগুলো প্রিন্ট করার আগেই ডিফাইন করা হলো
+        total_candles = len(df) if df is not None else 0
+        profit_value = end_value - start_value
+        profit_percent = round((profit_value / start_value) * 100, 2)
+
         qs_metrics = self._calculate_metrics(first_strat, start_value, end_value)
+        detailed_trade_analysis = self._format_trade_analysis(first_strat)
+        
         executed_trades = getattr(first_strat, 'trade_history', [])
         
-        detailed_trade_analysis = self._format_trade_analysis(first_strat)
-
         if not executed_trades:
             trans_anal = first_strat.analyzers.transactions.get_analysis()
             for dt, trans_list in trans_anal.items():
@@ -314,7 +290,6 @@ class BacktestEngine:
             executed_trades.sort(key=lambda x: x['time'])
         
         df['time'] = df.index.astype('int64') // 10**9 
-        # ✅ NEW Code (Optimized Array):
         # Format: [time, open, high, low, close, volume]
         chart_candles = df[['time', 'open', 'high', 'low', 'close', 'volume']].values.tolist()
         
@@ -336,13 +311,23 @@ class BacktestEngine:
             print(f"⚠️ Error extracting equity curve: {e}")
             equity_curve = []
 
+        # ✅ PRINT: এখন আর এরর দিবে না কারণ profit_percent উপরে ডিফাইন করা হয়েছে
+        print(f"\n📊 Backtest Result for {symbol} ({timeframe})")
+        print(f"------------------------------------------------")
+        print(f"🕯️  Total Candles : {total_candles}")
+        print(f"💰 Final Value   : {round(end_value, 2)}")
+        print(f"📈 Profit        : {profit_percent}%")
+        print(f"📉 Max Drawdown  : {qs_metrics['metrics'].get('max_drawdown', 0)}%")
+        print(f"------------------------------------------------\n")
+
         return {
             "status": "success",
             "symbol": symbol,
             "strategy": strategy_name,
             "initial_cash": initial_cash,
             "final_value": round(end_value, 2),
-            "profit_percent": round((end_value - start_value) / start_value * 100, 2),
+            "profit_percent": profit_percent,
+            "total_candles": total_candles,  # ✅ NEW
             "total_trades": detailed_trade_analysis.get('total_closed', 0),
             "advanced_metrics": qs_metrics["metrics"],
             "heatmap_data": qs_metrics["heatmap"],
@@ -460,6 +445,7 @@ class BacktestEngine:
                 fixed_params[k] = v
 
         results = []
+        best_profit_so_far = -float('inf') # Track best profit locally
 
         if method == "grid":
             param_names = list(param_ranges.keys())
@@ -467,26 +453,37 @@ class BacktestEngine:
             combinations = list(itertools.product(*param_values))
             total = len(combinations)
             
-            # ✅ Use original stdout for progress bar initialization
-            sys.__stdout__.write(f"\n🚀 Starting GRID Optimization: {total} Combinations\n")
-            pbar = SmartProgressBar(total, prefix='Optimization:', suffix='Complete', length=40)
+            # 🚀 SmartProgressBar removed. No print.
             
             for i, combo in enumerate(combinations):
                 if abort_callback and abort_callback(): 
-                    sys.__stdout__.write("\n⚠️ Optimization Aborted by User.\n")
                     break
                 instance_params = dict(zip(param_names, combo))
                 
-                # ✅ NEW: সরাসরি কল করুন (কারণ আমরা Cerebro তে stdstats=False দিয়েছি)
                 metrics = self._run_single_backtest(df, strategy_name, initial_cash, instance_params, fixed_params, commission, slippage)
                 
                 metrics['params'] = instance_params
                 results.append(metrics)
                 
-                if progress_callback: progress_callback(i + 1, total)
-                
-                # ✅ Update Smart Bar (সরাসরি টার্মিনালে দেখাবে)
-                pbar.update(i + 1, current_profit=metrics['profitPercent'])
+                # Update Best Profit
+                if metrics['profitPercent'] > best_profit_so_far:
+                    best_profit_so_far = metrics['profitPercent']
+
+                # ✅ UPDATED: Call progress callback with structured data
+                if progress_callback:
+                    # আমরা 'percent' এবং 'extra' ডেটা পাঠাচ্ছি
+                    percent = int(((i + 1) / total) * 100)
+                    progress_callback(
+                        percent, # Main progress
+                        # Optional: You can pass a dict as a second arg if your task supports it,
+                        # or update the task logic to handle (current, total, meta)
+                        meta={
+                            "current": i + 1,
+                            "total": total,
+                            "best_profit": round(best_profit_so_far, 2),
+                            "last_profit": metrics['profitPercent']
+                        }
+                    )
 
         elif method == "genetic" or method == "geneticAlgorithm":
             results = self._run_genetic_algorithm(
@@ -500,7 +497,6 @@ class BacktestEngine:
         return results
 
     def _run_genetic_algorithm(self, df, strategy_name, initial_cash, param_ranges, fixed_params, pop_size=50, generations=10, progress_callback=None, abort_callback=None, commission=0.001, slippage=0.0):
-        # ... (শুরুর ভেরিয়েবল ডিক্লারেশন আগের মতোই থাকবে) ...
         param_keys = list(param_ranges.keys())
         population = []
         for _ in range(pop_size):
@@ -509,21 +505,17 @@ class BacktestEngine:
         best_results = []
         history_cache = {} 
         total_steps = generations * pop_size
-
-        # ✅ Initialize Smart Bar
-        sys.__stdout__.write(f"\n🧬 Starting GENETIC Optimization: {generations} Gens x {pop_size} Pop\n")
-        pbar = SmartProgressBar(total_steps, prefix='Evolution:', suffix='Done', length=40)
+        best_profit_so_far = -float('inf')
 
         for gen in range(generations):
             if abort_callback and abort_callback(): 
-                sys.__stdout__.write("\n⚠️ Optimization Aborted.\n")
                 break
+            
             evaluated_pop = []
             
             for i, individual in enumerate(population):
                 param_signature = json.dumps(individual, sort_keys=True)
                 
-                # ✅ NEW: সরাসরি লজিক ব্যবহার করুন
                 if param_signature in history_cache:
                     metrics = history_cache[param_signature]
                 else:
@@ -532,14 +524,25 @@ class BacktestEngine:
                     history_cache[param_signature] = metrics
                 
                 evaluated_pop.append(metrics)
+                
+                if metrics['profitPercent'] > best_profit_so_far:
+                    best_profit_so_far = metrics['profitPercent']
+
                 current_step = (gen * pop_size) + (i + 1)
                 
-                if progress_callback: progress_callback(current_step, total_steps)
-                
-                # ✅ Update Smart Bar
-                pbar.update(current_step, current_profit=metrics['profitPercent'])
-
-            # ... (বাকি Evolution লজিক আগের মতোই থাকবে) ...
+                # ✅ UPDATED Callback
+                if progress_callback:
+                    percent = int((current_step / total_steps) * 100)
+                    progress_callback(
+                        percent,
+                        meta={
+                            "current": current_step,
+                            "total": total_steps,
+                            "generation": gen + 1,
+                            "best_profit": round(best_profit_so_far, 2)
+                        }
+                    )
+            
             evaluated_pop.sort(key=lambda x: x['profitPercent'], reverse=True)
             best_results.extend(evaluated_pop[:5]) 
             
@@ -624,10 +627,20 @@ class BacktestEngine:
                 "total_trades": total_closed,
                 "winRate": round(win_rate, 2),
                 "final_value": round(end_value, 2),
-                "initial_cash": initial_cash
+                "initial_cash": initial_cash,
+                "total_candles": len(df)  # ✅ NEW
             }
         except Exception:
-            return {"profitPercent": 0, "maxDrawdown": 0, "sharpeRatio": 0, "total_trades": 0, "winRate": 0, "final_value": initial_cash, "initial_cash": initial_cash}
+            return {
+                "profitPercent": 0, 
+                "maxDrawdown": 0, 
+                "sharpeRatio": 0, 
+                "total_trades": 0, 
+                "winRate": 0, 
+                "final_value": initial_cash, 
+                "initial_cash": initial_cash,
+                "total_candles": len(df) if df is not None else 0
+            }
 
     # ... (বাকি মেথডগুলো অপরিবর্তিত রাখুন) ...
     def _load_strategy_class(self, strategy_name):
