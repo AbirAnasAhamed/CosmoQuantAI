@@ -120,26 +120,31 @@ def run_optimization_task(self, symbol: str, timeframe: str, strategy_name: str,
     db = SessionLocal()
     engine = BacktestEngine()
     
-    def on_progress(current, total):
-        percent = int((current / total) * 100)
+    # ✅ ফিক্স: on_progress ফাংশনটি আপডেট করা হয়েছে
+    def on_progress(percent, meta=None):
+        if meta is None:
+            meta = {}
+
+        current = meta.get('current', 0)
+        total = meta.get('total', 0)
+        
+        # প্রোগ্রেস বার ভিজুয়ালাইজেশন (Optional)
         bar_length = 30 
-        filled_length = int(bar_length * current // total)
+        filled_length = int(bar_length * percent // 100)
         bar = '█' * filled_length + '-' * (bar_length - filled_length)
         print(f"Optimization: |{bar}| {percent}% Complete ({current}/{total})", flush=True)
 
-        if current == total:
-            print() 
+        if percent == 100:
+            print("Optimization Completed.") 
 
+        # Celery স্টেট আপডেট (Meta সহ)
         self.update_state(
             state='PROGRESS',
-            meta={
-                'current': current,
-                'total': total,
-                'percent': percent,
-                'status': 'Processing'
-            }
+            meta=meta
         )
-        publish_task_status('OPTIMIZE', self.request.id, 'processing', percent)
+        
+        # Frontend এ আপডেট পাঠানো
+        publish_task_status('OPTIMIZE', self.request.id, 'processing', percent, data=meta)
 
     def check_abort():
         try:
@@ -163,7 +168,7 @@ def run_optimization_task(self, symbol: str, timeframe: str, strategy_name: str,
             method=method,
             population_size=population_size,
             generations=generations,
-            progress_callback=on_progress,
+            progress_callback=on_progress, # ✅ আপডেটেড ফাংশন পাস করা হচ্ছে
             abort_callback=check_abort,
             commission=commission,
             slippage=slippage,
@@ -180,6 +185,8 @@ def run_optimization_task(self, symbol: str, timeframe: str, strategy_name: str,
         
     except Exception as e:
         print(f"❌ Optimization Error: {e}", flush=True)
+        import traceback
+        traceback.print_exc() # বিস্তারিত এরর লগ দেখার জন্য
         publish_task_status('OPTIMIZE', self.request.id, 'failed', 0, {"error": str(e)})
         return {"status": "error", "message": str(e)}
         

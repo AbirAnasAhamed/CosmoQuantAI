@@ -69,9 +69,13 @@ export const BacktesterContainer: React.FC = () => {
     // Batch Mode State
     const [batchStrategies, setBatchStrategies] = useState<string[]>([]); // ✅ Added for Batch
 
+    // ✅ 2. Unified strategy state
+    const [allStrategies, setAllStrategies] = useState<string[]>([]);
+
     const [strategies, setStrategies] = useState<string[]>([]);
     const [customStrategies, setCustomStrategies] = useState<string[]>([]);
-    const [strategy, setStrategy] = useState('RSI Crossover');
+    // ✅ 1. Default strategy empty string (no hardcoded)
+    const [strategy, setStrategy] = useState('');
     const [timeframe, setTimeframe] = useState('1h');
     const [startDate, setStartDate] = useState('2023-01-01');
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
@@ -112,16 +116,36 @@ export const BacktesterContainer: React.FC = () => {
     const [resultsTab, setResultsTab] = useState('overview');
 
     // --- Effects ---
+    // ✅ 3. Dynamic Strategy Loading
     useEffect(() => {
-        const load = async () => {
+        const loadStrategies = async () => {
             try {
-                const list = await fetchCustomStrategyList();
-                setCustomStrategies(list);
-                // Also initialize standard strategies list if needed
-                setStrategies(Object.keys(MOCK_STRATEGY_PARAMS));
-            } catch (e) { console.error(e); }
+                // Fetch all valid strategies from backend
+                const fullList = await fetchCustomStrategyList();
+
+                if (Array.isArray(fullList) && fullList.length > 0) {
+                    setAllStrategies(fullList);
+                    setStrategies(fullList); // For dropdown
+                    // Initialize custom strategies list if needed, or if fullList contains everything, just use it.
+                    // The original code separated MOCK_STRATEGIES (standard) and custom. 
+                    // If fetchCustomStrategyList returns everything, we are good.
+                    setCustomStrategies(fullList);
+
+                    // ✨ MAGIC FIX: Set first strategy as default
+                    setStrategy((prev) => {
+                        // If current strategy is invalid/empty, pick the first one
+                        if (!prev || !fullList.includes(prev)) {
+                            return fullList[0];
+                        }
+                        return prev;
+                    });
+                }
+            } catch (e) {
+                console.error("Failed to load strategies:", e);
+                showToast("Failed to load strategy list from backend", "error");
+            }
         };
-        load();
+        loadStrategies();
     }, []);
 
     useEffect(() => {
@@ -192,6 +216,12 @@ export const BacktesterContainer: React.FC = () => {
     };
 
     const onRun = () => {
+        // --- SAFETY CHECK ---
+        if (!strategy || strategy === 'Unknown') {
+            showToast("Please wait for strategies to load or select a valid strategy.", "error");
+            return;
+        }
+
         const commonParams = {
             symbol: dataSource === 'csv' ? `FILE: ${csvFileName}` : symbol,
             timeframe,
