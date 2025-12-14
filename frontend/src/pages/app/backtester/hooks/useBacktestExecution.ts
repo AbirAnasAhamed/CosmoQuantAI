@@ -45,6 +45,12 @@ export const useBacktestExecution = () => {
                 setIsLoading(false);
                 showToast(`Analysis Failed`, 'error');
             }
+            else if (status === 'REVOKED' || status === 'Revoked') {
+                setIsLoading(false);      // লোডিং বন্ধ হবে
+                setProgress(0);           // প্রোগ্রেস রিসেট
+                setResults(null);         // রেজাল্ট ক্লিয়ার (অপশনাল)
+                showToast('Analysis Stopped by User', 'info');
+            }
         }
     }, [lastMessage, taskId, mode, showToast]);
 

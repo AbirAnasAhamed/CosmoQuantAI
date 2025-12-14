@@ -294,7 +294,17 @@ def run_batch_backtest_task(self, symbol: str, timeframe: str, initial_cash: flo
     
     print(f"🚀 Starting Batch Task for {total} strategies on {symbol}")
 
+    # Redis কানেকশন সেটআপ (লুপের বাইরে)
+    r = utils.get_redis_client()
+
     for i, strategy_name in enumerate(available_strategies):
+        
+        # ✅ ১. ফিক্স: স্টপ সিগন্যাল চেক করা
+        if r.exists(f"abort_task:{self.request.id}"):
+            print(f"🛑 Batch Task Aborted by User at {strategy_name}")
+            publish_task_status('BATCH', self.request.id, 'REVOKED', 0, {"message": "Batch testing stopped."})
+            return {"status": "Revoked", "message": "Stopped by user"}
+
         # ১. প্রোগ্রেস ক্যালকুলেশন
         current_progress = int((i / total) * 100)
         

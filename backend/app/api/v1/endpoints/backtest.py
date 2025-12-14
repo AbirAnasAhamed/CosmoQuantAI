@@ -5,7 +5,7 @@ import os
 import pandas as pd
 from app import models, schemas
 from app.api import deps
-from app.tasks import run_backtest_task, run_optimization_task, download_candles_task, download_trades_task, run_batch_backtest_task, run_walk_forward_task
+from app.tasks import run_backtest_task, run_optimization_task, download_candles_task, download_trades_task, run_batch_backtest_task, run_walk_forward_task, publish_task_status
 from app.celery_app import celery_app
 from app import utils
 
@@ -144,12 +144,23 @@ def run_optimization(
 
 @router.post("/revoke/{task_id}")
 def revoke_task(task_id: str):
+    # ১. টাস্ক টার্মিনেট করা
     celery_app.control.revoke(task_id, terminate=True)
+    
     try:
+        # ২. Redis এ ফ্ল্যাগ সেট করা
         r = utils.get_redis_client()
         r.set(f"abort_task:{task_id}", "true", ex=3600)
+
+        # ✅ ৩. ফিক্স: সকেটে ফোর্সফুলি 'REVOKED' মেসেজ পাঠানো
+        # যেহেতু ওয়ার্কার মরে গেছে, তাই এখান থেকেই ফ্রন্টএন্ডকে জানাতে হবে।
+        publish_task_status('BATCH', task_id, 'REVOKED', 0, {"status": "Stopped by User"})
+        
+        # অপটিমাইজেশন বা অন্য টাস্কের জন্যও জেনেরিক মেসেজ পাঠাতে পারেন
+        publish_task_status('Task', task_id, 'REVOKED', 0, {"status": "Stopped by User"})
+
     except Exception as e:
-        print(f"⚠️ Redis Error in revoke: {e}")
+        print(f"⚠️ Redis/Publish Error in revoke: {e}")
         
     return {"status": "Revoked", "message": f"Stop signal sent for Task {task_id}."}
 
