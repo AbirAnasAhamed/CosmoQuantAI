@@ -120,30 +120,35 @@ def run_optimization_task(self, symbol: str, timeframe: str, strategy_name: str,
     db = SessionLocal()
     engine = BacktestEngine()
     
-    # ✅ ফিক্স: on_progress ফাংশনটি আপডেট করা হয়েছে
+    # ✅ FIX: Updated Signature to match engine call (percent, meta)
     def on_progress(percent, meta=None):
-        if meta is None:
-            meta = {}
-
+        if meta is None: meta = {}
+        
         current = meta.get('current', 0)
         total = meta.get('total', 0)
         
-        # প্রোগ্রেস বার ভিজুয়ালাইজেশন (Optional)
+        # Terminal Progress Bar Visualization
         bar_length = 30 
         filled_length = int(bar_length * percent // 100)
         bar = '█' * filled_length + '-' * (bar_length - filled_length)
-        print(f"Optimization: |{bar}| {percent}% Complete ({current}/{total})", flush=True)
+        
+        # ✅ Show Total Parameters Count in Log
+        sys.stdout.write(f"\r🚀 Optimization: |{bar}| {percent}% Complete ({current}/{total})")
+        sys.stdout.flush()
 
         if percent == 100:
-            print("Optimization Completed.") 
+            print("\n✅ Optimization Completed!") 
 
-        # Celery স্টেট আপডেট (Meta সহ)
         self.update_state(
             state='PROGRESS',
-            meta=meta
+            meta={
+                'current': current,
+                'total': total,
+                'percent': percent,
+                'status': 'Processing',
+                'best_profit': meta.get('best_profit', 0)
+            }
         )
-        
-        # Frontend এ আপডেট পাঠানো
         publish_task_status('OPTIMIZE', self.request.id, 'processing', percent, data=meta)
 
     def check_abort():
@@ -156,6 +161,7 @@ def run_optimization_task(self, symbol: str, timeframe: str, strategy_name: str,
         return False
 
     try:
+        print(f"🔄 Starting Optimization for {strategy_name} on {symbol}...")
         results = engine.optimize(
             db=db,
             symbol=symbol,
@@ -168,7 +174,7 @@ def run_optimization_task(self, symbol: str, timeframe: str, strategy_name: str,
             method=method,
             population_size=population_size,
             generations=generations,
-            progress_callback=on_progress, # ✅ আপডেটেড ফাংশন পাস করা হচ্ছে
+            progress_callback=on_progress, # ✅ Now compatible
             abort_callback=check_abort,
             commission=commission,
             slippage=slippage,
@@ -184,9 +190,9 @@ def run_optimization_task(self, symbol: str, timeframe: str, strategy_name: str,
         return results
         
     except Exception as e:
-        print(f"❌ Optimization Error: {e}", flush=True)
+        print(f"\n❌ Optimization Error: {e}", flush=True)
         import traceback
-        traceback.print_exc() # বিস্তারিত এরর লগ দেখার জন্য
+        traceback.print_exc()
         publish_task_status('OPTIMIZE', self.request.id, 'failed', 0, {"error": str(e)})
         return {"status": "error", "message": str(e)}
         
@@ -208,6 +214,8 @@ def run_walk_forward_task(self, symbol, timeframe, strategy_name, initial_cash, 
                 'current_equity': meta.get('current_equity', 0) if meta else 0
             }
         )
+        # Add publish for WFA realtime updates
+        publish_task_status('WFA', self.request.id, 'processing', percent, data=meta)
 
     db = SessionLocal() # Ensure DB session is created
     engine = BacktestEngine()
