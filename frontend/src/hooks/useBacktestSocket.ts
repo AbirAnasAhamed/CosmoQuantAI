@@ -5,7 +5,7 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 const WS_URL = 'ws://localhost:8000/ws/backtest';
 
 interface SocketMessage {
-    type: 'BACKTEST' | 'DOWNLOAD' | 'OPTIMIZE' | 'BATCH';
+    type: 'BACKTEST' | 'DOWNLOAD' | 'OPTIMIZE' | 'BATCH' | 'Task';
     task_id: string;
     status: 'pending' | 'processing' | 'completed' | 'failed' | 'Revoked' | 'REVOKED';
     progress: number;

@@ -49,7 +49,13 @@ export const useDownloadData = () => {
     useEffect(() => {
         if (!lastMessage || !activeTaskId) return;
 
-        if (lastMessage.type === 'DOWNLOAD' && lastMessage.task_id === activeTaskId) {
+        // ফিক্স ১: 'DOWNLOAD' এর পাশাপাশি 'Task' বা 'BATCH' টাইপও চেক করা হচ্ছে
+        // কারণ ব্যাকএন্ড revoke করার সময় 'Task' টাইপ পাঠায়।
+        const isRelevantMessage = 
+            (lastMessage.type === 'DOWNLOAD' || lastMessage.type === 'Task' || lastMessage.type === 'BATCH') && 
+            lastMessage.task_id === activeTaskId;
+
+        if (isRelevantMessage) {
             if (lastMessage.status === 'processing') {
                 setDownloadProgress(lastMessage.progress);
             }
@@ -59,13 +65,15 @@ export const useDownloadData = () => {
                 setActiveTaskId(null);
                 showToast('Download Completed Successfully! 🎉', 'success');
             }
+            // Revoked স্ট্যাটাস হ্যান্ডলিং
             if (lastMessage.status === 'failed' || lastMessage.status === 'Revoked') {
                 setIsDownloading(false);
                 setActiveTaskId(null);
+                setDownloadProgress(0); // প্রগ্রেস রিসেট
                 showToast(lastMessage.status === 'Revoked' ? 'Download Stopped' : 'Download Failed', 'error');
             }
         }
-    }, [lastMessage, activeTaskId]);
+    }, [lastMessage, activeTaskId, showToast]);
 
     // Handlers
     const handleStartDownload = async () => {
@@ -111,6 +119,13 @@ export const useDownloadData = () => {
         try {
             await revokeBacktestTask(activeTaskId);
             showToast('Stopping download...', 'warning');
+            
+            // ফিক্স ২: এপিআই কল সফল হলে সাথে সাথেই UI আপডেট করে দেওয়া।
+            // সকেটের জন্য অপেক্ষা না করে ইউজারকে তাৎক্ষণিক ফিডব্যাক দেওয়া।
+            setIsDownloading(false);
+            setActiveTaskId(null);
+            setDownloadProgress(0);
+            
         } catch (e) {
             console.error(e);
             showToast('Failed to stop task.', 'error');
