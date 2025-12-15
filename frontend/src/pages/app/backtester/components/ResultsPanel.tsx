@@ -5,6 +5,8 @@ import UnderwaterChart from '@/components/features/backtest/UnderwaterChart';
 import EquityChart from '@/components/features/backtest/EquityChart';
 import MonteCarloCard from './MonteCarloCard';
 import { BacktestResult } from '@/types';
+import { Download, FileText } from 'lucide-react';
+import apiClient from '@/services/client';
 
 // --- Helper Components ---
 const MetricCard: React.FC<{ label: string; value: string | number; decimals?: number; prefix?: string; suffix?: string; positive?: boolean }> = ({ label, value, decimals = 2, prefix = '', suffix = '', positive }) => {
@@ -68,6 +70,30 @@ interface ResultsPanelProps {
 }
 
 export const ResultsPanel: React.FC<ResultsPanelProps> = ({ singleResult, resultsTab, setResultsTab }) => {
+
+    const handleDownloadReport = async () => {
+        if (singleResult.report_file) {
+            try {
+                const response = await apiClient.get(`/v1/backtest/report/download/${singleResult.report_file}`, {
+                    responseType: 'blob',
+                });
+
+                const url = window.URL.createObjectURL(new Blob([response.data]));
+                const link = document.createElement('a');
+                link.href = url;
+                link.setAttribute('download', singleResult.report_file);
+                document.body.appendChild(link);
+                link.click();
+                link.parentNode?.removeChild(link);
+            } catch (error) {
+                console.error("Download failed:", error);
+                alert("Failed to download report.");
+            }
+        } else {
+            alert("No report generated for this backtest.");
+        }
+    };
+
     if (!singleResult) return null;
 
     // ✅ 1. Check: Is it an optimization result (Array)?
@@ -151,6 +177,25 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ singleResult, result
 
     return (
         <div className="animate-fade-in space-y-6 mt-6">
+
+            {/* 👇 HEADER SECTION WITH DOWNLOAD BUTTON */}
+            <div className="flex justify-between items-center bg-[#131722] p-4 rounded-lg border border-[#2A2E39]">
+                <div>
+                    <h2 className="text-lg font-bold text-white">Backtest Results: {singleResult.symbol}</h2>
+                    <p className="text-sm text-gray-400">Strategy: {singleResult.strategy}</p>
+                </div>
+
+                {singleResult.report_file && (
+                    <button
+                        onClick={handleDownloadReport}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all text-sm font-medium"
+                    >
+                        <FileText className="h-4 w-4" />
+                        Download Report ({singleResult.report_file.endsWith('pdf') ? 'PDF' : 'HTML'})
+                    </button>
+                )}
+            </div>
+
             {/* A. Chart Section */}
             <div className="bg-[#131722] border border-[#2A2E39] rounded-lg overflow-hidden shadow-lg p-1">
                 {/* Main Price Chart */}

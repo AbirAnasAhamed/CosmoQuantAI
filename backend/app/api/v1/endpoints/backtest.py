@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import FileResponse
 from celery.result import AsyncResult
 from typing import List
 import os
@@ -8,9 +9,13 @@ from app.api import deps
 from app.tasks import run_backtest_task, run_optimization_task, download_candles_task, download_trades_task, run_batch_backtest_task, run_walk_forward_task, publish_task_status
 from app.celery_app import celery_app
 from app import utils
+from app.services.report_generator import generate_report
 
 router = APIRouter()
 
+router = APIRouter()
+
+REPORTS_DIR = "app/reports"
 DATA_FEED_DIR = "app/data_feeds"
 
 @router.post("/run")
@@ -272,3 +277,40 @@ async def run_data_conversion(request: schemas.ConversionRequest):
 
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/report/download/{filename}")
+def download_report(filename: str):
+    file_path = os.path.join(REPORTS_DIR, filename)
+    
+    if os.path.exists(file_path):
+        media_type = "application/pdf" if filename.endswith(".pdf") else "text/html"
+        return FileResponse(file_path, media_type=media_type, filename=filename)
+    else:
+        raise HTTPException(status_code=404, detail="Report file not found")
+
+@router.get("/download-report/{task_id}")
+def download_backtest_report(task_id: str, format: str = "pdf"):
+    # ১. টাস্ক রেজাল্ট চেক করা
+    task_result = AsyncResult(task_id)
+    
+    if task_result.state != 'SUCCESS':
+        raise HTTPException(status_code=400, detail="Backtest not completed yet.")
+    
+    result_data = task_result.result
+    
+    # ২. returns ডাটা আছে কিনা চেক করা
+    if not result_data or "daily_returns" not in result_data:
+        raise HTTPException(status_code=404, detail="Return data not found for report generation.")
+
+    # ৩. রিপোর্ট জেনারেট করা
+    symbol = result_data.get("symbol", "Unknown")
+    timeframe = result_data.get("timeframe", "Unknown")
+    file_path = generate_report(task_id, result_data["daily_returns"], symbol, timeframe, format=format)
+    
+    if not file_path or not os.path.exists(file_path):
+        raise HTTPException(status_code=500, detail="Failed to generate report file.")
+
+    # ৪. ফাইল রিটার্ন করা
+    safe_symbol = symbol.replace("/", "_")
+    filename = f"report_{safe_symbol}_{timeframe}_{task_id}.{format}"
+    return FileResponse(file_path, media_type='application/pdf' if format == 'pdf' else 'text/html', filename=filename)

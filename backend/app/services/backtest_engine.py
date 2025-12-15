@@ -11,6 +11,8 @@ from app.strategies import STRATEGY_MAP
 import random
 import itertools
 import os
+import os
+from weasyprint import HTML
 import importlib
 import importlib.util
 import sys
@@ -355,6 +357,42 @@ class BacktestEngine:
         if monte_carlo_results:
             print(f"🎲 Monte Carlo (1000 Runs): Risk of Ruin: {monte_carlo_results['risk_of_ruin_percent']}% | Median Profit: {monte_carlo_results['median_profit']}")
 
+        # ---------------------------------------------------------
+        # 👇 3. QuantStats Report Generation (PDF/HTML)
+        # ---------------------------------------------------------
+        report_file = None
+        try:
+            # Portfolio stats extraction
+            portfolio_stats = first_strat.analyzers.getbyname('pyfolio')
+            returns, _, _, _ = portfolio_stats.get_pf_items()
+            
+            # Timezone fix
+            returns.index = returns.index.tz_localize(None)
+
+            # Ensure reports directory exists
+            reports_dir = "app/reports"
+            os.makedirs(reports_dir, exist_ok=True)
+            
+            # Unique filename
+            filename = f"report_{symbol}_{timeframe}_{int(time.time())}"
+            html_path = os.path.join(reports_dir, f"{filename}.html")
+            pdf_path = os.path.join(reports_dir, f"{filename}.pdf")
+
+            # 1. Generate HTML (QuantStats Default)
+            qs.reports.html(returns, output=html_path, title=f"CosmoQuantAI Report - {symbol}", download_filename=html_path)
+
+            # 2. Convert to PDF
+            try:
+                # pdfkit.from_file(html_path, pdf_path) # Removed
+                HTML(filename=html_path).write_pdf(pdf_path) # ✅ WeasyPrint replacement
+                report_file = filename + ".pdf"
+            except Exception as e:
+                print(f"⚠️ PDF Conversion Failed (WeasyPrint error?): {e}")
+                report_file = filename + ".html" # Fallback to HTML
+
+        except Exception as e:
+            print(f"❌ Report Generation Error: {e}")
+
         # ✅ PRINT: with Leverage Info
         print(f"\n📊 Backtest Result for {symbol} ({timeframe}) | Lev: {leverage}x")
         print(f"------------------------------------------------")
@@ -378,10 +416,13 @@ class BacktestEngine:
             "heatmap_data": qs_metrics["heatmap"],
             "underwater_data": qs_metrics["underwater"],
             "histogram_data": qs_metrics["histogram"],
+            "histogram_data": qs_metrics["histogram"],
+            "report_file": report_file, # 👈 Added report file
             "trades_log": executed_trades, 
             "candle_data": chart_candles,
             "trade_analysis": detailed_trade_analysis,
             "equity_curve": equity_curve,
+            "daily_returns": returns.to_json(date_format='iso') if 'returns' in locals() else None,
             "monte_carlo": monte_carlo_results
         }
 

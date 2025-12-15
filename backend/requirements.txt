@@ -60,3 +60,4 @@ alpaca-py
 dotenv
 pandas_ta
 asgiref>=3.7.0
+weasyprint>=60.0

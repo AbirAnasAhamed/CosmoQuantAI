@@ -161,6 +161,8 @@ export interface BacktestResult {
 
   trades_log?: any[];
   candle_data?: any[];
+  report_file?: string;
+  symbol?: string; // ✅ Symbol Name
 
   // লিগ্যাসি ফিল্ডস (Optional রাখুন যাতে আগের কোড না ভাঙ্গে)
   maxDrawdown?: number;
