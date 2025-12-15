@@ -75,6 +75,7 @@ htmlcov/
 
 # Data Feeds (CSV & Trade Data)
 backend/app/data_feeds/
+backend/app/reports/
 *.csv
 
 # OS Generated Files
