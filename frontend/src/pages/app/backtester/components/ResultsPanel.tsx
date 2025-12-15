@@ -63,34 +63,64 @@ const calculateDrawdownFromCandles = (candles: any[]) => {
     });
 };
 
+import { downloadBacktestReportApi } from '@/services/backtester';
+import { useToast } from '@/context/ToastContext';
+
 interface ResultsPanelProps {
     singleResult: BacktestResult;
     resultsTab: string;
     setResultsTab: (tab: string) => void;
+    taskId?: string;
 }
 
-export const ResultsPanel: React.FC<ResultsPanelProps> = ({ singleResult, resultsTab, setResultsTab }) => {
+export const ResultsPanel: React.FC<ResultsPanelProps> = ({ singleResult, resultsTab, setResultsTab, taskId }) => {
+    const { showToast } = useToast();
+    const [isDownloading, setIsDownloading] = useState(false);
 
     const handleDownloadReport = async () => {
-        if (singleResult.report_file) {
-            try {
-                const response = await apiClient.get(`/v1/backtest/report/download/${singleResult.report_file}`, {
-                    responseType: 'blob',
-                });
-
-                const url = window.URL.createObjectURL(new Blob([response.data]));
-                const link = document.createElement('a');
-                link.href = url;
-                link.setAttribute('download', singleResult.report_file);
-                document.body.appendChild(link);
-                link.click();
-                link.parentNode?.removeChild(link);
-            } catch (error) {
-                console.error("Download failed:", error);
-                alert("Failed to download report.");
+        if (!taskId) {
+            // Fallback to old method if taskId is missing but report_file exists (backward compatibility)
+            if (singleResult.report_file) {
+                try {
+                    const response = await apiClient.get(`/v1/backtest/report/download/${singleResult.report_file}`, {
+                        responseType: 'blob',
+                    });
+                    const url = window.URL.createObjectURL(new Blob([response.data]));
+                    const link = document.createElement('a');
+                    link.href = url;
+                    link.setAttribute('download', singleResult.report_file);
+                    document.body.appendChild(link);
+                    link.click();
+                    link.parentNode?.removeChild(link);
+                    return;
+                } catch (error) {
+                    console.error("Download failed:", error);
+                }
             }
-        } else {
-            alert("No report generated for this backtest.");
+
+            showToast("Task ID not found. Cannot download report.", "error");
+            return;
+        }
+
+        try {
+            setIsDownloading(true);
+            const blob = await downloadBacktestReportApi(taskId);
+
+            // Trigger file download in browser
+            const url = window.URL.createObjectURL(new Blob([blob]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', `Report_${singleResult.symbol.replace('/', '_')}_${taskId}.pdf`);
+            document.body.appendChild(link);
+            link.click();
+            link.parentNode?.removeChild(link);
+
+            if (showToast) showToast('Report downloaded successfully!', 'success');
+        } catch (error) {
+            console.error("Download failed:", error);
+            if (showToast) showToast('Failed to download report', 'error');
+        } finally {
+            setIsDownloading(false);
         }
     };
 
@@ -185,13 +215,23 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ singleResult, result
                     <p className="text-sm text-gray-400">Strategy: {singleResult.strategy}</p>
                 </div>
 
-                {singleResult.report_file && (
+                {taskId && (
                     <button
                         onClick={handleDownloadReport}
-                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-md transition-all text-sm font-medium"
+                        disabled={isDownloading}
+                        className={`flex items-center gap-2 px-3 py-1.5 text-xs font-medium rounded transition-colors ${isDownloading
+                                ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
+                                : 'bg-[#2962FF] hover:bg-[#1e4bd1] text-white'
+                            }`}
                     >
-                        <FileText className="h-4 w-4" />
-                        Download Report ({singleResult.report_file.endsWith('pdf') ? 'PDF' : 'HTML'})
+                        {isDownloading ? (
+                            <>Downloading...</>
+                        ) : (
+                            <>
+                                <Download className="h-3.5 w-3.5" />
+                                Download PDF
+                            </>
+                        )}
                     </button>
                 )}
             </div>

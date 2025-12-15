@@ -210,11 +210,21 @@ export const convertData = async (payload: { filename: string; timeframe: string
     return response.data;
 };
 
+
+export const downloadBacktestReportApi = async (taskId: string) => {
+    //আমরা ব্যবহার করি 'blob' টাইপ, কারণ এটি একটি PDF ফাইল
+    const response = await apiClient.get(`/v1/backtest/download-report/${taskId}`, {
+        responseType: 'blob',
+    });
+    return response.data;
+};
+
 export const backtestService = {
     runBacktest: runBacktestApi,
     runOptimization: runOptimizationApi,
     runWalkForward: runWalkForwardApi,
     runBatchBacktest: runBatchBacktest, // ✅ Added Batch
     getStatus: getTaskStatus,
-    revokeTask: revokeBacktestTask
+    revokeTask: revokeBacktestTask,
+    downloadReport: downloadBacktestReportApi
 };

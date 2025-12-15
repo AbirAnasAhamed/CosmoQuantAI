@@ -418,6 +418,7 @@ export const BacktesterContainer: React.FC = () => {
                                 singleResult={results!}
                                 resultsTab={resultsTab}
                                 setResultsTab={setResultsTab}
+                                taskId={taskId!} // Pass taskId here
                             />
                         )
                     ) : null}
