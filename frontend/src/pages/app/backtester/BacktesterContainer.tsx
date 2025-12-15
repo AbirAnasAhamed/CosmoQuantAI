@@ -49,7 +49,13 @@ export const BacktesterContainer: React.FC = () => {
         dlExchange, setDlExchange, dlMarkets, dlSymbol, setDlSymbol,
         dlTimeframe, setDlTimeframe, dlStartDate, setDlStartDate, dlEndDate, setDlEndDate,
         isDownloading, downloadProgress, isLoadingDlMarkets,
-        handleStartDownload, handleStopDownload
+        handleStartDownload, handleStopDownload,
+        // New Props
+        tradeFiles: dlTradeFiles,
+        selectedTradeFile: dlSelectedTradeFile,
+        setSelectedTradeFile: setDlSelectedTradeFile,
+        handleConvertData,
+        isConverting: isDlConverting
     } = useDownloadData();
 
     const {
@@ -345,7 +351,7 @@ export const BacktesterContainer: React.FC = () => {
                         handleSyncData={() => handleSyncData(timeframe, startDate, endDate)} isSyncing={isSyncing} syncProgress={syncProgress} syncStatusText={syncStatusText}
                         enableRiskManagement={enableRiskManagement} setEnableRiskManagement={setEnableRiskManagement}
                         initialCash={initialCash} setInitialCash={setInitialCash}
-                        mode={mode} setMode={setMode}
+                        mode={activeTab === 'batch' ? 'batch' : mode} setMode={setMode}
                         wfaTrainWindow={wfaTrainWindow} setWfaTrainWindow={setWfaTrainWindow}
                         wfaTestWindow={wfaTestWindow} setWfaTestWindow={setWfaTestWindow}
                         wfaMethod={wfaMethod} setWfaMethod={setWfaMethod}
@@ -436,6 +442,12 @@ export const BacktesterContainer: React.FC = () => {
                 isDownloading={isDownloading} downloadProgress={downloadProgress}
                 isLoadingDlMarkets={isLoadingDlMarkets}
                 handleStartDownload={handleStartDownload} handleStopDownload={handleStopDownload}
+                // New Props Passed Here
+                tradeFiles={dlTradeFiles}
+                selectedTradeFile={dlSelectedTradeFile}
+                setSelectedTradeFile={setDlSelectedTradeFile}
+                handleConvertData={handleConvertData}
+                isConverting={isDlConverting}
             />
         </div>
     );

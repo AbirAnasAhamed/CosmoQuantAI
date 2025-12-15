@@ -277,47 +277,39 @@ def run_walk_forward_task(self, symbol, timeframe, strategy_name, initial_cash, 
         db.close()
 
 @celery_app.task(bind=True)
-def run_batch_backtest_task(self, symbol: str, timeframe: str, initial_cash: float, strategies: list = None, start_date: str = None, end_date: str = None, commission: float = 0.001, slippage: float = 0.0):
+def run_batch_backtest_task(self, symbol: str, timeframe: str, initial_cash: float, strategies: list = None, start_date: str = None, end_date: str = None, commission: float = 0.001, slippage: float = 0.0, custom_data_file: str = None):
+    # ✅ ফিক্স ১: 'custom_data_file' প্যারামিটার যোগ করা হয়েছে
+    
     db = SessionLocal()
     engine = BacktestEngine()
     
     results = []
     errors = []
     
-    # ✅ ফিক্স: ফ্রন্টএন্ড থেকে পাঠানো স্ট্র্যাটেজি লিস্ট ব্যবহার করা হবে
+    # স্ট্র্যাটেজি ফিল্টারিং লজিক
     if strategies and len(strategies) > 0:
-        # শুধু মাত্র ভ্যালিড স্ট্র্যাটেজিগুলো নেওয়া হবে যা আমাদের ম্যাপে আছে
         available_strategies = [s for s in strategies if s in STRATEGY_MAP]
-        
-        # যদি কোনো কারণে লিস্ট না মিলে, তবে সব রান করবে (ফলব্যাক)
         if not available_strategies:
             available_strategies = list(STRATEGY_MAP.keys())
     else:
-        # কোনো লিস্ট না দিলে সব স্ট্র্যাটেজি রান হবে (স্ট্যান্ডার্ড + কাস্টম)
         available_strategies = list(STRATEGY_MAP.keys())
 
     total = len(available_strategies)
-    
     print(f"🚀 Starting Batch Task for {total} strategies on {symbol}")
 
-    # Redis কানেকশন সেটআপ (লুপের বাইরে)
     r = utils.get_redis_client()
 
     for i, strategy_name in enumerate(available_strategies):
         
-        # ✅ ১. ফিক্স: স্টপ সিগন্যাল চেক করা
+        # স্টপ সিগন্যাল চেক
         if r.exists(f"abort_task:{self.request.id}"):
             print(f"🛑 Batch Task Aborted by User at {strategy_name}")
             publish_task_status('BATCH', self.request.id, 'REVOKED', 0, {"message": "Batch testing stopped."})
             return {"status": "Revoked", "message": "Stopped by user"}
 
-        # ১. প্রোগ্রেস ক্যালকুলেশন
         current_progress = int((i / total) * 100)
-        
-        # ২. কনসোলে প্রিন্ট
         print(f"🔄 [{i+1}/{total}] Testing {strategy_name}... ({current_progress}%)", flush=True)
 
-        # ৩. Celery স্টেট আপডেট
         self.update_state(
             state='PROGRESS',
             meta={
@@ -332,6 +324,7 @@ def run_batch_backtest_task(self, symbol: str, timeframe: str, initial_cash: flo
         time.sleep(0.1) 
 
         try:
+            # ✅ ফিক্স ২: engine.run এ custom_data_file পাস করা
             result = engine.run(
                 db=db,
                 symbol=symbol,
@@ -341,18 +334,23 @@ def run_batch_backtest_task(self, symbol: str, timeframe: str, initial_cash: flo
                 params={}, 
                 start_date=start_date,
                 end_date=end_date,
+                custom_data_file=custom_data_file, # ফাইল সাপোর্ট নিশ্চিত করা হলো
                 commission=commission,
                 slippage=slippage
             )
             
-            if result.get("status") == "error":
-                errors.append({"strategy": strategy_name, "error": result.get("message", "Unknown error")})
+            # ✅ ফিক্স ৩: এরর হ্যান্ডলিং আরও মজবুত করা (KeyError প্রতিরোধে)
+            # যদি স্ট্যাটাস success না হয় অথবা রেজাল্টে সরাসরি error থাকে
+            if result.get("status") != "success":
+                error_msg = result.get("message") or result.get("error") or "Unknown error occurred"
+                errors.append({"strategy": strategy_name, "error": str(error_msg)})
+                print(f"⚠️ Batch Skip {strategy_name}: {error_msg}")
             else:
                 metrics = result.get('advanced_metrics', {})
                 summary = {
                     "strategy": strategy_name,
                     "profit_percent": clean_metric(result.get("profit_percent")),
-                    "total_trades": result["total_trades"],
+                    "total_trades": result.get("total_trades", 0), # সেফ গেট
                     "final_value": clean_metric(result.get("final_value")),
                     "win_rate": clean_metric(metrics.get('win_rate')),
                     "max_drawdown": clean_metric(metrics.get('max_drawdown')),
@@ -366,7 +364,6 @@ def run_batch_backtest_task(self, symbol: str, timeframe: str, initial_cash: flo
 
     db.close()
     
-    # ৫. প্রফিট অনুযায়ী সর্ট করা
     results.sort(key=lambda x: x['profit_percent'], reverse=True)
     
     print(f"✅ Batch Task Completed! Scanned {len(results)} strategies.")

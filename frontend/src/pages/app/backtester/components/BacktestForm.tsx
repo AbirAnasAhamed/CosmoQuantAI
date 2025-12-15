@@ -166,8 +166,11 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
 
     const isOptimizationOrWfa = activeTab === 'optimization' || activeTab === 'walk_forward';
 
-    // ✅ FIX: Filter out duplicates from Custom Strategies
-    const uniqueCustomStrategies = customStrategies.filter(s => !strategies.includes(s));
+    // ✅ FIX: Safe strategy merging with fallbacks
+    const safeStrategies = strategies || [];
+    const safeCustomStrategies = customStrategies || [];
+    const uniqueCustomStrategies = safeCustomStrategies.filter(s => !safeStrategies.includes(s));
+    const allBatchStrategies = Array.from(new Set([...safeStrategies, ...safeCustomStrategies]));
 
     // ✅ নতুন স্টেট: ডাইনামিক টাইমফ্রেম স্টোর করার জন্য
     const [availableTimeframes, setAvailableTimeframes] = useState<string[]>(DEFAULT_TIMEFRAMES);
@@ -422,7 +425,7 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                         </div>
                         <select className={inputBaseClasses} value={strategy} onChange={(e) => setStrategy(e.target.value)}>
                             <optgroup label="Strategy Library">
-                                {strategies.map(s => <option key={`lib-${s}`} value={s}>{s}</option>)}
+                                {safeStrategies.map(s => <option key={`lib-${s}`} value={s}>{s}</option>)}
                             </optgroup>
 
                             {uniqueCustomStrategies.length > 0 && (
@@ -433,24 +436,57 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                         </select>
                     </div>
                 ) : (
-                    /* ✅ BATCH MODE: Multi-Strategy Selector */
+                    /* ✅ BATCH MODE: Multi-Strategy Selector (UPDATED & FIXED) */
                     <div className="bg-gray-50 dark:bg-slate-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 col-span-1 md:col-span-2 lg:col-span-3">
                         <h3 className="text-sm font-bold mb-3 flex items-center gap-2 text-slate-700 dark:text-slate-300">
                             <CheckSquare size={16} /> Select Strategies for Batch Run
                         </h3>
-                        {/* Combine and Deduplicate for Batch List */}
+
+                        {/* Combine and Deduplicate for Batch List with Safety Checks */}
                         <div className="h-40 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded p-2 bg-white dark:bg-slate-900 grid grid-cols-2 md:grid-cols-3 gap-2">
-                            {Array.from(new Set([...strategies, ...customStrategies])).map(s => (
-                                <div key={`batch-${s}`}
-                                    onClick={() => toggleBatchStrategy(s)}
-                                    className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors ${batchStrategies.includes(s) ? 'bg-blue-100 dark:bg-blue-900/30 border border-blue-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800 border border-transparent'}`}
-                                >
-                                    {batchStrategies.includes(s) ? <CheckSquare size={14} className="text-blue-600" /> : <Square size={14} className="text-gray-400" />}
-                                    <span className="text-xs font-medium text-slate-700 dark:text-slate-300">{s}</span>
+                            {allBatchStrategies.length > 0 ? (
+                                allBatchStrategies.map(s => (
+                                    <div key={`batch-${s}`}
+                                        onClick={() => toggleBatchStrategy(s)}
+                                        className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors border select-none ${(batchStrategies || []).includes(s)
+                                                ? 'bg-blue-100 dark:bg-blue-900/30 border-blue-500'
+                                                : 'hover:bg-gray-100 dark:hover:bg-gray-800 border-transparent'
+                                            }`}
+                                    >
+                                        {(batchStrategies || []).includes(s)
+                                            ? <CheckSquare size={14} className="text-blue-600" />
+                                            : <Square size={14} className="text-gray-400" />
+                                        }
+                                        <span className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate" title={s}>
+                                            {s}
+                                        </span>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="col-span-full flex flex-col items-center justify-center text-gray-400 h-full">
+                                    <ShieldAlert size={24} className="mb-2 opacity-50" />
+                                    <span className="text-xs">No strategies found available for batch testing.</span>
                                 </div>
-                            ))}
+                            )}
                         </div>
-                        <p className="text-xs text-gray-500 mt-2">Selected: {batchStrategies.length}</p>
+                        <div className="flex justify-between items-center mt-2">
+                            <p className="text-xs text-gray-500">Selected: {(batchStrategies || []).length}</p>
+                            {/* Select All / Deselect All Helper */}
+                            <div className="flex gap-2">
+                                <button
+                                    onClick={() => setBatchStrategies(allBatchStrategies)}
+                                    className="text-[10px] text-blue-600 hover:underline"
+                                >
+                                    Select All
+                                </button>
+                                <button
+                                    onClick={() => setBatchStrategies([])}
+                                    className="text-[10px] text-gray-500 hover:underline"
+                                >
+                                    Clear
+                                </button>
+                            </div>
+                        </div>
                     </div>
                 )}
 

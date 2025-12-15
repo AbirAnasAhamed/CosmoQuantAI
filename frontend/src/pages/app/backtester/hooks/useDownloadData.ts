@@ -1,6 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useToast } from '@/context/ToastContext';
-import { downloadCandles, downloadTrades, revokeBacktestTask } from '@/services/backtester';
+import {
+    downloadCandles,
+    downloadTrades,
+    revokeBacktestTask,
+    fetchTradeFiles, // ✅ Import
+    convertData      // ✅ Import
+} from '@/services/backtester';
 import { useBacktestSocket } from '@/hooks/useBacktestSocket';
 import { getExchangeMarkets } from '@/services/backtester';
 
@@ -12,13 +18,18 @@ export const useDownloadData = () => {
     const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
 
     // Form State
-    const [downloadType, setDownloadType] = useState<'candles' | 'trades'>('candles');
+    const [downloadType, setDownloadType] = useState<'candles' | 'trades' | 'convert'>('candles'); // ✅ Added 'convert'
     const [dlExchange, setDlExchange] = useState('binance');
     const [dlMarkets, setDlMarkets] = useState<string[]>([]);
     const [dlSymbol, setDlSymbol] = useState('BTC/USDT');
     const [dlTimeframe, setDlTimeframe] = useState('1h');
     const [dlStartDate, setDlStartDate] = useState('2024-01-01');
     const [dlEndDate, setDlEndDate] = useState('');
+
+    // Conversion State (✅ New)
+    const [tradeFiles, setTradeFiles] = useState<string[]>([]);
+    const [selectedTradeFile, setSelectedTradeFile] = useState('');
+    const [isConverting, setIsConverting] = useState(false);
 
     // Status State
     const [isDownloading, setIsDownloading] = useState(false);
@@ -45,14 +56,30 @@ export const useDownloadData = () => {
         loadDlMarkets();
     }, [dlExchange, isDownloadModalOpen]);
 
-    // WebSocket Listener
+    // ✅ Load Trade Files when 'convert' tab is selected
+    useEffect(() => {
+        const loadFiles = async () => {
+            if (downloadType === 'convert' && isDownloadModalOpen) {
+                try {
+                    const files = await fetchTradeFiles();
+                    setTradeFiles(files);
+                    if (files.length > 0) setSelectedTradeFile(files[0]);
+                } catch (e) {
+                    console.error("Failed to load trade files", e);
+                }
+            }
+        };
+        loadFiles();
+    }, [downloadType, isDownloadModalOpen]);
+
+    // WebSocket Listener (Updated)
     useEffect(() => {
         if (!lastMessage || !activeTaskId) return;
 
         // ফিক্স ১: 'DOWNLOAD' এর পাশাপাশি 'Task' বা 'BATCH' টাইপও চেক করা হচ্ছে
         // কারণ ব্যাকএন্ড revoke করার সময় 'Task' টাইপ পাঠায়।
-        const isRelevantMessage = 
-            (lastMessage.type === 'DOWNLOAD' || lastMessage.type === 'Task' || lastMessage.type === 'BATCH') && 
+        const isRelevantMessage =
+            (lastMessage.type === 'DOWNLOAD' || lastMessage.type === 'Task' || lastMessage.type === 'BATCH') &&
             lastMessage.task_id === activeTaskId;
 
         if (isRelevantMessage) {
@@ -119,16 +146,41 @@ export const useDownloadData = () => {
         try {
             await revokeBacktestTask(activeTaskId);
             showToast('Stopping download...', 'warning');
-            
+
             // ফিক্স ২: এপিআই কল সফল হলে সাথে সাথেই UI আপডেট করে দেওয়া।
             // সকেটের জন্য অপেক্ষা না করে ইউজারকে তাৎক্ষণিক ফিডব্যাক দেওয়া।
             setIsDownloading(false);
             setActiveTaskId(null);
             setDownloadProgress(0);
-            
+
         } catch (e) {
             console.error(e);
             showToast('Failed to stop task.', 'error');
+        }
+    };
+
+    // ✅ Handle Data Conversion
+    const handleConvertData = async () => {
+        if (!selectedTradeFile) {
+            showToast('Please select a file to convert', 'warning');
+            return;
+        }
+        setIsConverting(true);
+        try {
+            const res = await convertData({
+                filename: selectedTradeFile,
+                timeframe: dlTimeframe
+            });
+            if (res.success) {
+                showToast(`Converted ${res.converted} files successfully!`, 'success');
+            } else {
+                showToast('Conversion failed', 'error');
+            }
+        } catch (e) {
+            console.error(e);
+            showToast('Conversion error', 'error');
+        } finally {
+            setIsConverting(false);
         }
     };
 
@@ -152,6 +204,13 @@ export const useDownloadData = () => {
         downloadProgress,
         isLoadingDlMarkets,
         handleStartDownload,
-        handleStopDownload
+        handleStopDownload,
+        // ✅ New Exports
+        tradeFiles,
+        selectedTradeFile,
+        setSelectedTradeFile,
+        handleConvertData,
+        isConverting
     };
 };
+
