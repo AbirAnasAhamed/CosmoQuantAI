@@ -88,6 +88,7 @@ interface StrategyParamsProps {
     setOptimizationParams: React.Dispatch<React.SetStateAction<OptimizationParams>>;
     optimizationMethod: 'gridSearch' | 'geneticAlgorithm';
     setOptimizationMethod: (m: 'gridSearch' | 'geneticAlgorithm') => void;
+    hideOptimizationMethod?: boolean;
     gaParams: { populationSize: number; generations: number };
     setGaParams: React.Dispatch<React.SetStateAction<{ populationSize: number; generations: number }>>;
 }
@@ -101,6 +102,7 @@ export const StrategyParams: React.FC<StrategyParamsProps> = ({
     setOptimizationParams,
     optimizationMethod,
     setOptimizationMethod,
+    hideOptimizationMethod = false,
     gaParams,
     setGaParams
 }) => {
@@ -136,13 +138,15 @@ export const StrategyParams: React.FC<StrategyParamsProps> = ({
     if (mode === 'optimization') {
         return (
             <div className="mt-6 pt-6 border-t border-brand-border-light dark:border-brand-border-dark animate-fade-in-down">
-                <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">Optimization Method</h3>
-                    <div className="inline-flex bg-gray-100 dark:bg-brand-dark/50 rounded-lg p-1 space-x-1">
-                        <button onClick={() => setOptimizationMethod('gridSearch')} className={`px-3 py-1.5 text-xs font-semibold rounded-md ${optimizationMethod === 'gridSearch' ? 'bg-white dark:bg-brand-dark shadow text-brand-primary' : 'text-gray-500'}`}>Grid Search</button>
-                        <button onClick={() => setOptimizationMethod('geneticAlgorithm')} className={`px-3 py-1.5 text-xs font-semibold rounded-md ${optimizationMethod === 'geneticAlgorithm' ? 'bg-white dark:bg-brand-dark shadow text-brand-primary' : 'text-gray-500'}`}>Genetic Algorithm</button>
+                {!hideOptimizationMethod && (
+                    <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">Optimization Method</h3>
+                        <div className="inline-flex bg-gray-100 dark:bg-brand-dark/50 rounded-lg p-1 space-x-1">
+                            <button onClick={() => setOptimizationMethod('gridSearch')} className={`px-3 py-1.5 text-xs font-semibold rounded-md ${optimizationMethod === 'gridSearch' ? 'bg-white dark:bg-brand-dark shadow text-brand-primary' : 'text-gray-500'}`}>Grid Search</button>
+                            <button onClick={() => setOptimizationMethod('geneticAlgorithm')} className={`px-3 py-1.5 text-xs font-semibold rounded-md ${optimizationMethod === 'geneticAlgorithm' ? 'bg-white dark:bg-brand-dark shadow text-brand-primary' : 'text-gray-500'}`}>Genetic Algorithm</button>
+                        </div>
                     </div>
-                </div>
+                )}
                 {optimizationMethod === 'gridSearch' ? (
                     Object.entries(activeParamsConfig).map(([key, config]: [string, any]) => (
                         <div key={key} className="grid grid-cols-1 md:grid-cols-4 gap-4 items-start mb-4">

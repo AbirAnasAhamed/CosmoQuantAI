@@ -409,7 +409,7 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                 )}
 
                 {/* Strategy Selection Logic */}
-                {activeTab !== 'batch' ? (
+                {mode !== 'batch' ? (
                     <div>
                         <div className="flex justify-between items-center mb-1">
                             <label className="block text-sm font-medium text-gray-500">Strategy</label>
@@ -455,10 +455,10 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                 )}
 
                 {/* ✅ Strategy Parameters Section */}
-                {activeTab !== 'batch' && (
+                {mode !== 'batch' && (
                     <div className="col-span-1 md:col-span-2 lg:col-span-3">
                         <StrategyParams
-                            mode={(activeTab === 'optimization' || activeTab === 'walk_forward') ? 'optimization' : 'single'}
+                            mode={(mode === 'optimization' || mode === 'walk_forward') ? 'optimization' : 'single'}
                             activeParamsConfig={optimizableParams}
                             params={params}
                             setParams={setParams}
@@ -466,6 +466,7 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                             setOptimizationParams={setOptimizationParams}
                             optimizationMethod={optimizationMethod}
                             setOptimizationMethod={setOptimizationMethod}
+                            hideOptimizationMethod={mode === 'walk_forward'}
                             gaParams={gaParams}
                             setGaParams={setGaParams}
                         />
@@ -473,7 +474,7 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                 )}
 
                 {/* ✅ WFA Configuration (Only for WFA) */}
-                {activeTab === 'walk_forward' && (
+                {mode === 'walk_forward' && (
                     <div className="col-span-1 md:col-span-2 lg:col-span-3 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl p-4 animate-fade-in space-y-4 mb-6">
                         <div className="flex items-center gap-2 border-b border-blue-200 dark:border-blue-800 pb-2">
                             <GitMerge size={18} className="text-blue-600 dark:text-blue-400" />
@@ -531,7 +532,7 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                 )}
 
                 {/* ✅ Optimization Engine Settings (Only for Optimization) */}
-                {activeTab === 'optimization' && (
+                {mode === 'optimization' && (
                     <div className="col-span-1 md:col-span-2 lg:col-span-3 bg-purple-50/50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800 rounded-xl p-4 animate-fade-in space-y-4 mb-6">
                         <div className="flex items-center gap-2 border-b border-purple-200 dark:border-purple-800 pb-2">
                             <Settings size={18} className="text-purple-600 dark:text-purple-400" />
