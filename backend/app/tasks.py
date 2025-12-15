@@ -5,6 +5,7 @@ import sys
 import math
 import time
 from . import utils 
+from app.services.report_generator import generate_report
 from app.strategies import STRATEGY_MAP
 from app.services.live_engine import LiveBotEngine
 import asyncio
@@ -120,6 +121,10 @@ def run_backtest_task(self, symbol: str, timeframe: str, strategy_name: str, ini
             take_profit=take_profit,
             trailing_stop=trailing_stop
         )
+        # ✅ Report Generation
+        if result.get("status") == "success":
+            generate_report(self.request.id, result.get("daily_returns", "{}"), symbol, timeframe)
+
         print_pretty_result(result)
         publish_task_status('BACKTEST', self.request.id, 'completed', 100, result)
         return result
