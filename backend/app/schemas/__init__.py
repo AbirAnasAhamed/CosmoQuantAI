@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime
 
 # --- User Schemas ---
@@ -87,6 +87,10 @@ class BatchBacktestRequest(BaseModel):
     end_date: Optional[str] = None
     commission: float = 0.001
     slippage: float = 0.0
+    
+    # ✅ ২. নতুন ফিল্ড যোগ করা হলো
+    strategies: Optional[List[str]] = None 
+    custom_data_file: Optional[str] = None
 
 class GenerateStrategyRequest(BaseModel):
     prompt: str

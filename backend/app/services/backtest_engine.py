@@ -373,8 +373,10 @@ class BacktestEngine:
             reports_dir = "app/reports"
             os.makedirs(reports_dir, exist_ok=True)
             
-            # Unique filename
-            filename = f"report_{symbol}_{timeframe}_{int(time.time())}"
+            # Unique filename (FIX: Replace '/' with '-' to avoid directory errors)
+            safe_symbol = symbol.replace('/', '-')  # ✅ স্ল্যাশ রিমুভ করা হলো
+            filename = f"report_{safe_symbol}_{timeframe}_{int(time.time())}"
+            
             html_path = os.path.join(reports_dir, f"{filename}.html")
             pdf_path = os.path.join(reports_dir, f"{filename}.pdf")
 

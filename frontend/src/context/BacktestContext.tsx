@@ -24,6 +24,10 @@ interface BacktestContextType {
     optimizationParams: Record<string, any>;
     setOptimizationParams: (p: Record<string, any>) => void;
 
+    // ✅ ১. ইনিশিয়াল ক্যাশ কন্টেক্সটে যোগ করা হলো
+    initialCash: number;
+    setInitialCash: (v: number) => void;
+
     // ✅ নতুন স্টেট টাইপ
     commission: number;
     setCommission: (c: number) => void;
@@ -81,6 +85,9 @@ export const BacktestProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [optimizableParams, setOptimizableParams] = useState<Record<string, any>>({});
     const [optimizationParams, setOptimizationParams] = useState<Record<string, any>>({});
 
+    // ✅ ২. স্টেট ইনিশিয়ালাইজেশন
+    const [initialCash, setInitialCash] = useState(10000);
+
     // ✅ নতুন স্টেট (ডিফল্ট: 0.1% কমিশন, 0% স্লিপেজ)
     const [commission, setCommission] = useState(0.001);
     const [slippage, setSlippage] = useState(0.0);
@@ -128,7 +135,7 @@ export const BacktestProvider: React.FC<{ children: ReactNode }> = ({ children }
                 symbol: options?.symbol || symbol,
                 timeframe: options?.timeframe || timeframe,
                 strategy: options?.strategy || strategy,
-                initial_cash: options?.initial_cash || 10000,
+                initial_cash: options?.initial_cash || initialCash, // 👈 ফিক্স: লোকাল স্টেট ব্যবহার
                 start_date: startDate,
                 end_date: endDate,
                 params: options?.params || params,
@@ -167,7 +174,10 @@ export const BacktestProvider: React.FC<{ children: ReactNode }> = ({ children }
                             winRate: apiResult.win_rate,
                             sharpeRatio: apiResult.sharpe_ratio,
                             profit_percent: apiResult.profit_percent,
-                            initial_cash: options?.initial_cash || 10000,
+
+                            // ✅ ৪. রেজাল্টেও সঠিক ক্যাশ দেখানো
+                            initial_cash: options?.initial_cash || initialCash,
+
                             final_value: apiResult.final_value,
                             total_trades: apiResult.total_trades,
                             // max_drawdown: apiResult.max_drawdown, // Removed: Not in type
@@ -220,6 +230,10 @@ export const BacktestProvider: React.FC<{ children: ReactNode }> = ({ children }
             timeframe, setTimeframe,
             startDate, setStartDate,
             endDate, setEndDate,
+
+            // ✅ ৫. এক্সপোর্ট ভ্যালু
+            initialCash, setInitialCash,
+
             params, setParams,
             optimizableParams, setOptimizableParams,
             optimizationParams, setOptimizationParams,

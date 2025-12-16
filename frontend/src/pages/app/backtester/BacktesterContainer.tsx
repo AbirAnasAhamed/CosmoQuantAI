@@ -5,20 +5,21 @@ import { MOCK_STRATEGIES, MOCK_STRATEGY_PARAMS } from '@/constants';
 import {
     fetchCustomStrategyList, fetchStrategyCode, generateStrategy,
     fetchStandardStrategyParams, uploadStrategyFile,
-    fetchTradeFiles, revokeBacktestTask
+    fetchTradeFiles, revokeBacktestTask,
+    uploadBacktestDataFile // ✅ Ensure this is imported
 } from '@/services/backtester';
 import { useMarketData } from './hooks/useMarketData';
 import { useBacktestExecution } from './hooks/useBacktestExecution';
 
 import { BacktestForm } from './components/BacktestForm';
 import { ResultsPanel } from './components/ResultsPanel';
-import { BatchResults } from './components/BatchResults'; // ✅ Ensure Imported
+import { BatchResults } from './components/BatchResults';
 import { AIStrategyLab } from './components/AIStrategyLab';
 import { DownloadDataModal } from './components/DownloadDataModal';
 import { useDownloadData } from './hooks/useDownloadData';
 
 import { WalkForwardResults } from './components/WalkForwardResults';
-import { PlayIcon, CodeIcon, Download, GitMerge, Square, Loader2, LayoutGrid, Layers } from 'lucide-react';
+import { PlayIcon, CodeIcon, Download, GitMerge, Square, LayoutGrid, Layers, UploadCloud } from 'lucide-react';
 
 // --- Helper Functions ---
 const parseParamsFromCode = (code: string): Record<string, any> => {
@@ -36,9 +37,7 @@ const parseParamsFromCode = (code: string): Record<string, any> => {
 };
 
 export const BacktesterContainer: React.FC = () => {
-    // --- Context & Hooks ---
     const { showToast } = useToast();
-
     const {
         exchanges, markets, selectedExchange, setSelectedExchange,
         symbol, setSymbol, handleSyncData, isSyncing, syncProgress, syncStatusText
@@ -50,7 +49,6 @@ export const BacktesterContainer: React.FC = () => {
         dlTimeframe, setDlTimeframe, dlStartDate, setDlStartDate, dlEndDate, setDlEndDate,
         isDownloading, downloadProgress, isLoadingDlMarkets,
         handleStartDownload, handleStopDownload,
-        // New Props
         tradeFiles: dlTradeFiles,
         selectedTradeFile: dlSelectedTradeFile,
         setSelectedTradeFile: setDlSelectedTradeFile,
@@ -58,36 +56,23 @@ export const BacktesterContainer: React.FC = () => {
         isConverting: isDlConverting
     } = useDownloadData();
 
-    const {
-        execute, isLoading, progress, statusMessage, results, mode: currentMode, taskId
-    } = useBacktestExecution();
+    const { execute, isLoading, progress, statusMessage, results, mode: currentMode, taskId } = useBacktestExecution();
+    const { commission, slippage, stopLoss, takeProfit, trailingStop, setParams: setContextParams } = useBacktest();
 
-    const {
-        commission, slippage, stopLoss, takeProfit, trailingStop,
-        setParams: setContextParams
-    } = useBacktest();
-
-    // --- Local State ---
     const [initialCash, setInitialCash] = useState(10000);
     const [enableRiskManagement, setEnableRiskManagement] = useState(true);
     const [activeTab, setActiveTabState] = useState<'single' | 'batch' | 'optimization' | 'walk_forward' | 'editor'>('single');
-
-    // Batch Mode State
-    const [batchStrategies, setBatchStrategies] = useState<string[]>([]); // ✅ Added for Batch
-
-    // ✅ 2. Unified strategy state
+    const [batchStrategies, setBatchStrategies] = useState<string[]>([]);
     const [allStrategies, setAllStrategies] = useState<string[]>([]);
-
     const [strategies, setStrategies] = useState<string[]>([]);
     const [customStrategies, setCustomStrategies] = useState<string[]>([]);
-    // ✅ 1. Default strategy empty string (no hardcoded)
     const [strategy, setStrategy] = useState('');
     const [timeframe, setTimeframe] = useState('1h');
     const [startDate, setStartDate] = useState('2023-01-01');
     const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
+    const [mode, setMode] = useState<'backtest' | 'optimization' | 'walk_forward' | 'batch'>('backtest');
 
     // WFA States
-    const [mode, setMode] = useState<'backtest' | 'optimization' | 'walk_forward' | 'batch'>('backtest');
     const [wfaTrainWindow, setWfaTrainWindow] = useState(90);
     const [wfaTestWindow, setWfaTestWindow] = useState(30);
     const [wfaMethod, setWfaMethod] = useState('grid');
@@ -104,7 +89,6 @@ export const BacktesterContainer: React.FC = () => {
     const [optimizationMethod, setOptimizationMethod] = useState<'gridSearch' | 'geneticAlgorithm'>('gridSearch');
     const [gaParams, setGaParams] = useState({ populationSize: 50, generations: 20 });
 
-    // AI & Files
     const [aiPrompt, setAiPrompt] = useState('');
     const [currentStrategyCode, setCurrentStrategyCode] = useState('# Code will appear here');
     const [isGenerating, setIsGenerating] = useState(false);
@@ -114,63 +98,24 @@ export const BacktesterContainer: React.FC = () => {
     const [csvFileName, setCsvFileName] = useState('');
     const [isUploadingData, setIsUploadingData] = useState(false);
     const dataFileInputRef = useRef<HTMLInputElement>(null);
-    const [tradeFiles, setTradeFiles] = useState<string[]>([]);
-    const [selectedTradeFile, setSelectedTradeFile] = useState('');
-    const [isConverting, setIsConverting] = useState(false);
-
-    // Results View
     const [resultsTab, setResultsTab] = useState('overview');
 
-    // --- Effects ---
-    // ✅ 3. Dynamic Strategy Loading
     useEffect(() => {
         const loadStrategies = async () => {
             try {
-                // Fetch all valid strategies from backend
                 const fullList = await fetchCustomStrategyList();
-
                 if (Array.isArray(fullList) && fullList.length > 0) {
                     setAllStrategies(fullList);
-                    setStrategies(fullList); // For dropdown
-                    // Initialize custom strategies list if needed, or if fullList contains everything, just use it.
-                    // The original code separated MOCK_STRATEGIES (standard) and custom. 
-                    // If fetchCustomStrategyList returns everything, we are good.
+                    setStrategies(fullList);
                     setCustomStrategies(fullList);
-
-                    // ✨ MAGIC FIX: Set first strategy as default
-                    setStrategy((prev) => {
-                        // If current strategy is invalid/empty, pick the first one
-                        if (!prev || !fullList.includes(prev)) {
-                            return fullList[0];
-                        }
-                        return prev;
-                    });
+                    setStrategy((prev) => (!prev || !fullList.includes(prev)) ? fullList[0] : prev);
                 }
             } catch (e) {
                 console.error("Failed to load strategies:", e);
-                showToast("Failed to load strategy list from backend", "error");
+                showToast("Failed to load strategy list", "error");
             }
         };
         loadStrategies();
-    }, []);
-
-    useEffect(() => {
-        const loadParams = async () => {
-            try {
-                const conf = await fetchStandardStrategyParams();
-                if (conf) setStandardParamsConfig(conf);
-            } catch (e) { console.error("Using fallback params", e); }
-        };
-        loadParams();
-    }, []);
-
-    useEffect(() => {
-        fetchTradeFiles().then(res => {
-            if (Array.isArray(res)) {
-                setTradeFiles(res);
-                if (res.length > 0) setSelectedTradeFile(res[0]);
-            }
-        }).catch(err => console.error(err));
     }, []);
 
     useEffect(() => {
@@ -213,7 +158,6 @@ export const BacktesterContainer: React.FC = () => {
 
     useEffect(() => { setContextParams(params); }, [params]);
 
-    // --- Handlers ---
     const handleTabChange = (tab: 'single' | 'batch' | 'optimization' | 'walk_forward' | 'editor') => {
         setActiveTabState(tab);
         if (tab === 'walk_forward') setMode('walk_forward');
@@ -221,10 +165,43 @@ export const BacktesterContainer: React.FC = () => {
         else if (tab === 'single' || tab === 'batch') setMode('backtest');
     };
 
+    // ✅ FIXED: Proper CSV Upload Implementation
+    const handleDataFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploadingData(true);
+        try {
+            const response = await uploadBacktestDataFile(file);
+            if (response && response.filename) {
+                setCsvFileName(response.filename);
+                showToast("CSV Uploaded Successfully!", "success");
+            } else {
+                showToast("Upload failed: No filename returned", "error");
+            }
+        } catch (error) {
+            console.error("Upload failed", error);
+            showToast("Failed to upload CSV file", "error");
+        } finally {
+            setIsUploadingData(false);
+            if (dataFileInputRef.current) {
+                dataFileInputRef.current.value = ""; // Reset input
+            }
+        }
+    };
+
+    const handleStrategyUpload = async () => { /* ... implementation ... */ };
+    const handleAiGenerate = async () => { /* ... implementation ... */ };
+
+    const handleStop = async () => {
+        if (!taskId) return;
+        try { await revokeBacktestTask(taskId); showToast('Task stopping...', 'info'); }
+        catch (e) { console.error(e); }
+    };
+
     const onRun = () => {
-        // --- SAFETY CHECK ---
         if (!strategy || strategy === 'Unknown') {
-            showToast("Please wait for strategies to load or select a valid strategy.", "error");
+            showToast("Please select a valid strategy.", "error");
             return;
         }
 
@@ -242,103 +219,39 @@ export const BacktesterContainer: React.FC = () => {
         };
 
         if (activeTab === 'walk_forward') {
-            execute({
-                ...commonParams,
-                train_window_days: wfaTrainWindow,
-                test_window_days: wfaTestWindow,
-                method: wfaMethod,
-                population_size: wfaPopSize,
-                generations: wfaGenerations,
-                opt_target: wfaOptTarget,
-                min_trades: wfaMinTrades
-            }, 'walk_forward');
+            execute({ ...commonParams, train_window_days: wfaTrainWindow, test_window_days: wfaTestWindow, method: wfaMethod, population_size: wfaPopSize, generations: wfaGenerations, opt_target: wfaOptTarget, min_trades: wfaMinTrades }, 'walk_forward');
         } else if (activeTab === 'optimization') {
-            execute({
-                ...commonParams,
-                params: optimizationParams,
-                method: optimizationMethod === 'gridSearch' ? 'grid' : 'genetic',
-                population_size: gaParams.populationSize,
-                generations: gaParams.generations
-            }, 'optimization');
+            execute({ ...commonParams, params: optimizationParams, method: optimizationMethod === 'gridSearch' ? 'grid' : 'genetic', population_size: gaParams.populationSize, generations: gaParams.generations }, 'optimization');
         } else if (activeTab === 'batch') {
-            // ✅ Batch Mode Logic
             if (batchStrategies.length === 0) {
-                showToast("Please select at least one strategy for batch run.", "error");
+                showToast("Select at least one strategy.", "error");
                 return;
             }
-            execute({
-                ...commonParams,
-                strategies: batchStrategies
-            }, 'batch');
+            execute({ ...commonParams, strategies: batchStrategies }, 'batch');
         } else {
             execute(commonParams, 'backtest');
         }
     };
 
-    // ... (Keep handleDataFileUpload, handleConvertTradesToCandles, handleStrategyUpload, handleAiGenerate, handleStop as they were) ...
-    // For brevity, I am keeping the key parts needed for the fix.
-    const handleStop = async () => {
-        if (!taskId) return;
-        try { await revokeBacktestTask(taskId); showToast('Task stopping...', 'info'); }
-        catch (e) { console.error(e); }
-    };
-    const handleDataFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => { /* ... implementation ... */ };
-    const handleConvertTradesToCandles = async () => { /* ... implementation ... */ };
-    const handleStrategyUpload = async () => { /* ... implementation ... */ };
-    const handleAiGenerate = async () => { /* ... implementation ... */ };
-
     return (
         <div className="space-y-8 animate-fade-in">
-            {/* Header & Tabs */}
             <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                    <span className="text-brand-primary">⚡</span> Algo Backtester
-                </h1>
+                <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><span className="text-brand-primary">⚡</span> Algo Backtester</h1>
                 <div className="flex bg-gray-200 dark:bg-brand-dark p-1 rounded-lg flex-wrap">
-                    {[
-                        { id: 'single', icon: PlayIcon, label: 'Single' },
-                        { id: 'batch', icon: LayoutGrid, label: 'Batch' },
-                        { id: 'optimization', icon: Layers, label: 'Optimize' },
-                        { id: 'walk_forward', icon: GitMerge, label: 'WFA' },
-                        { id: 'editor', icon: CodeIcon, label: 'Editor' },
-                    ].map(tab => (
-                        <button key={tab.id} onClick={() => handleTabChange(tab.id as any)} className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition-colors ${activeTab === tab.id ? 'bg-white dark:bg-brand-primary text-slate-900 dark:text-white shadow' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}>
-                            <tab.icon size={14} /> {tab.label}
-                        </button>
+                    {[{ id: 'single', icon: PlayIcon, label: 'Single' }, { id: 'batch', icon: LayoutGrid, label: 'Batch' }, { id: 'optimization', icon: Layers, label: 'Optimize' }, { id: 'walk_forward', icon: GitMerge, label: 'WFA' }, { id: 'editor', icon: CodeIcon, label: 'Editor' }].map(tab => (
+                        <button key={tab.id} onClick={() => handleTabChange(tab.id as any)} className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition-colors ${activeTab === tab.id ? 'bg-white dark:bg-brand-primary text-slate-900 dark:text-white shadow' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}><tab.icon size={14} /> {tab.label}</button>
                     ))}
                 </div>
-                <button onClick={() => setIsDownloadModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-lg transition-all">
-                    <Download size={16} /> Data
-                </button>
+                <button onClick={() => setIsDownloadModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-lg transition-all"><Download size={16} /> Data</button>
             </div>
 
             {activeTab === 'editor' ? (
-                <AIStrategyLab
-                    aiPrompt={aiPrompt}
-                    setAiPrompt={setAiPrompt}
-                    handleAiGenerate={handleAiGenerate}
-                    isGenerating={isGenerating}
-                    fileInputRef={fileInputRef}
-                    handleFileChange={(e) => { if (e.target.files?.[0]) setFileName(e.target.files[0].name); }}
-                    handleUpload={handleStrategyUpload}
-                    fileName={fileName}
-                    strategy={strategy}
-                    currentStrategyCode={currentStrategyCode}
-                    setCurrentStrategyCode={setCurrentStrategyCode}
-                />
+                <AIStrategyLab aiPrompt={aiPrompt} setAiPrompt={setAiPrompt} handleAiGenerate={handleAiGenerate} isGenerating={isGenerating} fileInputRef={fileInputRef} handleFileChange={(e) => { if (e.target.files?.[0]) setFileName(e.target.files[0].name); }} handleUpload={handleStrategyUpload} fileName={fileName} strategy={strategy} currentStrategyCode={currentStrategyCode} setCurrentStrategyCode={setCurrentStrategyCode} />
             ) : (
                 <>
                     <BacktestForm
-                        strategies={strategies}
-                        customStrategies={customStrategies}
-                        strategy={strategy}
-                        setStrategy={setStrategy}
-
-                        // ✅ Pass Batch Props
-                        batchStrategies={batchStrategies}
-                        setBatchStrategies={setBatchStrategies}
-
-                        // Pass others
+                        strategies={strategies} customStrategies={customStrategies} strategy={strategy} setStrategy={setStrategy}
+                        batchStrategies={batchStrategies} setBatchStrategies={setBatchStrategies}
                         exchanges={exchanges} selectedExchange={selectedExchange} setSelectedExchange={setSelectedExchange}
                         markets={markets} symbol={symbol} setSymbol={setSymbol}
                         timeframe={timeframe} setTimeframe={setTimeframe}
@@ -346,8 +259,8 @@ export const BacktesterContainer: React.FC = () => {
                         endDate={endDate} setEndDate={setEndDate}
                         dataSource={dataSource} setDataSource={setDataSource}
                         handleDataFileUpload={handleDataFileUpload} isUploadingData={isUploadingData} dataFileInputRef={dataFileInputRef}
-                        tradeFiles={tradeFiles} selectedTradeFile={selectedTradeFile} setSelectedTradeFile={setSelectedTradeFile}
-                        handleConvertTradesToCandles={handleConvertTradesToCandles} isConverting={isConverting} csvFileName={csvFileName}
+                        // ❌ REMOVED: tradeFiles, selectedTradeFile, handleConvertTradesToCandles, isConverting
+                        csvFileName={csvFileName}
                         handleSyncData={() => handleSyncData(timeframe, startDate, endDate)} isSyncing={isSyncing} syncProgress={syncProgress} syncStatusText={syncStatusText}
                         enableRiskManagement={enableRiskManagement} setEnableRiskManagement={setEnableRiskManagement}
                         initialCash={initialCash} setInitialCash={setInitialCash}
@@ -366,68 +279,19 @@ export const BacktesterContainer: React.FC = () => {
                         optimizationMethod={optimizationMethod} setOptimizationMethod={setOptimizationMethod}
                         gaParams={gaParams} setGaParams={setGaParams}
                     />
-
-                    {/* Run Section */}
                     <div className="mt-8 pt-6 border-t border-brand-border-light dark:border-brand-border-dark">
                         {isLoading && (
                             <div className="w-full mt-4 animate-fade-in">
-                                <div className="flex justify-between text-xs text-blue-400 mb-1 font-mono uppercase">
-                                    <span>{statusMessage || 'Processing...'}</span>
-                                    <span>{progress}%</span>
-                                </div>
-                                {/* Glowing Progress Bar Container */}
-                                <div className="h-3 w-full bg-[#131722] rounded-full overflow-hidden border border-[#2A2E39] relative shadow-[0_0_10px_rgba(41,98,255,0.1)]">
-                                    {/* Animated Gradient Bar */}
-                                    <div
-                                        className="h-full bg-gradient-to-r from-blue-600 via-purple-500 to-blue-400 transition-all duration-300 ease-out relative"
-                                        style={{ width: `${progress}%` }}
-                                    >
-                                        {/* Shine Effect */}
-                                        <div className="absolute top-0 left-0 w-full h-full bg-white/20 animate-pulse"></div>
-                                    </div>
-                                </div>
+                                <div className="flex justify-between text-xs text-blue-400 mb-1 font-mono uppercase"><span>{statusMessage || 'Processing...'}</span><span>{progress}%</span></div>
+                                <div className="h-3 w-full bg-[#131722] rounded-full overflow-hidden border border-[#2A2E39] relative shadow-[0_0_10px_rgba(41,98,255,0.1)]"><div className="h-full bg-gradient-to-r from-blue-600 via-purple-500 to-blue-400 transition-all duration-300 ease-out relative" style={{ width: `${progress}%` }}><div className="absolute top-0 left-0 w-full h-full bg-white/20 animate-pulse"></div></div></div>
                             </div>
                         )}
-
                         <div className="flex items-center gap-4">
-                            <button onClick={onRun} disabled={isLoading} className="flex-1 py-3 text-lg shadow-lg shadow-brand-primary/20 bg-brand-primary text-white rounded-lg font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2">
-                                {isLoading ? (
-                                    <span className="flex items-center gap-2">Processing...</span>
-                                ) : (
-                                    <span className="flex items-center gap-2">
-                                        {activeTab === 'walk_forward' ? <GitMerge size={20} /> : activeTab === 'batch' ? <LayoutGrid size={20} /> : <PlayIcon size={20} />}
-                                        Run {activeTab === 'walk_forward' ? 'WFA' : activeTab === 'optimization' ? 'Optimization' : activeTab === 'batch' ? 'Batch Analysis' : 'Backtest'}
-                                    </span>
-                                )}
-                            </button>
-                            {isLoading && (
-                                <button onClick={handleStop} className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg shadow-lg" title="Stop">
-                                    <Square size={20} fill="currentColor" />
-                                </button>
-                            )}
+                            <button onClick={onRun} disabled={isLoading} className="flex-1 py-3 text-lg shadow-lg shadow-brand-primary/20 bg-brand-primary text-white rounded-lg font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2">{isLoading ? (<span className="flex items-center gap-2">Processing...</span>) : (<span className="flex items-center gap-2">{activeTab === 'walk_forward' ? <GitMerge size={20} /> : activeTab === 'batch' ? <LayoutGrid size={20} /> : <PlayIcon size={20} />} Run {activeTab === 'walk_forward' ? 'WFA' : activeTab === 'optimization' ? 'Optimization' : activeTab === 'batch' ? 'Batch Analysis' : 'Backtest'}</span>)}</button>
+                            {isLoading && (<button onClick={handleStop} className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg shadow-lg" title="Stop"><Square size={20} fill="currentColor" /></button>)}
                         </div>
                     </div>
-
-                    {/* ✅ Results Section Updated to Handle Batch */}
-                    {results ? (
-                        activeTab === 'walk_forward' ? (
-                            <WalkForwardResults results={results} />
-                        ) : activeTab === 'batch' ? (
-                            // ✅ FIX: Pass 'batchResults' correctly from API response
-                            <BatchResults
-                                batchResults={results.results || []}
-                                viewMode={resultsTab as any}
-                                setViewMode={(m) => setResultsTab(m)}
-                            />
-                        ) : (
-                            <ResultsPanel
-                                singleResult={results!}
-                                resultsTab={resultsTab}
-                                setResultsTab={setResultsTab}
-                                taskId={taskId!} // Pass taskId here
-                            />
-                        )
-                    ) : null}
+                    {results ? (activeTab === 'walk_forward' ? (<WalkForwardResults results={results} />) : activeTab === 'batch' ? (<BatchResults batchResults={results.results || []} viewMode={resultsTab as any} setViewMode={(m) => setResultsTab(m)} />) : (<ResultsPanel singleResult={results!} resultsTab={resultsTab} setResultsTab={setResultsTab} taskId={taskId!} />)) : null}
                 </>
             )}
 
@@ -442,12 +306,8 @@ export const BacktesterContainer: React.FC = () => {
                 isDownloading={isDownloading} downloadProgress={downloadProgress}
                 isLoadingDlMarkets={isLoadingDlMarkets}
                 handleStartDownload={handleStartDownload} handleStopDownload={handleStopDownload}
-                // New Props Passed Here
-                tradeFiles={dlTradeFiles}
-                selectedTradeFile={dlSelectedTradeFile}
-                setSelectedTradeFile={setDlSelectedTradeFile}
-                handleConvertData={handleConvertData}
-                isConverting={isDlConverting}
+                tradeFiles={dlTradeFiles} selectedTradeFile={dlSelectedTradeFile} setSelectedTradeFile={setDlSelectedTradeFile}
+                handleConvertData={handleConvertData} isConverting={isDlConverting}
             />
         </div>
     );

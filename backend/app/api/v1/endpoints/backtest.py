@@ -82,8 +82,16 @@ def run_batch_backtest(
         symbol=request.symbol,
         timeframe=request.timeframe,
         initial_cash=request.initial_cash,
+        
+        # ✅ Fix: Forwarding strategy list from frontend to task
+        strategies=request.strategies, 
+        
         start_date=request.start_date,
         end_date=request.end_date,
+        
+        # ✅ File support (custom_data_file)
+        custom_data_file=getattr(request, 'custom_data_file', None),
+        
         commission=request.commission,
         slippage=request.slippage
     )
