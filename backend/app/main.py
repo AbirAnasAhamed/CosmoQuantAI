@@ -106,8 +106,12 @@ async def fetch_market_data_background():
     try:
         local_exchange_client = ccxt.binance({'enableRateLimit': True})
         await local_exchange_client.load_markets()
-    except Exception: pass
+    except Exception as e:
+        print(f"⚠️ Failed to initialize exchange client: {e}")
 
+    # Rate limiting control
+    last_depth_update = {}
+    
     while True:
         try:
             active_symbols = list(manager.active_connections.keys())
@@ -116,23 +120,101 @@ async def fetch_market_data_background():
                 continue
 
             for symbol in active_symbols:
-                if symbol == "general" or symbol.startswith("logs_"):
+                if symbol == "general" or symbol.startswith("logs_") or symbol == "backtest":
                     continue
                 
+                # Re-initialize client if needed
                 if not local_exchange_client:
                      local_exchange_client = ccxt.binance({'enableRateLimit': True})
+                     await local_exchange_client.load_markets()
+                
+                # Normalize symbol (BTCUSDT -> BTC/USDT)
+                # Frontend might send "BTCUSDT", CCXT needs "BTC/USDT"
+                target_symbol = symbol
+                if "/" not in symbol:
+                    # Try to find the unified symbol from the exchange markets
+                    # markets_by_id maps 'BTCUSDT' -> Market Structure
+                    # We iterate to find a match if direct lookup fails or if simplistic approach works
+                    # For Binance, id is usually the symbol without slash
+                    
+                    # Simple heuristic first (if markets loaded)
+                    if local_exchange_client.markets:
+                        # try to find by id
+                        market = None
+                        try:
+                           # finding manually to be safe or use ccxt helper if available, 
+                           # but accessing .markets dictionary is direct. 
+                           # In ccxt, markets_by_id is often available after load_markets()
+                           pass # logic below
+                        except: pass
+
+                        # Let's try to find a market where id == symbol
+                        for m_symbol, m_info in local_exchange_client.markets.items():
+                            if m_info.get('id') == symbol:
+                                target_symbol = m_symbol
+                                break
                 
                 try:
-                    ticker = await local_exchange_client.fetch_ticker(symbol)
-                    data = {
+                    # 1. Ticker (Fast update)
+                    ticker = await local_exchange_client.fetch_ticker(target_symbol)
+                    
+                    # Safe float conversion helper
+                    def safe_float(val):
+                        try:
+                            return float(val) if val is not None else 0.0
+                        except:
+                            return 0.0
+
+                    ticker_data = {
                         "symbol": symbol,
-                        "price": ticker.get('last'),
+                        "price": safe_float(ticker.get('last')),
+                        "change": safe_float(ticker.get('change')),
+                        "changePercent": safe_float(ticker.get('percentage')),
+                        "high": safe_float(ticker.get('high')),
+                        "low": safe_float(ticker.get('low')),
+                        "volume": safe_float(ticker.get('baseVolume')), # 24h Volume
                         "timestamp": datetime.utcnow().isoformat()
                     }
-                    await manager.broadcast_to_symbol(symbol, data)
-                except Exception: pass
+                    await manager.broadcast_market_data(symbol, "ticker", ticker_data)
 
-            await asyncio.sleep(1)
+                    # 2. Recent Trades (Fast update)
+                    # Fetching only last 20 trades to save bandwidth
+                    trades = await local_exchange_client.fetch_trades(symbol, limit=20)
+                    formatted_trades = []
+                    for t in trades:
+                        try:
+                            formatted_trades.append({
+                                "id": t.get('id'),
+                                "time": datetime.fromtimestamp(t.get('timestamp')/1000).strftime('%H:%M:%S'),
+                                "price": t.get('price'),
+                                "amount": t.get('amount'),
+                                "type": t.get('side'), # 'buy' or 'sell'
+                            })
+                        except: pass
+                    
+                    if formatted_trades:
+                        await manager.broadcast_market_data(symbol, "trade", formatted_trades)
+
+
+                    # 3. Order Book (Slower update - every 2 seconds)
+                    now = asyncio.get_event_loop().time()
+                    if symbol not in last_depth_update or (now - last_depth_update[symbol]) > 2:
+                        orderbook = await local_exchange_client.fetch_order_book(symbol, limit=20)
+                        depth_data = {
+                            "bids": [{"price": b[0], "amount": b[1], "total": 0} for b in orderbook.get('bids', [])], # Total will be calc on frontend or here
+                            "asks": [{"price": a[0], "amount": a[1], "total": 0} for a in orderbook.get('asks', [])]
+                        }
+                        
+                        # Calculate cumulative totals for visual depth bars if needed, 
+                        # but for now let's just send raw data to be lightweight
+                        await manager.broadcast_market_data(symbol, "depth", depth_data)
+                        last_depth_update[symbol] = now
+
+                except Exception as e:
+                    # print(f"Error fetching data for {symbol}: {e}")
+                    pass
+
+            await asyncio.sleep(1) # Global Loop Interval
         except asyncio.CancelledError:
             print("Market Data Task Cancelled.")
             if local_exchange_client: await local_exchange_client.close()

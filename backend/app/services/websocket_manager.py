@@ -29,8 +29,13 @@ class ConnectionManager:
                 try:
                     await connection.send_json(message)
                 except Exception as e:
-                    print(f"⚠️ Error sending to WS: {e}")
-                    # We could disconnect here, but usually disconnect() is called by the endpoint handling the connection
+                    error_msg = str(e)
+                    if "Cannot call \"send\" once a close message has been sent" in error_msg:
+                        # Normal disconnection, just cleanup
+                        self.disconnect(connection, channel_id)
+                    else:
+                        print(f"⚠️ Error sending to WS: {error_msg}")
+                        self.disconnect(connection, channel_id)
                     
     # Alias for backward compatibility if needed, or we can just update usages
     async def broadcast_to_symbol(self, symbol: str, message: dict):
@@ -55,5 +60,17 @@ class ConnectionManager:
         
         # Broadcast to 'backtest' channel which frontend will listen to
         await self.broadcast(message, "backtest")
+
+    # ✅ Unified Market Data Broadcast
+    async def broadcast_market_data(self, symbol: str, data_type: str, data: dict):
+        """
+        Broadcasts specific market data (ticker, depth, trade) to subscribers of that symbol.
+        Message Format: { "type": "ticker", "data": {...} }
+        """
+        message = {
+            "type": data_type,
+            "data": data
+        }
+        await self.broadcast_to_symbol(symbol, message)
 
 manager = ConnectionManager()

@@ -18,10 +18,14 @@ class User(Base):
     # মিসিং ফিল্ডস যোগ করা হলো:
     is_pro = Column(Boolean, default=False) # ডিফল্ট false (ফ্রি ইউজার)
     created_at = Column(DateTime(timezone=True), server_default=func.now()) # একাউন্ট তৈরির সময়
+    
+    # Financials
+    balance = Column(Float, default=25000.0) # Available Cash
 
     # Relationships
     api_keys = relationship("ApiKey", back_populates="owner")
     bots = relationship("Bot", back_populates="owner")
+    portfolio_snapshots = relationship("PortfolioSnapshot", back_populates="owner")
 
 # 2. API Keys Model
 class ApiKey(Base):
@@ -75,3 +79,5 @@ class MarketData(Base):
     )
 
 from .bot import Bot
+from .backtest import Backtest
+from .portfolio import PortfolioSnapshot

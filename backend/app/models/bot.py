@@ -24,6 +24,7 @@ class Bot(Base):
     status = Column(String, default="inactive") # active, inactive
     pnl = Column(Float, default=0.0)
     pnl_percent = Column(Float, default=0.0)
+    win_rate = Column(Float, default=0.0)
     
     # Strategy Parameters & Risk Management (JSON এ সেভ থাকবে)
     config = Column(JSON, default={})

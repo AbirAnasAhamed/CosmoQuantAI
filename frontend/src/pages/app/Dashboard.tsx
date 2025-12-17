@@ -1,9 +1,8 @@
 import React, { useState, useCallback, useEffect } from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell, Sector } from 'recharts';
-import { MOCK_ACTIVE_BOTS, MOCK_BACKTEST_RESULTS, PORTFOLIO_VALUE_DATA, PORTFOLIO_ALLOCATION_DATA, MOCK_ASSETS, BotLabIcon, BacktesterIcon, AIFoundryIcon, TradingIcon } from '@/constants';
-import Card from '@/components/common/Card';
+import { BotLabIcon, BacktesterIcon, AIFoundryIcon, TradingIcon } from '@/constants';
 import { useTheme } from '@/context/ThemeContext';
-import type { Asset } from '@/types';
+import { getDashboardSummary, DashboardSummary } from '@/services/dashboard';
 
 // Icons for the dashboard
 const TrendingUpIcon = ({ className }: { className?: string }) => (
@@ -143,7 +142,7 @@ const QuickActionBtn: React.FC<{ icon: React.ReactNode; label: string; onClick?:
 
 const Dashboard: React.FC = () => {
     const { theme } = useTheme();
-    const COLORS = ['#6366F1', '#818CF8', '#A78BFA', '#F472B6'];
+    const COLORS = ['#6366F1', '#818CF8', '#A78BFA', '#F472B6', '#10B981', '#F59E0B'];
 
     const axisColor = theme === 'dark' ? '#9CA3AF' : '#6B7280';
     const gridColor = theme === 'dark' ? '#334155' : '#E2E8F0';
@@ -152,6 +151,8 @@ const Dashboard: React.FC = () => {
         : { backgroundColor: 'rgba(255, 255, 255, 0.9)', border: '1px solid #E2E8F0', borderRadius: '12px', color: '#000', backdropFilter: 'blur(4px)' };
 
     const [activeIndex, setActiveIndex] = useState<number | null>(null);
+    const [dashboardData, setDashboardData] = useState<DashboardSummary | null>(null);
+    const [isLoading, setIsLoading] = useState(true);
 
     const onPieEnter = useCallback((_: any, index: number) => {
         setActiveIndex(index);
@@ -161,9 +162,63 @@ const Dashboard: React.FC = () => {
         setActiveIndex(null);
     }, []);
 
-    const totalPortfolioValue = PORTFOLIO_ALLOCATION_DATA.reduce((sum, item) => sum + item.value, 0);
-    const totalBots = MOCK_ACTIVE_BOTS.length;
-    const winRate = MOCK_BACKTEST_RESULTS.reduce((sum, item) => sum + item.winRate, 0) / MOCK_BACKTEST_RESULTS.length;
+    // Initial Data Fetch
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const data = await getDashboardSummary();
+                setDashboardData(data);
+            } catch (error) {
+                console.error("Failed to fetch dashboard data:", error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        fetchData();
+    }, []);
+
+    // Websocket Connection
+    useEffect(() => {
+        const ws = new WebSocket('ws://localhost:8000/api/v1/dashboard/ws');
+
+        ws.onopen = () => {
+            console.log('Connected to Dashboard WS');
+            // Optional: Subscribe or auth message
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const message = JSON.parse(event.data);
+                if (message.type === 'DASHBOARD_UPDATE' && message.data) {
+                    setDashboardData(prev => prev ? {
+                        ...prev,
+                        ...message.data
+                    } : null);
+                }
+            } catch (err) {
+                console.error("WS Message Error", err);
+            }
+        };
+
+        return () => {
+            if (ws.readyState === WebSocket.OPEN) {
+                ws.close();
+            }
+        };
+    }, []);
+
+    // Fallback or Loading State
+    const totalPortfolioValue = dashboardData?.total_equity || 0;
+    const totalBots = dashboardData?.active_bots || 0;
+    const winRate = dashboardData?.avg_win_rate || 0;
+    const bots = dashboardData?.bots || [];
+    const recentBacktests = dashboardData?.recent_backtests || [];
+    const portfolioValueData = dashboardData?.portfolio_value || [];
+    const portfolioAllocationData = dashboardData?.portfolio_allocation || [];
+
+    if (isLoading && !dashboardData) {
+        return <div className="p-10 text-center">Loading Dashboard...</div>;
+    }
 
     return (
         <div className="space-y-8">
@@ -193,16 +248,16 @@ const Dashboard: React.FC = () => {
                     title="Total Equity"
                     value={totalPortfolioValue}
                     isCurrency={true}
-                    change={2.5}
+                    change={dashboardData?.equity_change_24h}
                     icon={<WalletIcon className="w-6 h-6" />}
                     colorClass="bg-brand-primary"
                     animationDelay={100}
                 />
                 <KpiCard
                     title="24h Profit"
-                    value={1250}
+                    value={dashboardData?.total_profit_24h || 0}
                     isCurrency={true}
-                    change={1.2}
+                    change={dashboardData?.profit_change_24h}
                     icon={<TrendingUpIcon className="w-6 h-6" />}
                     colorClass="bg-brand-success"
                     animationDelay={200}
@@ -217,7 +272,7 @@ const Dashboard: React.FC = () => {
                 <KpiCard
                     title="Win Rate"
                     value={winRate}
-                    change={0.5}
+                    change={dashboardData?.win_rate_change_24h}
                     icon={<ActivityIcon className="w-6 h-6" />}
                     colorClass="bg-purple-500"
                     animationDelay={400}
@@ -241,7 +296,7 @@ const Dashboard: React.FC = () => {
                     </div>
                     <div className="h-80 w-full">
                         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
-                            <AreaChart data={PORTFOLIO_VALUE_DATA}>
+                            <AreaChart data={portfolioValueData}>
                                 <defs>
                                     <linearGradient id="portfolioGradient" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="5%" stopColor="#6366F1" stopOpacity={0.4} />
@@ -273,7 +328,7 @@ const Dashboard: React.FC = () => {
                         <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
                             <PieChart>
                                 <Pie
-                                    data={PORTFOLIO_ALLOCATION_DATA}
+                                    data={portfolioAllocationData}
                                     cx="50%"
                                     cy="50%"
                                     innerRadius={60}
@@ -287,7 +342,7 @@ const Dashboard: React.FC = () => {
                                     paddingAngle={5}
                                     cornerRadius={4}
                                 >
-                                    {PORTFOLIO_ALLOCATION_DATA.map((entry, index) => (
+                                    {portfolioAllocationData.map((entry, index) => (
                                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} stroke="none" />
                                     ))}
                                 </Pie>
@@ -311,7 +366,7 @@ const Dashboard: React.FC = () => {
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {MOCK_ACTIVE_BOTS.map((bot) => (
+                        {bots.length > 0 ? bots.map((bot) => (
                             <div key={bot.id} className="flex items-center p-4 rounded-xl bg-gray-50 dark:bg-brand-darkest/50 border border-transparent hover:border-brand-primary/30 transition-all duration-300 group">
                                 <div className="relative">
                                     <div className={`w-3 h-3 rounded-full ${bot.pnl >= 0 ? 'bg-brand-success' : 'bg-brand-danger'} animate-pulse`}></div>
@@ -326,16 +381,19 @@ const Dashboard: React.FC = () => {
                                             <p className={`font-bold text-sm ${bot.pnl >= 0 ? 'text-brand-success' : 'text-brand-danger'}`}>
                                                 {bot.pnl >= 0 ? '+' : ''}${bot.pnl.toFixed(2)}
                                             </p>
-                                            <p className="text-[10px] text-gray-400">ROI: {bot.pnlPercent}%</p>
+                                            <p className="text-[10px] text-gray-400">ROI: {bot.pnl_percent}%</p>
                                         </div>
                                     </div>
-                                    {/* Mini Progress Bar for "Load" or "Confidence" simulation */}
                                     <div className="w-full bg-gray-200 dark:bg-gray-700 h-1 rounded-full mt-3 overflow-hidden">
-                                        <div className="bg-brand-primary h-full rounded-full" style={{ width: `${Math.random() * 60 + 30}%` }}></div>
+                                        <div className="bg-brand-primary h-full rounded-full" style={{ width: `75%` }}></div>
                                     </div>
                                 </div>
                             </div>
-                        ))}
+                        )) : (
+                            <div className="col-span-2 text-center text-gray-500 py-10">
+                                No active bots running. Start a strategy to see metrics here.
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -356,17 +414,21 @@ const Dashboard: React.FC = () => {
                     <div className="rounded-2xl bg-white dark:bg-brand-dark border border-brand-border-light dark:border-brand-border-dark p-6 shadow-lg flex-1 staggered-fade-in" style={{ animationDelay: '900ms' }}>
                         <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Recent Backtests</h2>
                         <div className="space-y-3">
-                            {MOCK_BACKTEST_RESULTS.slice(0, 3).map(result => (
+                            {recentBacktests.length > 0 ? recentBacktests.slice(0, 3).map(result => (
                                 <div key={result.id} className="flex justify-between items-center text-sm p-2 hover:bg-gray-50 dark:hover:bg-brand-darkest/50 rounded-lg transition-colors cursor-pointer">
                                     <div>
                                         <p className="font-semibold text-slate-900 dark:text-white">{result.strategy}</p>
                                         <p className="text-xs text-gray-500">{result.market} • {result.timeframe}</p>
                                     </div>
-                                    <div className={`px-2 py-1 rounded text-xs font-bold ${result.profitPercent >= 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700'}`}>
-                                        {result.profitPercent > 0 ? '+' : ''}{result.profitPercent}%
+                                    <div className={`px-2 py-1 rounded text-xs font-bold ${result.profit_percent >= 0 ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-700'}`}>
+                                        {result.profit_percent > 0 ? '+' : ''}{result.profit_percent}%
                                     </div>
                                 </div>
-                            ))}
+                            )) : (
+                                <div className="text-center text-gray-500 py-4">
+                                    No recent backtests.
+                                </div>
+                            )}
                         </div>
                     </div>
                 </div>

@@ -21,9 +21,27 @@ interface OrderBookEntry {
 }
 type TradeWithStatus = Trade & { isNew?: boolean };
 
-// --- NewsTickerBar Component (অপরিবর্তিত) ---
+// --- NewsTickerBar Component ---
 const NewsTickerBar: React.FC = () => {
     const [selectedNews, setSelectedNews] = useState<any>(null);
+    const [newsData, setNewsData] = useState<any[]>(MOCK_CRYPTO_NEWS);
+
+    useEffect(() => {
+        const fetchNews = async () => {
+            try {
+                const response = await apiClient.get('/v1/trading/news');
+                if (response.data && response.data.length > 0) {
+                    setNewsData(response.data);
+                }
+            } catch (error) {
+                console.error("Failed to fetch news:", error);
+            }
+        };
+
+        fetchNews(); // Initial fetch
+        const interval = setInterval(fetchNews, 60000); // Poll every minute
+        return () => clearInterval(interval);
+    }, []);
 
     return (
         <>
@@ -38,7 +56,7 @@ const NewsTickerBar: React.FC = () => {
 
                 <div className="flex-1 overflow-hidden relative h-6">
                     <div className="animate-marquee-slow whitespace-nowrap absolute top-0 left-0 flex items-center h-full" style={{ animationDuration: '80s' }}>
-                        {[...MOCK_CRYPTO_NEWS, ...MOCK_CRYPTO_NEWS].map((news, i) => (
+                        {[...newsData, ...newsData].map((news, i) => (
                             <div
                                 key={`${news.id}-${i}`}
                                 className="flex items-center mx-8 cursor-pointer hover:text-brand-primary transition-colors"
@@ -172,16 +190,41 @@ const RecentTrades: React.FC<{ trades: TradeWithStatus[] }> = ({ trades }) => (
     </div>
 );
 
-// --- ConnectExchangeModal Component (অপরিবর্তিত) ---
+// --- ConnectExchangeModal Component ---
 const ConnectExchangeModal: React.FC<{
     isOpen: boolean;
     onClose: () => void;
     exchanges: Exchange[];
-    onToggleConnect: (id: string) => void;
+    onToggleConnect: (id: string, keys?: { apiKey: string, apiSecret: string }) => Promise<boolean>;
     onSetActive: (id: string) => void;
     activeExchangeId: string;
 }> = ({ isOpen, onClose, exchanges, onToggleConnect, onSetActive, activeExchangeId }) => {
+    const [apiKey, setApiKey] = useState('');
+    const [apiSecret, setApiSecret] = useState('');
+    const [isTesting, setIsTesting] = useState(false);
+    const [testError, setTestError] = useState('');
+    const [selectedExchangeId, setSelectedExchangeId] = useState<string | null>(null);
+
     if (!isOpen) return null;
+
+    const handleConnect = async (exchangeId: string) => {
+        setIsTesting(true);
+        setTestError('');
+        try {
+            const success = await onToggleConnect(exchangeId, { apiKey, apiSecret });
+            if (success) {
+                setApiKey('');
+                setApiSecret('');
+                setSelectedExchangeId(null);
+            } else {
+                setTestError("Connection failed or keys rejected.");
+            }
+        } catch (err: any) {
+            setTestError(err.response?.data?.detail || "Connection failed.");
+        } finally {
+            setIsTesting(false);
+        }
+    };
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-50 flex items-center justify-center p-4 animate-modal-fade-in" onClick={onClose}>
@@ -192,40 +235,81 @@ const ConnectExchangeModal: React.FC<{
                 </header>
                 <div className="p-6 space-y-3">
                     {exchanges.map(exchange => (
-                        <div key={exchange.id} className={`flex items-center justify-between p-4 rounded-xl border transition-all duration-200 ${exchange.id === activeExchangeId ? 'bg-brand-primary/10 border-brand-primary/50' : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 hover:border-brand-primary/30'}`}>
-                            <div className="flex items-center gap-4">
-                                <div className="p-2 bg-white dark:bg-brand-dark rounded-lg shadow-sm">
-                                    {exchange.logo}
+                        <div key={exchange.id} className="flex flex-col gap-3 p-4 rounded-xl border border-gray-200 dark:border-white/10 bg-white dark:bg-white/5">
+                            <div className="flex items-center justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="p-2 bg-white dark:bg-brand-dark rounded-lg shadow-sm">
+                                        {exchange.logo}
+                                    </div>
+                                    <div>
+                                        <span className="block font-bold text-slate-900 dark:text-white">{exchange.name}</span>
+                                        <span className="text-xs text-gray-500 flex items-center gap-1">
+                                            {exchange.isConnected ? <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> : <span className="w-2 h-2 rounded-full bg-gray-500"></span>}
+                                            {exchange.isConnected ? 'Connected' : 'Disconnected'}
+                                        </span>
+                                    </div>
                                 </div>
-                                <div>
-                                    <span className="block font-bold text-slate-900 dark:text-white">{exchange.name}</span>
-                                    <span className="text-xs text-gray-500 flex items-center gap-1">
-                                        {exchange.isConnected ? <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span> : <span className="w-2 h-2 rounded-full bg-gray-500"></span>}
-                                        {exchange.isConnected ? 'Connected' : 'Disconnected'}
-                                    </span>
-                                </div>
-                            </div>
-                            <div className="flex items-center gap-3">
-                                {exchange.isConnected ? (
-                                    <>
-                                        <Button
-                                            variant="secondary"
-                                            className={`text-xs px-3 py-1.5 ${activeExchangeId === exchange.id ? 'bg-brand-primary text-white hover:bg-brand-primary-hover' : ''}`}
-                                            onClick={() => onSetActive(exchange.id)}
-                                            disabled={activeExchangeId === exchange.id}
-                                        >
-                                            {activeExchangeId === exchange.id ? 'Active' : 'Set Active'}
+                                <div className="flex items-center gap-3">
+                                    {exchange.isConnected ? (
+                                        <>
+                                            <Button
+                                                variant="secondary"
+                                                className={`text-xs px-3 py-1.5 ${activeExchangeId === exchange.id ? 'bg-brand-primary text-white hover:bg-brand-primary-hover' : ''}`}
+                                                onClick={() => onSetActive(exchange.id)}
+                                                disabled={activeExchangeId === exchange.id}
+                                            >
+                                                {activeExchangeId === exchange.id ? 'Active' : 'Set Active'}
+                                            </Button>
+                                            <button className="text-xs text-rose-500 hover:text-rose-400 hover:underline px-2" onClick={() => onToggleConnect(exchange.id)}>
+                                                Disconnect
+                                            </button>
+                                        </>
+                                    ) : (
+                                        <Button variant="primary" className="text-xs px-4 py-2" onClick={() => setSelectedExchangeId(selectedExchangeId === exchange.id ? null : exchange.id)}>
+                                            {selectedExchangeId === exchange.id ? 'Cancel' : 'Connect'}
                                         </Button>
-                                        <button className="text-xs text-rose-500 hover:text-rose-400 hover:underline px-2" onClick={() => onToggleConnect(exchange.id)}>
-                                            Disconnect
-                                        </button>
-                                    </>
-                                ) : (
-                                    <Button variant="primary" className="text-xs px-4 py-2" onClick={() => onToggleConnect(exchange.id)}>
-                                        Connect
-                                    </Button>
-                                )}
+                                    )}
+                                </div>
                             </div>
+
+                            {/* Connection Form */}
+                            {selectedExchangeId === exchange.id && !exchange.isConnected && (
+                                <div className="mt-2 pt-4 border-t border-gray-200 dark:border-white/10 animate-fade-in">
+                                    <div className="space-y-3">
+                                        <div>
+                                            <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">API Key</label>
+                                            <input
+                                                type="text"
+                                                value={apiKey}
+                                                onChange={e => setApiKey(e.target.value)}
+                                                className="w-full mt-1 px-3 py-2 bg-gray-100 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-lg text-sm font-mono text-slate-800 dark:text-white outline-none focus:border-brand-primary"
+                                                placeholder="Enter Exchange API Key"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="text-xs font-semibold text-gray-500 dark:text-gray-400 uppercase">API Secret</label>
+                                            <input
+                                                type="password"
+                                                value={apiSecret}
+                                                onChange={e => setApiSecret(e.target.value)}
+                                                className="w-full mt-1 px-3 py-2 bg-gray-100 dark:bg-black/20 border border-gray-200 dark:border-white/10 rounded-lg text-sm font-mono text-slate-800 dark:text-white outline-none focus:border-brand-primary"
+                                                placeholder="Enter Exchange Secret Key"
+                                            />
+                                        </div>
+                                        {testError && <p className="text-xs text-rose-500 font-bold">{testError}</p>}
+                                        <div className="flex justify-end pt-2">
+                                            <Button
+                                                variant="primary"
+                                                className="w-full sm:w-auto"
+                                                onClick={() => handleConnect(exchange.id)}
+                                                disabled={!apiKey || !apiSecret || isTesting}
+                                            >
+                                                {isTesting ? 'Validating...' : 'Validate & Connect'}
+                                            </Button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
                     ))}
                 </div>
@@ -240,12 +324,12 @@ const Market: React.FC = () => {
     // চার্ট এবং উইজেট স্টেট
     const [activePair, setActivePair] = useState('BTC/USDT');
     const [activeTimeframe, setActiveTimeframe] = useState<Timeframe>('1h');
-    const [lastPrice, setLastPrice] = useState(68543.21);
+    const [lastPrice, setLastPrice] = useState(0);
     const [priceUpdateStatus, setPriceUpdateStatus] = useState<'up' | 'down' | 'none'>('none');
-    const [price24hAgo, setPrice24hAgo] = useState(68123.45);
-    const [volume24h, setVolume24h] = useState(45231.87);
-    const [high24h, setHigh24h] = useState(69123.45);
-    const [low24h, setLow24h] = useState(67543.21);
+    const [price24hAgo, setPrice24hAgo] = useState(0);
+    const [volume24h, setVolume24h] = useState(0);
+    const [high24h, setHigh24h] = useState(0);
+    const [low24h, setLow24h] = useState(0);
     const [orderBookData, setOrderBookData] = useState<{ bids: OrderBookEntry[], asks: OrderBookEntry[] }>({ bids: [], asks: [] });
     const [recentTrades, setRecentTrades] = useState<TradeWithStatus[]>([]);
     const [activeSidePanelTab, setActiveSidePanelTab] = useState<'trade' | 'orderBook' | 'trades'>('trade');
@@ -312,7 +396,23 @@ const Market: React.FC = () => {
         return () => document.body.classList.remove('body-no-scroll');
     }, [isChartFullScreen]);
 
-    const handleToggleConnect = (id: string) => {
+    const handleToggleConnect = async (id: string, keys?: { apiKey: string, apiSecret: string }): Promise<boolean> => {
+        // If keys provided, validate first
+        if (keys) {
+            try {
+                await apiClient.post('/v1/trading/test-connection', {
+                    exchange_id: id,
+                    api_key: keys.apiKey,
+                    api_secret: keys.apiSecret
+                });
+
+                // If successful, save logic would go here (e.g. to a specialized store or context)
+                // For now, valid means we can toggle connection valid
+            } catch (error) {
+                return false;
+            }
+        }
+
         setExchanges(prev => prev.map(ex => {
             if (ex.id === id) {
                 const nowConnected = !ex.isConnected;
@@ -326,6 +426,7 @@ const Market: React.FC = () => {
             }
             return ex;
         }));
+        return true;
     };
 
     const handleSetActive = (id: string) => {
@@ -359,12 +460,17 @@ const Market: React.FC = () => {
 
     // WebSocket কানেকশন (শুধুমাত্র Ticker এবং OrderBook আপডেটের জন্য রাখা হয়েছে)
     // চার্ট এখন TradingView দ্বারা হ্যান্ডেল হবে
+    // WebSocket for Live Data
     useEffect(() => {
         let socket: WebSocket | null = null;
         let timeoutId: NodeJS.Timeout;
 
         const connect = () => {
-            socket = new WebSocket(`ws:/localhost:8000/ws/market-data/${activePair.replace('/', '')}`);
+            // Using implicit host logic for robustness
+            const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsHost = 'localhost:8000'; // Or generic logic
+            socket = new WebSocket(`${wsProtocol}//${wsHost}/ws/market-data/${activePair.replace('/', '')}`);
+
             ws.current = socket;
 
             socket.onopen = () => {
@@ -372,38 +478,67 @@ const Market: React.FC = () => {
             };
 
             socket.onmessage = (event) => {
-                const data = JSON.parse(event.data);
+                const message = JSON.parse(event.data);
 
-                setLastPrice(prev => {
-                    const newPrice = data.price;
-                    const change = newPrice - prev;
-                    setPriceUpdateStatus(change > 0 ? 'up' : change < 0 ? 'down' : 'none');
-                    setTimeout(() => setPriceUpdateStatus('none'), 500);
-                    return newPrice;
-                });
+                // Handle new unified message format
+                if (message.type === 'ticker') {
+                    const ticker = message.data;
+                    setLastPrice(prev => {
+                        const newPrice = parseFloat(ticker.price);
+                        const change = newPrice - prev;
+                        if (change !== 0) {
+                            setPriceUpdateStatus(change > 0 ? 'up' : 'down');
+                            setTimeout(() => setPriceUpdateStatus('none'), 500);
+                        }
+                        return newPrice;
+                    });
 
-                const newTrade = { ...generateTrade(data.price), isNew: true };
-                setRecentTrades(prevTrades => {
-                    const updatedTrades = [newTrade, ...prevTrades.map(t => ({ ...t, isNew: false }))].slice(50);
-                    return updatedTrades;
-                });
-
-                // Note: এখানে candlestickSeriesRef এর কোড সরিয়ে ফেলা হয়েছে কারণ আমরা TradingView ব্যবহার করছি
+                    setHigh24h(parseFloat(ticker.high));
+                    setLow24h(parseFloat(ticker.low));
+                    setVolume24h(parseFloat(ticker.volume));
+                    // Calculate price 24h ago based on change
+                    const currentPrice = parseFloat(ticker.price);
+                    const priceChange = parseFloat(ticker.change);
+                    if (!isNaN(priceChange)) {
+                        setPrice24hAgo(currentPrice - priceChange);
+                    }
+                }
+                else if (message.type === 'depth') {
+                    setOrderBookData(message.data);
+                }
+                else if (message.type === 'trade') {
+                    setRecentTrades(prevTrades => {
+                        const newTrades = message.data.map((t: any) => ({
+                            id: t.id,
+                            time: t.time,
+                            price: parseFloat(t.price),
+                            amount: parseFloat(t.amount),
+                            type: t.type,
+                            isNew: true
+                        }));
+                        // Merge and keep latest 50
+                        return [...newTrades, ...prevTrades].slice(0, 50);
+                    });
+                }
+                // Fallback for simple message format (if any legacy)
+                else if (message.price) {
+                    setLastPrice(message.price);
+                }
             };
 
             socket.onerror = (error) => { console.error("WebSocket Error:", error); };
+            socket.onclose = () => {
+                // console.log("WS Closed, reconnecting..."); 
+                timeoutId = setTimeout(connect, 3000);
+            };
         };
 
-        timeoutId = setTimeout(connect, 100);
+        connect();
         return () => {
             clearTimeout(timeoutId);
             if (socket) socket.close();
         };
     }, [activePair]);
-
-    useEffect(() => {
-        setOrderBookData(generateOrderBookData(lastPrice));
-    }, [Math.round(lastPrice/10)]);
 
     // --- TradingView Widget Implementation ---
     useEffect(() => {
@@ -636,7 +771,7 @@ const Market: React.FC = () => {
                                         <div className={`transition-all duration-300 ${activeOrderType !== 'Market' ? 'opacity-100 h-auto' : 'opacity-50 h-auto grayscale'}`}>
                                             <label className="text-xs font-semibold text-gray-500 mb-1.5 block">Price (USDT)</label>
                                             <div className="relative">
-                                                <input type="number" value={activeOrderType === 'Market' ? '' : orderPrice} onChange={(e) => setOrderPrice(e.target.value)} placeholder={activeOrderType === 'Market' ? 'Market Price' : lastPrice.toFixed(2)} disabled={activeOrderType === 'Market'} className={inputClasses} />
+                                                <input type="number" value={activeOrderType === 'Market' ? '' : orderPrice} onChange={(e) => setOrderPrice(e.target.value)} placeholder={activeOrderType === 'Market' ? 'Market Price' : (lastPrice > 0 ? lastPrice.toFixed(2) : 'Loading...')} disabled={activeOrderType === 'Market'} className={inputClasses} />
                                                 <span className="absolute right-3 top-2.5 text-xs text-gray-500 font-mono">USDT</span>
                                             </div>
                                         </div>
@@ -673,7 +808,25 @@ const Market: React.FC = () => {
                                             <span>Est. Fee</span>
                                             <span className="font-mono">0.00 USDT</span>
                                         </div>
-                                        <Button className={`w-full py-4 text-lg font-bold shadow-xl transition-transform active:scale-95 ${activeBgClass}`}>
+                                        <Button
+                                            className={`w-full py-4 text-lg font-bold shadow-xl transition-transform active:scale-95 ${activeBgClass}`}
+                                            onClick={async () => {
+                                                try {
+                                                    const res = await apiClient.post('/v1/trading/order', {
+                                                        symbol: activePair.replace('/', ''),
+                                                        side: activeOrderFormTab,
+                                                        type: activeOrderType.toLowerCase(),
+                                                        amount: parseFloat(orderAmount) || 0,
+                                                        price: parseFloat(orderPrice) || null
+                                                    });
+                                                    // Show success toast (mock for now using alert or console)
+                                                    console.log("Order Placed:", res.data);
+                                                    alert(`Order Placed Successfully: ${res.data.message}`);
+                                                } catch (err: any) {
+                                                    alert(`Order Failed: ${err.response?.data?.detail || err.message}`);
+                                                }
+                                            }}
+                                        >
                                             {activeOrderFormTab === 'buy' ? 'Buy / Long' : 'Sell / Short'} {activePair.split('/')[0]}
                                         </Button>
                                     </div>
