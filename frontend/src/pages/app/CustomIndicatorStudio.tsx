@@ -55,6 +55,7 @@ const CustomIndicatorStudio: React.FC = () => {
 
     const [indicatorParams, setIndicatorParams] = useState<Record<string, any>>({});
     const [paramValues, setParamValues] = useState<Record<string, number>>({});
+    const [isPublic, setIsPublic] = useState(false); // ✅ NEW: Public/Private State
     const [activeStudyConfig, setActiveStudyConfig] = useState<any>(null);
 
     // Studio State
@@ -242,7 +243,8 @@ const CustomIndicatorStudio: React.FC = () => {
                 name: indicatorName.trim(),
                 code,
                 baseType: loadedIndicatorType,
-                parameters: indicatorParams
+                parameters: indicatorParams,
+                isPublic: isPublic // ✅ NEW: Pass isPublic state
             };
 
             const saved = await indicatorService.create(newIndicator);
@@ -363,10 +365,31 @@ const CustomIndicatorStudio: React.FC = () => {
                             <button onClick={handleSaveIndicator} className="ml-2 text-gray-400 hover:text-brand-primary"><SaveIcon className="w-4 h-4" /></button>
                         </div>
                         <div className="h-6 w-px bg-gray-300 dark:bg-white/10"></div>
+
+                        {/* ✅ NEW: Public Toggle Checkbox */}
+                        <div className="flex items-center gap-2">
+                            <input
+                                type="checkbox"
+                                id="isPublic"
+                                checked={isPublic}
+                                onChange={(e) => setIsPublic(e.target.checked)}
+                                className="w-4 h-4 text-brand-primary rounded focus:ring-brand-primary focus:ring-offset-2 dark:focus:ring-offset-gray-900"
+                            />
+                            <label htmlFor="isPublic" className="text-xs text-slate-700 dark:text-gray-300 cursor-pointer select-none">
+                                Share with community?
+                            </label>
+                        </div>
+
+                        <div className="h-6 w-px bg-gray-300 dark:bg-white/10"></div>
                         <Button size="sm" variant="secondary" onClick={handleClearPlot} className="text-xs h-8" disabled={!activeStudyConfig}>Clear</Button>
-                        <Button size="sm" variant="primary" onClick={handleRunScript} className="text-xs h-8 flex items-center gap-2 shadow-lg shadow-brand-primary/20">
-                            <PlayIcon className="w-3 h-3" /> Run Script
-                        </Button>
+                        <div className="group/hint relative">
+                            <Button size="sm" variant="primary" onClick={handleRunScript} className="text-xs h-8 flex items-center gap-2 shadow-lg shadow-brand-primary/20">
+                                <PlayIcon className="w-3 h-3" /> Run Script
+                            </Button>
+                            <div className="absolute top-full right-0 mt-2 w-64 p-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] leading-relaxed rounded-lg shadow-xl border border-gray-100 dark:border-slate-700 opacity-0 invisible group-hover/hint:opacity-100 group-hover/hint:visible transition-all z-50">
+                                <strong>Note:</strong> This editor configures parameters for the built-in study. Custom Pine Script logic is not directly injected into this widget version.
+                            </div>
+                        </div>
                     </div>
                 </div>
 

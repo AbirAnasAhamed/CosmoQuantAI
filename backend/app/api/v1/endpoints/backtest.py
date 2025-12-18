@@ -37,7 +37,8 @@ def run_backtest(
         secondary_timeframe=request.secondary_timeframe,
         stop_loss=request.stop_loss,
         take_profit=request.take_profit,
-        trailing_stop=request.trailing_stop
+        trailing_stop=request.trailing_stop,
+        indicator_id=request.indicator_id # ✅ Pass Indicator ID
     )
     return {"task_id": task.id, "status": "Processing"}
 

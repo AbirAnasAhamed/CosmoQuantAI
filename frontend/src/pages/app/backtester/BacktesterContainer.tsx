@@ -8,6 +8,8 @@ import {
     fetchTradeFiles, revokeBacktestTask,
     uploadBacktestDataFile // ✅ Ensure this is imported
 } from '@/services/backtester';
+import { indicatorService } from '@/services/indicatorService';
+import { SavedIndicator } from '@/types';
 import { useMarketData } from './hooks/useMarketData';
 import { useBacktestExecution } from './hooks/useBacktestExecution';
 
@@ -66,6 +68,8 @@ export const BacktesterContainer: React.FC = () => {
     const [allStrategies, setAllStrategies] = useState<string[]>([]);
     const [strategies, setStrategies] = useState<string[]>([]);
     const [customStrategies, setCustomStrategies] = useState<string[]>([]);
+    const [savedIndicators, setSavedIndicators] = useState<SavedIndicator[]>([]);
+    const [selectedIndicatorId, setSelectedIndicatorId] = useState<number | null>(null);
     const [strategy, setStrategy] = useState('');
     const [timeframe, setTimeframe] = useState('1h');
     const [startDate, setStartDate] = useState('2023-01-01');
@@ -103,12 +107,22 @@ export const BacktesterContainer: React.FC = () => {
     useEffect(() => {
         const loadStrategies = async () => {
             try {
-                const fullList = await fetchCustomStrategyList();
-                if (Array.isArray(fullList) && fullList.length > 0) {
-                    setAllStrategies(fullList);
-                    setStrategies(fullList);
-                    setCustomStrategies(fullList);
-                    setStrategy((prev) => (!prev || !fullList.includes(prev)) ? fullList[0] : prev);
+                const [fullList, indicators] = await Promise.all([
+                    fetchCustomStrategyList(),
+                    indicatorService.getAll().catch(e => { console.error("Err indicators", e); return []; })
+                ]);
+
+                setSavedIndicators(indicators || []);
+
+                setSavedIndicators(indicators || []);
+
+                const combined = Array.isArray(fullList) ? fullList : [];
+
+                if (combined.length > 0) {
+                    setAllStrategies(combined);
+                    setStrategies(combined);
+                    setCustomStrategies(combined);
+                    setStrategy((prev) => (!prev || !combined.includes(prev)) ? combined[0] : prev);
                 }
             } catch (e) {
                 console.error("Failed to load strategies:", e);
@@ -120,7 +134,44 @@ export const BacktesterContainer: React.FC = () => {
 
     useEffect(() => {
         const updateParams = async () => {
+            if (selectedIndicatorId) {
+                const ind = savedIndicators.find((i: any) => i.id === selectedIndicatorId);
+                if (ind) {
+                    // Use indicator code (or placeholder)
+                    setCurrentStrategyCode(ind.code || '# Custom Indicator Logic');
+
+                    // Use stored parameters
+                    const finalParams = ind.parameters || {};
+                    setOptimizableParams(finalParams);
+
+                    const newParams: any = {};
+                    const newOptParams: any = {};
+
+                    Object.entries(finalParams).forEach(([key, val]: [string, any]) => {
+                        // Simple heuristic for defaults
+                        let defaultVal = val;
+                        if (typeof val === 'object' && val !== null && 'default' in val) {
+                            defaultVal = val.default;
+                        }
+
+                        newParams[key] = defaultVal;
+                        // Optimize heuristic: +/- 50% or similar
+                        let numVal = Number(defaultVal);
+                        if (!isNaN(numVal)) {
+                            newOptParams[key] = { start: numVal, end: numVal * 2, step: 1 };
+                        } else {
+                            newOptParams[key] = { start: 0, end: 10, step: 1 };
+                        }
+                    });
+
+                    setParams(newParams);
+                    setOptimizationParams(newOptParams);
+                    return;
+                }
+            }
+
             const isCustom = customStrategies.includes(strategy);
+
             if (isCustom) {
                 try {
                     const data = await fetchStrategyCode(strategy);
@@ -153,8 +204,9 @@ export const BacktesterContainer: React.FC = () => {
                 setOptimizationParams(newOptParams);
             }
         };
+
         updateParams();
-    }, [strategy, customStrategies, standardParamsConfig]);
+    }, [strategy, customStrategies, standardParamsConfig, savedIndicators, selectedIndicatorId]);
 
     useEffect(() => { setContextParams(params); }, [params]);
 
@@ -200,15 +252,27 @@ export const BacktesterContainer: React.FC = () => {
     };
 
     const onRun = () => {
-        if (!strategy || strategy === 'Unknown') {
-            showToast("Please select a valid strategy.", "error");
+        if ((!strategy || strategy === 'Unknown') && !selectedIndicatorId) {
+            showToast("Please select a valid strategy or indicator.", "error");
             return;
+        }
+
+        let indicatorId: number | undefined = undefined;
+        let selectedStrategy = strategy;
+
+        if (selectedIndicatorId) {
+            const ind = savedIndicators.find((i: any) => i.id === selectedIndicatorId);
+            if (ind) {
+                indicatorId = ind.id;
+                selectedStrategy = (ind as any).base_type || ind.baseType || 'GenericStrategy';
+            }
         }
 
         const commonParams = {
             symbol: dataSource === 'csv' ? `FILE: ${csvFileName}` : symbol,
             timeframe,
-            strategy,
+            strategy: selectedStrategy, // ✅ Use resolved strategy
+            indicator_id: indicatorId, // ✅ Pass ID
             initial_cash: initialCash,
             params,
             start_date: startDate,
@@ -278,6 +342,9 @@ export const BacktesterContainer: React.FC = () => {
                         optimizableParams={optimizableParams}
                         optimizationMethod={optimizationMethod} setOptimizationMethod={setOptimizationMethod}
                         gaParams={gaParams} setGaParams={setGaParams}
+                        savedIndicators={savedIndicators}
+                        selectedIndicatorId={selectedIndicatorId}
+                        setSelectedIndicatorId={setSelectedIndicatorId}
                     />
                     <div className="mt-8 pt-6 border-t border-brand-border-light dark:border-brand-border-dark">
                         {isLoading && (

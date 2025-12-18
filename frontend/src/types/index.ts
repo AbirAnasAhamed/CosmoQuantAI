@@ -435,11 +435,13 @@ export interface UnusualOptionTrade {
 }
 
 export interface SavedIndicator {
-  id?: number;
+  id?: number; // Optional because new indicators won't have ID yet
   name: string;
   code: string;
-  baseType: string;
-  parameters?: Record<string, any>;
+  base_type?: string; // Backend snake_case
+  baseType?: string; // Frontend camelCase (legacy/optional)
+  parameters: Record<string, any>;
+  isPublic?: boolean;
 }
 
 export interface ToastMessage {

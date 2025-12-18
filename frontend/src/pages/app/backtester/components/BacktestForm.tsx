@@ -12,6 +12,7 @@ import { StrategyParams } from './StrategyParams';
 import { getYear, getMonth } from 'date-fns';
 import Button from '@/components/common/Button';
 import { marketDataService } from '@/services/marketData';
+import { SavedIndicator } from '@/types';
 
 // Constants
 const range = (start: number, end: number, step = 1) => {
@@ -86,6 +87,10 @@ interface BacktestFormProps {
     optimizableParams: any;
     optimizationMethod: any; setOptimizationMethod: any;
     gaParams: any; setGaParams: any;
+    // New Props for Indicators
+    savedIndicators: SavedIndicator[];
+    selectedIndicatorId: number | null;
+    setSelectedIndicatorId: (id: number | null) => void;
 }
 
 export const BacktestForm: React.FC<BacktestFormProps> = ({
@@ -132,9 +137,11 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
     activeTab,
     params, setParams,
     optimizationParams, setOptimizationParams,
+
     optimizableParams,
     optimizationMethod, setOptimizationMethod,
-    gaParams, setGaParams
+    gaParams, setGaParams,
+    savedIndicators, selectedIndicatorId, setSelectedIndicatorId
 }) => {
     const {
         commission, setCommission,
@@ -298,14 +305,40 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
 
                 {mode !== 'batch' ? (
                     <div>
-                        <div className="flex justify-between items-center mb-1">
-                            <label className="block text-sm font-medium text-gray-500">Strategy</label>
-                            <button onClick={() => setIsBuilderOpen(true)} className="text-xs flex items-center gap-1 text-brand-primary hover:text-brand-primary/80 font-semibold transition-colors"><PlusCircle size={12} /> New</button>
+                        {/* Indicator Selector */}
+                        <div className="mb-4 p-3 bg-indigo-50 dark:bg-slate-900 border border-indigo-200 dark:border-indigo-900 rounded-lg">
+                            <label className="block text-xs font-bold text-indigo-700 dark:text-indigo-400 mb-1">Use Saved Indicator (Optional)</label>
+                            <select
+                                className={inputBaseClasses}
+                                value={selectedIndicatorId || ''}
+                                onChange={(e) => {
+                                    const val = e.target.value ? Number(e.target.value) : null;
+                                    setSelectedIndicatorId(val);
+                                    if (val) {
+                                        // Optional: Clear strategy selection to avoid confusion?
+                                        // or setStrategy('')
+                                    }
+                                }}
+                            >
+                                <option value="">-- No Indicator (Use Strategy Below) --</option>
+                                {savedIndicators.map(ind => (
+                                    <option key={ind.id} value={ind.id}>
+                                        {ind.name} ({ind.baseType || ind.base_type || 'Custom'})
+                                    </option>
+                                ))}
+                            </select>
                         </div>
-                        <select className={inputBaseClasses} value={strategy} onChange={(e) => setStrategy(e.target.value)}>
-                            <optgroup label="Strategy Library">{safeStrategies.map(s => <option key={`lib-${s}`} value={s}>{s}</option>)}</optgroup>
-                            {uniqueCustomStrategies.length > 0 && (<optgroup label="My Custom Strategies">{uniqueCustomStrategies.map(s => <option key={`cust-${s}`} value={s}>{s}</option>)}</optgroup>)}
-                        </select>
+
+                        <div className={`transition-opacity duration-300 ${selectedIndicatorId ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+                            <div className="flex justify-between items-center mb-1">
+                                <label className="block text-sm font-medium text-gray-500">Strategy</label>
+                                <button onClick={() => setIsBuilderOpen(true)} className="text-xs flex items-center gap-1 text-brand-primary hover:text-brand-primary/80 font-semibold transition-colors"><PlusCircle size={12} /> New</button>
+                            </div>
+                            <select className={inputBaseClasses} value={strategy} onChange={(e) => setStrategy(e.target.value)}>
+                                <optgroup label="Strategy Library">{safeStrategies.map(s => <option key={`lib-${s}`} value={s}>{s}</option>)}</optgroup>
+                                {uniqueCustomStrategies.length > 0 && (<optgroup label="My Custom Strategies">{uniqueCustomStrategies.map(s => <option key={`cust-${s}`} value={s}>{s}</option>)}</optgroup>)}
+                            </select>
+                        </div>
                     </div>
                 ) : (
                     <div className="bg-gray-50 dark:bg-slate-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 col-span-1 md:col-span-2 lg:col-span-3">
@@ -334,11 +367,11 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                         <StrategyParams mode={(mode === 'optimization' || mode === 'walk_forward') ? 'optimization' : 'single'} activeParamsConfig={optimizableParams} params={params} setParams={setParams} optimizationParams={optimizationParams} setOptimizationParams={setOptimizationParams} optimizationMethod={optimizationMethod} setOptimizationMethod={setOptimizationMethod} hideOptimizationMethod={mode === 'walk_forward'} gaParams={gaParams} setGaParams={setGaParams} />
                     </div>
                 )}
-                
+
                 {/* ... (WFA and Optimization config sections kept as is) ... */}
                 {mode === 'walk_forward' && (
                     <div className="col-span-1 md:col-span-2 lg:col-span-3 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl p-4 animate-fade-in space-y-4 mb-6">
-                         <div className="flex items-center gap-2 border-b border-blue-200 dark:border-blue-800 pb-2">
+                        <div className="flex items-center gap-2 border-b border-blue-200 dark:border-blue-800 pb-2">
                             <h3 className="text-sm font-bold text-blue-800 dark:text-blue-300">WFA Configuration</h3>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
@@ -355,13 +388,13 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                     </select>
                 </div>
                 <div>
-                     <label className="block text-sm font-medium text-gray-500 mb-1">Secondary TF</label>
-                     <select className={inputBaseClasses} value={secondaryTimeframe} onChange={(e) => setSecondaryTimeframe(e.target.value)}><option value="">None</option>{availableTimeframes.map(t => (<option key={t} value={t}>{t}</option>))}</select>
+                    <label className="block text-sm font-medium text-gray-500 mb-1">Secondary TF</label>
+                    <select className={inputBaseClasses} value={secondaryTimeframe} onChange={(e) => setSecondaryTimeframe(e.target.value)}><option value="">None</option>{availableTimeframes.map(t => (<option key={t} value={t}>{t}</option>))}</select>
                 </div>
 
                 <div className="col-span-1 md:col-span-2 lg:col-span-3 bg-gray-50 dark:bg-slate-800/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-                     <div className="flex items-center gap-2 mb-3"><History size={16} className="text-brand-primary" /><label className="text-sm font-bold text-slate-700 dark:text-slate-300">Time Horizon</label></div>
-                     <div className="flex flex-col lg:flex-row gap-4 items-end">
+                    <div className="flex items-center gap-2 mb-3"><History size={16} className="text-brand-primary" /><label className="text-sm font-bold text-slate-700 dark:text-slate-300">Time Horizon</label></div>
+                    <div className="flex flex-col lg:flex-row gap-4 items-end">
                         <div className="flex-1 grid grid-cols-2 gap-4 w-full">
                             <div className="relative group">
                                 <label className="text-xs font-semibold text-gray-500 mb-1.5 block ml-1">Start Date</label>
@@ -378,16 +411,16 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                                 {presetOptions.map((option) => (<button key={option.label} onClick={() => handlePresetChange(option.days)} className="flex-1 px-3 py-1.5 text-xs font-medium rounded-md text-slate-600 dark:text-slate-400 hover:bg-brand-primary/10 hover:text-brand-primary transition-all">{option.label}</button>))}
                             </div>
                         </div>
-                     </div>
+                    </div>
                 </div>
             </div>
 
             <div className="mt-4 pt-4 border-t border-brand-border-light dark:border-brand-border-dark">
-                 <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">{enableRiskManagement ? <ShieldCheck size={16} className="text-green-500" /> : <ShieldAlert size={16} className="text-gray-400" />} Risk Management & Execution</h3>
                     <input type="checkbox" checked={enableRiskManagement} onChange={(e) => setEnableRiskManagement(e.target.checked)} className="w-4 h-4 text-brand-primary rounded" />
-                 </div>
-                 <div className={`grid grid-cols-2 md:grid-cols-5 gap-4 transition-opacity duration-300 ${enableRiskManagement ? 'opacity-100' : 'opacity-50'}`}>
+                </div>
+                <div className={`grid grid-cols-2 md:grid-cols-5 gap-4 transition-opacity duration-300 ${enableRiskManagement ? 'opacity-100' : 'opacity-50'}`}>
                     <div><label className="block text-xs text-gray-500 mb-1">Initial Cash ($)</label><input type="number" value={initialCash} onChange={(e) => setInitialCash(Number(e.target.value))} className={`${inputBaseClasses} font-bold text-green-600 dark:text-green-400`} /></div>
                     <div><label className="block text-xs text-gray-500 mb-1">Commission (%)</label><input type="number" step="0.01" value={commission} onChange={(e) => setCommission(parseFloat(e.target.value))} className={inputBaseClasses} /></div>
                     <div><label className="block text-xs text-gray-500 mb-1">Slippage (%)</label><input type="number" step="0.01" value={slippage} onChange={(e) => setSlippage(parseFloat(e.target.value))} className={inputBaseClasses} /></div>
@@ -397,7 +430,7 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                             <div className="flex items-center gap-4"><input type="range" min="1" max="20" step="1" value={leverage} onChange={(e) => setLeverage(Number(e.target.value))} className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500" /><input type="number" min="1" max="125" value={leverage} onChange={(e) => setLeverage(Number(e.target.value))} className="w-16 px-2 py-1 bg-gray-800 border border-gray-700 rounded-md text-white text-xs" /></div>
                         </div>
                     </div>
-                 </div>
+                </div>
             </div>
 
             <StrategyBuilderModal isOpen={isBuilderOpen} onClose={() => setIsBuilderOpen(false)} onSuccess={() => { window.location.reload(); }} />

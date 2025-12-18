@@ -78,6 +78,7 @@ class BacktestRequest(BaseModel):
     stop_loss: Optional[float] = 0.0      # % ভিত্তিক (যেমন 2.0 মানে 2%)
     take_profit: Optional[float] = 0.0    # % ভিত্তিক (যেমন 5.0 মানে 5%)
     trailing_stop: Optional[float] = 0.0  # % ভিত্তিক
+    indicator_id: Optional[int] = None    # ✅ NEW: Custom Indicator ID
 
 class BatchBacktestRequest(BaseModel):
     symbol: str

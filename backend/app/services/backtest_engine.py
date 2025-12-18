@@ -12,6 +12,8 @@ import random
 import itertools
 import os
 import os
+from app.models.indicator import UserIndicator # ✅ NEW
+from app.strategies.dynamic_indicator import DynamicIndicatorStrategy
 from weasyprint import HTML
 import importlib
 import importlib.util
@@ -103,6 +105,7 @@ class BacktestEngine:
             commission: float = 0.001, slippage: float = 0.0, leverage: float = 1.0,  # 👈 leverage added
             secondary_timeframe: str = None,  # ✅ Secondary Timeframe (Trend)
             stop_loss: float = 0.0, take_profit: float = 0.0, trailing_stop: float = 0.0,
+            indicator_id: int = None, # ✅ NEW: Custom Indicator ID
             df_data: pd.DataFrame = None): # ✅ NEW ARGUMENT
         
         resample_compression = 1
@@ -234,9 +237,23 @@ class BacktestEngine:
                 total_candles = total_candles // resample_compression
             cerebro.addobserver(ProgressObserver, total_len=total_candles, callback=progress_callback)
 
-        strategy_class = self._load_strategy_class(strategy_name)
-        if not strategy_class:
-            return {"error": f"Strategy '{strategy_name}' not found via Map or File."}
+        if indicator_id:
+            # ✅ Custom Indicator Strategy Logic
+            print(f"🛠️ Using Custom Indicator ID: {indicator_id}")
+            indicator = db.query(UserIndicator).filter(UserIndicator.id == indicator_id).first()
+            if not indicator:
+                return {"error": f"Custom Indicator {indicator_id} not found."}
+            
+            strategy_class = DynamicIndicatorStrategy
+            
+            # Inject Params for Dynamic Strategy
+            clean_params['indicator_type'] = indicator.base_type
+            clean_params['params'] = indicator.parameters
+            
+        else:
+            strategy_class = self._load_strategy_class(strategy_name)
+            if not strategy_class:
+                return {"error": f"Strategy '{strategy_name}' not found via Map or File."}
         
         valid_params = self._smart_filter_params(strategy_class, clean_params)
         
@@ -1226,3 +1243,63 @@ class BacktestEngine:
             }
         except Exception as e:
             return {}
+
+    # ✅ NEW: Helper to build dynamic strategy class
+    def _build_custom_strategy(self, db: Session, indicator_id: int, base_strategy_name: str):
+        """
+        Retrieves a custom indicator from DB and creates a Strategy Class that uses it.
+        We assume 'base_strategy_name' (e.g., 'SMA Crossover') defines the logic structure,
+        and we override its indicator parameters with the custom ones.
+        """
+        indicator = db.query(UserIndicator).filter(UserIndicator.id == indicator_id).first()
+        if not indicator:
+            return None
+
+        # 1. Load the Base Strategy Class
+        # For simplicity, we assume we wrap a standard strategy or use a Generic one.
+        # If user selected "SMA Crossover" in UI but passed a custom "RSI" indicator, 
+        # it might not make sense unless the strategy is "Generic Indicator Strategy".
+        
+        # For this version, let's assume we use a Generic Strategy called 'CustomIndicatorStrategy'
+        # OR we override params of the selected strategy if compatible.
+        
+        # Let's try to load the 'GenericStrategy' or fallback to the requested name.
+        base_class = self._load_strategy_class(base_strategy_name) 
+        if not base_class:
+            return None
+
+        # 2. Map Indicator Params to Strategy Params
+        # This is tricky because param names must match.
+        # We'll create a subclass with default params override.
+        
+        # Dynamic Subclassing
+        class DynamicCustomStrategy(base_class):
+            params = (
+                ('custom_indicator_params', indicator.parameters), # Pass all useful params
+            )
+            
+            def __init__(self):
+                # Apply custom params overrides if variables match
+                # e.g. if saved indicator has 'period': 14 and strategy has 'period' param.
+                
+                # Check backend stored params
+                saved_params = indicator.parameters or {}
+                
+                # We try to inject them into the strategy instance params
+                for key, val in saved_params.items():
+                    if hasattr(self.params, key):
+                        setattr(self.params, key, val)
+                    
+                    # Also handle some common mappings if names differ
+                    # e.g. saved 'length' -> strategy 'period'
+                    if key == 'length' and hasattr(self.params, 'period'):
+                        self.params.period = val
+                    if key == 'period' and hasattr(self.params, 'length'):
+                        self.params.length = val
+                        
+                super().__init__()
+                
+        # Optional: Log what happened
+        print(f"✨ Created Dynamic Strategy using Indicator: {indicator.name} ({indicator.base_type})")
+        
+        return DynamicCustomStrategy
