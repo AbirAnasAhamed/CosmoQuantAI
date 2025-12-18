@@ -1,12 +1,13 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { MOCK_INDICATOR_CODE, ExpandIcon, CollapseIcon, PlayIcon } from '@/constants';
+import { ExpandIcon, CollapseIcon, PlayIcon } from '@/constants';
 import { useTheme } from '@/context/ThemeContext';
-import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
 import CodeEditor from '@/components/common/CodeEditor';
 import type { SavedIndicator } from '@/types';
 import { useToast } from '@/context/ToastContext';
+import { indicatorService } from '@/services/indicatorService';
+import { useSearchParams } from 'react-router-dom';
 
 // Additional Icons
 const CodeIcon = ({ className = "w-5 h-5" }) => (
@@ -42,29 +43,16 @@ const parseParamsFromCode = (code: string): Record<string, any> => {
 const CustomIndicatorStudio: React.FC = () => {
     const { theme } = useTheme();
     const { showToast } = useToast();
+    const [searchParams] = useSearchParams();
+    const symbol = searchParams.get('symbol') || 'BINANCE:BTCUSDT';
 
-    const [savedIndicators, setSavedIndicators] = useState<SavedIndicator[]>(() => {
-        try {
-            const saved = localStorage.getItem('customIndicators');
-            return saved ? JSON.parse(saved) : [];
-        } catch (error) {
-            console.error('Error loading saved indicators from localStorage:', error);
-            return [];
-        }
-    });
-    
-    useEffect(() => {
-        try {
-            localStorage.setItem('customIndicators', JSON.stringify(savedIndicators));
-        } catch (error) {
-            console.error('Error saving indicators to localStorage:', error);
-        }
-    }, [savedIndicators]);
+    const [savedIndicators, setSavedIndicators] = useState<SavedIndicator[]>([]);
+    const [templates, setTemplates] = useState<SavedIndicator[]>([]);
 
-    const [code, setCode] = useState<string>(MOCK_INDICATOR_CODE['SMA']);
-    const [loadedIndicatorType, setLoadedIndicatorType] = useState<'SMA' | 'RSI' | 'MACD' | 'BB'>('SMA');
+    const [code, setCode] = useState<string>("// Loading...");
+    const [loadedIndicatorType, setLoadedIndicatorType] = useState<string>('SMA');
     const [indicatorName, setIndicatorName] = useState('');
-    
+
     const [indicatorParams, setIndicatorParams] = useState<Record<string, any>>({});
     const [paramValues, setParamValues] = useState<Record<string, number>>({});
     const [activeStudyConfig, setActiveStudyConfig] = useState<any>(null);
@@ -74,9 +62,34 @@ const CustomIndicatorStudio: React.FC = () => {
     const [isResizing, setIsResizing] = useState(false);
     const [topPaneHeight, setTopPaneHeight] = useState(60);
     const splitPaneRef = useRef<HTMLDivElement>(null);
-    
+
     const [isChartFullScreen, setIsChartFullScreen] = useState(false);
     const [widgetKey, setWidgetKey] = useState(Date.now());
+
+    // Fetch initial data
+    useEffect(() => {
+        const loadData = async () => {
+            try {
+                const [fetchedTemplates, fetchedSaved] = await Promise.all([
+                    indicatorService.getTemplates(),
+                    indicatorService.getAll()
+                ]);
+
+                setTemplates(fetchedTemplates);
+                setSavedIndicators(fetchedSaved);
+
+                // Set default code from first template if available
+                if (fetchedTemplates.length > 0) {
+                    setCode(fetchedTemplates[0].code);
+                    setLoadedIndicatorType(fetchedTemplates[0].baseType);
+                }
+            } catch (error) {
+                console.error("Failed to load indicators:", error);
+                showToast("Failed to load indicators", "error");
+            }
+        };
+        loadData();
+    }, []);
 
     useEffect(() => {
         if (isChartFullScreen) {
@@ -109,11 +122,11 @@ const CustomIndicatorStudio: React.FC = () => {
             const containerId = isChartFullScreen ? `indicator_chart_fullscreen_${widgetKey}` : `indicator_chart_container_${widgetKey}`;
             const container = document.getElementById(containerId);
             if (!container) return;
-            
+
             container.innerHTML = '';
-            
+
             const widgetOptions: any = {
-                symbol: 'BINANCE:BTCUSDT',
+                symbol: symbol,
                 interval: '60',
                 autosize: true,
                 container_id: containerId,
@@ -131,7 +144,7 @@ const CustomIndicatorStudio: React.FC = () => {
                 widgetOptions.studies = [activeStudyConfig.id];
                 widgetOptions.studies_overrides = activeStudyConfig.overrides;
             }
-            
+
             new window.TradingView.widget(widgetOptions);
         };
 
@@ -142,35 +155,44 @@ const CustomIndicatorStudio: React.FC = () => {
                 setTimeout(checkLibraryAndCreate, 100);
             }
         }
-        
+
         checkLibraryAndCreate();
 
-    }, [theme, activeStudyConfig, isChartFullScreen, widgetKey]);
-    
+    }, [theme, activeStudyConfig, isChartFullScreen, widgetKey, symbol]);
+
     const handleRunScript = () => {
         let studyConfig = null;
         const overrides: Record<string, any> = {};
 
         // Map paramValues to overrides based on type
-        if (loadedIndicatorType === 'SMA') {
-             overrides['moving average.length'] = paramValues['period'] || 20;
+        // Note: Ideally, baseType would map to study IDs dynamically. 
+        // For now, keeping the mapping logic.
+        if (loadedIndicatorType === 'SMA' || loadedIndicatorType === 'indicator') {
+            overrides['moving average.length'] = paramValues['period'] || 20;
         } else if (loadedIndicatorType === 'RSI') {
-             overrides['relative strength index.length'] = paramValues['period'] || 14;
+            overrides['relative strength index.length'] = paramValues['period'] || 14;
         } else if (loadedIndicatorType === 'MACD') {
-             overrides['fast length'] = paramValues['fast_period'] || 12;
-             overrides['slow length'] = paramValues['slow_period'] || 26;
-             overrides['signal length'] = paramValues['signal_period'] || 9;
+            overrides['fast length'] = paramValues['fast_period'] || 12;
+            overrides['slow length'] = paramValues['slow_period'] || 26;
+            overrides['signal length'] = paramValues['signal_period'] || 9;
         } else if (loadedIndicatorType === 'BB') {
-             overrides['length'] = paramValues['period'] || 20;
-             overrides['StdDev'] = paramValues['std_dev'] || 2;
+            overrides['length'] = paramValues['period'] || 20;
+            overrides['StdDev'] = paramValues['std_dev'] || 2;
         }
 
-        switch (loadedIndicatorType) {
-            case 'SMA': studyConfig = { id: 'MASimple@tv-basicstudies', overrides }; break;
-            case 'RSI': studyConfig = { id: 'RSI@tv-basicstudies', overrides }; break;
-            case 'MACD': studyConfig = { id: 'MACD@tv-basicstudies', overrides }; break;
-            case 'BB': studyConfig = { id: 'BollingerBands@tv-basicstudies', overrides }; break;
-        }
+        // Basic mapping for study ID
+        // In a real scenario, you might want to execute the Pine Script directly if TV supports it, 
+        // or map to TV built-ins.
+        let studyId = 'MASimple@tv-basicstudies';
+        if (loadedIndicatorType === 'RSI') studyId = 'RSI@tv-basicstudies';
+        else if (loadedIndicatorType === 'MACD') studyId = 'MACD@tv-basicstudies';
+        else if (loadedIndicatorType === 'BB') studyId = 'BollingerBands@tv-basicstudies';
+
+        // If it's a generic 'indicator' type from backend template, default to SMA for visualization 
+        // as we can't inject custom Pine Script into this widget version easily without 'createStudy' which is deprecated or restricted.
+        // Assuming this studio is for configuring built-ins or learning.
+
+        studyConfig = { id: studyId, overrides };
         setActiveStudyConfig(studyConfig);
         showToast('Script Compiled & Applied', 'success');
     };
@@ -178,20 +200,14 @@ const CustomIndicatorStudio: React.FC = () => {
     const handleClearPlot = () => {
         setActiveStudyConfig(null);
     };
-    
-    const handleLoadPreset = (key: string) => {
-        const templateTypeMap: Record<string, 'SMA' | 'RSI' | 'MACD' | 'BB'> = {
-            'SMA': 'SMA', 'RSI': 'RSI', 'MACD': 'MACD', 'Bollinger Bands': 'BB',
-        };
 
-        if (key in MOCK_INDICATOR_CODE) {
-            setCode(MOCK_INDICATOR_CODE[key as keyof typeof MOCK_INDICATOR_CODE]);
-            setLoadedIndicatorType(templateTypeMap[key]);
-            setIndicatorName(`My ${key}`);
-            setActiveStudyConfig(null);
-            setActiveTab('editor');
-            showToast(`Loaded template: ${key}`, 'info');
-        }
+    const handleLoadPreset = (temp: SavedIndicator) => {
+        setCode(temp.code);
+        setLoadedIndicatorType(temp.baseType);
+        setIndicatorName(`My ${temp.name}`);
+        setActiveStudyConfig(null);
+        setActiveTab('editor');
+        showToast(`Loaded template: ${temp.name}`, 'info');
     };
 
     const handleLoadSaved = (indicator: SavedIndicator) => {
@@ -203,32 +219,45 @@ const CustomIndicatorStudio: React.FC = () => {
         showToast(`Loaded saved indicator: ${indicator.name}`, 'info');
     };
 
-    const handleDeleteSaved = (name: string) => {
-        setSavedIndicators(prev => prev.filter(i => i.name !== name));
-        showToast('Indicator deleted', 'info');
+    const handleDeleteSaved = async (id: number | undefined, name: string) => {
+        if (!id) return;
+        try {
+            await indicatorService.delete(id);
+            setSavedIndicators(prev => prev.filter(i => i.id !== id));
+            showToast('Indicator deleted', 'info');
+        } catch (error) {
+            console.error("Failed to delete indicator:", error);
+            showToast("Failed to delete indicator", "error");
+        }
     };
-    
-    const handleSaveIndicator = () => {
+
+    const handleSaveIndicator = async () => {
         if (!indicatorName.trim()) {
             showToast('Please enter an indicator name.', 'error');
             return;
         }
-        // Allow overwriting or new save
-        const newIndicator: SavedIndicator = {
-            name: indicatorName.trim(),
-            code,
-            baseType: loadedIndicatorType,
-        };
-        
-        setSavedIndicators(prev => {
-            const exists = prev.some(i => i.name === newIndicator.name);
-            if (exists) {
-                return prev.map(i => i.name === newIndicator.name ? newIndicator : i);
-            }
-            return [...prev, newIndicator];
-        });
-        
-        showToast(`Indicator "${newIndicator.name}" saved!`, 'success');
+
+        try {
+            const newIndicator: SavedIndicator = {
+                name: indicatorName.trim(),
+                code,
+                baseType: loadedIndicatorType,
+                parameters: indicatorParams
+            };
+
+            const saved = await indicatorService.create(newIndicator);
+
+            setSavedIndicators(prev => {
+                // If ID matches, replace? Or just append (since create usually makes new)
+                // Assuming create always makes new for now, or backend handles upsert.
+                return [...prev, saved];
+            });
+
+            showToast(`Indicator "${saved.name}" saved!`, 'success');
+        } catch (error) {
+            console.error("Failed to save indicator:", error);
+            showToast("Failed to save indicator", "error");
+        }
     };
 
     const handleParamChange = (key: string, value: number) => {
@@ -267,15 +296,15 @@ const CustomIndicatorStudio: React.FC = () => {
             <div className="min-h-0 relative group transition-all ease-out duration-75" style={{ height: `${topPaneHeight}%` }}>
                 <div className="absolute inset-0 bg-white dark:bg-brand-dark">
                     <div className="absolute top-4 right-4 z-20 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                         <button 
-                            onClick={toggleFullScreen} 
+                        <button
+                            onClick={toggleFullScreen}
                             className="p-2 bg-white/90 dark:bg-black/60 backdrop-blur-md border border-gray-200 dark:border-white/10 rounded-lg text-gray-600 dark:text-gray-300 hover:text-brand-primary transition-colors shadow-lg"
                             title={isChartFullScreen ? "Exit Fullscreen" : "Fullscreen"}
                         >
                             <ExpandIcon />
                         </button>
                     </div>
-                    
+
                     {/* Compilation Status Overlay (Visual Mock) */}
                     {activeStudyConfig && (
                         <div className="absolute top-4 left-4 z-20 px-3 py-1.5 bg-emerald-500/10 backdrop-blur-md border border-emerald-500/20 rounded-full flex items-center gap-2 text-xs font-bold text-emerald-500 animate-fade-in-right">
@@ -289,7 +318,7 @@ const CustomIndicatorStudio: React.FC = () => {
             </div>
 
             {/* Resizer Bar */}
-            <div 
+            <div
                 className="h-3 cursor-row-resize flex items-center justify-center bg-gray-200 dark:bg-[#0B1120] border-y border-gray-300 dark:border-white/10 hover:bg-brand-primary/10 transition-colors z-10"
                 onMouseDown={handleMouseDown}
             >
@@ -298,23 +327,23 @@ const CustomIndicatorStudio: React.FC = () => {
 
             {/* Bottom Pane: Studio */}
             <div className="flex-1 min-h-0 flex flex-col bg-white dark:bg-[#0B1120] relative">
-                
+
                 {/* Studio Toolbar */}
                 <div className="flex items-center justify-between px-4 py-2 border-b border-gray-200 dark:border-white/10 bg-gray-50 dark:bg-[#0B1120]">
                     <div className="flex gap-1 bg-gray-200 dark:bg-white/5 p-1 rounded-lg">
-                        <button 
+                        <button
                             onClick={() => setActiveTab('editor')}
                             className={`flex items-center gap-2 px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${activeTab === 'editor' ? 'bg-white dark:bg-brand-primary text-brand-primary dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                         >
                             <CodeIcon className="w-4 h-4" /> Editor
                         </button>
-                        <button 
+                        <button
                             onClick={() => setActiveTab('config')}
                             className={`flex items-center gap-2 px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${activeTab === 'config' ? 'bg-white dark:bg-brand-primary text-brand-primary dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                         >
                             <SlidersIcon className="w-4 h-4" /> Config
                         </button>
-                        <button 
+                        <button
                             onClick={() => setActiveTab('library')}
                             className={`flex items-center gap-2 px-4 py-1.5 text-xs font-bold uppercase tracking-wider rounded-md transition-all ${activeTab === 'library' ? 'bg-white dark:bg-brand-primary text-brand-primary dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-800 dark:hover:text-white'}`}
                         >
@@ -324,10 +353,10 @@ const CustomIndicatorStudio: React.FC = () => {
 
                     <div className="flex items-center gap-3">
                         <div className="hidden md:flex items-center bg-gray-100 dark:bg-white/5 rounded-lg px-3 py-1.5 border border-transparent focus-within:border-brand-primary/50 transition-all">
-                            <input 
-                                type="text" 
-                                value={indicatorName} 
-                                onChange={(e) => setIndicatorName(e.target.value)} 
+                            <input
+                                type="text"
+                                value={indicatorName}
+                                onChange={(e) => setIndicatorName(e.target.value)}
                                 placeholder="Script Name..."
                                 className="bg-transparent text-xs text-slate-900 dark:text-white outline-none w-32 placeholder-gray-500"
                             />
@@ -353,7 +382,7 @@ const CustomIndicatorStudio: React.FC = () => {
                         <div className="max-w-2xl mx-auto">
                             <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-1">Runtime Parameters</h3>
                             <p className="text-xs text-gray-500 mb-6">Adjust values to see real-time changes when you re-compile.</p>
-                            
+
                             {Object.keys(indicatorParams).length > 0 ? (
                                 <div className="grid grid-cols-1 gap-6">
                                     {Object.entries(indicatorParams).map(([key, config]: [string, any]) => (
@@ -390,18 +419,18 @@ const CustomIndicatorStudio: React.FC = () => {
                     {/* Library Tab */}
                     <div className={`absolute inset-0 overflow-y-auto p-6 transition-opacity duration-300 ${activeTab === 'library' ? 'opacity-100 z-10' : 'opacity-0 z-0'}`}>
                         <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-6">Indicator Library</h3>
-                        
+
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                             {/* Templates */}
-                            {Object.keys(MOCK_INDICATOR_CODE).map(key => (
-                                <div key={key} onClick={() => handleLoadPreset(key)} className="group cursor-pointer bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 p-4 rounded-xl hover:border-brand-primary/50 hover:bg-gray-50 dark:hover:bg-white/10 transition-all">
+                            {templates.map(temp => (
+                                <div key={temp.name} onClick={() => handleLoadPreset(temp)} className="group cursor-pointer bg-white dark:bg-white/5 border border-gray-200 dark:border-white/10 p-4 rounded-xl hover:border-brand-primary/50 hover:bg-gray-50 dark:hover:bg-white/10 transition-all">
                                     <div className="flex justify-between items-start mb-2">
                                         <div className="p-2 bg-brand-primary/10 rounded-lg text-brand-primary group-hover:scale-110 transition-transform">
                                             <CodeIcon className="w-5 h-5" />
                                         </div>
                                         <span className="text-[10px] uppercase font-bold text-gray-400 bg-gray-100 dark:bg-black/40 px-2 py-0.5 rounded">Template</span>
                                     </div>
-                                    <h4 className="font-bold text-slate-900 dark:text-white">{key}</h4>
+                                    <h4 className="font-bold text-slate-900 dark:text-white">{temp.name}</h4>
                                     <p className="text-xs text-gray-500 mt-1">Standard implementation.</p>
                                 </div>
                             ))}
@@ -413,7 +442,7 @@ const CustomIndicatorStudio: React.FC = () => {
                                         <div className="p-2 bg-purple-500/10 rounded-lg text-purple-500 group-hover:scale-110 transition-transform">
                                             <FolderIcon className="w-5 h-5" />
                                         </div>
-                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteSaved(ind.name); }} className="text-gray-400 hover:text-red-500 transition-colors">
+                                        <button onClick={(e) => { e.stopPropagation(); handleDeleteSaved(ind.id, ind.name); }} className="text-gray-400 hover:text-red-500 transition-colors">
                                             <TrashIcon className="w-4 h-4" />
                                         </button>
                                     </div>
@@ -427,12 +456,12 @@ const CustomIndicatorStudio: React.FC = () => {
                     </div>
                 </div>
             </div>
-            
+
             {isChartFullScreen && (
                 <div className="fixed inset-0 z-[100] bg-white dark:bg-brand-darkest p-0 animate-modal-fade-in">
                     <div id={`indicator_chart_fullscreen_${widgetKey}`} className="w-full h-full" />
-                    <button 
-                        onClick={toggleFullScreen} 
+                    <button
+                        onClick={toggleFullScreen}
                         className="absolute top-4 right-4 z-[110] p-2 bg-black/40 backdrop-blur-md rounded-lg text-white hover:bg-black/60 transition-colors"
                     >
                         <CollapseIcon />
@@ -444,4 +473,3 @@ const CustomIndicatorStudio: React.FC = () => {
 };
 
 export default CustomIndicatorStudio;
-

@@ -435,9 +435,11 @@ export interface UnusualOptionTrade {
 }
 
 export interface SavedIndicator {
+  id?: number;
   name: string;
   code: string;
-  baseType: 'SMA' | 'RSI' | 'MACD' | 'BB';
+  baseType: string;
+  parameters?: Record<string, any>;
 }
 
 export interface ToastMessage {

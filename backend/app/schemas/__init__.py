@@ -152,3 +152,4 @@ class ConversionRequest(BaseModel):
 
 # --- Bot Schemas (NEW) ---
 from .bot import Bot, BotCreate, BotUpdate
+from .indicator import *

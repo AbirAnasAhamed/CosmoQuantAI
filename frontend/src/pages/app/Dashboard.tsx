@@ -294,8 +294,8 @@ const Dashboard: React.FC = () => {
                             ))}
                         </div>
                     </div>
-                    <div className="h-80 w-full">
-                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                    <div className="h-80 w-full" style={{ minHeight: '300px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
                             <AreaChart data={portfolioValueData}>
                                 <defs>
                                     <linearGradient id="portfolioGradient" x1="0" y1="0" x2="0" y2="1">
@@ -324,8 +324,8 @@ const Dashboard: React.FC = () => {
                 {/* Asset Allocation Donut */}
                 <div className="lg:col-span-1 rounded-2xl bg-white dark:bg-brand-dark border border-brand-border-light dark:border-brand-border-dark p-6 shadow-lg flex flex-col staggered-fade-in" style={{ animationDelay: '600ms' }}>
                     <h2 className="text-lg font-bold text-slate-900 dark:text-white mb-2">Allocation</h2>
-                    <div className="flex-1 relative min-h-[300px]">
-                        <ResponsiveContainer width="100%" height="100%" minWidth={0} minHeight={0}>
+                    <div className="flex-1 relative min-h-[300px]" style={{ minHeight: '300px' }}>
+                        <ResponsiveContainer width="100%" height="100%">
                             <PieChart>
                                 <Pie
                                     data={portfolioAllocationData}
