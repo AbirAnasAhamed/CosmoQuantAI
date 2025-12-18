@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, File, UploadFile
 from typing import List
+from pydantic import BaseModel
 import shutil
 import os
 import backtrader as bt
@@ -8,13 +9,18 @@ from app import models, schemas
 from app.api import deps
 from app.constants import STANDARD_STRATEGY_PARAMS, STRATEGY_CATALOG
 from app.services import ai_service
-from app.strategy_parser import parse_strategy_params
+from app.strategy_parser import parse_strategy_params, compile_visual_to_python
 from app.strategies import STRATEGY_MAP
+from app.schemas.strategy import VisualStrategyConfig
+import json
 
 router = APIRouter()
 
 UPLOAD_DIR = "app/strategies/custom"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
+
+class GenerateRequest(BaseModel):
+    prompt: str
 
 # ✅ যেসব প্যারামিটার ইউজারের দেখার দরকার নেই (System Internal)
 HIDDEN_PARAMS = ['ind_name', 'verbose', 'plot', 'name']
@@ -143,7 +149,7 @@ def get_strategy_source(strategy_name: str, current_user: models.User = Depends(
         raise HTTPException(status_code=500, detail=f"File read error: {str(e)}")
 
 
-from pydantic import BaseModel
+
 
 # --- Request Model ---
 class StrategyConfig(BaseModel):
@@ -216,3 +222,100 @@ class {clean_name}(BaseStrategy):
         raise HTTPException(status_code=500, detail=f"Failed to save strategy: {str(e)}")
 
     return {"message": "Strategy created successfully!", "filename": filename}
+
+# --- Visual Strategy Builder Endpoints ---
+
+@router.post("/visual/compile")
+async def compile_visual_strategy(config: VisualStrategyConfig):
+    """
+    Compiles a visual strategy configuration into Python code.
+    """
+    try:
+        # Convert Pydantic model to dict for the compiler
+        config_dict = config.dict()
+        code = compile_visual_to_python(config_dict, class_name=config.nodes[0].data.get("label", "VisualStrategy").replace(" ", "") if config.nodes else "VisualStrategy")
+        return {"code": code}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/visual/save")
+async def save_visual_strategy(name: str, config: VisualStrategyConfig, current_user: models.User = Depends(deps.get_current_user)):
+    """
+    Saves a visual strategy:
+    1. Compiles and saves as .py file
+    2. Saves the visual configuration as .json file
+    """
+    clean_name = name.replace(" ", "_")
+    
+    # 1. Compile Code
+    try:
+        config_dict = config.dict()
+        code = compile_visual_to_python(config_dict, class_name=clean_name)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Compilation failed: {e}")
+
+    # 2. Save .py file
+    py_path = f"{UPLOAD_DIR}/{clean_name}.py"
+    try:
+        with open(py_path, "w") as f:
+            f.write(code)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save Python file: {e}")
+
+    # 3. Save .json file (Visual Config)
+    json_path = f"{UPLOAD_DIR}/{clean_name}.json"
+    try:
+        with open(json_path, "w") as f:
+            json.dump(config_dict, f, indent=4)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to save JSON config: {e}")
+
+    return {"message": "Strategy saved successfully", "filename": clean_name}
+
+@router.get("/visual/{name}")
+async def get_visual_strategy(name: str, current_user: models.User = Depends(deps.get_current_user)):
+    """
+    Retrieves the visual configuration for a stored strategy.
+    """
+    clean_name = name.replace(".py", "").replace(".json", "")
+    json_path = f"{UPLOAD_DIR}/{clean_name}.json"
+    
+    if not os.path.exists(json_path):
+        raise HTTPException(status_code=404, detail="Visual configuration not found")
+        
+    try:
+        with open(json_path, "r") as f:
+            data = json.load(f)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load configuration: {e}")
+
+@router.post("/visual/validate")
+async def validate_visual_strategy(config: VisualStrategyConfig):
+    """
+    Validates the strategy logic by dry-run compilation and basic syntax checks.
+    """
+    try:
+        # 1. Compile
+        config_dict = config.dict()
+        code = compile_visual_to_python(config_dict)
+        
+        # 2. Syntax Check
+        compile(code, "<string>", "exec")
+        
+        return {"valid": True, "message": "Strategy is valid"}
+    except SyntaxError as e:
+        return {"valid": False, "message": f"Syntax Error: {e.msg} at line {e.lineno}"}
+    except Exception as e:
+        return {"valid": False, "message": f"Validation Error: {str(e)}"}
+
+@router.post("/visual/generate")
+async def generate_visual_strategy_endpoint(request: GenerateRequest):
+    """
+    Generates a visual strategy layout from a text prompt using AI.
+    """
+    try:
+        data = ai_service.generate_visual_strategy(request.prompt)
+        return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

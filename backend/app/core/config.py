@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     # Encryption
     ENCRYPTION_KEY: str = "Jq-w5yXp3zQ4R1t2E8y9U0i7O6p5L4k3J2h1G0f9D8s="
 
+    # External APIs
+    CRYPTOPANIC_API_KEY: Optional[str] = None
+
     class Config:
         case_sensitive = True
         env_file = ".env"

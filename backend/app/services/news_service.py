@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 class NewsService:
     def __init__(self):
-        self.api_url = "https://cryptopanic.com/api/v1/posts/"
+        self.api_url = "https://cryptopanic.com/api/developer/v2/posts/"
         self.api_key = settings.CRYPTOPANIC_API_KEY if hasattr(settings, 'CRYPTOPANIC_API_KEY') else None
         self.cache = []
         self.last_fetch = None

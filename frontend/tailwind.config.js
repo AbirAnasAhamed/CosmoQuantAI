@@ -43,7 +43,7 @@ export default {
                 'striped-gradient': 'linear-gradient(45deg, rgba(255,255,255,.15) 25%, transparent 25%, transparent 50%, rgba(255,255,255,.15) 50%, rgba(255,255,255,.15) 75%, transparent 75%, transparent)',
             },
             animation: {
-                'marquee-slow': 'marquee 40s linear infinite',
+                'marquee-slow': 'marquee 80s linear infinite',
                 'fade-in-down': 'fadeInDown 0.5s ease-out',
                 'fade-in-up': 'fadeInUp 0.5s ease-out',
                 'modal-fade-in': 'fadeIn 0.3s ease-out',

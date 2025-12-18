@@ -104,3 +104,44 @@ def generate_strategy_code(user_prompt: str) -> str:
     except Exception as e:
         print(f"AI Code Gen Error: {e}")
         return ""
+
+def generate_visual_strategy(user_prompt: str) -> dict:
+    """
+    Generates a VisualStrategyConfig JSON based on a natural language prompt.
+    """
+    system_instruction = """
+    You are an architect for a Visual Strategy Builder.
+    Your task: Convert the user's trading strategy idea into a JSON configuration of Nodes and Edges.
+
+    Structure Rules:
+    1. 'nodes': List of objects { "id": "uuid", "type": "TRIGGER|INDICATOR|CONDITION|ACTION", "data": { "label": "..." }, "position": { "x": 0, "y": 0 } }
+    2. 'edges': List of objects { "id": "e1", "source": "nodeId", "target": "nodeId" }
+
+    Standard Node Types & Labels:
+    - TRIGGER: Label "Market Data 1m"
+    - INDICATOR: Label "RSI(14)" or "SMA(20)" or "MACD"
+    - CONDITION: Label "RSI < 30" or "SMA > Close"
+    - ACTION: Label "Buy Market" or "Sell Market"
+
+    Example Layout:
+    Trigger -> Indicator -> Condition -> Action
+
+    Output ONLY raw JSON. No markdown.
+    """
+
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=f"{system_instruction}\n\nUser Idea: {user_prompt}"
+        )
+        
+        json_text = response.text.replace("```json", "").replace("```", "").strip()
+        # Basic validation ensuring it's a dict with nodes/edges
+        data = json.loads(json_text)
+        if "nodes" not in data: data["nodes"] = []
+        if "edges" not in data: data["edges"] = []
+        return data
+        
+    except Exception as e:
+        print(f"AI Visual Gen Error: {e}")
+        return {"nodes": [], "edges": []}
