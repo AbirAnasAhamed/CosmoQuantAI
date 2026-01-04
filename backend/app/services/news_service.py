@@ -1,4 +1,5 @@
 import httpx
+from textblob import TextBlob
 import logging
 from datetime import datetime
 from app.core.config import settings
@@ -12,6 +13,13 @@ class NewsService:
         self.cache = []
         self.last_fetch = None
         self.cache_duration = 300  # 5 minutes
+
+    def analyze_sentiment_local(self, text):
+        analysis = TextBlob(text)
+        polarity = analysis.sentiment.polarity
+        if polarity > 0.1: return "Positive"
+        if polarity < -0.1: return "Negative"
+        return "Neutral"
 
     async def fetch_news(self):
         # Return cached news if valid
@@ -39,12 +47,13 @@ class NewsService:
                 # Transform data
                 news_items = []
                 for item in data.get('results', []):
+                    title = item.get('title')
                     news_items.append({
                         "id": item.get('id'),
                         "source": item.get('source', {}).get('title', 'Unknown'),
-                        "text": item.get('title'),
+                        "text": title,
                         "url": item.get('url'),
-                        "sentiment": "neutral", # API doesn't provide this free usually, can add analysis later
+                        "sentiment": self.analyze_sentiment_local(title),
                         "published_at": item.get('published_at')
                     })
                 

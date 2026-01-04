@@ -145,3 +145,19 @@ def generate_visual_strategy(user_prompt: str) -> dict:
     except Exception as e:
         print(f"AI Visual Gen Error: {e}")
         return {"nodes": [], "edges": []}
+
+def generate_market_sentiment_summary(headlines: str, asset: str) -> str:
+    system_instruction = f"""
+    You are a crypto market analyst. 
+    Analyze these headlines for {asset} and provide a concise 2-sentence summary of the current market sentiment (Bullish/Bearish/Neutral) and why.
+    """
+    
+    try:
+        response = client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=f"{system_instruction}\n\nHeadlines: {headlines}"
+        )
+        return response.text.strip()
+    except Exception as e:
+        print(f"Sentiment Summary Error: {e}")
+        return "Unable to analyze sentiment at this moment due to neural network congestion."

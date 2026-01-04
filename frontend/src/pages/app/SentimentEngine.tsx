@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { GoogleGenAI } from '@google/genai';
+import api from '@/services/client';
 import { ResponsiveContainer, PieChart, Pie, Cell, ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import { generateInitialSentimentData, generateNewSentimentPoint, generateNewSentimentSource, generatePriceDataForSentiment } from '@/constants';
 import { useTheme } from '@/context/ThemeContext';
@@ -160,30 +160,44 @@ const SentimentEngine: React.FC = () => {
     const timersRef = useRef<number[]>([]);
 
     useEffect(() => {
+        const fetchData = async () => {
+            try {
+                // 1. News Fetching
+                const newsResponse = await api.get('/sentiment/news');
+                const formattedNews = newsResponse.data.map((item: any) => ({
+                    id: item.id.toString(),
+                    source: item.source,
+                    content: item.text,
+                    sentiment: item.sentiment, // Backend now provides this
+                    timestamp: new Date(item.published_at).toLocaleTimeString()
+                }));
+                // Only take last 15 items if needed or just replace
+                setSentimentSources(formattedNews.slice(0, 15));
+
+                // 2. Fear & Greed Fetching
+                const fgResponse = await api.get('/sentiment/fear-greed');
+                setFearGreedIndex(parseInt(fgResponse.data.value));
+            } catch (err) {
+                console.error("Failed to fetch live data", err);
+            }
+        };
+
+        fetchData();
+        // Polling (Every 1 minute updates)
+        const interval = setInterval(fetchData, 60000);
+
+        // Keep the local animation intervals if desired, but for now we rely on real data mostly.
+        // However, to keep the UI 'alive' between polls, we can keep the dataInterval for the chart 
+        // if the chart data isn't coming from backend yet (User didn't specify chart backend logic, just news/fg)
+        // I will keep the original intervals for safe UI except the source generation which is now real.
+
         const dataInterval = setInterval(() => {
             setSentimentData(currentData => [...currentData.slice(1), generateNewSentimentPoint(currentData[currentData.length - 1])]);
         }, 3000);
 
-        const sourceInterval = setInterval(() => {
-            const newSource = generateNewSentimentSource();
-            setNewSourceId(newSource.id);
-            setSentimentSources(currentSources => [newSource, ...currentSources].slice(0, 15));
-            const timerId = window.setTimeout(() => {
-                setNewSourceId(null);
-            }, 1000);
-            timersRef.current.push(timerId);
-        }, 5000);
-
-        const fgInterval = setInterval(() => {
-            setFearGreedIndex(prev => Math.round(Math.max(0, Math.min(100, prev + (Math.random() - 0.5) * 10))));
-        }, 4000);
-
         return () => {
+            clearInterval(interval);
             clearInterval(dataInterval);
-            clearInterval(sourceInterval);
-            clearInterval(fgInterval);
-            timersRef.current.forEach(clearTimeout);
-            timersRef.current = [];
         };
     }, []);
 
@@ -197,20 +211,18 @@ const SentimentEngine: React.FC = () => {
         setIsSummaryLoading(true);
         setAiSummary('');
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-            const headlines = sentimentSources.slice(0, 5).map(s => `"${s.content}" (${s.sentiment})`).join('; ');
-            const prompt = `Based on these recent headlines for ${activePair.split('/')[0]}, provide a concise 2-sentence summary of the current market sentiment: ${headlines}.`;
+            // Frontend sends headlines, processing happens in backend
+            const headlines = sentimentSources.slice(0, 10).map(s => s.content).join('. ');
 
-            const response = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: prompt,
+            const response = await api.post('/sentiment/summary', {
+                headlines: headlines,
+                asset: activePair
             });
 
-            setAiSummary(response.text);
+            setAiSummary(response.data.summary);
         } catch (error) {
             console.error("Error generating summary:", error);
-            showToast('Failed to generate AI summary.', 'error');
-            setAiSummary("System Error: Unable to connect to Neural Core.");
+            showToast('Failed to generate AI summary via Server.', 'error');
         } finally {
             setIsSummaryLoading(false);
         }
@@ -247,8 +259,8 @@ const SentimentEngine: React.FC = () => {
                             key={p}
                             onClick={() => setActivePair(p)}
                             className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all ${activePair === p
-                                    ? 'bg-white dark:bg-brand-primary text-brand-primary dark:text-white shadow-sm'
-                                    : 'text-gray-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
+                                ? 'bg-white dark:bg-brand-primary text-brand-primary dark:text-white shadow-sm'
+                                : 'text-gray-500 dark:text-gray-400 hover:text-slate-900 dark:hover:text-white'
                                 }`}
                         >
                             {p}
@@ -272,7 +284,7 @@ const SentimentEngine: React.FC = () => {
                 </div>
 
                 {/* Center Column: Main Chart */}
-                <Card className="lg:col-span-2 flex flex-col">
+                <Card className="lg:col-span-2 flex flex-col h-[500px]">
                     <div className="flex justify-between items-center mb-6">
                         <div>
                             <h3 className="text-lg font-bold text-slate-900 dark:text-white">Sentiment vs Price Correlation</h3>
@@ -287,7 +299,7 @@ const SentimentEngine: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                    <div className="flex-grow min-h-[300px]">
+                    <div className="flex-grow w-full min-h-0">
                         <ResponsiveContainer width="100%" height="100%">
                             <ComposedChart data={combinedData}>
                                 <defs>
@@ -299,7 +311,7 @@ const SentimentEngine: React.FC = () => {
                                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} opacity={0.4} />
                                 <XAxis dataKey="time" stroke={axisColor} tickFormatter={time => new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} tick={{ fontSize: 10 }} minTickGap={50} axisLine={false} tickLine={false} dy={10} />
                                 <YAxis yAxisId="left" orientation="left" stroke="#6366F1" domain={[-1.2, 1.2]} tick={{ fontSize: 10 }} hide />
-                                <YAxis yAxisId="right" orientation="right" stroke="#10B981" domain={['auto', 'auto']} tickFormatter={val => `$${Math.round(val/1000)}k`} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                                <YAxis yAxisId="right" orientation="right" stroke="#10B981" domain={['auto', 'auto']} tickFormatter={val => `$${Math.round(val / 1000)}k`} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
                                 <Tooltip
                                     contentStyle={theme === 'dark' ? { backgroundColor: '#0F172A', border: '1px solid #334155', borderRadius: '8px' } : { borderRadius: '8px' }}
                                     labelStyle={{ color: theme === 'dark' ? '#94A3B8' : '#64748B', marginBottom: '5px' }}
@@ -409,8 +421,8 @@ const SentimentEngine: React.FC = () => {
                                 key={filter}
                                 onClick={() => setActiveFilter(filter)}
                                 className={`px-3 py-1 text-xs font-bold uppercase rounded-full transition-colors border ${activeFilter === filter
-                                        ? 'bg-brand-primary text-white border-brand-primary'
-                                        : 'bg-transparent text-gray-500 border-gray-300 dark:border-gray-700 hover:border-brand-primary'
+                                    ? 'bg-brand-primary text-white border-brand-primary'
+                                    : 'bg-transparent text-gray-500 border-gray-300 dark:border-gray-700 hover:border-brand-primary'
                                     }`}
                             >
                                 {filter}
@@ -420,13 +432,13 @@ const SentimentEngine: React.FC = () => {
                 </div>
 
                 <div className="space-y-3">
-                    {filteredSources.map((source) => {
+                    {filteredSources.map((source, index) => {
                         const isNew = source.id === newSourceId;
                         const borderColor = source.sentiment === 'Positive' ? 'border-l-emerald-500' : source.sentiment === 'Negative' ? 'border-l-rose-500' : 'border-l-gray-400';
 
                         return (
                             <div
-                                key={source.id}
+                                key={`${source.id}-${index}`}
                                 className={`relative bg-white dark:bg-brand-dark border border-gray-100 dark:border-brand-border-dark rounded-lg p-4 pl-5 border-l-4 shadow-sm hover:shadow-md transition-all duration-500 ${borderColor} ${isNew ? 'animate-fade-in-right bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
                             >
                                 <div className="flex justify-between items-start">
@@ -439,8 +451,8 @@ const SentimentEngine: React.FC = () => {
                                         <p className="text-slate-800 dark:text-slate-200 font-medium">{source.content}</p>
                                     </div>
                                     <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${source.sentiment === 'Positive' ? 'bg-emerald-500/10 text-emerald-500' :
-                                            source.sentiment === 'Negative' ? 'bg-rose-500/10 text-rose-500' :
-                                                'bg-gray-500/10 text-gray-500'
+                                        source.sentiment === 'Negative' ? 'bg-rose-500/10 text-rose-500' :
+                                            'bg-gray-500/10 text-gray-500'
                                         }`}>
                                         {source.sentiment}
                                     </span>
