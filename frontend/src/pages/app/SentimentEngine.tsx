@@ -163,7 +163,7 @@ const SentimentEngine: React.FC = () => {
         const fetchData = async () => {
             try {
                 // 1. News Fetching
-                const newsResponse = await api.get('/sentiment/news');
+                const newsResponse = await api.get('/v1/sentiment/news');
                 const formattedNews = newsResponse.data.map((item: any) => ({
                     id: item.id.toString(),
                     source: item.source,
@@ -175,7 +175,7 @@ const SentimentEngine: React.FC = () => {
                 setSentimentSources(formattedNews.slice(0, 15));
 
                 // 2. Fear & Greed Fetching
-                const fgResponse = await api.get('/sentiment/fear-greed');
+                const fgResponse = await api.get('/v1/sentiment/fear-greed');
                 setFearGreedIndex(parseInt(fgResponse.data.value));
             } catch (err) {
                 console.error("Failed to fetch live data", err);
@@ -214,7 +214,7 @@ const SentimentEngine: React.FC = () => {
             // Frontend sends headlines, processing happens in backend
             const headlines = sentimentSources.slice(0, 10).map(s => s.content).join('. ');
 
-            const response = await api.post('/sentiment/summary', {
+            const response = await api.post('/v1/sentiment/summary', {
                 headlines: headlines,
                 asset: activePair
             });
@@ -299,7 +299,7 @@ const SentimentEngine: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                    <div className="flex-grow w-full min-h-0">
+                    <div className="flex-grow w-full h-full min-h-[300px]" style={{ position: 'relative' }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <ComposedChart data={combinedData}>
                                 <defs>
