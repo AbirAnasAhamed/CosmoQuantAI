@@ -25,7 +25,7 @@ services:
   worker:
     build: ./backend
     container_name: cosmoquant_worker
-    command: celery -A app.celery_app worker --loglevel=info --uid=nobody --gid=nogroup
+    command: celery -A app.celery_app worker -B --loglevel=info --uid=nobody --gid=nogroup
     volumes:
       - ./backend:/app
     environment:

@@ -83,3 +83,4 @@ from .bot import Bot
 from .backtest import Backtest
 from .portfolio import PortfolioSnapshot
 from .indicator import UserIndicator
+from .sentiment import SentimentHistory

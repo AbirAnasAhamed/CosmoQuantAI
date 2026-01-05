@@ -1,5 +1,6 @@
 import os
 from celery import Celery
+from celery.schedules import crontab
 
 # এনভায়রনমেন্ট ভেরিয়েবল থেকে কনফিগ নেওয়া
 broker_url = os.getenv("CELERY_BROKER_URL", "redis://redis:6379/0")
@@ -11,6 +12,13 @@ celery_app = Celery(
     backend=result_backend,
     include=["app.tasks"]
 )
+
+celery_app.conf.beat_schedule = {
+    'fetch-sentiment-every-hour': {
+        'task': 'app.tasks.fetch_and_store_sentiment',
+        'schedule': crontab(minute=0), # Every hour at minute 0
+    },
+}
 
 celery_app.conf.update(
     task_serializer="json",

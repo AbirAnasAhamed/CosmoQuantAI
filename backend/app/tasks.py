@@ -10,6 +10,8 @@ from app.strategies import STRATEGY_MAP
 from app.services.live_engine import LiveBotEngine
 import asyncio
 import json
+from app.models.sentiment import SentimentHistory
+from app.services.news_service import news_service
 
 def publish_task_status(task_type, task_id, status, progress, data=None):
     try:
@@ -687,3 +689,69 @@ def download_trades_task(self, exchange_id, symbol, start_date, end_date=None):
 
     except Exception as e:
         return {"status": "failed", "error": str(e)}
+
+@celery_app.task(bind=True)
+def fetch_and_store_sentiment(self):
+    """
+    Background Task: Fetch news, calculate sentiment score, and save to DB.
+    Run this periodically (e.g., every 1 hour).
+    """
+    db = SessionLocal()
+    try:
+        print("🔄 Fetching periodic sentiment data...")
+        
+        # 1. Fetch data from News Service
+        import asyncio
+        try:
+            loop = asyncio.get_event_loop()
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+
+        if loop.is_closed():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        
+        news_items = loop.run_until_complete(news_service.fetch_news())
+
+        if not news_items:
+            print("⚠️ No news found to analyze.")
+            return "No Data"
+
+        # 2. Score Calculation
+        total_score = 0
+        sentiment_counts = {"Positive": 0, "Negative": 0, "Neutral": 0}
+
+        for item in news_items:
+            s_label = item.get('sentiment', 'Neutral')
+            sentiment_counts[s_label] = sentiment_counts.get(s_label, 0) + 1
+            
+            # Scoring Logic: Positive=+1, Negative=-1, Neutral=0
+            if s_label == "Positive":
+                total_score += 1
+            elif s_label == "Negative":
+                total_score -= 1
+        
+        count = len(news_items)
+        avg_score = total_score / count if count > 0 else 0
+        
+        # Determine Dominant Sentiment
+        dominant = max(sentiment_counts, key=sentiment_counts.get)
+
+        # 3. Save to Database
+        sentiment_entry = SentimentHistory(
+            score=round(avg_score, 2),
+            news_count=count,
+            dominant_sentiment=dominant
+        )
+        db.add(sentiment_entry)
+        db.commit()
+        
+        print(f"✅ Sentiment Saved: Score={avg_score}, Count={count}")
+        return {"status": "saved", "score": avg_score}
+
+    except Exception as e:
+        print(f"❌ Sentiment Task Error: {e}")
+        return {"status": "error", "message": str(e)}
+    finally:
+        db.close()
