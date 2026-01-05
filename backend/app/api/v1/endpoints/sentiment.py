@@ -23,7 +23,10 @@ async def get_sentiment_news():
 
 @router.get("/fear-greed")
 async def get_fear_greed():
-    return {"value": "55", "value_classification": "Greed"}
+    """
+    Fetches the latest Fear and Greed Index from external API.
+    """
+    return await news_service.fetch_fear_greed_index()
 
 # ✅ Real AI Summary Endpoint
 @router.post("/summary")

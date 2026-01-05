@@ -38,6 +38,11 @@ class Settings(BaseSettings):
 
     # External APIs
     CRYPTOPANIC_API_KEY: Optional[str] = None
+
+    # Reddit API
+    REDDIT_CLIENT_ID: Optional[str] = None
+    REDDIT_CLIENT_SECRET: Optional[str] = None
+    REDDIT_USER_AGENT: Optional[str] = "CosmoQuant/1.0"
     
     # ✅ AI / LLM Configuration (NEW)
     # Options: "gemini", "openai", "deepseek"
