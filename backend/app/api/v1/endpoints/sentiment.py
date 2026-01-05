@@ -4,6 +4,7 @@ from app.api import deps
 from app.services.market_service import MarketService
 from app.models.sentiment import SentimentHistory
 from app.services.news_service import news_service
+from app.services.ai_service import ai_service # ✅ Import updated ai_service
 from datetime import datetime, timedelta
 import pandas as pd
 from pydantic import BaseModel
@@ -11,47 +12,38 @@ from pydantic import BaseModel
 router = APIRouter()
 market_service = MarketService()
 
-# ✅ ১. রিকোয়েস্ট বডি ভ্যালিডেশনের জন্য Pydantic মডেল
 class SummaryRequest(BaseModel):
     headlines: str
     asset: str
+    provider: str = "gemini" # Default value
 
 @router.get("/news")
 async def get_sentiment_news():
-    """Live News Fetching"""
     return await news_service.fetch_news()
 
 @router.get("/fear-greed")
 async def get_fear_greed():
     return {"value": "55", "value_classification": "Greed"}
 
-# ✅ ২. নতুন Summary Endpoint (AI Summary এর জন্য)
+# ✅ Real AI Summary Endpoint
 @router.post("/summary")
 async def generate_market_summary(request: SummaryRequest):
     """
-    Generate a summary from news headlines.
-    (This is a placeholder logic to fix the 404 error. 
-    You can connect your Real AI Service here later.)
+    Generate a summary using the User Selected AI Provider.
     """
     try:
-        # এখানে আপনি চাইলে আপনার app.services.ai_service ব্যবহার করতে পারেন
-        # আপাতত একটি ডামি ইন্টেলিজেন্ট রেসপন্স দেওয়া হচ্ছে
-        
-        word_count = len(request.headlines.split())
-        sentiment_tone = "mixed" if "volatility" in request.headlines.lower() else "moderately bullish"
-        
-        summary = (
-            f"⚡ AI Market Insight for {request.asset}: \n\n"
-            f"Analyzing {word_count} data points from recent headlines indicates a {sentiment_tone} market sentiment. "
-            f"Key institutional activity is detected around current price levels. "
-            f"Traders should monitor volume spikes as a confirmation signal for the next trend direction."
+        # ✅ 2. Service এ provider পাঠিয়ে দেওয়া
+        summary = ai_service.generate_market_sentiment_summary(
+            headlines=request.headlines, 
+            asset=request.asset,
+            provider=request.provider
         )
         
         return {"summary": summary}
     
     except Exception as e:
         print(f"Summary Generation Error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to generate summary")
+        raise HTTPException(status_code=500, detail="Failed to generate AI summary")
 
 @router.get("/correlation")
 async def get_sentiment_correlation(

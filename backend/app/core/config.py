@@ -38,6 +38,19 @@ class Settings(BaseSettings):
 
     # External APIs
     CRYPTOPANIC_API_KEY: Optional[str] = None
+    
+    # ✅ AI / LLM Configuration (NEW)
+    # Options: "gemini", "openai", "deepseek"
+    LLM_PROVIDER: str = "gemini" 
+    
+    # API Keys
+    GEMINI_API_KEY: Optional[str] = None
+    OPENAI_API_KEY: Optional[str] = None
+    DEEPSEEK_API_KEY: Optional[str] = None
+    
+    # Custom Base URLs (Optional, for local LLMs or proxies)
+    OPENAI_BASE_URL: str = "https://api.openai.com/v1"
+    DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
 
     class Config:
         case_sensitive = True

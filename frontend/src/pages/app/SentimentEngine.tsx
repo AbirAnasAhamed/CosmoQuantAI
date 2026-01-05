@@ -154,6 +154,10 @@ const SentimentEngine: React.FC = () => {
     const [activeFilter, setActiveFilter] = useState<'All' | SentimentLabel>('All');
     const [aiSummary, setAiSummary] = useState('');
     const [isSummaryLoading, setIsSummaryLoading] = useState(false);
+
+    // ✅ ১. নতুন স্টেট যোগ করুন (Provider সিলেক্ট করার জন্য)
+    const [selectedProvider, setSelectedProvider] = useState('gemini');
+
     const [newSourceId, setNewSourceId] = useState<string | null>(null);
 
     const timersRef = useRef<number[]>([]);
@@ -212,17 +216,18 @@ const SentimentEngine: React.FC = () => {
 
             const response = await api.post('/v1/sentiment/summary', {
                 headlines: headlines,
-                asset: activePair
+                asset: activePair,
+                provider: selectedProvider // ✅ ২. সিলেক্ট করা প্রোভাইডার পাঠানো হচ্ছে
             });
 
             setAiSummary(response.data.summary);
         } catch (error) {
             console.error("Error generating summary:", error);
-            showToast('Failed to generate AI summary via Server.', 'error');
+            showToast('Failed to generate AI summary.', 'error');
         } finally {
             setIsSummaryLoading(false);
         }
-    }, [sentimentSources, activePair, showToast]);
+    }, [sentimentSources, activePair, selectedProvider, showToast]);
 
     const currentScore = useMemo(() => {
         if (chartData.length === 0) return 0;
@@ -380,9 +385,23 @@ const SentimentEngine: React.FC = () => {
                                 <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
                                 AI Intelligence Stream
                             </h3>
-                            <Button size="sm" variant="outline" className="text-xs border-blue-500/50 text-blue-400 hover:bg-blue-500/10" onClick={handleGenerateSummary} disabled={isSummaryLoading}>
-                                {isSummaryLoading ? 'Analyzing...' : 'Synthesize Summary'}
-                            </Button>
+
+                            {/* ✅ ৩. Provider Selector Dropdown */}
+                            <div className="flex items-center gap-2">
+                                <select
+                                    value={selectedProvider}
+                                    onChange={(e) => setSelectedProvider(e.target.value)}
+                                    className="bg-slate-800 text-white text-xs border border-slate-700 rounded px-2 py-1 outline-none focus:border-blue-500 cursor-pointer"
+                                >
+                                    <option value="gemini">Gemini 2.5</option>
+                                    <option value="openai">GPT-4o</option>
+                                    <option value="deepseek">DeepSeek V3</option>
+                                </select>
+
+                                <Button size="sm" variant="outline" className="text-xs border-blue-500/50 text-blue-400 hover:bg-blue-500/10" onClick={handleGenerateSummary} disabled={isSummaryLoading}>
+                                    {isSummaryLoading ? 'Analyzing...' : 'Synthesize'}
+                                </Button>
+                            </div>
                         </div>
 
                         <div className="flex-grow bg-black/40 rounded-xl p-4 border border-white/5 font-mono text-sm text-blue-300 overflow-y-auto custom-scrollbar min-h-[150px]">
@@ -391,7 +410,7 @@ const SentimentEngine: React.FC = () => {
                                     <span className="animate-bounce">.</span>
                                     <span className="animate-bounce [animation-delay:0.1s]">.</span>
                                     <span className="animate-bounce [animation-delay:0.2s]">.</span>
-                                    <span>Processing Neural Data</span>
+                                    <span>Processing Neural Data via {selectedProvider.toUpperCase()}...</span>
                                 </div>
                             ) : aiSummary ? (
                                 <div className="animate-fade-in-up">

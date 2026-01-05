@@ -1,163 +1,169 @@
-from google import genai
 import os
 import json
+import requests
+import re
+from google import genai
 from dotenv import load_dotenv
+from app.core.config import settings
 
 load_dotenv()
 
-# API Key লোড করা
-client = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
-
-def generate_ai_strategy_templates(user_prompt: str = None):
-    
-    # বেস ইনস্ট্রাকশন
-    system_instruction = """
-    You are a professional quantitative trading architect. Generate 3 unique algorithmic trading strategies in JSON format.
-    
-    Strict Output Format (Array of Objects):
-    [
-        {
-            "name": "Creative Name",
-            "description": "Technical explanation...",
-            "strategy_type": "Choose one from [SMA Crossover, RSI Crossover, MACD Crossover, Bollinger Bands, EMA Crossover, Grid Trading]",
-            "tags": ["Tag1", "Tag2"],
-            "params": { ...valid params matching standard indicators... }
-        }
-    ]
-    Return ONLY raw JSON. No markdown.
-    """
-
-    # যদি ইউজার প্রম্পট দেয়, তবে সেটি যুক্ত করবো
-    if user_prompt:
-        content = f"{system_instruction}\n\nUser Specific Requirement: Create strategies based on this idea -> '{user_prompt}'"
-    else:
-        content = f"{system_instruction}\n\nGenerate 3 diverse strategies (e.g. one trend, one reversal, one volatility based)."
-
+# 1. Global Gemini Client Setup (Safe Init)
+gemini_client = None
+if settings.GEMINI_API_KEY:
     try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=content
-        )
-        
-        json_text = response.text.replace("```json", "").replace("```", "").strip()
-        return json.loads(json_text)
+        gemini_client = genai.Client(api_key=settings.GEMINI_API_KEY)
     except Exception as e:
-        print(f"AI Generation Error: {e}")
-        return []
+        print(f"⚠️ Gemini Client Init Warning: {e}")
 
-def generate_strategy_code(user_prompt: str) -> str:
-    system_instruction = """
-    You are an expert algorithmic trading developer using 'backtrader'. 
-    Your task: Convert natural language ideas into a Python Backtrader Strategy.
-
-    CRITICAL RULES FOR PARAMETERS:
-    1. You MUST define a class variable 'params' tuple with default values.
-    2. You MUST include a special comment block at the VERY TOP of the code describing these parameters in JSON format so the UI can generate input fields.
-    
-    Format for the comment block (STRICTLY FOLLOW THIS):
-    # @params
-    # {
-    #   "period": { "type": "number", "label": "Period", "default": 14, "min": 2, "max": 100, "step": 1 },
-    #   "threshold": { "type": "number", "label": "Threshold", "default": 30, "min": 10, "max": 90, "step": 1 }
-    # }
-    # @params_end
-
-    MANDATORY CODE STRUCTURE:
-    1. Import backtrader as bt.
-    2. Class MUST inherit from 'bt.Strategy'.
-    3. Inside '__init__', verify you initialize 'self.trade_history = []'.
-    4. You MUST implement the 'notify_order' method exactly as shown below to record trades for the UI:
-    
-    def notify_order(self, order):
-        if order.status in [order.Completed]:
-            is_buy = order.isbuy()
-            self.trade_history.append({
-                "type": "buy" if is_buy else "sell",
-                "price": order.executed.price,
-                "size": order.executed.size,
-                "time": int(bt.num2date(order.executed.dt).timestamp())
-            })
-    
-    5. Implement 'next' method for your trading logic using 'self.buy()' and 'self.sell()'.
-    6. Output ONLY raw Python code. No markdown blocks.
+class AIService:
+    """
+    Unified AI Service capable of switching between Gemini, OpenAI, and DeepSeek.
     """
 
-    try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=f"{system_instruction}\n\nUser Strategy Idea: {user_prompt}"
-        )
+    def _get_provider(self, requested_provider=None):
+        # যদি রিকোয়েস্টে প্রোভাইডার আসে সেটা নিবে, নাহলে এনভায়রনমেন্ট ভেরিয়েবল, নাহলে ডিফল্ট 'gemini'
+        if requested_provider:
+            return requested_provider.lower()
+        return settings.LLM_PROVIDER.lower() if hasattr(settings, 'LLM_PROVIDER') else "gemini"
+
+    # --- Core Generation Methods ---
+
+    def generate_market_sentiment_summary(self, headlines: str, asset: str, provider: str = None) -> str:
+        system_prompt = f"""
+        You are a crypto market analyst. 
+        Analyze these headlines for {asset} and provide a concise 2-sentence summary of the current market sentiment (Bullish/Bearish/Neutral) and why.
+        """
+        user_content = f"Headlines: {headlines}"
+        return self._route_request(system_prompt, user_content, provider)
+
+    def generate_ai_strategy_templates(self, user_prompt: str = None, provider: str = None):
+        system_instruction = """
+        You are a professional quantitative trading architect. Generate 3 unique algorithmic trading strategies in JSON format.
+        Strict Output Format (Array of Objects):
+        [{"name": "...", "description": "...", "strategy_type": "...", "tags": [], "params": {}}]
+        Return ONLY raw JSON. No markdown.
+        """
+        user_content = f"User Requirement: {user_prompt}" if user_prompt else "Generate 3 diverse strategies."
         
-        raw_text = response.text
-        
-        # Robust cleanup using regex to find code blocks
-        import re
-        code_match = re.search(r"```python(.*?)```", raw_text, re.DOTALL)
-        if code_match:
-            clean_code = code_match.group(1).strip()
-        else:
-            # Fallback: just strip backticks if no block found
-            clean_code = raw_text.replace("```python", "").replace("```", "").strip()
+        response_text = self._route_request(system_instruction, user_content, provider)
+        return self._clean_and_parse_json(response_text)
+
+    def generate_strategy_code(self, user_prompt: str, provider: str = None) -> str:
+        system_instruction = """
+        You are an expert algorithmic trading developer using 'backtrader'. 
+        Convert natural language ideas into a Python Backtrader Strategy.
+        (Output ONLY raw Python code. No markdown.)
+        """
+        return self._route_request(system_instruction, f"User Strategy Idea: {user_prompt}", provider)
+
+    def generate_visual_strategy(self, user_prompt: str, provider: str = None) -> dict:
+        system_instruction = """
+        You are an architect for a Visual Strategy Builder.
+        Convert the idea into a JSON configuration of Nodes and Edges for a React Flow diagram.
+        Output ONLY raw JSON.
+        """
+        response_text = self._route_request(system_instruction, f"User Idea: {user_prompt}", provider)
+        return self._clean_and_parse_json(response_text, default={"nodes": [], "edges": []})
+
+    # --- Internal Routing & API Calls ---
+
+    def _route_request(self, system_prompt: str, user_content: str, provider: str = None) -> str:
+        """
+        Routes the request to the appropriate LLM provider.
+        """
+        active_provider = self._get_provider(provider)
+        full_prompt = f"{system_prompt}\n\n{user_content}"
+
+        try:
+            # ✅ Syntax Error Fix: Ensure if/elif chain is clean
+            if active_provider == "gemini":
+                return self._call_gemini(full_prompt)
             
-        return clean_code
-    
-    except Exception as e:
-        print(f"AI Code Gen Error: {e}")
-        return ""
+            elif active_provider == "openai":
+                return self._call_openai_compatible(
+                    settings.OPENAI_API_KEY, 
+                    settings.OPENAI_BASE_URL, 
+                    "gpt-4o", 
+                    system_prompt, 
+                    user_content
+                )
+            
+            elif active_provider == "deepseek":
+                return self._call_openai_compatible(
+                    settings.DEEPSEEK_API_KEY, 
+                    settings.DEEPSEEK_BASE_URL, 
+                    "deepseek-chat", 
+                    system_prompt, 
+                    user_content
+                )
+            
+            else:
+                return f"❌ Error: Unknown Provider '{active_provider}'"
 
-def generate_visual_strategy(user_prompt: str) -> dict:
-    """
-    Generates a VisualStrategyConfig JSON based on a natural language prompt.
-    """
-    system_instruction = """
-    You are an architect for a Visual Strategy Builder.
-    Your task: Convert the user's trading strategy idea into a JSON configuration of Nodes and Edges.
+        except Exception as e:
+            print(f"❌ AI Error ({active_provider}): {e}")
+            return f"Error generating content via {active_provider}."
 
-    Structure Rules:
-    1. 'nodes': List of objects { "id": "uuid", "type": "TRIGGER|INDICATOR|CONDITION|ACTION", "data": { "label": "..." }, "position": { "x": 0, "y": 0 } }
-    2. 'edges': List of objects { "id": "e1", "source": "nodeId", "target": "nodeId" }
-
-    Standard Node Types & Labels:
-    - TRIGGER: Label "Market Data 1m"
-    - INDICATOR: Label "RSI(14)" or "SMA(20)" or "MACD"
-    - CONDITION: Label "RSI < 30" or "SMA > Close"
-    - ACTION: Label "Buy Market" or "Sell Market"
-
-    Example Layout:
-    Trigger -> Indicator -> Condition -> Action
-
-    Output ONLY raw JSON. No markdown.
-    """
-
-    try:
-        response = client.models.generate_content(
+    def _call_gemini(self, full_prompt: str) -> str:
+        if not gemini_client:
+            return "❌ Gemini API Key missing or client init failed."
+        response = gemini_client.models.generate_content(
             model="gemini-2.5-flash",
-            contents=f"{system_instruction}\n\nUser Idea: {user_prompt}"
-        )
-        
-        json_text = response.text.replace("```json", "").replace("```", "").strip()
-        # Basic validation ensuring it's a dict with nodes/edges
-        data = json.loads(json_text)
-        if "nodes" not in data: data["nodes"] = []
-        if "edges" not in data: data["edges"] = []
-        return data
-        
-    except Exception as e:
-        print(f"AI Visual Gen Error: {e}")
-        return {"nodes": [], "edges": []}
-
-def generate_market_sentiment_summary(headlines: str, asset: str) -> str:
-    system_instruction = f"""
-    You are a crypto market analyst. 
-    Analyze these headlines for {asset} and provide a concise 2-sentence summary of the current market sentiment (Bullish/Bearish/Neutral) and why.
-    """
-    
-    try:
-        response = client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=f"{system_instruction}\n\nHeadlines: {headlines}"
+            contents=full_prompt
         )
         return response.text.strip()
-    except Exception as e:
-        print(f"Sentiment Summary Error: {e}")
-        return "Unable to analyze sentiment at this moment due to neural network congestion."
+
+    def _call_openai_compatible(self, api_key: str, base_url: str, model: str, system_msg: str, user_msg: str) -> str:
+        if not api_key:
+            return "❌ API Key missing for selected provider."
+        
+        headers = {
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": model,
+            "messages": [
+                {"role": "system", "content": system_msg},
+                {"role": "user", "content": user_msg}
+            ],
+            "temperature": 0.7
+        }
+        
+        try:
+            response = requests.post(f"{base_url}/chat/completions", headers=headers, json=payload, timeout=30)
+            if response.status_code == 200:
+                return response.json()['choices'][0]['message']['content'].strip()
+            else:
+                return f"API Error {response.status_code}: {response.text}"
+        except Exception as e:
+            return f"Connection Error: {str(e)}"
+
+    def _clean_and_parse_json(self, text: str, default=None):
+        if default is None: default = []
+        try:
+            # Clean markdown code blocks
+            clean_text = text.replace("```json", "").replace("```", "").strip()
+            return json.loads(clean_text)
+        except json.JSONDecodeError:
+            print(f"Failed to parse JSON: {text[:100]}...")
+            return default
+
+# ✅ Create Global Instance
+ai_service = AIService()
+
+# ✅ Module-Level Wrapper Functions (Backwards Compatibility for strategies.py)
+# strategies.py ফাইলটি মডিউল ফাংশন এক্সপেক্ট করে, তাই আমরা ক্লাসের মেথডগুলোকে র‍্যাপ করে দিচ্ছি।
+
+def generate_ai_strategy_templates(user_prompt: str = None):
+    return ai_service.generate_ai_strategy_templates(user_prompt)
+
+def generate_strategy_code(user_prompt: str):
+    return ai_service.generate_strategy_code(user_prompt)
+
+def generate_visual_strategy(user_prompt: str):
+    return ai_service.generate_visual_strategy(user_prompt)
+
+def generate_market_sentiment_summary(headlines: str, asset: str):
+    return ai_service.generate_market_sentiment_summary(headlines, asset)
