@@ -2,11 +2,11 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import api from '@/services/client';
 import { ResponsiveContainer, PieChart, Pie, Cell, ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
-import { generateInitialSentimentData, generateNewSentimentPoint, generateNewSentimentSource, generatePriceDataForSentiment } from '@/constants';
+import { generateNewSentimentSource } from '@/constants';
 import { useTheme } from '@/context/ThemeContext';
 import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
-import type { SentimentData, SentimentSource, SentimentLabel } from '@/types';
+import type { SentimentSource, SentimentLabel } from '@/types';
 import { useToast } from '@/context/ToastContext';
 
 const pairs = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'];
@@ -148,9 +148,8 @@ const SentimentEngine: React.FC = () => {
     const { theme } = useTheme();
     const { showToast } = useToast();
     const [activePair, setActivePair] = useState(pairs[0]);
-    const [sentimentData, setSentimentData] = useState<SentimentData[]>(() => generateInitialSentimentData(50));
+    const [chartData, setChartData] = useState<any[]>([]); // Real data state
     const [sentimentSources, setSentimentSources] = useState<SentimentSource[]>(() => Array.from({ length: 5 }, generateNewSentimentSource));
-    const [priceData, setPriceData] = useState(() => generatePriceDataForSentiment(sentimentData, 68000, 300));
     const [fearGreedIndex, setFearGreedIndex] = useState(55);
     const [activeFilter, setActiveFilter] = useState<'All' | SentimentLabel>('All');
     const [aiSummary, setAiSummary] = useState('');
@@ -168,44 +167,41 @@ const SentimentEngine: React.FC = () => {
                     id: item.id.toString(),
                     source: item.source,
                     content: item.text,
-                    sentiment: item.sentiment, // Backend now provides this
+                    sentiment: item.sentiment,
                     timestamp: new Date(item.published_at).toLocaleTimeString()
                 }));
-                // Only take last 15 items if needed or just replace
+                // Only take last 15 items
                 setSentimentSources(formattedNews.slice(0, 15));
 
                 // 2. Fear & Greed Fetching
                 const fgResponse = await api.get('/v1/sentiment/fear-greed');
                 setFearGreedIndex(parseInt(fgResponse.data.value));
+
+                // 3. Real Chart Data Fetching
+                const chartResponse = await api.get('/v1/sentiment/correlation', {
+                    params: {
+                        symbol: activePair,
+                        timeframe: '1h',
+                        days: 7
+                    }
+                });
+
+                if (Array.isArray(chartResponse.data)) {
+                    setChartData(chartResponse.data);
+                }
+
             } catch (err) {
                 console.error("Failed to fetch live data", err);
             }
         };
 
         fetchData();
-        // Polling (Every 1 minute updates)
+
+        // Refresh every 1 minute
         const interval = setInterval(fetchData, 60000);
 
-        // Keep the local animation intervals if desired, but for now we rely on real data mostly.
-        // However, to keep the UI 'alive' between polls, we can keep the dataInterval for the chart 
-        // if the chart data isn't coming from backend yet (User didn't specify chart backend logic, just news/fg)
-        // I will keep the original intervals for safe UI except the source generation which is now real.
-
-        const dataInterval = setInterval(() => {
-            setSentimentData(currentData => [...currentData.slice(1), generateNewSentimentPoint(currentData[currentData.length - 1])]);
-        }, 3000);
-
-        return () => {
-            clearInterval(interval);
-            clearInterval(dataInterval);
-        };
-    }, []);
-
-    useEffect(() => {
-        const initialPrice = activePair === 'BTC/USDT' ? 68000 : activePair === 'ETH/USDT' ? 3500 : 170;
-        const volatility = initialPrice * 0.005;
-        setPriceData(generatePriceDataForSentiment(sentimentData, initialPrice, volatility));
-    }, [sentimentData, activePair]);
+        return () => clearInterval(interval);
+    }, [activePair]);
 
     const handleGenerateSummary = useCallback(async () => {
         setIsSummaryLoading(true);
@@ -228,8 +224,12 @@ const SentimentEngine: React.FC = () => {
         }
     }, [sentimentSources, activePair, showToast]);
 
-    const currentScore = useMemo(() => sentimentData[sentimentData.length - 1]?.score ?? 0, [sentimentData]);
-    const combinedData = useMemo(() => sentimentData.map((sd, i) => ({ ...sd, price: priceData[i]?.price })), [sentimentData, priceData]);
+    const currentScore = useMemo(() => {
+        if (chartData.length === 0) return 0;
+        return chartData[chartData.length - 1].score;
+    }, [chartData]);
+
+    const combinedData = chartData;
     const sourceCounts = useMemo(() => sentimentSources.reduce((acc, s) => ({ ...acc, [s.sentiment]: (acc[s.sentiment] || 0) + 1 }), {} as Record<SentimentLabel, number>), [sentimentSources]);
     const sourceBreakdownData = Object.entries(sourceCounts).map(([name, value]) => ({ name, value }));
     const filteredSources = useMemo(() => activeFilter === 'All' ? sentimentSources : sentimentSources.filter(s => s.sentiment === activeFilter), [activeFilter, sentimentSources]);
