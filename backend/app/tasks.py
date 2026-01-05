@@ -11,7 +11,8 @@ from app.services.live_engine import LiveBotEngine
 import asyncio
 import json
 from app.models.sentiment import SentimentHistory
-from app.services.news_service import news_service
+# ❌ REMOVED: Top-level import removed to fix Circular Import Error
+# from app.services.news_service import news_service 
 
 def publish_task_status(task_type, task_id, status, progress, data=None):
     try:
@@ -45,17 +46,15 @@ def print_custom_progress_bar(percent, prefix='', suffix='', length=40):
     sys.stdout.write(f"\r{color}{BOLD}{prefix} |{bar}| {percent}% {suffix}{RESET}")
     sys.stdout.flush()
 
-# ✅ নতুন হেল্পার ফাংশন: NaN চেক করার জন্য
 def clean_metric(value):
     try:
         if isinstance(value, (int, float)):
             if math.isnan(value) or math.isinf(value):
-                return 0  # NaN বা Infinity হলে 0 রিটার্ন করবে
+                return 0
         return value
     except:
         return 0
 
-# ✅ সুন্দর করে প্রিন্ট করার ফাংশন
 def print_pretty_result(result):
     if result.get("status") != "success":
         print(f"❌ Backtest Failed: {result.get('message')}")
@@ -81,7 +80,6 @@ def print_pretty_result(result):
     print(f"⚖️ Sharpe Ratio  : {metrics.get('sharpe', 0)}")
     print("="*50 + "\n")
 
-# টাস্কটি ব্যাকগ্রাউন্ডে রান হবে
 @celery_app.task(bind=True)
 def run_backtest_task(self, symbol: str, timeframe: str, strategy_name: str, initial_cash: float, params: dict, start_date: str = None, end_date: str = None, custom_data_file: str = None, commission: float = 0.001, slippage: float = 0.0, leverage: float = 1.0, secondary_timeframe: str = None, stop_loss: float = 0.0, take_profit: float = 0.0, trailing_stop: float = 0.0, indicator_id: int = None):
     db = SessionLocal()
@@ -96,7 +94,6 @@ def run_backtest_task(self, symbol: str, timeframe: str, strategy_name: str, ini
                 state='PROGRESS',
                 meta={'percent': percent, 'status': 'Running Strategy...'}
             )
-            # Unified Update
             publish_task_status('BACKTEST', self.request.id, 'processing', percent)
 
             if percent % 10 == 0:
@@ -117,14 +114,13 @@ def run_backtest_task(self, symbol: str, timeframe: str, strategy_name: str, ini
             progress_callback=on_progress,
             commission=commission,
             slippage=slippage,
-            leverage=leverage, # ✅ Pass Leverage
+            leverage=leverage,
             secondary_timeframe=secondary_timeframe,
             stop_loss=stop_loss,
             take_profit=take_profit,
             trailing_stop=trailing_stop,
-            indicator_id=indicator_id # ✅ Pass Indicator ID
+            indicator_id=indicator_id
         )
-        # ✅ Report Generation
         if result.get("status") == "success":
             generate_report(self.request.id, result.get("daily_returns", "{}"), symbol, timeframe)
 
@@ -146,18 +142,12 @@ def run_optimization_task(self, symbol: str, timeframe: str, strategy_name: str,
     db = SessionLocal()
     engine = BacktestEngine()
     
-    # ✅ FIX: Updated Signature to match engine call (percent, meta)
     def on_progress(percent, meta=None):
         if meta is None: meta = {}
-        
-        current = meta.get('current', 0)
-        total = meta.get('total', 0)
-        
         current = meta.get('current', 0)
         total = meta.get('total', 0)
         best_profit = meta.get('best_profit', 0)
 
-        # 🚀 Innovative Console Output
         print_custom_progress_bar(
             percent, 
             prefix=f"🧬 OPTIMIZING", 
@@ -202,7 +192,7 @@ def run_optimization_task(self, symbol: str, timeframe: str, strategy_name: str,
             method=method,
             population_size=population_size,
             generations=generations,
-            progress_callback=on_progress, # ✅ Now compatible
+            progress_callback=on_progress,
             abort_callback=check_abort,
             commission=commission,
             slippage=slippage,
@@ -230,9 +220,8 @@ def run_optimization_task(self, symbol: str, timeframe: str, strategy_name: str,
 @celery_app.task(bind=True)
 def run_walk_forward_task(self, symbol, timeframe, strategy_name, initial_cash, params, start_date, end_date, 
                           train_window_days, test_window_days, method, population_size, generations, 
-                          commission, slippage, leverage, opt_target='profit', min_trades=2): # ✅ ফিক্স: এখানেও ডিফল্ট ২ করা হলো
+                          commission, slippage, leverage, opt_target='profit', min_trades=2):
     
-    # Callback Wrapper for Celery
     def progress_callback(percent, meta=None):
         self.update_state(
             state='PROGRESS',
@@ -242,14 +231,12 @@ def run_walk_forward_task(self, symbol, timeframe, strategy_name, initial_cash, 
                 'current_equity': meta.get('current_equity', 0) if meta else 0
             }
         )
-        # Add publish for WFA realtime updates
         publish_task_status('WFA', self.request.id, 'processing', percent, data=meta)
 
     db = SessionLocal()
     engine = BacktestEngine()
     
     try:
-        # Initial status
         progress_callback(0, meta={"status": "Initializing WFA..."})
 
         result = engine.walk_forward(
@@ -260,7 +247,7 @@ def run_walk_forward_task(self, symbol, timeframe, strategy_name, initial_cash, 
             train_window_days=train_window_days, test_window_days=test_window_days,
             method=method, population_size=population_size, generations=generations,
             commission=commission, slippage=slippage, leverage=leverage,
-            opt_target=opt_target, min_trades=min_trades, # আপডেটেড ভ্যালু পাস হচ্ছে
+            opt_target=opt_target, min_trades=min_trades,
             progress_callback=progress_callback
         )
         
@@ -281,15 +268,12 @@ def run_walk_forward_task(self, symbol, timeframe, strategy_name, initial_cash, 
 
 @celery_app.task(bind=True)
 def run_batch_backtest_task(self, symbol: str, timeframe: str, initial_cash: float, strategies: list = None, start_date: str = None, end_date: str = None, commission: float = 0.001, slippage: float = 0.0, custom_data_file: str = None):
-    # ✅ ফিক্স ১: 'custom_data_file' প্যারামিটার যোগ করা হয়েছে
-    
     db = SessionLocal()
     engine = BacktestEngine()
     
     results = []
     errors = []
     
-    # স্ট্র্যাটেজি ফিল্টারিং লজিক
     if strategies and len(strategies) > 0:
         available_strategies = [s for s in strategies if s in STRATEGY_MAP]
         if not available_strategies:
@@ -303,8 +287,6 @@ def run_batch_backtest_task(self, symbol: str, timeframe: str, initial_cash: flo
     r = utils.get_redis_client()
 
     for i, strategy_name in enumerate(available_strategies):
-        
-        # স্টপ সিগন্যাল চেক
         if r.exists(f"abort_task:{self.request.id}"):
             print(f"🛑 Batch Task Aborted by User at {strategy_name}")
             publish_task_status('BATCH', self.request.id, 'REVOKED', 0, {"message": "Batch testing stopped."})
@@ -327,7 +309,6 @@ def run_batch_backtest_task(self, symbol: str, timeframe: str, initial_cash: flo
         time.sleep(0.1) 
 
         try:
-            # ✅ ফিক্স ২: engine.run এ custom_data_file পাস করা
             result = engine.run(
                 db=db,
                 symbol=symbol,
@@ -337,13 +318,11 @@ def run_batch_backtest_task(self, symbol: str, timeframe: str, initial_cash: flo
                 params={}, 
                 start_date=start_date,
                 end_date=end_date,
-                custom_data_file=custom_data_file, # ফাইল সাপোর্ট নিশ্চিত করা হলো
+                custom_data_file=custom_data_file,
                 commission=commission,
                 slippage=slippage
             )
             
-            # ✅ ফিক্স ৩: এরর হ্যান্ডলিং আরও মজবুত করা (KeyError প্রতিরোধে)
-            # যদি স্ট্যাটাস success না হয় অথবা রেজাল্টে সরাসরি error থাকে
             if result.get("status") != "success":
                 error_msg = result.get("message") or result.get("error") or "Unknown error occurred"
                 errors.append({"strategy": strategy_name, "error": str(error_msg)})
@@ -353,7 +332,7 @@ def run_batch_backtest_task(self, symbol: str, timeframe: str, initial_cash: flo
                 summary = {
                     "strategy": strategy_name,
                     "profit_percent": clean_metric(result.get("profit_percent")),
-                    "total_trades": result.get("total_trades", 0), # সেফ গেট
+                    "total_trades": result.get("total_trades", 0),
                     "final_value": clean_metric(result.get("final_value")),
                     "win_rate": clean_metric(metrics.get('win_rate')),
                     "max_drawdown": clean_metric(metrics.get('max_drawdown')),
@@ -381,15 +360,10 @@ def run_batch_backtest_task(self, symbol: str, timeframe: str, initial_cash: flo
     publish_task_status('BATCH', self.request.id, 'completed', 100, final_result)
     return final_result
 
-# ✅ নতুন লাইভ বট টাস্ক
 @celery_app.task(bind=True)
 def run_live_bot_task(self, bot_id: int):
-    """
-    এই টাস্কটি একটি নির্দিষ্ট বটের জন্য লাইভ ট্রেডিং লুপ চালাবে।
-    """
     db = SessionLocal()
     try:
-        # ১. ডাটাবেস থেকে বট লোড করা
         from app.models import Bot
         bot = db.query(Bot).filter(Bot.id == bot_id).first()
         
@@ -397,15 +371,12 @@ def run_live_bot_task(self, bot_id: int):
             print(f"❌ Bot {bot_id} not found in DB")
             return "Bot not found"
 
-        # ২. Redis এ ফ্ল্যাগ সেট করা (যাতে পরে স্টপ করা যায়)
         r = utils.get_redis_client()
         task_key = f"bot_task:{bot_id}"
         r.set(task_key, "running")
 
-        # ৩. ইঞ্জিন চালু করা (Async loop চালানোর জন্য wrapper)
         engine = LiveBotEngine(bot, db)
         
-        # Celery এর ভেতরে Asyncio রান করা
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         loop.run_until_complete(engine.run_loop())
@@ -415,14 +386,12 @@ def run_live_bot_task(self, bot_id: int):
         print(f"❌ Critical Bot Error: {e}")
     finally:
         db.close()
-        # টাস্ক শেষ হলে Redis key মুছে ফেলা
         r = utils.get_redis_client()
         r.delete(f"bot_task:{bot_id}")
 
 import ccxt
 import os
 import csv
-# time is already imported at top
 from datetime import datetime
 from .celery_app import celery_app
 from celery import current_task
@@ -432,7 +401,6 @@ from .utils import get_redis_client
 DATA_FEED_DIR = "app/data_feeds"
 os.makedirs(DATA_FEED_DIR, exist_ok=True)
 
-# --- Helper: শেষ টাইমস্ট্যাম্প বের করার ফাংশন ---
 def get_last_timestamp(file_path):
     try:
         if not os.path.exists(file_path) or os.path.getsize(file_path) == 0:
@@ -451,25 +419,19 @@ def get_last_timestamp(file_path):
             
             if len(data) > 0:
                  try:
-                    # আপনার CSV তে ডেট ফরম্যাট 'YYYY-MM-DD HH:MM:SS' হিসেবে সেভ হচ্ছে
                     dt_obj = datetime.strptime(data[0], "%Y-%m-%d %H:%M:%S")
                     return int(dt_obj.timestamp() * 1000)
                  except ValueError:
-                    # যদি কোনো কারণে ফরম্যাট না মিলে
                     pass
     except Exception:
         return None
     return None
 
-# ✅ Helper to safe parse date
 def safe_parse_date(exchange, date_str):
     if not date_str: return None
-    # 1. Try ccxt parse8601
     ts = exchange.parse8601(date_str)
     if ts is not None:
         return ts
-    
-    # 2. Try manual parsing if ccxt fails (e.g. "2024-01-01 00:00:00")
     try:
         dt = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
         return int(dt.timestamp() * 1000)
@@ -480,7 +442,6 @@ def safe_parse_date(exchange, date_str):
         except:
             return None
 
-# --- Task 1: Download Candles (OHLCV) ---
 @celery_app.task(bind=True)
 def download_candles_task(self, exchange_id, symbol, timeframe, start_date, end_date=None):
     try:
@@ -499,7 +460,6 @@ def download_candles_task(self, exchange_id, symbol, timeframe, start_date, end_
         filename = f"{exchange_id}_{safe_symbol}_{timeframe}.csv"
         save_path = f"{DATA_FEED_DIR}/{filename}"
         
-        # ✅ ২. সময় ক্যালকুলেশন (FIXED)
         since = safe_parse_date(exchange, start_date)
         if since is None:
             return {"status": "failed", "error": f"Invalid start_date format: {start_date}"}
@@ -511,7 +471,6 @@ def download_candles_task(self, exchange_id, symbol, timeframe, start_date, end_
         else:
             end_ts = exchange.milliseconds()
 
-        # ৩. রিজুউম লজিক
         if os.path.exists(save_path):
             with open(save_path, 'r') as f:
                 lines = f.readlines()
@@ -541,19 +500,15 @@ def download_candles_task(self, exchange_id, symbol, timeframe, start_date, end_
             
             with tqdm(total=total_duration, unit="ms", desc=f"📥 {symbol}", ncols=80) as pbar:
                 while True:
-                    # ✅ ১. স্টপ চেক: লুপের শুরুতে
                     if self.request.id and redis_client.exists(f"abort_task:{self.request.id}"):
                         print(f"🛑 Stop signal received via Redis for task {self.request.id}")
                         return {"status": "Revoked", "message": "Stopped by user"}
 
                     try:
                         if since >= end_ts: break
-
-                        # ✅ ২. ফেচ করার সময় টাইমআউট সেট করুন যাতে এটি হ্যাং না হয়
-                        exchange.timeout = 10000 # 10 seconds timeout
+                        exchange.timeout = 10000 
                         candles = exchange.fetch_ohlcv(symbol, timeframe, since, limit=1000)
                         
-                        # ✅ ৩. স্টপ চেক: প্রসেসিং এর পরে আবার চেক
                         if self.request.id and redis_client.exists(f"abort_task:{self.request.id}"):
                              return {"status": "Revoked", "message": "Stopped by user"}
                         
@@ -582,7 +537,7 @@ def download_candles_task(self, exchange_id, symbol, timeframe, start_date, end_
                         
                     except Exception as e:
                         print(f"Fetch Error: {e}")
-                        time.sleep(2) # এরর হলে একটু অপেক্ষা
+                        time.sleep(2)
                         continue
 
         publish_task_status('DOWNLOAD', self.request.id, 'completed', 100, {"filename": filename})
@@ -591,7 +546,6 @@ def download_candles_task(self, exchange_id, symbol, timeframe, start_date, end_
     except Exception as e:
         return {"status": "failed", "error": str(e)}
 
-# --- Task 2: Download Trades (Tick Data) ---
 @celery_app.task(bind=True)
 def download_trades_task(self, exchange_id, symbol, start_date, end_date=None):
     try:
@@ -610,7 +564,6 @@ def download_trades_task(self, exchange_id, symbol, start_date, end_date=None):
         filename = f"trades_{exchange_id}_{safe_symbol}.csv"
         save_path = f"{DATA_FEED_DIR}/{filename}"
         
-        # ✅ FIX: Safe parse
         since = safe_parse_date(exchange, start_date)
         if since is None:
             return {"status": "failed", "error": f"Invalid start_date format: {start_date}"}
@@ -642,18 +595,14 @@ def download_trades_task(self, exchange_id, symbol, start_date, end_date=None):
             
             with tqdm(total=total_duration, unit="ms", desc=f"Tick {symbol}", ncols=80) as pbar:
                 while True:
-                    # ✅ ১. স্টপ চেক
                     if self.request.id and redis_client.exists(f"abort_task:{self.request.id}"):
                           return {"status": "Revoked", "message": "Stopped by user"}
 
                     try:
                         if since >= end_ts: break
-                        
-                        # ✅ ২. টাইমআউট
                         exchange.timeout = 10000 
                         trades = exchange.fetch_trades(symbol, since, limit=1000)
                         
-                        # ✅ ৩. স্টপ চেক
                         if self.request.id and redis_client.exists(f"abort_task:{self.request.id}"):
                              return {"status": "Revoked", "message": "Stopped by user"}
                         
@@ -694,13 +643,14 @@ def download_trades_task(self, exchange_id, symbol, start_date, end_date=None):
 def fetch_and_store_sentiment(self):
     """
     Background Task: Fetch news, calculate sentiment score, and save to DB.
-    Run this periodically (e.g., every 1 hour).
     """
     db = SessionLocal()
     try:
+        # ✅ MOVED: Import moved here to prevent Circular Import
+        from app.services.news_service import news_service 
+        
         print("🔄 Fetching periodic sentiment data...")
         
-        # 1. Fetch data from News Service
         import asyncio
         try:
             loop = asyncio.get_event_loop()
@@ -718,15 +668,12 @@ def fetch_and_store_sentiment(self):
             print("⚠️ No news found to analyze.")
             return "No Data"
 
-        # 2. Score Calculation
         total_score = 0
         sentiment_counts = {"Positive": 0, "Negative": 0, "Neutral": 0}
 
         for item in news_items:
             s_label = item.get('sentiment', 'Neutral')
             sentiment_counts[s_label] = sentiment_counts.get(s_label, 0) + 1
-            
-            # Scoring Logic: Positive=+1, Negative=-1, Neutral=0
             if s_label == "Positive":
                 total_score += 1
             elif s_label == "Negative":
@@ -734,11 +681,8 @@ def fetch_and_store_sentiment(self):
         
         count = len(news_items)
         avg_score = total_score / count if count > 0 else 0
-        
-        # Determine Dominant Sentiment
         dominant = max(sentiment_counts, key=sentiment_counts.get)
 
-        # 3. Save to Database
         sentiment_entry = SentimentHistory(
             score=round(avg_score, 2),
             news_count=count,

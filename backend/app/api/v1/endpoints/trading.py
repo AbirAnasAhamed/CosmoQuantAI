@@ -3,7 +3,12 @@ from typing import Optional
 import ccxt.async_support as ccxt
 import logging
 from pydantic import BaseModel
-from app.services.news_service import news_service
+
+# ✅ ফিক্স: সরাসরি news_service ইম্পোর্ট না করে ক্লাসের ইনস্ট্যান্স দরকার হলে 
+# আমরা news_service.py থেকে ক্লাসটি ইম্পোর্ট করে আলাদাভাবে হ্যান্ডেল করতে পারি। 
+# অথবা Circular Import এড়াতে ফাংশনের ভেতরে ইম্পোর্ট করতে পারি।
+
+# from app.services.news_service import news_service # ❌ এই লাইনটি সমস্যা করছে যদি Circular Import থাকে
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -27,6 +32,8 @@ class ConnectionTestRequest(BaseModel):
 @router.get("/news")
 async def get_crypto_news():
     """Fetch latest crypto news"""
+    # ✅ ফিক্স: এখানে লোকাল ইম্পোর্ট ব্যবহার করা হয়েছে যাতে মডিউল লোডিং এর সময় লুপ না হয়
+    from app.services.news_service import news_service 
     return await news_service.fetch_news()
 
 @router.post("/test-connection")
@@ -57,35 +64,6 @@ async def test_exchange_connection(request: ConnectionTestRequest):
 async def place_order(order: OrderRequest):
     """Place a real order on the exchange"""
     
-    # TODO: In a real app, retrieve keys from DB based on User/Bot context
-    # For now, we will assume environment variables or a specific secure storage
-    # This is a critical security point. 
-    # For this task, I will use a mock execution if keys are not set, 
-    # OR expect keys to be passed (which is insecure for frontend).
-    
-    # Let's assume we have a way to get keys. For the purpose of this task,
-    # we might need to fail update if no keys are found, or mock it.
-    
-    # MOCK IMPLEMENTATION FOR SAFETY UNLESS KEYS CONFIGURED
-    # user_keys = get_user_keys(order.exchange_id) 
-    
-    # Real implementation logic (commented out for safety/demo unless strictly required to be live):
-    """
-    try:
-        exchange = ccxt.binance({ ... keys ... })
-        response = await exchange.create_order(
-            symbol=order.symbol,
-            type=order.type.lower(),
-            side=order.side.lower(),
-            amount=order.amount,
-            price=order.price
-        )
-        await exchange.close()
-        return response
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-    """
-
     # Simulating a successful order for the UI flow
     import asyncio
     await asyncio.sleep(1) # simulate network delay

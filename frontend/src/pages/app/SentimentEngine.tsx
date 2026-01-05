@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import api from '@/services/client';
-import { ResponsiveContainer, PieChart, Pie, Cell, ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { ResponsiveContainer, PieChart, Pie, Cell, ComposedChart, Line, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Bar } from 'recharts';
 import { generateNewSentimentSource } from '@/constants';
 import { useTheme } from '@/context/ThemeContext';
 import Card from '@/components/common/Card';
@@ -27,7 +26,6 @@ const AnimatedNumber: React.FC<{ value: number; toFixed?: number; }> = ({ value,
             if (!startTime) startTime = currentTime;
             const elapsedTime = currentTime - startTime;
             const progress = Math.min(elapsedTime / duration, 1);
-            // Ease out quartic
             const ease = 1 - Math.pow(1 - progress, 4);
 
             const animatedValue = startValue + (endValue - startValue) * ease;
@@ -47,46 +45,57 @@ const AnimatedNumber: React.FC<{ value: number; toFixed?: number; }> = ({ value,
     return <span>{displayValue.toFixed(toFixed)}</span>;
 };
 
-// "Holographic" Sentiment Orb
-const SentimentOrb: React.FC<{ score: number }> = ({ score }) => {
-    // Score is -1 to 1.
-    // Map to color: -1 (Red) -> 0 (Blue/Grey) -> 1 (Green)
-
+// ✅ Updated Holographic Orb with Momentum & Volume
+const SentimentOrb: React.FC<{ score: number; momentum: number; volume: number }> = ({ score, momentum, volume }) => {
     let colorShadow = '';
     let coreColor = '';
     let label = '';
 
     if (score > 0.2) {
-        colorShadow = 'shadow-[0_0_50px_rgba(16,185,129,0.6)]'; // Emerald glow
+        colorShadow = 'shadow-[0_0_50px_rgba(16,185,129,0.6)]';
         coreColor = 'bg-gradient-to-br from-emerald-400 to-emerald-600';
         label = 'Bullish';
     } else if (score < -0.2) {
-        colorShadow = 'shadow-[0_0_50px_rgba(244,63,94,0.6)]'; // Rose glow
+        colorShadow = 'shadow-[0_0_50px_rgba(244,63,94,0.6)]';
         coreColor = 'bg-gradient-to-br from-rose-400 to-rose-600';
         label = 'Bearish';
     } else {
-        colorShadow = 'shadow-[0_0_30px_rgba(148,163,184,0.4)]'; // Slate glow
+        colorShadow = 'shadow-[0_0_30px_rgba(148,163,184,0.4)]';
         coreColor = 'bg-gradient-to-br from-slate-400 to-slate-600';
         label = 'Neutral';
     }
 
     return (
-        <div className="flex flex-col items-center justify-center py-6">
-            <div className="relative">
-                {/* Outer Ring (Spinning) */}
+        <div className="flex flex-col items-center justify-center py-4 relative">
+            {/* ✅ Stats Overlay */}
+            <div className="absolute top-0 right-4 flex flex-col items-end text-xs font-mono opacity-70">
+                <span className="text-gray-400">Velocity</span>
+                <span className={momentum > 0 ? 'text-green-400' : momentum < 0 ? 'text-red-400' : 'text-gray-400'}>
+                    {momentum > 0 ? '+' : ''}{momentum.toFixed(2)}/h
+                </span>
+            </div>
+
+            <div className="absolute top-0 left-4 flex flex-col items-start text-xs font-mono opacity-70">
+                <span className="text-gray-400">Social Vol</span>
+                <span className="text-blue-400">{volume > 0 ? volume : '--'}</span>
+            </div>
+
+            <div className="relative mt-4">
+                {/* Outer Ring */}
                 <div className="absolute inset-[-10px] rounded-full border border-dashed border-gray-300 dark:border-gray-700 animate-[spin_10s_linear_infinite]"></div>
 
                 {/* The Orb */}
                 <div className={`w-32 h-32 rounded-full ${coreColor} ${colorShadow} flex items-center justify-center relative overflow-hidden transition-all duration-1000`}>
-                    {/* Inner sheen */}
                     <div className="absolute top-0 left-0 w-full h-1/2 bg-white/20 blur-sm rounded-t-full pointer-events-none"></div>
                     <div className="text-white text-3xl font-bold drop-shadow-md z-10">
                         <AnimatedNumber value={score} toFixed={2} />
                     </div>
                 </div>
 
-                {/* Pulsing Ring */}
-                <div className={`absolute inset-0 rounded-full border-2 border-white/50 animate-ping opacity-20`}></div>
+                {/* Pulsing Ring based on Volume Intensity */}
+                {volume > 50 && (
+                    <div className={`absolute inset-0 rounded-full border-2 border-white/50 animate-ping opacity-20`}></div>
+                )}
             </div>
             <div className="mt-4 text-center">
                 <p className="text-sm uppercase tracking-widest text-gray-500 dark:text-gray-400 font-semibold">Social Sentiment</p>
@@ -98,19 +107,17 @@ const SentimentOrb: React.FC<{ score: number }> = ({ score }) => {
     );
 };
 
-// ✅ Updated FearGreedFlux to accept dynamic classification label
+// FearGreedFlux Component (Unchanged)
 const FearGreedFlux: React.FC<{ score: number, classification?: string }> = ({ score, classification }) => {
     let label = classification || 'Neutral';
     let colorClass = 'bg-yellow-500';
 
-    // Fallback logic if classification is missing
     if (!classification) {
         if (score >= 75) { label = 'Extreme Greed'; colorClass = 'bg-green-500'; }
         else if (score >= 55) { label = 'Greed'; colorClass = 'bg-emerald-400'; }
         else if (score <= 25) { label = 'Extreme Fear'; colorClass = 'bg-red-600'; }
         else if (score <= 45) { label = 'Fear'; colorClass = 'bg-rose-400'; }
     } else {
-        // Color logic based on score even if label is present
         if (score >= 75) colorClass = 'bg-green-500';
         else if (score >= 55) colorClass = 'bg-emerald-400';
         else if (score <= 25) colorClass = 'bg-red-600';
@@ -125,13 +132,10 @@ const FearGreedFlux: React.FC<{ score: number, classification?: string }> = ({ s
                     <AnimatedNumber value={score} toFixed={0} />
                 </span>
             </div>
-
-            {/* Segmented Bar */}
             <div className="w-full h-4 flex gap-1">
                 {[...Array(20)].map((_, i) => {
                     const threshold = (i + 1) * 5;
                     const isActive = score >= threshold;
-                    // Gradient color logic for segments
                     let segColor = 'bg-gray-200 dark:bg-gray-800';
                     if (isActive) {
                         if (i < 5) segColor = 'bg-red-500';
@@ -139,12 +143,8 @@ const FearGreedFlux: React.FC<{ score: number, classification?: string }> = ({ s
                         else if (i < 15) segColor = 'bg-yellow-400';
                         else segColor = 'bg-green-500';
                     }
-
                     return (
-                        <div
-                            key={i}
-                            className={`flex-1 rounded-sm transition-colors duration-300 ${segColor} ${isActive ? 'shadow-[0_0_5px_currentColor]' : ''}`}
-                        ></div>
+                        <div key={i} className={`flex-1 rounded-sm transition-colors duration-300 ${segColor} ${isActive ? 'shadow-[0_0_5px_currentColor]' : ''}`}></div>
                     )
                 })}
             </div>
@@ -157,52 +157,45 @@ const SentimentEngine: React.FC = () => {
     const { theme } = useTheme();
     const { showToast } = useToast();
     const [activePair, setActivePair] = useState(pairs[0]);
-    const [chartData, setChartData] = useState<any[]>([]); // Real data state
-    const [sentimentSources, setSentimentSources] = useState<SentimentSource[]>(() => Array.from({ length: 5 }, generateNewSentimentSource));
+    const [chartData, setChartData] = useState<any[]>([]);
+    const [sentimentSources, setSentimentSources] = useState<SentimentSource[]>([]);
     const [fearGreedIndex, setFearGreedIndex] = useState(50);
-    const [fearGreedLabel, setFearGreedLabel] = useState('Neutral'); // ✅ New state
+    const [fearGreedLabel, setFearGreedLabel] = useState('Neutral');
     const [activeFilter, setActiveFilter] = useState<'All' | SentimentLabel>('All');
     const [aiSummary, setAiSummary] = useState('');
     const [isSummaryLoading, setIsSummaryLoading] = useState(false);
-
-    // ✅ ১. নতুন স্টেট যোগ করুন (Provider সিলেক্ট করার জন্য)
     const [selectedProvider, setSelectedProvider] = useState('gemini');
-
     const [newSourceId, setNewSourceId] = useState<string | null>(null);
-
-    const timersRef = useRef<number[]>([]);
 
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // 1. ✅ Updated News Fetching Logic
+                // 1. Fetch News
                 const newsResponse = await api.get('/v1/sentiment/news');
-                const formattedNews = newsResponse.data.map((item: any) => ({
-                    id: item.id.toString(),
-                    source: item.source,
-                    content: item.content || item.text, // Handle both key names just in case
-                    sentiment: item.sentiment,
-                    // Use updated timestamp logic
+                // Handle different response structures if needed
+                const rawNews = Array.isArray(newsResponse.data) ? newsResponse.data : [];
+
+                const formattedNews = rawNews.map((item: any) => ({
+                    id: item.id?.toString() || Math.random().toString(),
+                    source: item.source || 'Unknown',
+                    content: item.content || item.text,
+                    sentiment: item.sentiment || 'Neutral',
                     timestamp: item.timestamp ? new Date(item.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString(),
-                    url: item.url, // ✅ Capture URL
+                    url: item.url,
                     type: item.type
                 }));
-                setSentimentSources(formattedNews.slice(0, 30));
+                setSentimentSources(formattedNews.slice(0, 50));
 
-                // 2. ✅ Updated Fear & Greed Fetching Logic
+                // 2. Fetch Fear & Greed
                 const fgResponse = await api.get('/v1/sentiment/fear-greed');
                 if (fgResponse.data.value) {
                     setFearGreedIndex(parseInt(fgResponse.data.value));
                     setFearGreedLabel(fgResponse.data.value_classification);
                 }
 
-                // 3. Real Chart Data Fetching
+                // 3. Fetch Chart Data (With new metrics)
                 const chartResponse = await api.get('/v1/sentiment/correlation', {
-                    params: {
-                        symbol: activePair,
-                        timeframe: '1h',
-                        days: 7
-                    }
+                    params: { symbol: activePair, timeframe: '1h', days: 7 }
                 });
 
                 if (Array.isArray(chartResponse.data)) {
@@ -215,10 +208,7 @@ const SentimentEngine: React.FC = () => {
         };
 
         fetchData();
-
-        // Refresh every 1 minute
         const interval = setInterval(fetchData, 60000);
-
         return () => clearInterval(interval);
     }, [activePair]);
 
@@ -226,15 +216,12 @@ const SentimentEngine: React.FC = () => {
         setIsSummaryLoading(true);
         setAiSummary('');
         try {
-            // Frontend sends headlines, processing happens in backend
             const headlines = sentimentSources.slice(0, 10).map(s => s.content).join('. ');
-
             const response = await api.post('/v1/sentiment/summary', {
                 headlines: headlines,
                 asset: activePair,
-                provider: selectedProvider // ✅ ২. সিলেক্ট করা প্রোভাইডার পাঠানো হচ্ছে
+                provider: selectedProvider
             });
-
             setAiSummary(response.data.summary);
         } catch (error) {
             console.error("Error generating summary:", error);
@@ -244,9 +231,15 @@ const SentimentEngine: React.FC = () => {
         }
     }, [sentimentSources, activePair, selectedProvider, showToast]);
 
-    const currentScore = useMemo(() => {
-        if (chartData.length === 0) return 0;
-        return chartData[chartData.length - 1].score;
+    // ✅ Extract Current Stats from Chart Data
+    const { currentScore, currentMomentum, currentVolume } = useMemo(() => {
+        if (chartData.length === 0) return { currentScore: 0, currentMomentum: 0, currentVolume: 0 };
+        const lastPoint = chartData[chartData.length - 1];
+        return {
+            currentScore: lastPoint.score || 0,
+            currentMomentum: lastPoint.momentum || 0,
+            currentVolume: lastPoint.social_volume || 0
+        };
     }, [chartData]);
 
     const combinedData = chartData;
@@ -260,7 +253,6 @@ const SentimentEngine: React.FC = () => {
 
     return (
         <div className="space-y-8 animate-fade-in-slide-up">
-
             {/* Header */}
             <Card className="!p-4 flex flex-wrap items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
@@ -268,8 +260,8 @@ const SentimentEngine: React.FC = () => {
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
                     </div>
                     <div>
-                        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Sentiment Engine</h2>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Real-time social & news analysis</p>
+                        <h2 className="text-xl font-bold text-slate-900 dark:text-white">Sentiment Engine V2</h2>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Real-time social volume & momentum analysis</p>
                     </div>
                 </div>
 
@@ -291,15 +283,14 @@ const SentimentEngine: React.FC = () => {
 
             {/* Intelligence Dashboard */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
                 {/* Left Column: Metrics */}
                 <div className="lg:col-span-1 space-y-6">
                     <Card className="h-64 !p-0 overflow-hidden relative">
                         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
-                        <SentimentOrb score={currentScore} />
+                        {/* ✅ Pass extra metrics to Orb */}
+                        <SentimentOrb score={currentScore} momentum={currentMomentum} volume={currentVolume} />
                     </Card>
                     <Card className="h-40 !p-0 overflow-hidden">
-                        {/* ✅ Pass dynamic classification label */}
                         <FearGreedFlux score={fearGreedIndex} classification={fearGreedLabel} />
                     </Card>
                 </div>
@@ -309,11 +300,14 @@ const SentimentEngine: React.FC = () => {
                     <div className="flex justify-between items-center mb-6">
                         <div>
                             <h3 className="text-lg font-bold text-slate-900 dark:text-white">Sentiment vs Price Correlation</h3>
-                            <p className="text-xs text-gray-500">Overlaying social sentiment score against asset price action.</p>
+                            <p className="text-xs text-gray-500">Dual-axis analysis of market sentiment and price action.</p>
                         </div>
                         <div className="flex gap-4 text-xs font-mono">
                             <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full bg-brand-primary"></div> Sentiment
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <div className="w-3 h-3 rounded-full bg-blue-400 opacity-50"></div> Volume
                             </div>
                             <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full bg-emerald-400"></div> Price
@@ -331,12 +325,20 @@ const SentimentEngine: React.FC = () => {
                                 </defs>
                                 <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} opacity={0.4} />
                                 <XAxis dataKey="time" stroke={axisColor} tickFormatter={time => new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} tick={{ fontSize: 10 }} minTickGap={50} axisLine={false} tickLine={false} dy={10} />
-                                <YAxis yAxisId="left" orientation="left" stroke="#6366F1" domain={[-1.2, 1.2]} tick={{ fontSize: 10 }} hide />
+
+                                <YAxis yAxisId="left" orientation="left" stroke="#6366F1" domain={[-1.5, 1.5]} tick={{ fontSize: 10 }} hide />
                                 <YAxis yAxisId="right" orientation="right" stroke="#10B981" domain={['auto', 'auto']} tickFormatter={val => `$${Math.round(val / 1000)}k`} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
+                                {/* Hidden YAxis for Volume Bar scaling */}
+                                <YAxis yAxisId="vol" orientation="right" domain={[0, 'dataMax * 3']} hide />
+
                                 <Tooltip
                                     contentStyle={theme === 'dark' ? { backgroundColor: '#0F172A', border: '1px solid #334155', borderRadius: '8px' } : { borderRadius: '8px' }}
                                     labelStyle={{ color: theme === 'dark' ? '#94A3B8' : '#64748B', marginBottom: '5px' }}
                                 />
+
+                                {/* ✅ Volume Bars Background */}
+                                <Bar yAxisId="vol" dataKey="social_volume" fill="#3B82F6" opacity={0.1} barSize={20} />
+
                                 <Area yAxisId="left" type="monotone" dataKey="score" stroke="#6366F1" strokeWidth={2} fill="url(#sentimentGrad)" />
                                 <Line yAxisId="right" type="monotone" dataKey="price" stroke="#10B981" strokeWidth={2} dot={false} />
                             </ComposedChart>
@@ -345,8 +347,9 @@ const SentimentEngine: React.FC = () => {
                 </Card>
             </div>
 
+            {/* Stats & AI Unit */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Source Breakdown */}
+                {/* Source Breakdown (Same as before but cleaner) */}
                 <Card className="flex flex-col">
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Signal Sources</h3>
                     <div className="flex items-center justify-between h-full">
@@ -392,7 +395,6 @@ const SentimentEngine: React.FC = () => {
 
                 {/* AI Intelligence Unit */}
                 <Card className="flex flex-col bg-slate-900 border-slate-800 relative overflow-hidden">
-                    {/* Scanline effect */}
                     <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-0 pointer-events-none bg-[length:100%_2px,3px_100%]"></div>
 
                     <div className="relative z-10 flex flex-col h-full">
@@ -402,7 +404,6 @@ const SentimentEngine: React.FC = () => {
                                 AI Intelligence Stream
                             </h3>
 
-                            {/* ✅ ৩. Provider Selector Dropdown */}
                             <div className="flex items-center gap-2">
                                 <select
                                     value={selectedProvider}
@@ -470,8 +471,6 @@ const SentimentEngine: React.FC = () => {
                     {filteredSources.map((source, index) => {
                         const isNew = source.id === newSourceId;
                         const borderColor = source.sentiment === 'Positive' ? 'border-l-emerald-500' : source.sentiment === 'Negative' ? 'border-l-rose-500' : 'border-l-gray-400';
-
-                        // ✅ Clickable Wrapper Logic
                         const Wrapper = source.url ? 'a' : 'div';
                         const wrapperProps = source.url ? { href: source.url, target: '_blank', rel: 'noopener noreferrer' } : {};
 
@@ -484,7 +483,6 @@ const SentimentEngine: React.FC = () => {
                                 <div className="flex justify-between items-start">
                                     <div>
                                         <div className="flex items-center gap-2 mb-1">
-                                            {/* ✅ Source Icons */}
                                             {source.source.includes('Reddit') || source.source.includes('r/') ? (
                                                 <span className="text-[10px] bg-orange-500/10 text-orange-500 px-1.5 py-0.5 rounded border border-orange-500/20">REDDIT</span>
                                             ) : (
@@ -513,4 +511,3 @@ const SentimentEngine: React.FC = () => {
 };
 
 export default SentimentEngine;
-

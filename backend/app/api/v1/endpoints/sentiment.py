@@ -4,7 +4,7 @@ from app.api import deps
 from app.services.market_service import MarketService
 from app.models.sentiment import SentimentHistory
 from app.services.news_service import news_service
-from app.services.ai_service import ai_service # ✅ Import updated ai_service
+from app.services.ai_service import ai_service
 from datetime import datetime, timedelta
 import pandas as pd
 from pydantic import BaseModel
@@ -15,7 +15,7 @@ market_service = MarketService()
 class SummaryRequest(BaseModel):
     headlines: str
     asset: str
-    provider: str = "gemini" # Default value
+    provider: str = "gemini"
 
 @router.get("/news")
 async def get_sentiment_news():
@@ -23,27 +23,17 @@ async def get_sentiment_news():
 
 @router.get("/fear-greed")
 async def get_fear_greed():
-    """
-    Fetches the latest Fear and Greed Index from external API.
-    """
     return await news_service.fetch_fear_greed_index()
 
-# ✅ Real AI Summary Endpoint
 @router.post("/summary")
 async def generate_market_summary(request: SummaryRequest):
-    """
-    Generate a summary using the User Selected AI Provider.
-    """
     try:
-        # ✅ 2. Service এ provider পাঠিয়ে দেওয়া
         summary = ai_service.generate_market_sentiment_summary(
             headlines=request.headlines, 
             asset=request.asset,
             provider=request.provider
         )
-        
         return {"summary": summary}
-    
     except Exception as e:
         print(f"Summary Generation Error: {e}")
         raise HTTPException(status_code=500, detail="Failed to generate AI summary")
@@ -56,14 +46,13 @@ async def get_sentiment_correlation(
     db: Session = Depends(deps.get_db)
 ):
     """
-    Returns combined Price vs Sentiment data for the chart.
+    Returns Price vs Sentiment + Momentum + Volume data.
     """
-    # 1. Get Price Data (Market Data)
+    # 1. Get Price Data
     start_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
     candles = market_service.get_candles_from_db(db, symbol, timeframe, start_date=start_date)
     
-    if not candles:
-        return []
+    if not candles: return []
 
     # 2. Get Sentiment History
     cutoff_date = datetime.utcnow() - timedelta(days=days)
@@ -78,32 +67,40 @@ async def get_sentiment_correlation(
         "volume": c.volume
     } for c in candles])
     
-    if price_df.empty:
-        return []
-    
+    if price_df.empty: return []
     price_df.set_index('timestamp', inplace=True)
 
-    # Sentiment DataFrame
     if sentiment_history:
+        # ✅ Include new metrics here
         sent_df = pd.DataFrame([{
             "timestamp": s.timestamp,
-            "score": s.score
+            "score": s.score,
+            "sentiment_momentum": s.sentiment_momentum or 0, # Handle Null
+            "social_volume": s.social_volume or 0            # Handle Null
         } for s in sentiment_history])
-        sent_df.set_index('timestamp', inplace=True)
         
-        # ✅ FIX: Timezone Mismatch Solved
+        sent_df.set_index('timestamp', inplace=True)
         if sent_df.index.tz is not None:
             sent_df.index = sent_df.index.tz_convert('UTC').tz_localize(None)
 
-        # 4. Resample & Merge
-        # ✅ FIX: '1H' deprecated warning solved by changing to '1h'
-        sent_resampled = sent_df.resample('1h').mean().interpolate(method='linear') 
+        # 4. Resample Logic
+        # Score & Momentum = Mean (Average state over the hour)
+        # Social Volume = Sum (Total mentions in that hour)
+        sent_resampled = sent_df.resample('1h').agg({
+            'score': 'mean',
+            'sentiment_momentum': 'mean',
+            'social_volume': 'sum'
+        }).interpolate(method='linear')
         
         merged_df = price_df.join(sent_resampled, how='left')
         merged_df['score'] = merged_df['score'].fillna(0)
+        merged_df['sentiment_momentum'] = merged_df['sentiment_momentum'].fillna(0)
+        merged_df['social_volume'] = merged_df['social_volume'].fillna(0)
     else:
         merged_df = price_df
         merged_df['score'] = 0
+        merged_df['sentiment_momentum'] = 0
+        merged_df['social_volume'] = 0
 
     # 5. Build JSON Response
     chart_data = []
@@ -112,6 +109,8 @@ async def get_sentiment_correlation(
             "time": ts.isoformat(),
             "price": row['price'],
             "score": round(row['score'], 2),
+            "momentum": round(row['sentiment_momentum'], 2), # ✅ New Field
+            "social_volume": int(row['social_volume']),      # ✅ New Field
             "volume": row['volume']
         })
 
