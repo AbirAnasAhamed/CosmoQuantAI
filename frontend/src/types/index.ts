@@ -202,10 +202,12 @@ export type SentimentLabel = 'Positive' | 'Negative' | 'Neutral';
 
 export interface SentimentSource {
   id: string;
-  source: 'Twitter' | 'Reddit' | 'News';
+  source: string; // ✅ Changed to 'string' to allow dynamic sources like "r/Bitcoin"
   content: string;
   sentiment: SentimentLabel;
   timestamp: string;
+  url?: string; // ✅ New: For clickable links
+  type?: 'news' | 'social'; // ✅ New: To show different icons
 }
 
 export interface InsiderFiling {

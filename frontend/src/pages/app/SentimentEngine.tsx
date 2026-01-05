@@ -98,15 +98,24 @@ const SentimentOrb: React.FC<{ score: number }> = ({ score }) => {
     );
 };
 
-// Modern Linear Flux Meter for Fear & Greed
-const FearGreedFlux: React.FC<{ score: number }> = ({ score }) => {
-    let label = 'Neutral';
+// ✅ Updated FearGreedFlux to accept dynamic classification label
+const FearGreedFlux: React.FC<{ score: number, classification?: string }> = ({ score, classification }) => {
+    let label = classification || 'Neutral';
     let colorClass = 'bg-yellow-500';
 
-    if (score >= 75) { label = 'Extreme Greed'; colorClass = 'bg-green-500'; }
-    else if (score >= 55) { label = 'Greed'; colorClass = 'bg-emerald-400'; }
-    else if (score <= 25) { label = 'Extreme Fear'; colorClass = 'bg-red-600'; }
-    else if (score <= 45) { label = 'Fear'; colorClass = 'bg-rose-400'; }
+    // Fallback logic if classification is missing
+    if (!classification) {
+        if (score >= 75) { label = 'Extreme Greed'; colorClass = 'bg-green-500'; }
+        else if (score >= 55) { label = 'Greed'; colorClass = 'bg-emerald-400'; }
+        else if (score <= 25) { label = 'Extreme Fear'; colorClass = 'bg-red-600'; }
+        else if (score <= 45) { label = 'Fear'; colorClass = 'bg-rose-400'; }
+    } else {
+        // Color logic based on score even if label is present
+        if (score >= 75) colorClass = 'bg-green-500';
+        else if (score >= 55) colorClass = 'bg-emerald-400';
+        else if (score <= 25) colorClass = 'bg-red-600';
+        else if (score <= 45) colorClass = 'bg-rose-400';
+    }
 
     return (
         <div className="flex flex-col justify-center h-full px-4 py-6">
@@ -150,7 +159,8 @@ const SentimentEngine: React.FC = () => {
     const [activePair, setActivePair] = useState(pairs[0]);
     const [chartData, setChartData] = useState<any[]>([]); // Real data state
     const [sentimentSources, setSentimentSources] = useState<SentimentSource[]>(() => Array.from({ length: 5 }, generateNewSentimentSource));
-    const [fearGreedIndex, setFearGreedIndex] = useState(55);
+    const [fearGreedIndex, setFearGreedIndex] = useState(50);
+    const [fearGreedLabel, setFearGreedLabel] = useState('Neutral'); // ✅ New state
     const [activeFilter, setActiveFilter] = useState<'All' | SentimentLabel>('All');
     const [aiSummary, setAiSummary] = useState('');
     const [isSummaryLoading, setIsSummaryLoading] = useState(false);
@@ -165,21 +175,26 @@ const SentimentEngine: React.FC = () => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // 1. News Fetching
+                // 1. ✅ Updated News Fetching Logic
                 const newsResponse = await api.get('/v1/sentiment/news');
                 const formattedNews = newsResponse.data.map((item: any) => ({
                     id: item.id.toString(),
                     source: item.source,
-                    content: item.text,
+                    content: item.content || item.text, // Handle both key names just in case
                     sentiment: item.sentiment,
-                    timestamp: new Date(item.published_at).toLocaleTimeString()
+                    // Use updated timestamp logic
+                    timestamp: item.timestamp ? new Date(item.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString(),
+                    url: item.url, // ✅ Capture URL
+                    type: item.type
                 }));
-                // Only take last 15 items
-                setSentimentSources(formattedNews.slice(0, 15));
+                setSentimentSources(formattedNews.slice(0, 30));
 
-                // 2. Fear & Greed Fetching
+                // 2. ✅ Updated Fear & Greed Fetching Logic
                 const fgResponse = await api.get('/v1/sentiment/fear-greed');
-                setFearGreedIndex(parseInt(fgResponse.data.value));
+                if (fgResponse.data.value) {
+                    setFearGreedIndex(parseInt(fgResponse.data.value));
+                    setFearGreedLabel(fgResponse.data.value_classification);
+                }
 
                 // 3. Real Chart Data Fetching
                 const chartResponse = await api.get('/v1/sentiment/correlation', {
@@ -284,7 +299,8 @@ const SentimentEngine: React.FC = () => {
                         <SentimentOrb score={currentScore} />
                     </Card>
                     <Card className="h-40 !p-0 overflow-hidden">
-                        <FearGreedFlux score={fearGreedIndex} />
+                        {/* ✅ Pass dynamic classification label */}
+                        <FearGreedFlux score={fearGreedIndex} classification={fearGreedLabel} />
                     </Card>
                 </div>
 
@@ -455,14 +471,25 @@ const SentimentEngine: React.FC = () => {
                         const isNew = source.id === newSourceId;
                         const borderColor = source.sentiment === 'Positive' ? 'border-l-emerald-500' : source.sentiment === 'Negative' ? 'border-l-rose-500' : 'border-l-gray-400';
 
+                        // ✅ Clickable Wrapper Logic
+                        const Wrapper = source.url ? 'a' : 'div';
+                        const wrapperProps = source.url ? { href: source.url, target: '_blank', rel: 'noopener noreferrer' } : {};
+
                         return (
-                            <div
+                            <Wrapper
                                 key={`${source.id}-${index}`}
-                                className={`relative bg-white dark:bg-brand-dark border border-gray-100 dark:border-brand-border-dark rounded-lg p-4 pl-5 border-l-4 shadow-sm hover:shadow-md transition-all duration-500 ${borderColor} ${isNew ? 'animate-fade-in-right bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
+                                {...wrapperProps}
+                                className={`block relative bg-white dark:bg-brand-dark border border-gray-100 dark:border-brand-border-dark rounded-lg p-4 pl-5 border-l-4 shadow-sm hover:shadow-md transition-all duration-500 ${borderColor} ${isNew ? 'animate-fade-in-right bg-blue-50/50 dark:bg-blue-900/10' : ''} ${source.url ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800' : ''}`}
                             >
                                 <div className="flex justify-between items-start">
                                     <div>
                                         <div className="flex items-center gap-2 mb-1">
+                                            {/* ✅ Source Icons */}
+                                            {source.source.includes('Reddit') || source.source.includes('r/') ? (
+                                                <span className="text-[10px] bg-orange-500/10 text-orange-500 px-1.5 py-0.5 rounded border border-orange-500/20">REDDIT</span>
+                                            ) : (
+                                                <span className="text-[10px] bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded border border-blue-500/20">NEWS</span>
+                                            )}
                                             <span className="text-xs font-bold uppercase tracking-wider text-gray-400">{source.source}</span>
                                             <span className="text-gray-300">•</span>
                                             <span className="text-xs text-gray-500 font-mono">{source.timestamp}</span>
@@ -476,7 +503,7 @@ const SentimentEngine: React.FC = () => {
                                         {source.sentiment}
                                     </span>
                                 </div>
-                            </div>
+                            </Wrapper>
                         );
                     })}
                 </div>
