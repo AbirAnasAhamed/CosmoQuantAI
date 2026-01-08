@@ -165,7 +165,13 @@ const SentimentEngine: React.FC = () => {
     const [aiSummary, setAiSummary] = useState('');
     const [isSummaryLoading, setIsSummaryLoading] = useState(false);
     const [selectedProvider, setSelectedProvider] = useState('gemini');
+
     const [newSourceId, setNewSourceId] = useState<string | null>(null);
+
+    // Narrative Layer States
+    const [narratives, setNarratives] = useState<string[]>([]);
+    const [wordCloud, setWordCloud] = useState<{ text: string; weight: number }[]>([]);
+    const [isNarrativeLoading, setIsNarrativeLoading] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -202,6 +208,9 @@ const SentimentEngine: React.FC = () => {
                     setChartData(chartResponse.data);
                 }
 
+                // 4. Fetch Narratives & Word Cloud (AI Generated)
+                fetchNarratives();
+
             } catch (err) {
                 console.error("Failed to fetch live data", err);
             }
@@ -230,6 +239,21 @@ const SentimentEngine: React.FC = () => {
             setIsSummaryLoading(false);
         }
     }, [sentimentSources, activePair, selectedProvider, showToast]);
+
+    const fetchNarratives = async () => {
+        setIsNarrativeLoading(true);
+        try {
+            const res = await api.get('/v1/sentiment/narratives');
+            if (res.data) {
+                setNarratives(res.data.narratives || []);
+                setWordCloud(res.data.word_cloud || []);
+            }
+        } catch (error) {
+            console.error("Failed to fetch narratives", error);
+        } finally {
+            setIsNarrativeLoading(false);
+        }
+    };
 
     // ✅ Extract Current Stats from Chart Data
     const { currentScore, currentMomentum, currentVolume } = useMemo(() => {
@@ -344,6 +368,73 @@ const SentimentEngine: React.FC = () => {
                             </ComposedChart>
                         </ResponsiveContainer>
                     </div>
+                </Card>
+            </div>
+
+            {/* --- Narrative Layer (New Feature) --- */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                {/* Word Cloud Section */}
+                <Card className="lg:col-span-2 relative overflow-hidden min-h-[250px] flex flex-col justify-center">
+                    <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
+                        <span className="p-1 bg-blue-100 dark:bg-blue-900 rounded text-blue-500">
+                            ☁️
+                        </span>
+                        Market Mindshare (Word Cloud)
+                    </h3>
+
+                    {isNarrativeLoading ? (
+                        <div className="flex items-center justify-center h-40 text-gray-400 animate-pulse">
+                            Generating AI Word Matrix...
+                        </div>
+                    ) : (
+                        <div className="flex flex-wrap items-center justify-center gap-4 p-4">
+                            {wordCloud.map((word, i) => {
+                                // Dynamic styling based on weight
+                                const fontSize = Math.max(0.8, word.weight / 20) + 'rem';
+                                const opacity = Math.max(0.5, word.weight / 100);
+                                const colorClass = word.weight > 80 ? 'text-brand-primary font-bold' :
+                                    word.weight > 60 ? 'text-blue-500 font-semibold' :
+                                        'text-gray-500 dark:text-gray-400';
+
+                                return (
+                                    <span
+                                        key={i}
+                                        className={`transition-all duration-500 hover:scale-110 cursor-default ${colorClass}`}
+                                        style={{ fontSize: fontSize, opacity: opacity }}
+                                    >
+                                        {word.text}
+                                    </span>
+                                );
+                            })}
+                            {wordCloud.length === 0 && <p className="text-gray-400 text-sm">No trending keywords detected.</p>}
+                        </div>
+                    )}
+                </Card>
+
+                {/* Trending Narratives List */}
+                <Card className="lg:col-span-1 bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 border-l-4 border-l-purple-500">
+                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">🔥 Top Narratives</h3>
+
+                    {isNarrativeLoading ? (
+                        <div className="space-y-3">
+                            {[1, 2, 3].map(i => <div key={i} className="h-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>)}
+                        </div>
+                    ) : (
+                        <div className="space-y-4">
+                            {narratives.map((narrative, index) => (
+                                <div key={index} className="flex gap-3 items-start group">
+                                    <div className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-xs border border-purple-200 dark:border-purple-800 mt-0.5">
+                                        {index + 1}
+                                    </div>
+                                    <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed group-hover:text-purple-600 dark:group-hover:text-purple-400 transition-colors">
+                                        {narrative}
+                                    </p>
+                                </div>
+                            ))}
+                            {narratives.length === 0 && <p className="text-gray-400 text-sm">No narratives extracted.</p>}
+                        </div>
+                    )}
                 </Card>
             </div>
 

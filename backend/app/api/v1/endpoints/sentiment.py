@@ -115,3 +115,26 @@ async def get_sentiment_correlation(
         })
 
     return chart_data
+
+@router.get("/narratives")
+async def get_market_narratives():
+    """
+    Analyzes cached news to generate Word Cloud and Trending Narratives using AI.
+    """
+    try:
+        # ১. নিউজ ফেচ করা (news_service থেকে)
+        news_items = await news_service.fetch_news()
+        
+        if not news_items:
+            return {"word_cloud": [], "narratives": ["No sufficient data to generate narratives."]}
+
+        # ২. হেডলাইনগুলো একত্রিত করা
+        headlines_text = ". ".join([item['content'] for item in news_items[:20]]) # টপ ২০টি নিউজ নিচ্ছি
+
+        # ৩. AI দিয়ে ন্যারেটিভ জেনারেট করা
+        narrative_data = ai_service.generate_market_narratives(headlines_text)
+        
+        return narrative_data
+    except Exception as e:
+        print(f"Narrative Generation Error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate market narratives")

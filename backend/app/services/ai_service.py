@@ -66,6 +66,27 @@ class AIService:
         response_text = self._route_request(system_instruction, f"User Idea: {user_prompt}", provider)
         return self._clean_and_parse_json(response_text, default={"nodes": [], "edges": []})
 
+    def generate_market_narratives(self, headlines: str, provider: str = None) -> dict:
+        system_instruction = """
+        You are a crypto narrative hunter. Analyze the provided headlines and extract:
+        1. 'word_cloud': Top 20 trending keywords/tokens (e.g., 'Solana', 'ETF', 'Hack') with a 'weight' (10-100) based on frequency/importance.
+        2. 'narratives': Top 3 dominant market narratives explaining WHY these are trending (max 15 words each).
+        
+        Strict Output JSON Format:
+        {
+            "word_cloud": [{"text": "Bitcoin", "weight": 90}, {"text": "Regulation", "weight": 60}, ...],
+            "narratives": [
+                "AI tokens surging due to NVIDIA's record earnings report.",
+                "Solana meme coins recovering after network congestion fix.",
+                "Regulatory fears rising ahead of upcoming SEC decision."
+            ]
+        }
+        Return ONLY raw JSON.
+        """
+        user_content = f"Analyze these headlines: {headlines}"
+        response_text = self._route_request(system_instruction, user_content, provider)
+        return self._clean_and_parse_json(response_text, default={"word_cloud": [], "narratives": []})
+
     # --- Internal Routing & API Calls ---
 
     def _route_request(self, system_prompt: str, user_content: str, provider: str = None) -> str:
@@ -167,3 +188,6 @@ def generate_visual_strategy(user_prompt: str):
 
 def generate_market_sentiment_summary(headlines: str, asset: str):
     return ai_service.generate_market_sentiment_summary(headlines, asset)
+
+def generate_market_narratives(headlines: str):
+    return ai_service.generate_market_narratives(headlines)
