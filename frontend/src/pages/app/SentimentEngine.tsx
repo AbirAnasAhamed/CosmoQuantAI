@@ -63,20 +63,100 @@ const AnimatedNumber = ({ value, prefix = '', suffix = '', className = '' }: any
 };
 
 const SentimentOrb = ({ score, momentum, volume }: any) => {
-    const mood = score > 0 ? "Bullish" : score < 0 ? "Bearish" : "Neutral";
-    const color = score > 0 ? "text-green-500" : score < 0 ? "text-red-500" : "text-gray-500";
+    // Determine State (Bullish/Bearish/Neutral)
+    const mood = score > 0.2 ? "Bullish" : score < -0.2 ? "Bearish" : "Neutral";
 
-    // Fallback display if volume/momentum is 0
-    const displayMomentum = momentum === 0 ? "Stable" : momentum.toFixed(2);
-    const displayVolume = volume === 0 ? "Low" : volume;
+    // Color Palettes
+    const colors = {
+        Bullish: {
+            text: "text-emerald-500",
+            bg: "bg-emerald-500",
+            border: "border-emerald-500",
+            shadow: "shadow-emerald-500/50",
+            gradient: "from-emerald-500 to-teal-400"
+        },
+        Bearish: {
+            text: "text-rose-500",
+            bg: "bg-rose-500",
+            border: "border-rose-500",
+            shadow: "shadow-rose-500/50",
+            gradient: "from-rose-500 to-red-600"
+        },
+        Neutral: {
+            text: "text-blue-400",
+            bg: "bg-blue-400",
+            border: "border-blue-400",
+            shadow: "shadow-blue-500/50",
+            gradient: "from-blue-400 to-indigo-500"
+        }
+    };
+
+    const activeTheme = colors[mood as keyof typeof colors];
+    const rotationSpeed = Math.max(2, 10 - Math.abs(momentum)); // Momentum high = Fast spin
 
     return (
-        <div className="flex flex-col items-center justify-center h-full">
-            <div className={`text-4xl font-bold ${color} mb-2`}>{mood}</div>
-            <div className="text-sm text-gray-500 font-mono">Score: {score.toFixed(2)}</div>
-            <div className="flex gap-4 mt-2 text-xs text-gray-400">
-                <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">Mom: {displayMomentum}</span>
-                <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">Vol: {displayVolume}</span>
+        <div className="relative w-full h-full flex flex-col items-center justify-center overflow-hidden bg-slate-50 dark:bg-slate-900">
+            {/* Background Mesh Grid Animation */}
+            <div className="absolute inset-0 opacity-10"
+                style={{
+                    backgroundImage: 'radial-gradient(circle at 2px 2px, gray 1px, transparent 0)',
+                    backgroundSize: '20px 20px'
+                }}>
+            </div>
+
+            {/* Main Reactor Core */}
+            <div className="relative flex items-center justify-center w-40 h-40">
+
+                {/* Outer Rotating Ring (Momentum Indicator) */}
+                <div className={`absolute w-full h-full rounded-full border-2 border-dashed ${activeTheme.border} opacity-30 animate-spin-slow`}
+                    style={{ animationDuration: `${rotationSpeed}s` }}>
+                </div>
+
+                {/* Middle Pulsing Ring */}
+                <div className={`absolute w-32 h-32 rounded-full border-4 ${activeTheme.border} opacity-20 animate-ping`}></div>
+
+                {/* Inner Glowing Core */}
+                <div className={`relative w-28 h-28 rounded-full bg-gradient-to-br ${activeTheme.gradient} opacity-10 flex items-center justify-center backdrop-blur-md border border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.3)] ${activeTheme.shadow}`}>
+
+                    {/* Glass Reflection */}
+                    <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/20 to-transparent rounded-t-full"></div>
+
+                    {/* Score Text */}
+                    <div className="flex flex-col items-center z-10">
+                        <span className={`text-3xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-white/70 drop-shadow-sm`}>
+                            {score.toFixed(2)}
+                        </span>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-white/60 mt-1">
+                            Score
+                        </span>
+                    </div>
+                </div>
+
+                {/* Orbiting Particles */}
+                <div className="absolute w-full h-full animate-spin-reverse" style={{ animationDuration: '15s' }}>
+                    <div className={`absolute top-0 left-1/2 w-2 h-2 ${activeTheme.bg} rounded-full blur-[1px] shadow-lg`}></div>
+                </div>
+            </div>
+
+            {/* Status Panel */}
+            <div className="mt-6 flex flex-col items-center gap-2 z-10">
+                <h3 className={`text-xl font-bold uppercase tracking-widest ${activeTheme.text} drop-shadow-sm`}>
+                    {mood}
+                </h3>
+
+                <div className="flex items-center gap-4 text-xs font-mono">
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-200/50 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700">
+                        <span className={`w-1.5 h-1.5 rounded-full ${activeTheme.bg} animate-pulse`}></span>
+                        <span className="text-slate-600 dark:text-slate-400">MOM:</span>
+                        <span className="font-bold text-slate-800 dark:text-white">{momentum.toFixed(2)}</span>
+                    </div>
+
+                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-200/50 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700">
+                        <svg className={`w-3 h-3 ${activeTheme.text}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                        <span className="text-slate-600 dark:text-slate-400">VOL:</span>
+                        <span className="font-bold text-slate-800 dark:text-white">{volume}</span>
+                    </div>
+                </div>
             </div>
         </div>
     );
@@ -756,16 +836,27 @@ const SentimentEngine: React.FC = () => {
             </div>
 
             <div className="mt-8">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white">Live Data Stream</h3>
-                    <div className="flex gap-2">
+                <div className="flex justify-between items-center mb-6">
+                    <div className="flex items-center gap-3">
+                        <div className="relative">
+                            <div className="absolute inset-0 bg-blue-500 blur-lg opacity-20 animate-pulse"></div>
+                            <h3 className="relative text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-slate-900 to-slate-600 dark:from-white dark:to-slate-400">
+                                📡 Neural Data Stream
+                            </h3>
+                        </div>
+                        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-blue-500/10 text-blue-500 border border-blue-500/20">
+                            LIVE
+                        </span>
+                    </div>
+
+                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
                         {(['All', 'Positive', 'Negative', 'Neutral'] as const).map(filter => (
                             <button
                                 key={filter}
                                 onClick={() => setActiveFilter(filter)}
-                                className={`px-3 py-1 text-xs font-bold uppercase rounded-full transition-colors border ${activeFilter === filter
-                                    ? 'bg-brand-primary text-white border-brand-primary'
-                                    : 'bg-transparent text-gray-500 border-gray-300 dark:border-gray-700 hover:border-brand-primary'
+                                className={`px-4 py-1.5 text-xs font-bold uppercase rounded-md transition-all duration-300 ${activeFilter === filter
+                                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm scale-105'
+                                    : 'text-gray-500 hover:text-slate-700 dark:hover:text-slate-300'
                                     }`}
                             >
                                 {filter}
@@ -774,10 +865,18 @@ const SentimentEngine: React.FC = () => {
                     </div>
                 </div>
 
-                <div className="space-y-3">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                     {filteredSources.map((source, index) => {
                         const isNew = source.id === newSourceId;
-                        const borderColor = source.sentiment === 'Positive' ? 'border-l-emerald-500' : source.sentiment === 'Negative' ? 'border-l-rose-500' : 'border-l-gray-400';
+
+                        // Dynamic Styling based on Sentiment
+                        const moodColor = source.sentiment === 'Positive' ? 'emerald' :
+                            source.sentiment === 'Negative' ? 'rose' : 'slate';
+
+                        const moodGradient = source.sentiment === 'Positive' ? 'from-emerald-500/20 to-transparent' :
+                            source.sentiment === 'Negative' ? 'from-rose-500/20 to-transparent' :
+                                'from-slate-500/20 to-transparent';
+
                         const Wrapper = source.url ? 'a' : 'div';
                         const wrapperProps = source.url ? { href: source.url, target: '_blank', rel: 'noopener noreferrer' } : {};
 
@@ -785,33 +884,70 @@ const SentimentEngine: React.FC = () => {
                             <Wrapper
                                 key={`${source.id}-${index}`}
                                 {...wrapperProps}
-                                className={`block relative bg-white dark:bg-brand-dark border border-gray-100 dark:border-brand-border-dark rounded-lg p-4 pl-5 border-l-4 shadow-sm hover:shadow-md transition-all duration-500 ${borderColor} ${isNew ? 'animate-fade-in-right bg-blue-50/50 dark:bg-blue-900/10' : ''} ${source.url ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800' : ''}`}
+                                className={`group relative overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 backdrop-blur-sm p-5 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:border-${moodColor}-500/30 ${isNew ? 'animate-pulse ring-2 ring-blue-500/50' : ''}`}
                             >
-                                <div className="flex justify-between items-start">
+                                {/* Glowing Background Gradient */}
+                                <div className={`absolute inset-0 bg-gradient-to-br ${moodGradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`}></div>
+
+                                <div className="relative z-10 flex flex-col h-full justify-between">
                                     <div>
-                                        <div className="flex items-center gap-2 mb-1">
-                                            {source.source.includes('Reddit') || source.source.includes('r/') ? (
-                                                <span className="text-[10px] bg-orange-500/10 text-orange-500 px-1.5 py-0.5 rounded border border-orange-500/20">REDDIT</span>
-                                            ) : (
-                                                <span className="text-[10px] bg-blue-500/10 text-blue-500 px-1.5 py-0.5 rounded border border-blue-500/20">NEWS</span>
-                                            )}
-                                            <span className="text-xs font-bold uppercase tracking-wider text-gray-400">{source.source}</span>
-                                            <span className="text-gray-300">•</span>
-                                            <span className="text-xs text-gray-500 font-mono">{source.timestamp}</span>
+                                        <div className="flex justify-between items-start mb-3">
+                                            {/* Source Badge */}
+                                            <div className="flex items-center gap-2">
+                                                {source.source.includes('Reddit') ? (
+                                                    <div className="w-6 h-6 rounded-full bg-[#FF4500]/10 flex items-center justify-center text-[#FF4500]">
+                                                        <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.561 12 8 12.562 8 13.25c0 .687.561 1.248 1.25 1.248.687 0 1.248-.561 1.248-1.249 0-.688-.561-1.249-1.249-1.249zm5.5 0c-.687 0-1.248.561-1.248 1.25 0 .687.561 1.248 1.249 1.248.688 0 1.249-.561 1.249-1.249 0-.687-.562-1.249-1.25-1.249zm-5.466 3.99a.327.327 0 0 0-.231.094.33.33 0 0 0 0 .463c.842.842 2.484.913 2.961.913.477 0 2.105-.056 2.961-.913a.361.361 0 0 0 .029-.463.33.33 0 0 0-.464 0c-.547.533-1.684.73-2.512.73-.828 0-1.979-.196-2.512-.73a.326.326 0 0 0-.232-.095z" /></svg>
+                                                    </div>
+                                                ) : source.source.includes('Google') ? (
+                                                    <div className="w-6 h-6 rounded-full bg-blue-500/10 flex items-center justify-center text-blue-500 font-bold text-xs border border-blue-500/20">G</div>
+                                                ) : (
+                                                    <div className="w-6 h-6 rounded-full bg-purple-500/10 flex items-center justify-center text-purple-500">
+                                                        <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" /></svg>
+                                                    </div>
+                                                )}
+                                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                                                    {source.source}
+                                                </span>
+                                            </div>
+
+                                            {/* Sentiment Pill */}
+                                            <span className={`px-2 py-1 rounded-full text-[10px] font-bold uppercase border shadow-sm ${source.sentiment === 'Positive' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20' :
+                                                source.sentiment === 'Negative' ? 'bg-rose-500/10 text-rose-600 dark:text-rose-400 border-rose-500/20' :
+                                                    'bg-slate-500/10 text-slate-600 dark:text-slate-400 border-slate-500/20'
+                                                }`}>
+                                                {source.sentiment}
+                                            </span>
                                         </div>
-                                        <p className="text-slate-800 dark:text-slate-200 font-medium">{source.content}</p>
+
+                                        <p className="text-sm font-medium text-slate-700 dark:text-slate-200 leading-relaxed line-clamp-3 mb-4 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">
+                                            {source.content}
+                                        </p>
                                     </div>
-                                    <span className={`text-xs font-bold px-2 py-1 rounded uppercase ${source.sentiment === 'Positive' ? 'bg-emerald-500/10 text-emerald-500' :
-                                        source.sentiment === 'Negative' ? 'bg-rose-500/10 text-rose-500' :
-                                            'bg-gray-500/10 text-gray-500'
-                                        }`}>
-                                        {source.sentiment}
-                                    </span>
+
+                                    {/* Footer Metadata */}
+                                    <div className="flex items-center justify-between border-t border-gray-100 dark:border-slate-800 pt-3 mt-2">
+                                        <div className="flex items-center gap-2 text-[10px] text-gray-400 font-mono">
+                                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                                            {source.timestamp}
+                                        </div>
+                                        {source.url && (
+                                            <div className="opacity-0 group-hover:opacity-100 transition-opacity text-blue-500 text-xs flex items-center gap-1 font-bold">
+                                                Read <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             </Wrapper>
                         );
                     })}
                 </div>
+
+                {filteredSources.length === 0 && (
+                    <div className="flex flex-col items-center justify-center py-20 text-gray-400 opacity-50">
+                        <svg className="w-16 h-16 mb-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                        <p>No signal data available for this filter.</p>
+                    </div>
+                )}
             </div>
         </div>
     );
