@@ -1,45 +1,32 @@
-import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '@/services/client';
 import {
     ResponsiveContainer, PieChart, Pie, Cell, ComposedChart, Line, Area,
-    XAxis, YAxis, CartesianGrid, Tooltip, Legend, Bar, Treemap
-} from 'recharts'; // ✅ Treemap import করা হয়েছে
-import { generateNewSentimentSource } from '@/constants';
+    XAxis, YAxis, CartesianGrid, Tooltip, Bar, Treemap
+} from 'recharts';
 import { useTheme } from '@/context/ThemeContext';
 import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
-import type { SentimentSource, SentimentLabel, SentimentHeatmapItem } from '@/types'; // ✅ Heatmap Type import
+import type { SentimentSource, SentimentLabel, SentimentHeatmapItem } from '@/types';
 import { useToast } from '@/context/ToastContext';
 import { Loader2, RefreshCw, Maximize2 } from 'lucide-react';
 
 const pairs = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'];
 const PIE_COLORS = { 'Positive': '#10B981', 'Negative': '#F43F5E', 'Neutral': '#64748B' };
 
-// ... [AnimatedNumber, SentimentOrb, FearGreedFlux কম্পোনেন্টগুলো অপরিবর্তিত থাকবে] ...
-// (আমি কোড ছোট করার জন্য রিপিট করছি না, আগেরগুলোই রাখো)
-// AnimatedNumber...
-// SentimentOrb...
-// FearGreedFlux...
+// --- Sub Components ---
 
-// ✅ NEW: Heatmap Cell Custom Component
-// ✅ FIXED: Safely handle missing sentimentScore
 const HeatmapContent = (props: any) => {
     const { x, y, width, height, name, sentimentScore } = props;
-
-    // Safety check: Ensure score is a number. Recharts sometimes passes partial nodes.
     const score = typeof sentimentScore === 'number' ? sentimentScore : 0;
 
-    // Prevent rendering tiny invalid boxes
     if (!width || !height || width < 0 || height < 0) return null;
 
-    // Color Logic: Positive (Green) -> Negative (Red)
-    let backgroundColor = '#64748B'; // Neutral
-    if (score > 0.5) backgroundColor = '#059669'; // Dark Green
-    else if (score > 0.2) backgroundColor = '#10B981'; // Green
-    else if (score < -0.5) backgroundColor = '#E11D48'; // Dark Red
-    else if (score < -0.2) backgroundColor = '#F43F5E'; // Red
-
-    const textColor = '#FFFFFF';
+    let backgroundColor = '#64748B';
+    if (score > 0.5) backgroundColor = '#059669';
+    else if (score > 0.2) backgroundColor = '#10B981';
+    else if (score < -0.5) backgroundColor = '#E11D48';
+    else if (score < -0.2) backgroundColor = '#F43F5E';
 
     return (
         <g>
@@ -58,9 +45,9 @@ const HeatmapContent = (props: any) => {
             {width > 40 && height > 30 && (
                 <foreignObject x={x} y={y} width={width} height={height}>
                     <div className="flex flex-col items-center justify-center h-full overflow-hidden p-1 text-center pointer-events-none">
-                        <span className="font-bold text-xs truncate w-full px-1" style={{ color: textColor }}>{name}</span>
+                        <span className="font-bold text-xs truncate w-full px-1 text-white">{name}</span>
                         {height > 50 && (
-                            <span className="text-[10px] opacity-80" style={{ color: textColor }}>
+                            <span className="text-[10px] opacity-80 text-white">
                                 {score.toFixed(2)}
                             </span>
                         )}
@@ -68,6 +55,86 @@ const HeatmapContent = (props: any) => {
                 </foreignObject>
             )}
         </g>
+    );
+};
+
+const AnimatedNumber = ({ value, prefix = '', suffix = '', className = '' }: any) => {
+    return <span className={className}>{prefix}{typeof value === 'number' ? value.toFixed(2) : value}{suffix}</span>;
+};
+
+const SentimentOrb = ({ score, momentum, volume }: any) => {
+    const mood = score > 0 ? "Bullish" : score < 0 ? "Bearish" : "Neutral";
+    const color = score > 0 ? "text-green-500" : score < 0 ? "text-red-500" : "text-gray-500";
+
+    // Fallback display if volume/momentum is 0
+    const displayMomentum = momentum === 0 ? "Stable" : momentum.toFixed(2);
+    const displayVolume = volume === 0 ? "Low" : volume;
+
+    return (
+        <div className="flex flex-col items-center justify-center h-full">
+            <div className={`text-4xl font-bold ${color} mb-2`}>{mood}</div>
+            <div className="text-sm text-gray-500 font-mono">Score: {score.toFixed(2)}</div>
+            <div className="flex gap-4 mt-2 text-xs text-gray-400">
+                <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">Mom: {displayMomentum}</span>
+                <span className="bg-slate-100 dark:bg-slate-800 px-2 py-1 rounded">Vol: {displayVolume}</span>
+            </div>
+        </div>
+    );
+};
+
+// ✅ UPDATED: Colorful Gauge Design
+const FearGreedFlux = ({ score, classification }: any) => {
+    const rotation = (score / 100) * 180 - 90;
+
+    const getColor = (s: number) => {
+        if (s < 25) return '#ef4444';
+        if (s < 45) return '#f97316';
+        if (s < 55) return '#eab308';
+        if (s < 75) return '#84cc16';
+        return '#22c55e';
+    };
+    const currentColor = getColor(score);
+
+    return (
+        <div className="flex flex-col items-center justify-center h-full relative overflow-hidden p-2">
+            <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 absolute top-3">
+                Fear & Greed Index
+            </h4>
+            <div className="relative w-48 h-28 mt-4 flex items-center justify-center">
+                <svg viewBox="0 0 200 110" className="w-full h-full overflow-visible">
+                    <defs>
+                        <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                            <stop offset="0%" stopColor="#ef4444" />
+                            <stop offset="25%" stopColor="#f97316" />
+                            <stop offset="50%" stopColor="#eab308" />
+                            <stop offset="75%" stopColor="#84cc16" />
+                            <stop offset="100%" stopColor="#22c55e" />
+                        </linearGradient>
+                        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                            <feGaussianBlur stdDeviation="2" result="blur" />
+                            <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                        </filter>
+                    </defs>
+                    <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#334155" strokeWidth="12" strokeLinecap="round" className="opacity-20" />
+                    <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gaugeGradient)" strokeWidth="12" strokeLinecap="round" filter="url(#glow)" />
+                    <g style={{ transformOrigin: "100px 100px", transform: `rotate(${rotation}deg)`, transition: "transform 1s cubic-bezier(0.4, 0, 0.2, 1)" }}>
+                        <path d="M 100 100 L 100 25" stroke="#slate-800" strokeWidth="4" className="dark:stroke-white stroke-slate-800 drop-shadow-md" strokeLinecap="round" />
+                        <circle cx="100" cy="100" r="8" className="fill-slate-800 dark:fill-white" />
+                    </g>
+                </svg>
+                <div className="absolute bottom-6 left-0 right-0 text-center">
+                    <span className="text-3xl font-extrabold transition-colors duration-500 drop-shadow-sm" style={{ color: currentColor }}>
+                        {Math.round(score)}
+                    </span>
+                </div>
+            </div>
+            <div
+                className="mt-[-10px] text-xs font-bold px-3 py-1 rounded-full border bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm transition-colors duration-500"
+                style={{ color: currentColor, borderColor: currentColor }}
+            >
+                {classification}
+            </div>
+        </div>
     );
 };
 
@@ -84,22 +151,21 @@ const SentimentEngine: React.FC = () => {
     const [isSummaryLoading, setIsSummaryLoading] = useState(false);
     const [selectedProvider, setSelectedProvider] = useState('gemini');
 
-    // ✅ NEW: Heatmap State
+    // Heatmap State
     const [heatmapData, setHeatmapData] = useState<SentimentHeatmapItem[]>([]);
     const [isHeatmapLoading, setIsHeatmapLoading] = useState(false);
 
-    // Narrative States (Existing)
+    // Narrative States
     const [narratives, setNarratives] = useState<string[]>([]);
     const [wordCloud, setWordCloud] = useState<{ text: string; weight: number }[]>([]);
     const [isNarrativeLoading, setIsNarrativeLoading] = useState(false);
     const [hasNarrativesLoaded, setHasNarrativesLoaded] = useState(false);
-
     const [newSourceId, setNewSourceId] = useState<string | null>(null);
 
+    // Data Fetching
     useEffect(() => {
         const fetchData = async () => {
             try {
-                // ... Existing Data Calls ...
                 const newsResponse = await api.get('/v1/sentiment/news');
                 const rawNews = Array.isArray(newsResponse.data) ? newsResponse.data : [];
                 const formattedNews = rawNews.map((item: any) => ({
@@ -126,9 +192,7 @@ const SentimentEngine: React.FC = () => {
                     setChartData(chartResponse.data);
                 }
 
-                // ✅ Fetch Heatmap Data
                 fetchHeatmap();
-
             } catch (err) {
                 console.error("Failed to fetch live data", err);
             }
@@ -139,7 +203,6 @@ const SentimentEngine: React.FC = () => {
         return () => clearInterval(interval);
     }, [activePair]);
 
-    // ✅ Heatmap Fetch Function
     const fetchHeatmap = async () => {
         setIsHeatmapLoading(true);
         try {
@@ -152,8 +215,6 @@ const SentimentEngine: React.FC = () => {
         }
     };
 
-    // ... [handleGenerateSummary, handleGenerateNarratives, etc. existing functions] ...
-    // (Existing functions অপরিবর্তিত থাকবে)
     const handleGenerateSummary = useCallback(async () => {
         setIsSummaryLoading(true);
         setAiSummary('');
@@ -191,14 +252,14 @@ const SentimentEngine: React.FC = () => {
         }
     };
 
-    // Existing Calculations
+    // Metrics Calculation (Safe access)
     const { currentScore, currentMomentum, currentVolume } = useMemo(() => {
         if (chartData.length === 0) return { currentScore: 0, currentMomentum: 0, currentVolume: 0 };
         const lastPoint = chartData[chartData.length - 1];
         return {
             currentScore: lastPoint.score || 0,
-            currentMomentum: lastPoint.momentum || 0,
-            currentVolume: lastPoint.social_volume || 0
+            currentMomentum: lastPoint.momentum || 0, // Backend now ensures this is calculated
+            currentVolume: lastPoint.social_volume || 0 // Backend now ensures this is calculated
         };
     }, [chartData]);
 
@@ -211,106 +272,9 @@ const SentimentEngine: React.FC = () => {
     const gridColor = theme === 'dark' ? '#334155' : '#E2E8F0';
     const getSentimentColor = (sentiment: SentimentLabel) => PIE_COLORS[sentiment] || '#64748B';
 
-    // Helper components (to solve missing reference issues)
-    const AnimatedNumber = ({ value, prefix = '', suffix = '', className = '' }: any) => {
-        // Simple implementation for placeholder
-        return <span className={className}>{prefix}{typeof value === 'number' ? value.toFixed(2) : value}{suffix}</span>;
-    };
-
-    const SentimentOrb = ({ score, momentum, volume }: any) => {
-        // Simple placeholder implementation
-        const mood = score > 0 ? "Bullish" : score < 0 ? "Bearish" : "Neutral";
-        const color = score > 0 ? "text-green-500" : score < 0 ? "text-red-500" : "text-gray-500";
-        return (
-            <div className="flex flex-col items-center justify-center h-full">
-                <div className={`text-4xl font-bold ${color}`}>{mood}</div>
-                <div className="text-sm text-gray-500">Score: {score.toFixed(2)}</div>
-                <div className="text-xs text-gray-400">Momentum: {momentum.toFixed(2)} | Volume: {volume}</div>
-            </div>
-        );
-    };
-
-    const FearGreedFlux = ({ score, classification }: any) => {
-        // Score range: 0 (Extreme Fear) to 100 (Extreme Greed)
-        // Rotation calculation: 0 = -90deg, 100 = 90deg
-        const rotation = (score / 100) * 180 - 90;
-
-        // Determine color based on score
-        const getColor = (s: number) => {
-            if (s < 25) return '#ef4444'; // Extreme Fear (Red)
-            if (s < 45) return '#f97316'; // Fear (Orange)
-            if (s < 55) return '#eab308'; // Neutral (Yellow)
-            if (s < 75) return '#84cc16'; // Greed (Light Green)
-            return '#22c55e'; // Extreme Greed (Green)
-        };
-
-        const currentColor = getColor(score);
-
-        return (
-            <div className="flex flex-col items-center justify-center h-full relative overflow-hidden p-2">
-                {/* Title */}
-                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 absolute top-3">
-                    Fear & Greed Index
-                </h4>
-
-                <div className="relative w-48 h-28 mt-4 flex items-center justify-center">
-                    {/* SVG Gauge */}
-                    <svg viewBox="0 0 200 110" className="w-full h-full overflow-visible">
-                        <defs>
-                            {/* Gradient color: Red to Green */}
-                            <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                                <stop offset="0%" stopColor="#ef4444" /> {/* Red */}
-                                <stop offset="25%" stopColor="#f97316" /> {/* Orange */}
-                                <stop offset="50%" stopColor="#eab308" /> {/* Yellow */}
-                                <stop offset="75%" stopColor="#84cc16" /> {/* Lime */}
-                                <stop offset="100%" stopColor="#22c55e" /> {/* Green */}
-                            </linearGradient>
-                            {/* Slight glow effect */}
-                            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                                <feGaussianBlur stdDeviation="2" result="blur" />
-                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
-                            </filter>
-                        </defs>
-
-                        {/* Background track (Gray line) */}
-                        <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#334155" strokeWidth="12" strokeLinecap="round" className="opacity-20" />
-
-                        {/* Colorful track (Gradient) */}
-                        <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gaugeGradient)" strokeWidth="12" strokeLinecap="round" filter="url(#glow)" />
-
-                        {/* Needle */}
-                        <g style={{ transformOrigin: "100px 100px", transform: `rotate(${rotation}deg)`, transition: "transform 1s cubic-bezier(0.4, 0, 0.2, 1)" }}>
-                            {/* The needle itself */}
-                            <path d="M 100 100 L 100 25" stroke="#slate-800" strokeWidth="4" className="dark:stroke-white stroke-slate-800 drop-shadow-md" strokeLinecap="round" />
-                            {/* Central pivot circle */}
-                            <circle cx="100" cy="100" r="8" className="fill-slate-800 dark:fill-white" />
-                        </g>
-                    </svg>
-
-                    {/* Score number in the center */}
-                    <div className="absolute bottom-6 left-0 right-0 text-center">
-                        <span className="text-3xl font-extrabold transition-colors duration-500 drop-shadow-sm" style={{ color: currentColor }}>
-                            {Math.round(score)}
-                        </span>
-                    </div>
-                </div>
-
-                {/* Classification text (e.g., Extreme Fear) */}
-                <div
-                    className="mt-[-10px] text-xs font-bold px-3 py-1 rounded-full border bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm transition-colors duration-500"
-                    style={{ color: currentColor, borderColor: currentColor }}
-                >
-                    {classification}
-                </div>
-            </div>
-        );
-    };
-
     return (
         <div className="space-y-8 animate-fade-in-slide-up">
-            {/* Header (Existing) */}
             <Card className="!p-4 flex flex-wrap items-center justify-between gap-4">
-                {/* ... Existing Header Code ... */}
                 <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-brand-primary/10 flex items-center justify-center text-brand-primary animate-pulse">
                         <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
@@ -337,9 +301,7 @@ const SentimentEngine: React.FC = () => {
                 </div>
             </Card>
 
-            {/* Intelligence Dashboard (Existing Metrics + Chart) */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* Left Column: Metrics */}
                 <div className="lg:col-span-1 space-y-6">
                     <Card className="h-64 !p-0 overflow-hidden relative">
                         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
@@ -350,15 +312,12 @@ const SentimentEngine: React.FC = () => {
                     </Card>
                 </div>
 
-                {/* Center Column: Main Chart */}
                 <Card className="lg:col-span-2 flex flex-col h-[500px]">
-                    {/* ... Existing Chart Code ... */}
                     <div className="flex justify-between items-center mb-6">
                         <div>
                             <h3 className="text-lg font-bold text-slate-900 dark:text-white">Sentiment vs Price Correlation</h3>
                             <p className="text-xs text-gray-500">Dual-axis analysis of market sentiment and price action.</p>
                         </div>
-                        {/* Legend */}
                         <div className="flex gap-4 text-xs font-mono">
                             <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full bg-brand-primary"></div> Sentiment
@@ -371,7 +330,6 @@ const SentimentEngine: React.FC = () => {
                             </div>
                         </div>
                     </div>
-                    {/* Added min-h and explicit style to ensure ResponsiveContainer works */}
                     <div className="flex-grow w-full h-full min-h-[300px]" style={{ position: 'relative', width: '100%', height: '100%' }}>
                         <ResponsiveContainer width="100%" height="100%">
                             <ComposedChart data={combinedData}>
@@ -402,7 +360,6 @@ const SentimentEngine: React.FC = () => {
                 </Card>
             </div>
 
-            {/* ✅ NEW: Crypto Sentiment Heatmap Section */}
             <Card className="min-h-[400px] flex flex-col">
                 <div className="flex justify-between items-center mb-4">
                     <div className="flex items-center gap-2">
@@ -419,7 +376,6 @@ const SentimentEngine: React.FC = () => {
                     </Button>
                 </div>
 
-                {/* ✅ FIXED: Explicit dimensions for Heatmap container */}
                 <div className="flex-grow w-full h-[350px] min-h-[350px] bg-slate-50 dark:bg-slate-900/50 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 relative">
                     {isHeatmapLoading && heatmapData.length === 0 ? (
                         <div className="flex items-center justify-center h-full text-gray-400">
@@ -468,29 +424,16 @@ const SentimentEngine: React.FC = () => {
                     )}
                 </div>
 
-                {/* Heatmap Legend */}
                 <div className="flex items-center justify-center gap-4 mt-4 text-xs font-mono text-gray-500">
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-[#E11D48] rounded"></div> Extreme Bearish
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-[#F43F5E] rounded"></div> Bearish
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-[#64748B] rounded"></div> Neutral
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-[#10B981] rounded"></div> Bullish
-                    </div>
-                    <div className="flex items-center gap-2">
-                        <div className="w-3 h-3 bg-[#059669] rounded"></div> Extreme Bullish
-                    </div>
+                    <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#E11D48] rounded"></div> Extreme Bearish</div>
+                    <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#F43F5E] rounded"></div> Bearish</div>
+                    <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#64748B] rounded"></div> Neutral</div>
+                    <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#10B981] rounded"></div> Bullish</div>
+                    <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#059669] rounded"></div> Extreme Bullish</div>
                 </div>
             </Card>
 
-            {/* --- Narrative Layer (Existing) --- */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                {/* ... Narrative Cloud Code ... */}
                 <Card className="lg:col-span-2 relative overflow-hidden min-h-[250px] flex flex-col">
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
 
@@ -556,7 +499,6 @@ const SentimentEngine: React.FC = () => {
                     )}
                 </Card>
 
-                {/* Trending Narratives List (Existing) */}
                 <Card className="lg:col-span-1 bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 border-l-4 border-l-purple-500">
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">🔥 Top Narratives</h3>
 
@@ -586,9 +528,7 @@ const SentimentEngine: React.FC = () => {
                 </Card>
             </div>
 
-            {/* Stats & AI Unit (Existing) */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* ... Existing Source Breakdown Code ... */}
                 <Card className="flex flex-col">
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">Signal Sources</h3>
                     <div className="flex items-center justify-between h-full">
@@ -632,7 +572,6 @@ const SentimentEngine: React.FC = () => {
                     </div>
                 </Card>
 
-                {/* ... Existing AI Intelligence Unit Code ... */}
                 <Card className="flex flex-col bg-slate-900 border-slate-800 relative overflow-hidden">
                     <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-0 pointer-events-none bg-[length:100%_2px,3px_100%]"></div>
 
@@ -686,7 +625,6 @@ const SentimentEngine: React.FC = () => {
                 </Card>
             </div>
 
-            {/* Live Feed (Existing) */}
             <div className="mt-8">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white">Live Data Stream</h3>
