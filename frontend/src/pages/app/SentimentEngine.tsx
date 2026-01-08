@@ -7,6 +7,7 @@ import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
 import type { SentimentSource, SentimentLabel } from '@/types';
 import { useToast } from '@/context/ToastContext';
+import { Loader2, RefreshCw } from 'lucide-react';
 
 const pairs = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'];
 const PIE_COLORS = { 'Positive': '#10B981', 'Negative': '#F43F5E', 'Neutral': '#64748B' };
@@ -172,6 +173,7 @@ const SentimentEngine: React.FC = () => {
     const [narratives, setNarratives] = useState<string[]>([]);
     const [wordCloud, setWordCloud] = useState<{ text: string; weight: number }[]>([]);
     const [isNarrativeLoading, setIsNarrativeLoading] = useState(false);
+    const [hasNarrativesLoaded, setHasNarrativesLoaded] = useState(false);
 
     useEffect(() => {
         const fetchData = async () => {
@@ -209,7 +211,7 @@ const SentimentEngine: React.FC = () => {
                 }
 
                 // 4. Fetch Narratives & Word Cloud (AI Generated)
-                fetchNarratives();
+                // fetchNarratives(); -> Removed for manual trigger
 
             } catch (err) {
                 console.error("Failed to fetch live data", err);
@@ -240,16 +242,19 @@ const SentimentEngine: React.FC = () => {
         }
     }, [sentimentSources, activePair, selectedProvider, showToast]);
 
-    const fetchNarratives = async () => {
+    const handleGenerateNarratives = async () => {
         setIsNarrativeLoading(true);
         try {
             const res = await api.get('/v1/sentiment/narratives');
             if (res.data) {
                 setNarratives(res.data.narratives || []);
                 setWordCloud(res.data.word_cloud || []);
+                setHasNarrativesLoaded(true);
+                showToast('Market Narratives Generated Successfully!', 'success');
             }
         } catch (error) {
             console.error("Failed to fetch narratives", error);
+            showToast('Failed to generate narratives.', 'error');
         } finally {
             setIsNarrativeLoading(false);
         }
@@ -374,23 +379,52 @@ const SentimentEngine: React.FC = () => {
             {/* --- Narrative Layer (New Feature) --- */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Word Cloud Section */}
-                <Card className="lg:col-span-2 relative overflow-hidden min-h-[250px] flex flex-col justify-center">
+                <Card className="lg:col-span-2 relative overflow-hidden min-h-[250px] flex flex-col">
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
-                    <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                        <span className="p-1 bg-blue-100 dark:bg-blue-900 rounded text-blue-500">
-                            ☁️
-                        </span>
-                        Market Mindshare (Word Cloud)
-                    </h3>
 
-                    {isNarrativeLoading ? (
-                        <div className="flex items-center justify-center h-40 text-gray-400 animate-pulse">
-                            Generating AI Word Matrix...
+                    <div className="flex justify-between items-center mb-4">
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                            <span className="p-1 bg-blue-100 dark:bg-blue-900 rounded text-blue-500">☁️</span>
+                            Market Mindshare (Narrative Cloud)
+                        </h3>
+
+                        {/* ✅ Manual Trigger Button */}
+                        <Button
+                            onClick={handleGenerateNarratives}
+                            disabled={isNarrativeLoading}
+                            variant="primary"
+                            size="sm"
+                            className="flex items-center gap-2"
+                        >
+                            {isNarrativeLoading ? (
+                                <>
+                                    <span className="animate-spin">⏳</span> Detecting...
+                                </>
+                            ) : (
+                                <>
+                                    <span>⚡</span> Generate Narratives
+                                </>
+                            )}
+                        </Button>
+                    </div>
+
+                    {/* Content Display */}
+                    {!hasNarrativesLoaded && !isNarrativeLoading ? (
+                        <div className="flex flex-col items-center justify-center flex-grow text-center text-gray-500 p-8 opacity-70">
+                            <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-full mb-3">
+                                <span className="text-4xl">🧠</span>
+                            </div>
+                            <p className="font-medium">AI Narrative Engine is Ready</p>
+                            <p className="text-xs max-w-xs mt-1">Click "Generate Narratives" to analyze millions of data points and detect emerging trends.</p>
+                        </div>
+                    ) : isNarrativeLoading ? (
+                        <div className="flex flex-col items-center justify-center h-40 text-gray-400 animate-pulse">
+                            <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-3"></div>
+                            Analyzing Global Sentiment Data...
                         </div>
                     ) : (
-                        <div className="flex flex-wrap items-center justify-center gap-4 p-4">
+                        <div className="flex flex-wrap items-center justify-center gap-4 p-4 animate-fade-in-up">
                             {wordCloud.map((word, i) => {
-                                // Dynamic styling based on weight
                                 const fontSize = Math.max(0.8, word.weight / 20) + 'rem';
                                 const opacity = Math.max(0.5, word.weight / 100);
                                 const colorClass = word.weight > 80 ? 'text-brand-primary font-bold' :
@@ -416,12 +450,16 @@ const SentimentEngine: React.FC = () => {
                 <Card className="lg:col-span-1 bg-gradient-to-br from-slate-50 to-white dark:from-slate-900 dark:to-slate-800 border-l-4 border-l-purple-500">
                     <h3 className="text-lg font-bold text-slate-900 dark:text-white mb-4">🔥 Top Narratives</h3>
 
-                    {isNarrativeLoading ? (
+                    {!hasNarrativesLoaded && !isNarrativeLoading ? (
+                        <div className="flex items-center justify-center h-full text-gray-400 text-sm italic">
+                            Waiting for analysis...
+                        </div>
+                    ) : isNarrativeLoading ? (
                         <div className="space-y-3">
                             {[1, 2, 3].map(i => <div key={i} className="h-16 bg-gray-200 dark:bg-gray-700 rounded animate-pulse"></div>)}
                         </div>
                     ) : (
-                        <div className="space-y-4">
+                        <div className="space-y-4 animate-fade-in-right">
                             {narratives.map((narrative, index) => (
                                 <div key={index} className="flex gap-3 items-start group">
                                     <div className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 flex items-center justify-center font-bold text-xs border border-purple-200 dark:border-purple-800 mt-0.5">
