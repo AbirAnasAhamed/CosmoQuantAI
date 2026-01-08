@@ -82,8 +82,35 @@ const SentimentOrb = ({ score, momentum, volume }: any) => {
     );
 };
 
-// ✅ UPDATED: Colorful Gauge Design
+// ✅ UPDATED: Colorful Gauge Design with Countdown Timer
 const FearGreedFlux = ({ score, classification }: any) => {
+    const [timeLeft, setTimeLeft] = useState<string>('--h --m');
+
+    // Countdown logic for next UTC Midnight (00:00 UTC)
+    useEffect(() => {
+        const updateTimer = () => {
+            const now = new Date();
+            const nextUpdate = new Date();
+
+            // Set target to next UTC midnight
+            nextUpdate.setUTCHours(24, 0, 0, 0);
+
+            const diff = nextUpdate.getTime() - now.getTime();
+
+            if (diff > 0) {
+                const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+                const minutes = Math.floor((diff / (1000 * 60)) % 60);
+                setTimeLeft(`${hours}h ${minutes}m`);
+            } else {
+                setTimeLeft('Updating...');
+            }
+        };
+
+        updateTimer();
+        const interval = setInterval(updateTimer, 60000); // Update every minute
+        return () => clearInterval(interval);
+    }, []);
+
     const rotation = (score / 100) * 180 - 90;
 
     const getColor = (s: number) => {
@@ -97,10 +124,17 @@ const FearGreedFlux = ({ score, classification }: any) => {
 
     return (
         <div className="flex flex-col items-center justify-center h-full relative overflow-hidden p-2">
-            <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 absolute top-3">
-                Fear & Greed Index
-            </h4>
-            <div className="relative w-48 h-28 mt-4 flex items-center justify-center">
+            <div className="absolute top-3 flex flex-col items-center">
+                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">
+                    Fear & Greed Index
+                </h4>
+                {/* Daily Tag Added Here */}
+                <span className="text-[9px] bg-slate-200 dark:bg-slate-800 text-gray-500 px-1.5 rounded border border-gray-300 dark:border-gray-700">
+                    Daily Interval
+                </span>
+            </div>
+
+            <div className="relative w-48 h-28 mt-6 flex items-center justify-center">
                 <svg viewBox="0 0 200 110" className="w-full h-full overflow-visible">
                     <defs>
                         <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -128,11 +162,23 @@ const FearGreedFlux = ({ score, classification }: any) => {
                     </span>
                 </div>
             </div>
-            <div
-                className="mt-[-10px] text-xs font-bold px-3 py-1 rounded-full border bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm transition-colors duration-500"
-                style={{ color: currentColor, borderColor: currentColor }}
-            >
-                {classification}
+
+            <div className="flex flex-col items-center mt-[-10px] gap-2">
+                <div
+                    className="text-xs font-bold px-3 py-1 rounded-full border bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm transition-colors duration-500"
+                    style={{ color: currentColor, borderColor: currentColor }}
+                >
+                    {classification}
+                </div>
+
+                {/* Timer Added Here */}
+                <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-mono bg-gray-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-full">
+                    <span className="relative flex h-1.5 w-1.5">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500"></span>
+                    </span>
+                    Next Update: {timeLeft}
+                </div>
             </div>
         </div>
     );
@@ -190,6 +236,7 @@ const SentimentEngine: React.FC = () => {
                 const chartResponse = await api.get('/v1/sentiment/correlation', {
                     params: { symbol: activePair, timeframe: '1h', days: 7 }
                 });
+                console.log("API Response Data:", chartResponse.data); // <--- এই লাইনটি যোগ করো
                 if (Array.isArray(chartResponse.data)) {
                     setChartData(chartResponse.data);
 

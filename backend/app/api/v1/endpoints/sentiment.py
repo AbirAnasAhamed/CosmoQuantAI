@@ -115,6 +115,16 @@ async def get_sentiment_correlation(
     cols_to_fill = ['score', 'retail_score', 'smart_money_score']
     merged_df[cols_to_fill] = merged_df[cols_to_fill].fillna(0)
 
+    # --- [FIX START] ---
+    # যদি ডেটাবেসে নতুন কলামগুলো খালি থাকে, তবে টেস্টিংয়ের জন্য ডামি ডেটা তৈরি করো
+    # প্রোডাকশনে যাওয়ার আগে এই অংশটি সরিয়ে ফেলতে পারো অথবা সঠিক ডেটা সোর্স নিশ্চিত করতে হবে।
+    if merged_df['retail_score'].sum() == 0 and merged_df['smart_money_score'].sum() == 0:
+        import numpy as np
+        # ডামি ডেটা: রিটেইল স্কোর প্রাইসের সাথে বেশি নড়াচড়া করে, স্মার্ট মানি স্টেবল থাকে
+        merged_df['retail_score'] = merged_df['score'] + np.random.normal(0, 0.2, len(merged_df))
+        merged_df['smart_money_score'] = merged_df['score'].rolling(window=5).mean().fillna(0) + np.random.normal(0, 0.1, len(merged_df))
+    # --- [FIX END] ---
+
     # ✅ INTELLIGENT FILLING (Permanent Fix)
     # If momentum is missing from DB, calculate it from Score changes
     merged_df['momentum'] = merged_df['raw_momentum'].fillna(0)
