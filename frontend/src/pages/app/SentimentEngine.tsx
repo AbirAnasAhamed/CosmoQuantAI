@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import api from '@/services/client';
 import {
     ResponsiveContainer, PieChart, Pie, Cell, ComposedChart, Line, Area,
-    XAxis, YAxis, CartesianGrid, Tooltip, Bar, Treemap
+    XAxis, YAxis, CartesianGrid, Tooltip, Bar, Treemap, Legend
 } from 'recharts';
 import { useTheme } from '@/context/ThemeContext';
 import Card from '@/components/common/Card';
@@ -150,6 +150,8 @@ const SentimentEngine: React.FC = () => {
     const [aiSummary, setAiSummary] = useState('');
     const [isSummaryLoading, setIsSummaryLoading] = useState(false);
     const [selectedProvider, setSelectedProvider] = useState('gemini');
+    // Correlation Coefficient
+    const [correlation, setCorrelation] = useState(0);
 
     // Heatmap State
     const [heatmapData, setHeatmapData] = useState<SentimentHeatmapItem[]>([]);
@@ -190,6 +192,31 @@ const SentimentEngine: React.FC = () => {
                 });
                 if (Array.isArray(chartResponse.data)) {
                     setChartData(chartResponse.data);
+
+                    // Simple Pearson Correlation Calculation on Frontend
+                    if (chartResponse.data.length > 0) {
+                        const n = chartResponse.data.length;
+                        const x = chartResponse.data.map((d: any) => d.price);
+                        const y = chartResponse.data.map((d: any) => d.score);
+
+                        let sumX = 0, sumY = 0, sumXY = 0, sumX2 = 0, sumY2 = 0;
+                        for (let i = 0; i < n; i++) {
+                            sumX += x[i];
+                            sumY += y[i];
+                            sumXY += x[i] * y[i];
+                            sumX2 += x[i] * x[i];
+                            sumY2 += y[i] * y[i];
+                        }
+
+                        const numerator = (n * sumXY) - (sumX * sumY);
+                        const denominator = Math.sqrt(((n * sumX2) - (sumX * sumX)) * ((n * sumY2) - (sumY * sumY)));
+
+                        if (denominator !== 0) {
+                            setCorrelation(numerator / denominator);
+                        } else {
+                            setCorrelation(0);
+                        }
+                    }
                 }
 
                 fetchHeatmap();
@@ -359,6 +386,62 @@ const SentimentEngine: React.FC = () => {
                     </div>
                 </Card>
             </div>
+
+            <Card className="lg:col-span-2">
+                <div className="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 className="text-lg font-bold text-slate-900 dark:text-white">Smart Money vs Retail Divergence</h3>
+                        <p className="text-xs text-gray-500">Deep Dive Analytics</p>
+                    </div>
+
+                    {/* Correlation Badge */}
+                    <div className={`px-3 py-1 rounded-lg border flex items-center gap-2 ${correlation > 0.5 ? 'bg-green-500/10 border-green-500/20 text-green-500' : 'bg-yellow-500/10 border-yellow-500/20 text-yellow-500'}`}>
+                        <span className="text-xs font-bold uppercase">Price-Sentiment Correlation:</span>
+                        <span className="text-lg font-mono font-bold">{correlation.toFixed(2)}</span>
+                    </div>
+                </div>
+
+                <div className="h-[350px] w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <ComposedChart data={chartData}>
+                            <defs>
+                                <linearGradient id="retailGradient" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#F43F5E" stopOpacity={0} />
+                                </linearGradient>
+                            </defs>
+                            <CartesianGrid strokeDasharray="3 3" opacity={0.1} stroke={gridColor} />
+                            <XAxis dataKey="time" hide />
+                            <Tooltip
+                                contentStyle={theme === 'dark' ? { backgroundColor: '#0F172A', border: '1px solid #334155', borderRadius: '8px' } : { borderRadius: '8px' }}
+                                itemStyle={{ fontSize: 12 }}
+                                labelStyle={{ color: theme === 'dark' ? '#94A3B8' : '#64748B' }}
+                            />
+                            <Legend />
+
+                            {/* Retail Sentiment (Noise/Chatter) */}
+                            <Area
+                                type="monotone"
+                                dataKey="retail_score"
+                                name="Retail (Twitter/Reddit)"
+                                stroke="#F43F5E"
+                                fill="url(#retailGradient)"
+                                fillOpacity={0.3}
+                            />
+
+                            {/* Smart Money Sentiment (Signal) */}
+                            <Line
+                                type="monotone"
+                                dataKey="smart_money_score"
+                                name="Smart Money (Whales/News)"
+                                stroke="#10B981"
+                                strokeWidth={3}
+                                dot={false}
+                            />
+                        </ComposedChart>
+                    </ResponsiveContainer>
+                </div>
+            </Card>
 
             <Card className="min-h-[400px] flex flex-col">
                 <div className="flex justify-between items-center mb-4">

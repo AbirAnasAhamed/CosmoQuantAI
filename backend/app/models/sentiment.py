@@ -17,3 +17,7 @@ class SentimentHistory(Base):
     sentiment_momentum = Column(Float, default=0.0) # Velocity of sentiment change (Previous vs Current)
     social_volume = Column(Integer, default=0)      # Raw count of mentions/posts
     top_source = Column(String, nullable=True)      # Source that contributed most to the score
+
+    # ✅ New Fields (Smart Money vs Retail)
+    retail_score = Column(Float, default=0.0)      # Reddit, Twitter, YouTube comments
+    smart_money_score = Column(Float, default=0.0) # Bloomberg, Reuters, Institutional filings

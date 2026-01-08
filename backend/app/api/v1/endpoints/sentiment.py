@@ -78,9 +78,18 @@ async def get_sentiment_correlation(
         sent_df = pd.DataFrame([{
             "timestamp": s.timestamp,
             "score": s.score,
+            "retail_score": s.retail_score,        # ✅ New
+            "smart_money_score": s.smart_money_score, # ✅ New
             "raw_momentum": s.sentiment_momentum,
             "raw_volume": s.social_volume
         } for s in sentiment_history])
+        
+        # ✅ FIX: Convert columns to numeric to prevent FutureWarning
+        cols_to_convert = ['score', 'retail_score', 'smart_money_score', 'raw_momentum', 'raw_volume']
+        # Check if columns exist to avoid errors
+        existing_cols = [c for c in cols_to_convert if c in sent_df.columns]
+        # Force conversion, coercing errors to NaN
+        sent_df[existing_cols] = sent_df[existing_cols].apply(pd.to_numeric, errors='coerce')
         
         sent_df.set_index('timestamp', inplace=True)
         if sent_df.index.tz is not None:
@@ -89,19 +98,22 @@ async def get_sentiment_correlation(
         # Resample to hourly to match candles
         sent_resampled = sent_df.resample('1h').agg({
             'score': 'mean',
+            'retail_score': 'mean',      # ✅ New
+            'smart_money_score': 'mean', # ✅ New
             'raw_momentum': 'mean',
             'raw_volume': 'sum'
         }).interpolate(method='linear')
     else:
         # Create empty dummy dataframe if no history exists
-        sent_resampled = pd.DataFrame(index=price_df.index, columns=['score', 'raw_momentum', 'raw_volume'])
+        sent_resampled = pd.DataFrame(index=price_df.index, columns=['score', 'retail_score', 'smart_money_score', 'raw_momentum', 'raw_volume'])
         sent_resampled.fillna(0, inplace=True)
 
     # 5. Merge Price & Sentiment
     merged_df = price_df.join(sent_resampled, how='left')
     
     # Fill basic NaNs
-    merged_df['score'] = merged_df['score'].fillna(0)
+    cols_to_fill = ['score', 'retail_score', 'smart_money_score']
+    merged_df[cols_to_fill] = merged_df[cols_to_fill].fillna(0)
 
     # ✅ INTELLIGENT FILLING (Permanent Fix)
     # If momentum is missing from DB, calculate it from Score changes
@@ -130,9 +142,13 @@ async def get_sentiment_correlation(
             "time": ts.isoformat(),
             "price": row['price'],
             "score": round(row['score'], 2),
+            "retail_score": round(row['retail_score'], 2),        # ✅ Retail
+            "smart_money_score": round(row['smart_money_score'], 2), # ✅ Smart Money
             "momentum": round(row['momentum'], 2), 
             "social_volume": int(row['social_volume']),
-            "volume": row['volume']
+            "volume": row['volume'],
+            # Divergence Calculation: Smart Money - Retail
+            "divergence": round(row['smart_money_score'] - row['retail_score'], 2)
         })
 
     return chart_data
