@@ -134,7 +134,7 @@ const FearGreedFlux = ({ score, classification }: any) => {
                 </span>
             </div>
 
-            <div className="relative w-48 h-28 mt-6 flex items-center justify-center">
+            <div className="relative w-64 h-36 mt-8 flex items-center justify-center">
                 <svg viewBox="0 0 200 110" className="w-full h-full overflow-visible">
                     <defs>
                         <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
@@ -157,7 +157,7 @@ const FearGreedFlux = ({ score, classification }: any) => {
                     </g>
                 </svg>
                 <div className="absolute bottom-6 left-0 right-0 text-center">
-                    <span className="text-3xl font-extrabold transition-colors duration-500 drop-shadow-sm" style={{ color: currentColor }}>
+                    <span className="text-4xl font-extrabold transition-colors duration-500 drop-shadow-sm" style={{ color: currentColor }}>
                         {Math.round(score)}
                     </span>
                 </div>
@@ -381,7 +381,7 @@ const SentimentEngine: React.FC = () => {
                         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
                         <SentimentOrb score={currentScore} momentum={currentMomentum} volume={currentVolume} />
                     </Card>
-                    <Card className="h-40 !p-0 overflow-hidden">
+                    <Card className="h-64 !p-0 overflow-hidden">
                         <FearGreedFlux score={fearGreedIndex} classification={fearGreedLabel} />
                     </Card>
                 </div>
