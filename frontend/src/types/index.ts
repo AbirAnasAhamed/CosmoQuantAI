@@ -678,3 +678,14 @@ export interface TradingBot {
   };
 }
 
+export interface SentimentHeatmapItem {
+  id: string;
+  symbol: string;
+  name: string;
+  marketCap: number;     // ব্লকের সাইজ নির্ধারণের জন্য
+  sentimentScore: number; // রঙের জন্য (-1 থেকে +1)
+  priceChange24h: number;
+  volume24h: number;
+  [key: string]: any; // ✅ Fix for Recharts Treemap compatibility
+}
+

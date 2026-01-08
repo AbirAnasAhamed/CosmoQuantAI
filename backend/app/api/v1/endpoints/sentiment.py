@@ -8,6 +8,7 @@ from app.services.ai_service import ai_service
 from datetime import datetime, timedelta
 import pandas as pd
 from pydantic import BaseModel
+import random # For mock data generation
 
 router = APIRouter()
 market_service = MarketService()
@@ -138,3 +139,45 @@ async def get_market_narratives():
     except Exception as e:
         print(f"Narrative Generation Error: {e}")
         raise HTTPException(status_code=500, detail="Failed to generate market narratives")
+
+# নতুন Heatmap Endpoint যোগ করো
+@router.get("/heatmap")
+async def get_sentiment_heatmap():
+    """
+    Returns data for top 50 coins heatmap based on Market Cap and Sentiment.
+    """
+    try:
+        # TODO: Replace this mock logic with real data from market_service & ai_service
+        # Example: Fetch top 50 coins by market cap, then calculate sentiment for each.
+        
+        heatmap_data = []
+        top_coins = [
+            "BTC", "ETH", "BNB", "SOL", "XRP", "ADA", "AVAX", "DOGE", "DOT", "TRX",
+            "LINK", "MATIC", "WBTC", "LTC", "SHIB", "BCH", "UNI", "XLM", "ATOM", "XMR",
+            "ETC", "FIL", "HBAR", "LDO", "APT", "VET", "QNT", "MKR", "NEAR", "AAVE",
+            "OP", "ARB", "GRT", "ALGO", "STX", "SAND", "EOS", "XTZ", "MANA", "THETA"
+        ]
+
+        for coin in top_coins:
+            # Random mock values for demonstration
+            sentiment = random.uniform(-1, 1) 
+            market_cap = random.randint(1_000_000_000, 800_000_000_000)
+            
+            heatmap_data.append({
+                "id": coin,
+                "symbol": coin,
+                "name": coin,
+                "marketCap": market_cap,
+                "sentimentScore": sentiment,
+                "priceChange24h": random.uniform(-10, 10),
+                "volume24h": random.randint(50_000_000, 5_000_000_000)
+            })
+
+        # Sort by Market Cap (Largest first)
+        heatmap_data.sort(key=lambda x: x['marketCap'], reverse=True)
+        
+        return heatmap_data
+
+    except Exception as e:
+        print(f"Heatmap Error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to generate sentiment heatmap")
