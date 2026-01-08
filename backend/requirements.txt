@@ -67,3 +67,4 @@ praw==7.7.1
 vaderSentiment==3.3.2
 
 feedparser==6.0.10
+gnews
