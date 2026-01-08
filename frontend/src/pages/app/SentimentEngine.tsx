@@ -231,11 +231,77 @@ const SentimentEngine: React.FC = () => {
     };
 
     const FearGreedFlux = ({ score, classification }: any) => {
-        // Simple placeholder implementation
+        // Score range: 0 (Extreme Fear) to 100 (Extreme Greed)
+        // Rotation calculation: 0 = -90deg, 100 = 90deg
+        const rotation = (score / 100) * 180 - 90;
+
+        // Determine color based on score
+        const getColor = (s: number) => {
+            if (s < 25) return '#ef4444'; // Extreme Fear (Red)
+            if (s < 45) return '#f97316'; // Fear (Orange)
+            if (s < 55) return '#eab308'; // Neutral (Yellow)
+            if (s < 75) return '#84cc16'; // Greed (Light Green)
+            return '#22c55e'; // Extreme Greed (Green)
+        };
+
+        const currentColor = getColor(score);
+
         return (
-            <div className="flex flex-col items-center justify-center h-full">
-                <div className="text-3xl font-bold">{score}</div>
-                <div className="text-sm text-gray-500">{classification}</div>
+            <div className="flex flex-col items-center justify-center h-full relative overflow-hidden p-2">
+                {/* Title */}
+                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1 absolute top-3">
+                    Fear & Greed Index
+                </h4>
+
+                <div className="relative w-48 h-28 mt-4 flex items-center justify-center">
+                    {/* SVG Gauge */}
+                    <svg viewBox="0 0 200 110" className="w-full h-full overflow-visible">
+                        <defs>
+                            {/* Gradient color: Red to Green */}
+                            <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                                <stop offset="0%" stopColor="#ef4444" /> {/* Red */}
+                                <stop offset="25%" stopColor="#f97316" /> {/* Orange */}
+                                <stop offset="50%" stopColor="#eab308" /> {/* Yellow */}
+                                <stop offset="75%" stopColor="#84cc16" /> {/* Lime */}
+                                <stop offset="100%" stopColor="#22c55e" /> {/* Green */}
+                            </linearGradient>
+                            {/* Slight glow effect */}
+                            <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+                                <feGaussianBlur stdDeviation="2" result="blur" />
+                                <feComposite in="SourceGraphic" in2="blur" operator="over" />
+                            </filter>
+                        </defs>
+
+                        {/* Background track (Gray line) */}
+                        <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#334155" strokeWidth="12" strokeLinecap="round" className="opacity-20" />
+
+                        {/* Colorful track (Gradient) */}
+                        <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gaugeGradient)" strokeWidth="12" strokeLinecap="round" filter="url(#glow)" />
+
+                        {/* Needle */}
+                        <g style={{ transformOrigin: "100px 100px", transform: `rotate(${rotation}deg)`, transition: "transform 1s cubic-bezier(0.4, 0, 0.2, 1)" }}>
+                            {/* The needle itself */}
+                            <path d="M 100 100 L 100 25" stroke="#slate-800" strokeWidth="4" className="dark:stroke-white stroke-slate-800 drop-shadow-md" strokeLinecap="round" />
+                            {/* Central pivot circle */}
+                            <circle cx="100" cy="100" r="8" className="fill-slate-800 dark:fill-white" />
+                        </g>
+                    </svg>
+
+                    {/* Score number in the center */}
+                    <div className="absolute bottom-6 left-0 right-0 text-center">
+                        <span className="text-3xl font-extrabold transition-colors duration-500 drop-shadow-sm" style={{ color: currentColor }}>
+                            {Math.round(score)}
+                        </span>
+                    </div>
+                </div>
+
+                {/* Classification text (e.g., Extreme Fear) */}
+                <div
+                    className="mt-[-10px] text-xs font-bold px-3 py-1 rounded-full border bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm transition-colors duration-500"
+                    style={{ color: currentColor, borderColor: currentColor }}
+                >
+                    {classification}
+                </div>
             </div>
         );
     };
