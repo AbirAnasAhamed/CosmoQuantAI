@@ -2,6 +2,8 @@ import httpx
 import praw
 import logging
 import asyncio
+import feedparser  # ✅ New Library for RSS
+import time
 from datetime import datetime, timedelta
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from app.core.config import settings
@@ -15,11 +17,21 @@ SOURCE_WEIGHTS = {
     "Reddit": 0.4, "Twitter": 0.4, "X": 0.4, "Unknown": 0.3
 }
 
+# ✅ 2. Free RSS Feeds List (Backup/Hybrid Sources)
+RSS_FEEDS = [
+    "https://cointelegraph.com/rss",
+    "https://www.coindesk.com/arc/outboundfeeds/rss/",
+    "https://decrypt.co/feed",
+    "https://cryptoslate.com/feed/"
+]
+
 class NewsService:
     def __init__(self):
+        # API Configuration
         self.api_url = "https://cryptopanic.com/api/developer/v2/posts/"
         self.api_key = settings.CRYPTOPANIC_API_KEY if hasattr(settings, 'CRYPTOPANIC_API_KEY') else None
         
+        # Reddit Configuration
         self.reddit = None
         if hasattr(settings, 'REDDIT_CLIENT_ID') and settings.REDDIT_CLIENT_ID:
             try:
@@ -36,7 +48,7 @@ class NewsService:
         # ✅ IMPROVED CACHING STATE
         self.cache = []
         self.last_fetch = None
-        self.cache_duration = 600  # 10 Minutes (Increased to avoid 429)
+        self.cache_duration = 300  # 5 Minutes cache
         
         self.fng_api_url = "https://api.alternative.me/fng/"
         self.fng_cache = None
@@ -52,7 +64,7 @@ class NewsService:
     def analyze_sentiment_advanced(self, text):
         scores = self.vader.polarity_scores(text)
         return scores['compound']
-
+        
     def calculate_weighted_metrics(self, news_items):
         if not news_items:
             return 0.0, 0, 0.0
@@ -71,8 +83,41 @@ class NewsService:
         final_score = total_weighted_score / total_weights if total_weights > 0 else 0
         return round(final_score, 4), len(news_items)
 
+    # ✅ 3. NEW: Fetch from RSS Feeds (Library Based - No API Key)
+    async def fetch_rss_news(self):
+        def get_rss_data():
+            items = []
+            for url in RSS_FEEDS:
+                try:
+                    feed = feedparser.parse(url)
+                    # Take top 5 news from each feed to avoid spam
+                    for entry in feed.entries[:5]:
+                        # Handle Date Parsing
+                        published_time = datetime.utcnow()
+                        if hasattr(entry, 'published_parsed') and entry.published_parsed:
+                            published_time = datetime.fromtimestamp(time.mktime(entry.published_parsed))
+                        
+                        score = self.analyze_sentiment_advanced(entry.title)
+                        
+                        items.append({
+                            "id": f"rss_{entry.link[-10:]}", # Creating a pseudo-unique ID
+                            "source": feed.feed.title if hasattr(feed.feed, 'title') else "CryptoNews",
+                            "content": entry.title,
+                            "url": entry.link,
+                            "sentiment_score": score,
+                            "sentiment": "Positive" if score > 0.05 else "Negative" if score < -0.05 else "Neutral",
+                            "timestamp": published_time.isoformat(),
+                            "type": "news" # Treating as standard news
+                        })
+                except Exception as e:
+                    logger.error(f"RSS Fetch Error ({url}): {e}")
+            return items
+        
+        # Run synchronous feedparser in a thread
+        return await asyncio.to_thread(get_rss_data)
+
     async def fetch_news_from_cryptopanic(self):
-        if not self.api_key: return []
+        if not self.api_key: return [] # API Key না থাকলে খালি লিস্ট রিটার্ন করবে
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(
@@ -81,13 +126,11 @@ class NewsService:
                     timeout=10.0
                 )
                 
-                # ✅ HANDLE RATE LIMIT (429) & ERRORS
                 if response.status_code == 429:
-                    logger.warning("⚠️ CryptoPanic Rate Limit Hit (429). Using fallback cache.")
-                    return None  # Return None to signal failure
+                    logger.warning("⚠️ CryptoPanic Rate Limit Hit (429).")
+                    return None
                 
                 if response.status_code != 200:
-                    logger.error(f"CryptoPanic API Error: {response.status_code}")
                     return None
 
                 data = response.json()
@@ -115,8 +158,7 @@ class NewsService:
         try:
             def get_reddit_data():
                 posts = []
-                # Limit reduced slightly to be safe
-                for submission in self.reddit.subreddit("CryptoCurrency+Bitcoin").hot(limit=10):
+                for submission in self.reddit.subreddit("CryptoCurrency+Bitcoin").hot(limit=8):
                     score = self.analyze_sentiment_advanced(submission.title)
                     posts.append({
                         "id": f"rd_{submission.id}",
@@ -134,53 +176,56 @@ class NewsService:
             logger.error(f"Reddit Fetch Error: {e}")
             return []
 
+    # ✅ 4. Main Fetch Function (Hybrid Logic)
     async def fetch_news(self):
-        # ✅ 1. Serve Fresh Cache
+        # 1. Serve Fresh Cache if available
         if self.cache and self.last_fetch:
             age = (datetime.utcnow() - self.last_fetch).total_seconds()
             if age < self.cache_duration:
                 return self.cache
 
-        if not self.api_key and not self.reddit:
+        # 2. Async Gather - Fetch from ALL sources in parallel
+        # এখানে API এবং RSS দুটোই একসাথে কল হবে
+        tasks = [
+            self.fetch_rss_news(),               # Always runs (Library)
+            self.fetch_news_from_cryptopanic(),  # Runs if Key exists (API)
+            self.fetch_reddit_discussions()      # Runs if Credentials exist (API)
+        ]
+        
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        rss_news = results[0] if isinstance(results[0], list) else []
+        cp_news = results[1] if isinstance(results[1], list) else []
+        reddit_news = results[2] if isinstance(results[2], list) else []
+
+        # 3. Combine Data
+        # যদি API Data থাকে ভালো, না থাকলে RSS Data ব্যাকআপ হিসেবে কাজ করবে।
+        # আর যদি দুটোই থাকে, তাহলে ইউজার বেশি সোর্স পাবে।
+        combined_data = rss_news + cp_news + reddit_news
+        
+        # 4. If everything fails, use mock
+        if not combined_data:
             return self._get_mock_news()
 
-        # ✅ 2. Async Fetch
-        news_task = self.fetch_news_from_cryptopanic()
-        reddit_task = self.fetch_reddit_discussions()
-        
-        results = await asyncio.gather(news_task, reddit_task, return_exceptions=True)
-        
-        # ✅ 3. Smart Error Handling (Fallback Logic)
-        cp_news = results[0]
-        reddit_news = results[1]
-
-        # যদি API ফেইল করে (None রিটার্ন করে) এবং আমাদের কাছে পুরনো ক্যাশ থাকে, 
-        # তবে পুরনো ক্যাশই রিটার্ন করবো। খালি পেজ দেখাবো না।
-        if cp_news is None:
-            if self.cache:
-                logger.info("Serving STALE cache due to API failure.")
-                return self.cache
-            cp_news = [] # একদম প্রথমবার হলে খালি লিস্ট
-
-        if isinstance(reddit_news, Exception) or reddit_news is None:
-            reddit_news = []
-
-        combined_data = cp_news + reddit_news
-        
-        # ✅ 4. Update Cache Only If Data Exists
-        if combined_data:
+        # 5. Sort by Timestamp (Newest First) & Update Cache
+        try:
+            # Timestamp parsing handled inside respective fetchers to ensure ISO format
             combined_data.sort(key=lambda x: x['timestamp'], reverse=True)
-            self.cache = combined_data[:60]
+            
+            # Keep top 80 items to keep payload light
+            self.cache = combined_data[:80]
             self.last_fetch = datetime.utcnow()
+        except Exception as e:
+            logger.error(f"Sorting Error: {e}")
+            self.cache = combined_data[:60] # Fallback unsorted
         
         return self.cache
 
     async def fetch_fear_greed_index(self):
-        # Cache Check
+        # ... (Existing Fear Greed logic remains same) ...
         if self.fng_cache and self.last_fng_fetch:
             if (datetime.utcnow() - self.last_fng_fetch).total_seconds() < self.fng_cache_duration:
                 return self.fng_cache
-                
         try:
             async with httpx.AsyncClient() as client:
                 response = await client.get(self.fng_api_url, params={"limit": 1, "format": "json"}, timeout=10.0)
@@ -193,23 +238,14 @@ class NewsService:
                     }
                     self.last_fng_fetch = datetime.utcnow()
                     return self.fng_cache
-        except Exception as e:
-            logger.error(f"FNG Fetch Error: {e}")
-            # Fallback to existing cache if fetch fails
-            if self.fng_cache:
-                return self.fng_cache
-                
+        except Exception:
+            if self.fng_cache: return self.fng_cache     
         return {"value": "50", "value_classification": "Neutral"}
 
     def _get_mock_news(self):
-        data = [
-            {"id": "m1", "source": "CoinDesk", "content": "Bitcoin Hits All Time High! 🚀", "timestamp": datetime.utcnow().isoformat()},
-            {"id": "m2", "source": "r/Bitcoin", "content": "Why is the market crashing so hard?", "timestamp": datetime.utcnow().isoformat()},
-            {"id": "m3", "source": "Bloomberg", "content": "SEC approves new regulations.", "timestamp": datetime.utcnow().isoformat()},
+        # ... (Existing mock logic) ...
+        return [
+            {"id": "m1", "source": "System", "content": "Waiting for live market data...", "sentiment": "Neutral", "sentiment_score": 0, "timestamp": datetime.utcnow().isoformat(), "type": "news"}
         ]
-        for d in data:
-            d['sentiment_score'] = self.analyze_sentiment_advanced(d['content'])
-            d['sentiment'] = "Positive" if d['sentiment_score'] > 0.05 else "Negative" if d['sentiment_score'] < -0.05 else "Neutral"
-        return data
 
 news_service = NewsService()
