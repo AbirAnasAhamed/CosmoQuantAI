@@ -68,3 +68,4 @@ vaderSentiment==3.3.2
 
 feedparser==6.0.10
 gnews
+httpx
