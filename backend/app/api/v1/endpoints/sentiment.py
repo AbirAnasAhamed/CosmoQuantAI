@@ -1,23 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from app.api import deps
-from app.services.market_service import MarketService
-from app.models.sentiment import SentimentHistory
+from fastapi import APIRouter, HTTPException
 from app.services.news_service import news_service
-from app.services.ai_service import ai_service
-from datetime import datetime, timedelta
+import ccxt.async_support as ccxt  # Async CCXT
 import pandas as pd
+import pandas_ta as ta  # Technical Analysis Library
 import numpy as np
-from pydantic import BaseModel
-import random
+from datetime import datetime, timedelta
 
 router = APIRouter()
-market_service = MarketService()
-
-class SummaryRequest(BaseModel):
-    headlines: str
-    asset: str
-    provider: str = "gemini"
 
 @router.get("/news")
 async def get_sentiment_news():
@@ -27,188 +16,105 @@ async def get_sentiment_news():
 async def get_fear_greed():
     return await news_service.fetch_fear_greed_index()
 
-@router.post("/summary")
-async def generate_market_summary(request: SummaryRequest):
-    try:
-        summary = ai_service.generate_market_sentiment_summary(
-            headlines=request.headlines, 
-            asset=request.asset,
-            provider=request.provider
-        )
-        return {"summary": summary}
-    except Exception as e:
-        print(f"Summary Generation Error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to generate AI summary")
-
 @router.get("/correlation")
-async def get_sentiment_correlation(
-    symbol: str = "BTC/USDT",
-    timeframe: str = "1h",
-    days: int = 7,
-    db: Session = Depends(deps.get_db)
-):
+async def get_sentiment_correlation(symbol: str = "BTC/USDT", days: int = 7):
     """
-    Returns Price vs Sentiment + Momentum + Volume data.
-    Ensures data is never null by calculating derived metrics.
+    Full library-based logic:
+    1. CCXT for live Price and Volume.
+    2. GNews for News Sentiment (Retail Score).
+    3. Pandas-TA for Volume Flow (Smart Money Score).
     """
-    # 1. Get Price Data
-    start_date = (datetime.utcnow() - timedelta(days=days)).strftime("%Y-%m-%d")
-    candles = market_service.get_candles_from_db(db, symbol, timeframe, start_date=start_date)
-    
-    if not candles: return []
-
-    # 2. Get Sentiment History
-    cutoff_date = datetime.utcnow() - timedelta(days=days)
-    sentiment_history = db.query(SentimentHistory).filter(
-        SentimentHistory.timestamp >= cutoff_date
-    ).order_by(SentimentHistory.timestamp.asc()).all()
-
-    # 3. Prepare Dataframes
-    price_df = pd.DataFrame([{
-        "timestamp": c.timestamp,
-        "price": c.close,
-        "volume": c.volume
-    } for c in candles])
-    
-    if price_df.empty: return []
-    price_df.set_index('timestamp', inplace=True)
-
-    # 4. Process Sentiment Data
-    if sentiment_history:
-        sent_df = pd.DataFrame([{
-            "timestamp": s.timestamp,
-            "score": s.score,
-            "retail_score": s.retail_score,        # ✅ New
-            "smart_money_score": s.smart_money_score, # ✅ New
-            "raw_momentum": s.sentiment_momentum,
-            "raw_volume": s.social_volume
-        } for s in sentiment_history])
-        
-        # ✅ FIX: Convert columns to numeric to prevent FutureWarning
-        cols_to_convert = ['score', 'retail_score', 'smart_money_score', 'raw_momentum', 'raw_volume']
-        # Check if columns exist to avoid errors
-        existing_cols = [c for c in cols_to_convert if c in sent_df.columns]
-        # Force conversion, coercing errors to NaN
-        sent_df[existing_cols] = sent_df[existing_cols].apply(pd.to_numeric, errors='coerce')
-        
-        sent_df.set_index('timestamp', inplace=True)
-        if sent_df.index.tz is not None:
-            sent_df.index = sent_df.index.tz_convert('UTC').tz_localize(None)
-
-        # Resample to hourly to match candles
-        sent_resampled = sent_df.resample('1h').agg({
-            'score': 'mean',
-            'retail_score': 'mean',      # ✅ New
-            'smart_money_score': 'mean', # ✅ New
-            'raw_momentum': 'mean',
-            'raw_volume': 'sum'
-        }).interpolate(method='linear')
-    else:
-        # Create empty dummy dataframe if no history exists
-        sent_resampled = pd.DataFrame(index=price_df.index, columns=['score', 'retail_score', 'smart_money_score', 'raw_momentum', 'raw_volume'])
-        sent_resampled.fillna(0, inplace=True)
-
-    # 5. Merge Price & Sentiment
-    merged_df = price_df.join(sent_resampled, how='left')
-    
-    # Fill basic NaNs
-    cols_to_fill = ['score', 'retail_score', 'smart_money_score']
-    merged_df[cols_to_fill] = merged_df[cols_to_fill].fillna(0)
-
-    # --- [FIX START] ---
-    # যদি ডেটাবেসে নতুন কলামগুলো খালি থাকে, তবে টেস্টিংয়ের জন্য ডামি ডেটা তৈরি করো
-    # প্রোডাকশনে যাওয়ার আগে এই অংশটি সরিয়ে ফেলতে পারো অথবা সঠিক ডেটা সোর্স নিশ্চিত করতে হবে।
-    if merged_df['retail_score'].sum() == 0 and merged_df['smart_money_score'].sum() == 0:
-        import numpy as np
-        # ডামি ডেটা: রিটেইল স্কোর প্রাইসের সাথে বেশি নড়াচড়া করে, স্মার্ট মানি স্টেবল থাকে
-        merged_df['retail_score'] = merged_df['score'] + np.random.normal(0, 0.2, len(merged_df))
-        merged_df['smart_money_score'] = merged_df['score'].rolling(window=5).mean().fillna(0) + np.random.normal(0, 0.1, len(merged_df))
-    # --- [FIX END] ---
-
-    # ✅ INTELLIGENT FILLING (Permanent Fix)
-    # If momentum is missing from DB, calculate it from Score changes
-    merged_df['momentum'] = merged_df['raw_momentum'].fillna(0)
-    if merged_df['momentum'].sum() == 0:
-         # Calculate Momentum: Difference in score * scaling factor
-         merged_df['momentum'] = merged_df['score'].diff().fillna(0) * 10
-
-    # If social volume is missing, simulate based on price volatility & score intensity
-    merged_df['social_volume'] = merged_df['raw_volume'].fillna(0)
-    if merged_df['social_volume'].sum() == 0:
-        # Volatility = Price Change %
-        price_change = merged_df['price'].pct_change().abs().fillna(0)
-        # Score Intensity = Absolute score
-        score_intensity = merged_df['score'].abs()
-        
-        # Synthetic Volume Logic
-        merged_df['social_volume'] = (
-            (price_change * 10000) + (score_intensity * 500) + 50
-        ).astype(int)
-
-    # 6. Build Final JSON Response
-    chart_data = []
-    for ts, row in merged_df.iterrows():
-        chart_data.append({
-            "time": ts.isoformat(),
-            "price": row['price'],
-            "score": round(row['score'], 2),
-            "retail_score": round(row['retail_score'], 2),        # ✅ Retail
-            "smart_money_score": round(row['smart_money_score'], 2), # ✅ Smart Money
-            "momentum": round(row['momentum'], 2), 
-            "social_volume": int(row['social_volume']),
-            "volume": row['volume'],
-            # Divergence Calculation: Smart Money - Retail
-            "divergence": round(row['smart_money_score'] - row['retail_score'], 2)
-        })
-
-    return chart_data
-
-@router.get("/narratives")
-async def get_market_narratives():
     try:
-        news_items = await news_service.fetch_news()
-        if not news_items:
-            return {"word_cloud": [], "narratives": ["No sufficient data to generate narratives."]}
-
-        headlines_text = ". ".join([item['content'] for item in news_items[:20]])
-        narrative_data = ai_service.generate_market_narratives(headlines_text)
+        # 1. Fetch Live Market Data (Binance)
+        exchange = ccxt.binance()
+        timeframe = '1h'
+        limit = 24 * days
         
-        return narrative_data
+        # OHLCV Data Fetch
+        ohlcv = await exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
+        await exchange.close()
+
+        if not ohlcv:
+            return []
+
+        # Create DataFrame
+        df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        df.set_index('timestamp', inplace=True)
+
+        # 2. Fetch Sentiment Data (from GNews)
+        sentiment_df = await news_service.fetch_historical_sentiment(days=days)
+
+        # 3. Merge Market and Sentiment Data
+        merged_df = df.join(sentiment_df, how='left')
+        
+        # Missing Sentiment Fill (ffill instead of method='ffill')
+        merged_df['score'] = merged_df['score'].ffill().fillna(0)
+
+        # ---------------------------------------------------------
+        # 4. Smart Money vs Retail Calculation (Logic)
+        # ---------------------------------------------------------
+        
+        # Retail Score = News Sentiment + Price Momentum mix
+        # Retail usually follows price (FOMO)
+        merged_df['retail_score'] = merged_df['score'] * 0.7 + merged_df['close'].pct_change().rolling(5).mean() * 10
+        merged_df['retail_score'] = merged_df['retail_score'].fillna(0)
+
+        # Smart Money Score = Money Flow Index (MFI) or On-Balance Volume (OBV)
+        # Smart money moves on volume, not just price.
+        # We will use CMF (Chaikin Money Flow) for smart money detection.
+        merged_df.ta.cmf(append=True)  # Adds CMF_20 column
+        # Normalize CMF to -1 to 1 range
+        cmf_col = merged_df.columns[-1] # Last column is CMF
+        merged_df['smart_money_score'] = merged_df[cmf_col].rolling(3).mean() * 5 # Scaling
+        merged_df['smart_money_score'] = merged_df['smart_money_score'].clip(-1, 1).fillna(0)
+
+        # Momentum & Social Volume Simulation
+        merged_df['momentum'] = merged_df['close'].diff().fillna(0)
+        # Social Volume = Volume * Volatility (Proxy)
+        merged_df['social_volume'] = (merged_df['volume'] * merged_df['high'].diff().abs() / 1000).fillna(100).astype(int)
+
+        # Fill any remaining NaNs to avoid JSON error
+        merged_df = merged_df.fillna(0)
+        merged_df = merged_df.replace({np.nan: 0})
+
+        # 5. Final Response Construction
+        chart_data = []
+        for ts, row in merged_df.iterrows():
+            # Check for NaN specifically just in case
+            smart_val = row['smart_money_score'] if not pd.isna(row['smart_money_score']) else 0
+            retail_val = row['retail_score'] if not pd.isna(row['retail_score']) else 0
+            
+            chart_data.append({
+                "time": ts.isoformat(),
+                "price": row['close'],
+                "score": round(row['score'], 2),
+                "retail_score": round(retail_val, 2),        
+                "smart_money_score": round(smart_val, 2), 
+                "momentum": round(row['momentum'], 2), 
+                "social_volume": int(row['social_volume']),
+                "volume": row['volume'],
+                "divergence": round(smart_val - retail_val, 2)
+            })
+
+        return chart_data
+
     except Exception as e:
-        print(f"Narrative Generation Error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to generate market narratives")
+        print(f"Correlation API Error: {e}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/heatmap")
 async def get_sentiment_heatmap():
-    """
-    Returns data for top 50 coins heatmap based on Market Cap and Sentiment.
-    """
-    try:
-        heatmap_data = []
-        top_coins = [
-            "BTC", "ETH", "BNB", "SOL", "XRP", "ADA", "AVAX", "DOGE", "DOT", "TRX",
-            "LINK", "MATIC", "WBTC", "LTC", "SHIB", "BCH", "UNI", "XLM", "ATOM", "XMR",
-            "ETC", "FIL", "HBAR", "LDO", "APT", "VET", "QNT", "MKR", "NEAR", "AAVE",
-            "OP", "ARB", "GRT", "ALGO", "STX", "SAND", "EOS", "XTZ", "MANA", "THETA"
-        ]
-
-        for coin in top_coins:
-            sentiment = random.uniform(-1, 1) 
-            market_cap = random.randint(1_000_000_000, 800_000_000_000)
-            
-            heatmap_data.append({
-                "id": coin,
-                "symbol": coin,
-                "name": coin,
-                "marketCap": market_cap,
-                "sentimentScore": sentiment,
-                "priceChange24h": random.uniform(-10, 10),
-                "volume24h": random.randint(50_000_000, 5_000_000_000)
-            })
-
-        heatmap_data.sort(key=lambda x: x['marketCap'], reverse=True)
-        return heatmap_data
-
-    except Exception as e:
-        print(f"Heatmap Error: {e}")
-        raise HTTPException(status_code=500, detail="Failed to generate sentiment heatmap")
+    # Heatmap kept static/random for now as live fetching 50 coins might be slow
+    return [
+        {"name": "BTC", "symbol": "BTC", "marketCap": 800000000000, "sentimentScore": 0.5},
+        {"name": "ETH", "symbol": "ETH", "marketCap": 400000000000, "sentimentScore": 0.3},
+        {"name": "BNB", "symbol": "BNB", "marketCap": 90000000000, "sentimentScore": 0.1},
+        {"name": "SOL", "symbol": "SOL", "marketCap": 60000000000, "sentimentScore": 0.8},
+        {"name": "XRP", "symbol": "XRP", "marketCap": 30000000000, "sentimentScore": -0.2},
+        {"name": "ADA", "symbol": "ADA", "marketCap": 20000000000, "sentimentScore": 0.0},
+        {"name": "DOGE", "symbol": "DOGE", "marketCap": 12000000000, "sentimentScore": 0.4},
+        {"name": "AVAX", "symbol": "AVAX", "marketCap": 11000000000, "sentimentScore": 0.2},
+    ]
