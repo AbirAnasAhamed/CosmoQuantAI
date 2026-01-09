@@ -9,7 +9,7 @@ import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
 import type { SentimentSource, SentimentLabel, SentimentHeatmapItem } from '@/types';
 import { useToast } from '@/context/ToastContext';
-import { Loader2, RefreshCw, Maximize2 } from 'lucide-react';
+import { Loader2, RefreshCw, Maximize2, ThumbsUp, ThumbsDown, User, Twitter } from 'lucide-react';
 
 const pairs = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT'];
 const PIE_COLORS = { 'Positive': '#10B981', 'Negative': '#F43F5E', 'Neutral': '#64748B' };
@@ -260,6 +260,162 @@ const FearGreedFlux = ({ score, classification }: any) => {
                     Next Update: {timeLeft}
                 </div>
             </div>
+        </div>
+    );
+};
+
+// --- New Feature: Influencer Watchlist Component (Redesigned) ---
+const InfluencerWatchlist = () => {
+    const influencers = [
+        { name: "Elon Musk", handle: "@elonmusk", sentiment: "Neutral", score: 0.1 },
+        { name: "Vitalik Buterin", handle: "@VitalikButerin", sentiment: "Bullish", score: 0.8 },
+        { name: "Michael Saylor", handle: "@saylor", sentiment: "Bullish", score: 0.9 },
+        { name: "CZ Binance", handle: "@cz_binance", sentiment: "Bearish", score: -0.4 },
+        { name: "Cathie Wood", handle: "@CathieDWood", sentiment: "Bullish", score: 0.6 },
+    ];
+
+    return (
+        <div className="h-full flex flex-col relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md shadow-sm">
+            {/* Header */}
+            <div className="flex justify-between items-center p-4 border-b border-slate-100 dark:border-slate-800/60">
+                <h3 className="text-sm font-bold text-slate-800 dark:text-white flex items-center gap-2">
+                    <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-500"></span>
+                    </span>
+                    Influencer Watchlist
+                </h3>
+                <span className="text-[10px] bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 px-2 py-0.5 rounded-full border border-slate-200 dark:border-slate-700">Top 5</span>
+            </div>
+
+            {/* List */}
+            <div className="flex-grow p-2 space-y-2 overflow-y-auto custom-scrollbar">
+                {influencers.map((person, idx) => {
+                    const isBullish = person.sentiment === 'Bullish';
+                    const isBearish = person.sentiment === 'Bearish';
+                    const glowColor = isBullish ? 'group-hover:shadow-[0_0_15px_rgba(16,185,129,0.2)] group-hover:border-emerald-500/30' :
+                        isBearish ? 'group-hover:shadow-[0_0_15px_rgba(244,63,94,0.2)] group-hover:border-rose-500/30' :
+                            'group-hover:shadow-[0_0_15px_rgba(148,163,184,0.2)] group-hover:border-slate-400/30';
+
+                    return (
+                        <div key={idx} className={`group flex items-center justify-between p-2 rounded-lg border border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/80 transition-all duration-300 ${glowColor} cursor-default`}>
+                            <div className="flex items-center gap-3">
+                                <div className="relative">
+                                    <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-slate-200 to-white dark:from-slate-800 dark:to-slate-700 flex items-center justify-center text-[10px] font-bold text-slate-500 shadow-inner">
+                                        {person.name.charAt(0)}
+                                    </div>
+                                    <div className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white dark:border-slate-900 ${isBullish ? 'bg-emerald-500' : isBearish ? 'bg-rose-500' : 'bg-slate-400'}`}></div>
+                                </div>
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-slate-700 dark:text-slate-200 leading-tight">{person.name}</span>
+                                    <span className="text-[10px] text-slate-400">{person.handle}</span>
+                                </div>
+                            </div>
+
+                            <div className="flex flex-col items-end">
+                                <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded border bg-opacity-10 backdrop-blur-sm ${isBullish ? 'bg-emerald-500 border-emerald-500/20 text-emerald-500' :
+                                        isBearish ? 'bg-rose-500 border-rose-500/20 text-rose-500' :
+                                            'bg-slate-500 border-slate-500/20 text-slate-500'
+                                    }`}>
+                                    {person.sentiment}
+                                </span>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
+
+// --- New Feature: Community Poll Component (Redesigned) ---
+const CommunityPoll = () => {
+    const [hasVoted, setHasVoted] = useState(false);
+    const [votes, setVotes] = useState({ bullish: 1240, bearish: 850 });
+
+    const totalVotes = votes.bullish + votes.bearish;
+    const bullishPercent = parseFloat(((votes.bullish / totalVotes) * 100).toFixed(1));
+    const bearishPercent = parseFloat(((votes.bearish / totalVotes) * 100).toFixed(1));
+
+    const handleVote = (type: 'bullish' | 'bearish') => {
+        if (hasVoted) return;
+        setVotes(prev => ({ ...prev, [type]: prev[type] + 1 }));
+        setHasVoted(true);
+    };
+
+    return (
+        <div className="h-full flex flex-col relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md shadow-sm p-5">
+            <h3 className="text-sm font-bold text-slate-800 dark:text-white text-center mb-1">
+                Market Sentiment Poll
+            </h3>
+            <p className="text-[10px] text-center text-slate-400 mb-6 uppercase tracking-wider">
+                What's your outlook?
+            </p>
+
+            {!hasVoted ? (
+                <div className="flex flex-col gap-3 h-full justify-center">
+                    <button
+                        onClick={() => handleVote('bullish')}
+                        className="group relative flex items-center justify-between p-4 rounded-xl border border-emerald-500/20 bg-emerald-500/5 hover:bg-emerald-500/10 transition-all overflow-hidden"
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-r from-emerald-500/0 via-emerald-500/0 to-emerald-500/5 group-hover:via-emerald-500/10 transition-all duration-700"></div>
+                        <div className="flex items-center gap-3 z-10">
+                            <div className="p-2 bg-emerald-500/10 rounded-lg text-emerald-500 group-hover:scale-110 transition-transform">
+                                <ThumbsUp size={18} />
+                            </div>
+                            <span className="font-bold text-emerald-600 dark:text-emerald-400">Bullish</span>
+                        </div>
+                        <span className="text-xs font-mono text-emerald-500/60 opacity-0 group-hover:opacity-100 transition-opacity">VOTE</span>
+                    </button>
+
+                    <button
+                        onClick={() => handleVote('bearish')}
+                        className="group relative flex items-center justify-between p-4 rounded-xl border border-rose-500/20 bg-rose-500/5 hover:bg-rose-500/10 transition-all overflow-hidden"
+                    >
+                        <div className="absolute inset-0 bg-gradient-to-r from-rose-500/0 via-rose-500/0 to-rose-500/5 group-hover:via-rose-500/10 transition-all duration-700"></div>
+                        <div className="flex items-center gap-3 z-10">
+                            <div className="p-2 bg-rose-500/10 rounded-lg text-rose-500 group-hover:scale-110 transition-transform">
+                                <ThumbsDown size={18} />
+                            </div>
+                            <span className="font-bold text-rose-600 dark:text-rose-400">Bearish</span>
+                        </div>
+                        <span className="text-xs font-mono text-rose-500/60 opacity-0 group-hover:opacity-100 transition-opacity">VOTE</span>
+                    </button>
+                </div>
+            ) : (
+                <div className="flex flex-col gap-6 animate-fade-in-up mt-2">
+                    {/* Visual Bar Representation */}
+                    <div className="relative h-12 w-full bg-slate-100 dark:bg-slate-800/50 rounded-full overflow-hidden flex font-bold text-xs">
+                        <div
+                            style={{ width: `${bullishPercent}%` }}
+                            className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 text-white flex items-center pl-3 transition-all duration-1000"
+                        >
+                            {bullishPercent > 15 && `Bullish ${bullishPercent}%`}
+                        </div>
+                        <div
+                            style={{ width: `${bearishPercent}%` }}
+                            className="h-full bg-gradient-to-l from-rose-500 to-pink-500 text-white flex items-center justify-end pr-3 transition-all duration-1000"
+                        >
+                            {bearishPercent > 15 && `${bearishPercent}% Bearish`}
+                        </div>
+                        {/* Center Thunder Icon */}
+                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white dark:bg-slate-900 rounded-full flex items-center justify-center shadow-lg z-10 border-2 border-slate-100 dark:border-slate-800">
+                            <span className="text-yellow-500 animate-pulse">⚡</span>
+                        </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 text-center">
+                        <div className="p-3 rounded-lg bg-emerald-500/5 border border-emerald-500/10">
+                            <p className="text-[10px] text-emerald-500/80 uppercase">Bulls</p>
+                            <p className="text-lg font-black text-emerald-500">{votes.bullish.toLocaleString()}</p>
+                        </div>
+                        <div className="p-3 rounded-lg bg-rose-500/5 border border-rose-500/10">
+                            <p className="text-[10px] text-rose-500/80 uppercase">Bears</p>
+                            <p className="text-lg font-black text-rose-500">{votes.bearish.toLocaleString()}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
@@ -642,6 +798,13 @@ const SentimentEngine: React.FC = () => {
                     <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#059669] rounded"></div> Extreme Bullish</div>
                 </div>
             </Card>
+
+            {/* --- SOCIAL LAYER SECTION START --- */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-[340px]">
+                <InfluencerWatchlist />
+                <CommunityPoll />
+            </div>
+            {/* --- SOCIAL LAYER SECTION END --- */}
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <Card className="lg:col-span-2 relative overflow-hidden min-h-[250px] flex flex-col">
