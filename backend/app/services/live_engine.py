@@ -144,11 +144,16 @@ class LiveBotEngine:
         print(f"[{type}] {self.symbol}: {message}", flush=True)
 
         log_payload = {
-            "channel": f"logs_{self.bot.id}",
-            "data": { "time": timestamp, "type": type, "message": message }
+            "time": timestamp,
+            "type": type,
+            "message": message
         }
+        
+        # ✅ Publish to specific bot channel
+        channel_name = f"bot_logs:{self.bot.id}"
+        
         try:
-            redis_log_client.publish("bot_logs", json.dumps(log_payload))
+            redis_log_client.publish(channel_name, json.dumps(log_payload))
         except Exception as e:
             print(f"⚠️ Redis Publish Error: {e}")
 

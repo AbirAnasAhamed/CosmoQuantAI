@@ -169,8 +169,13 @@ const BotDetailsModal: React.FC<{ bot: ActiveBot; onClose: () => void }> = ({ bo
         if (activeTab === 'logs') {
             // URL তৈরি (dev/prod অনুযায়ী হোস্ট ঠিক করুন)
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const host = 'localhost:8000'; // আপনার ব্যাকএন্ড পোর্ট
-            const wsUrl = `${protocol}//${host}/ws/logs/${bot.id}`;
+            // TODO: প্রোডাকশনে 'localhost:8000' এর বদলে আপনার আসল ডোমেইন বা env variable ব্যবহার করুন
+            const host = 'localhost:8000';
+
+            // ✅ ফিক্স: সঠিক API পাথ (api/v1/bots/...) ব্যবহার করা হয়েছে যাতে ব্যাকএন্ডের রাউটের সাথে মিলে
+            const wsUrl = `${protocol}//${host}/api/v1/bots/${bot.id}/ws/logs`;
+
+            console.log("Attempting to connect to:", wsUrl); // ডিবাগিং এর জন্য
 
             const ws = new WebSocket(wsUrl);
             wsRef.current = ws;
@@ -178,23 +183,30 @@ const BotDetailsModal: React.FC<{ bot: ActiveBot; onClose: () => void }> = ({ bo
             ws.onopen = () => {
                 setConnectionStatus("Connected to Live Stream 🟢");
                 // কানেক্ট হওয়ার পর একটি ওয়েলকাম লগ যোগ করা
-                setRealLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), type: 'SYSTEM', message: 'Connected to Log Stream...' }]);
+                setRealLogs(prev => [{ time: new Date().toLocaleTimeString(), type: 'SYSTEM', message: 'Connected to Log Stream...' }, ...prev]);
             };
 
             ws.onmessage = (event) => {
                 try {
                     const data = JSON.parse(event.data);
-                    // নতুন লগ উপরে বা নিচে যোগ করতে পারেন
+                    // নতুন লগ উপরে যোগ করা হচ্ছে (Real-time feel)
                     setRealLogs(prev => [data, ...prev]);
                 } catch (e) {
                     console.error("Log parse error", e);
                 }
             };
 
+            ws.onerror = (error) => {
+                console.error("WebSocket Error:", error);
+                setConnectionStatus("Connection Error 🔴");
+            };
+
             ws.onclose = () => setConnectionStatus("Disconnected 🔴");
 
             return () => {
-                ws.close();
+                if (ws.readyState === WebSocket.OPEN) {
+                    ws.close();
+                }
             };
         }
     }, [activeTab, bot.id]);
@@ -232,7 +244,7 @@ const BotDetailsModal: React.FC<{ bot: ActiveBot; onClose: () => void }> = ({ bo
                 {/* Content */}
                 <div className="flex-1 overflow-y-auto p-6 bg-gray-50/50 dark:bg-brand-darkest/20">
 
-                    {/* ✅ FIXED: Real Data Mapping */}
+                    {/* Overview Tab */}
                     {activeTab === 'overview' && (
                         <div className="space-y-6 animate-fade-in">
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -244,7 +256,6 @@ const BotDetailsModal: React.FC<{ bot: ActiveBot; onClose: () => void }> = ({ bo
                                 </div>
                                 <div className="bg-white dark:bg-brand-dark p-4 rounded-xl border border-gray-200 dark:border-brand-border-dark">
                                     <p className="text-xs text-gray-500 uppercase font-bold">Strategy</p>
-                                    {/* ✅ Fix: আসল স্ট্র্যাটেজি নাম দেখানো */}
                                     <p className="text-lg font-bold mt-1 text-slate-900 dark:text-white truncate" title={bot.strategy}>
                                         {bot.strategy}
                                     </p>
@@ -261,7 +272,7 @@ const BotDetailsModal: React.FC<{ bot: ActiveBot; onClose: () => void }> = ({ bo
                         </div>
                     )}
 
-                    {/* ✅ Configuration Tab */}
+                    {/* Configuration Tab */}
                     {activeTab === 'config' && (
                         <div className="bg-[#1e1e1e] p-4 rounded-xl border border-gray-700 font-mono text-sm overflow-x-auto">
                             <pre className="text-green-400">
@@ -270,7 +281,7 @@ const BotDetailsModal: React.FC<{ bot: ActiveBot; onClose: () => void }> = ({ bo
                         </div>
                     )}
 
-                    {/* ✅ REAL LIVE LOGS Tab */}
+                    {/* Logs Tab */}
                     {activeTab === 'logs' && (
                         <div className="flex flex-col h-full">
                             <div className="flex justify-between text-xs text-gray-500 mb-2">
@@ -290,7 +301,7 @@ const BotDetailsModal: React.FC<{ bot: ActiveBot; onClose: () => void }> = ({ bo
                                             {/* লগের টাইপ অনুযায়ী কালার */}
                                             <span className={`${log.type === 'TRADE' ? 'text-yellow-400 font-bold' :
                                                 log.type === 'ERROR' ? 'text-red-500 font-bold' :
-                                                    log.type.startsWith('SYS-') ? 'text-purple-400' : // ✅ Backend Log Color
+                                                    log.type && log.type.startsWith('SYS') ? 'text-purple-400' :
                                                         log.type === 'WAIT' ? 'text-gray-600' : 'text-blue-400'
                                                 } min-w-[70px]`}>
                                                 {log.type}
@@ -881,7 +892,11 @@ const CreateBotModal: React.FC<{
                                 <label className={labelClasses}>API Key Configuration</label>
                                 <select className={inputClasses} value={apiKeyId} onChange={e => setApiKeyId(e.target.value)}>
                                     <option value="">Select a saved API key...</option>
-                                    {availableApiKeys.map(key => <option key={key} value={key}>{key}</option>)}
+                                    {availableApiKeys.map(key => (
+                                        <option key={key} value={apiKeys[key].id || ''}>
+                                            {key}
+                                        </option>
+                                    ))}
                                 </select>
                             </div>
 

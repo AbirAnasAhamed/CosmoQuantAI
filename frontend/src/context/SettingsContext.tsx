@@ -3,12 +3,13 @@ import { fetchApiKeys, saveApiKey as apiSaveApiKey } from '@/services/settings';
 import { fetchCurrentUser } from '@/services/auth';
 import { useToast } from './ToastContext';
 
-// টাইপ ডেফিনিশন
+// ✅ আপডেট: 'id' ফিল্ড যোগ করা হয়েছে
 export interface ApiKeyConfig {
+    id?: number; // ডাটাবেস ID
     apiKey: string;
-    secretKey: string; // এটি খালি থাকবে ডাটাবেস থেকে লোড করার পর (সিকিউরিটির জন্য)
+    secretKey: string;
     isEnabled: boolean;
-    isSaved?: boolean; // UI তে বোঝানোর জন্য যে এটি ডাটাবেসে আছে
+    isSaved?: boolean;
 }
 
 export interface UserProfile {
@@ -21,23 +22,14 @@ export interface UserProfile {
 
 interface SettingsContextType {
     apiKeys: Record<string, ApiKeyConfig>;
-    updateLocalApiKeyInput: (exchange: string, config: Partial<ApiKeyConfig>) => void; // ইনপুট টাইপ করার জন্য
-    saveApiKeyToBackend: (exchange: string) => Promise<void>; // ডাটাবেসে পাঠানোর জন্য
+    updateLocalApiKeyInput: (exchange: string, config: Partial<ApiKeyConfig>) => void;
+    saveApiKeyToBackend: (exchange: string) => Promise<void>;
     isLoading: boolean;
     userProfile: UserProfile;
     updateUserProfile: (profile: Partial<UserProfile>) => void;
     is2faEnabled: boolean;
     set2faEnabled: (enabled: boolean) => void;
 }
-
-// ডিফল্ট প্রোফাইল (অথবা চাইলে পরে ইউজারের ডাটা API থেকেও আনতে পারেন)
-const defaultProfile: UserProfile = {
-    fullName: 'Abir Ahamed', // লগইন API থেকে আসল নাম আপডেট করা যাবে
-    email: 'user@example.com',
-    username: 'abir',
-    timezone: 'UTC',
-    currency: 'USD'
-};
 
 const SettingsContext = createContext<SettingsContextType | undefined>(undefined);
 
@@ -50,7 +42,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         'KuCoin': { apiKey: '', secretKey: '', isEnabled: false, isSaved: false },
     });
 
-    // ডিফল্ট ভ্যালু ফাঁকা রাখুন, লোড হলে পূর্ণ হবে
     const [userProfile, setUserProfile] = useState<UserProfile>({
         fullName: 'Loading...',
         email: '...',
@@ -61,25 +52,24 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     const [is2faEnabled, set2faEnabled] = useState(false);
 
-    // মেইন ডেটা লোডিং ফাংশন
     const loadUserData = useCallback(async () => {
         const token = localStorage.getItem('accessToken');
         if (!token) return;
 
         try {
-            // ১. প্যারালাল রিকোয়েস্ট (API Key এবং User Profile একসাথে)
             const [keysFromDB, userData] = await Promise.all([
-                fetchApiKeys().catch(() => []), // ইরর হলে খালি অ্যারে
+                fetchApiKeys().catch(() => []),
                 fetchCurrentUser().catch(() => null)
             ]);
 
-            // ২. API Keys সেটআপ
+            // ✅ আপডেট: API Key এর ID সহ সেট করা হচ্ছে
             if (keysFromDB && Array.isArray(keysFromDB)) {
                 setApiKeys(prev => {
                     const newKeys = { ...prev };
                     keysFromDB.forEach((k: any) => {
                         if (newKeys[k.exchange]) {
                             newKeys[k.exchange] = {
+                                id: k.id, // এই ID টি এখন স্টোর হবে
                                 apiKey: k.api_key,
                                 secretKey: '••••••••',
                                 isEnabled: k.is_enabled,
@@ -91,30 +81,25 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
                 });
             }
 
-            // ৩. ইউজার প্রোফাইল সেটআপ (backend snake_case পাঠায়, আমরা camelCase এ কনভার্ট করবো)
             if (userData) {
                 setUserProfile({
                     fullName: userData.full_name || 'Trader',
                     email: userData.email,
-                    username: userData.email.split('@')[0], // ইউজারনেম না থাকলে ইমেইল থেকে বানানো
-                    timezone: 'UTC', // ডিফল্ট
+                    username: userData.email.split('@')[0],
+                    timezone: 'UTC',
                     currency: 'USD'
                 });
             }
 
         } catch (error) {
             console.error("Error loading user data", error);
-            // টোকেন অবৈধ হলে লগআউট করে দেয়া ভালো (অপশনাল)
-            // localStorage.removeItem('accessToken');
         }
     }, []);
 
-    // অ্যাপ মাউন্ট হলে কল হবে
     useEffect(() => {
         loadUserData();
     }, [loadUserData]);
 
-    // ২. ইউজার ইনপুট দিলে লোকাল স্টেটে আপডেট হবে
     const updateLocalApiKeyInput = (exchange: string, updates: Partial<ApiKeyConfig>) => {
         setApiKeys(prev => ({
             ...prev,
@@ -122,7 +107,6 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
         }));
     };
 
-    // ৩. "Save" বাটন চাপলে এটি কল হবে
     const saveApiKeyToBackend = async (exchange: string) => {
         const config = apiKeys[exchange];
         if (!config.apiKey || !config.secretKey || config.secretKey === '••••••••') {
@@ -132,18 +116,20 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
         setIsLoading(true);
         try {
+            // সেভ করার পর আমরা রি-ফেচ করতে পারি অথবা রেসপন্স থেকে ID নিতে পারি
+            // সিম্পল রাখার জন্য আপাতত রি-ফেচ বা ম্যানুয়াল আইডি সেট করা যেতে পারে, 
+            // তবে এখানে লোডিং শেষ হলে আবার loadUserData কল করা ভালো আইডি পাওয়ার জন্য।
             await apiSaveApiKey({
                 exchange: exchange,
                 api_key: config.apiKey,
                 secret_key: config.secretKey
             });
 
-            // সেভ হওয়ার পর স্টেট আপডেট
-            setApiKeys(prev => ({
-                ...prev,
-                [exchange]: { ...prev[exchange], isSaved: true, secretKey: '••••••••' }
-            }));
             showToast(`${exchange} API keys connected successfully!`, 'success');
+
+            // ডাটা সেভ হওয়ার পর ID পাওয়ার জন্য রি-ফেচ
+            loadUserData();
+
         } catch (error: any) {
             console.error(error);
             showToast('Failed to save API keys.', 'error');
@@ -179,4 +165,3 @@ export const useSettings = (): SettingsContextType => {
     }
     return context;
 };
-

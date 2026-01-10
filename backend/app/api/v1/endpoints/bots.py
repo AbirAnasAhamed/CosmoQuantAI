@@ -1,6 +1,8 @@
 from typing import List, Any
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect # ✅ WebSocket ইম্পোর্ট যোগ করা হয়েছে
 from sqlalchemy.orm import Session
+from redis import asyncio as aioredis # ✅ Async Redis ইম্পোর্ট (pip install redis)
+import json
 
 from app import models, schemas
 from app.api import deps
@@ -9,6 +11,7 @@ from app.tasks import run_live_bot_task
 from app import utils
 from app.models.trade import Trade
 from app.schemas.trade import TradeResponse
+from app.core.config import settings # ✅ সেটিংস ইম্পোর্ট
 
 router = APIRouter()
 
@@ -152,3 +155,37 @@ def get_bot_trades(
     # 2. Return Trade List
     trades = db.query(Trade).filter(Trade.bot_id == bot_id).order_by(Trade.opened_at.desc()).offset(skip).limit(limit).all()
     return trades
+
+# ✅ নতুন WebSocket Endpoint: লাইভ লগ দেখার জন্য
+@router.websocket("/{bot_id}/ws/logs")
+async def websocket_bot_logs(
+    websocket: WebSocket, 
+    bot_id: int
+):
+    """
+    Real-time logs for a specific bot via WebSocket & Redis Pub/Sub.
+    URL: ws://localhost:8000/api/v1/bots/{bot_id}/ws/logs
+    """
+    await websocket.accept()
+    
+    # Async Redis কানেকশন তৈরি
+    redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+    pubsub = redis.pubsub()
+    
+    # নির্দিষ্ট বটের চ্যানেলে সাবস্ক্রাইব করা
+    channel_name = f"bot_logs:{bot_id}"
+    await pubsub.subscribe(channel_name)
+    
+    try:
+        # Redis থেকে মেসেজ আসার জন্য অপেক্ষা এবং ফ্রন্টএন্ডে পাঠানো
+        async for message in pubsub.listen():
+            if message["type"] == "message":
+                await websocket.send_text(message["data"])
+    except WebSocketDisconnect:
+        print(f"🔌 Client disconnected from bot {bot_id} logs")
+    except Exception as e:
+        print(f"⚠️ WebSocket Error: {e}")
+    finally:
+        # কানেকশন বন্ধ হলে ক্লিনআপ
+        await pubsub.unsubscribe(channel_name)
+        await redis.close()
