@@ -7,6 +7,7 @@ import pandas as pd
 import pandas_ta as ta
 import numpy as np
 from datetime import datetime, timedelta
+import random
 
 router = APIRouter()
 
@@ -117,13 +118,43 @@ async def get_sentiment_correlation(symbol: str = "BTC/USDT", days: int = 7):
 
 @router.get("/heatmap")
 async def get_sentiment_heatmap():
-    return [
-        {"name": "BTC", "symbol": "BTC", "marketCap": 800000000000, "sentimentScore": 0.5},
-        {"name": "ETH", "symbol": "ETH", "marketCap": 400000000000, "sentimentScore": 0.3},
-        {"name": "BNB", "symbol": "BNB", "marketCap": 90000000000, "sentimentScore": 0.1},
-        {"name": "SOL", "symbol": "SOL", "marketCap": 60000000000, "sentimentScore": 0.8},
-        {"name": "XRP", "symbol": "XRP", "marketCap": 30000000000, "sentimentScore": -0.2},
-        {"name": "ADA", "symbol": "ADA", "marketCap": 20000000000, "sentimentScore": 0.0},
-        {"name": "DOGE", "symbol": "DOGE", "marketCap": 12000000000, "sentimentScore": 0.4},
-        {"name": "AVAX", "symbol": "AVAX", "marketCap": 11000000000, "sentimentScore": 0.2},
+    # Top 30 Crypto Mock Data for Heatmap
+    heatmap_data = [
+        {"name": "Bitcoin", "symbol": "BTC", "marketCap": 850000000000, "sentimentScore": 0.65},
+        {"name": "Ethereum", "symbol": "ETH", "marketCap": 400000000000, "sentimentScore": 0.45},
+        {"name": "Binance Coin", "symbol": "BNB", "marketCap": 95000000000, "sentimentScore": 0.15},
+        {"name": "Solana", "symbol": "SOL", "marketCap": 78000000000, "sentimentScore": 0.88},
+        {"name": "Ripple", "symbol": "XRP", "marketCap": 35000000000, "sentimentScore": -0.35},
+        {"name": "Cardano", "symbol": "ADA", "marketCap": 22000000000, "sentimentScore": 0.05},
+        {"name": "Avalanche", "symbol": "AVAX", "marketCap": 14000000000, "sentimentScore": 0.32},
+        {"name": "Dogecoin", "symbol": "DOGE", "marketCap": 12000000000, "sentimentScore": 0.75},
+        {"name": "Polkadot", "symbol": "DOT", "marketCap": 11000000000, "sentimentScore": -0.12},
+        {"name": "Chainlink", "symbol": "LINK", "marketCap": 10500000000, "sentimentScore": 0.55},
+        {"name": "Tron", "symbol": "TRX", "marketCap": 9800000000, "sentimentScore": 0.20},
+        {"name": "Polygon", "symbol": "MATIC", "marketCap": 8500000000, "sentimentScore": -0.05},
+        {"name": "Shiba Inu", "symbol": "SHIB", "marketCap": 6500000000, "sentimentScore": 0.60},
+        {"name": "Litecoin", "symbol": "LTC", "marketCap": 5500000000, "sentimentScore": 0.10},
+        {"name": "Uniswap", "symbol": "UNI", "marketCap": 4800000000, "sentimentScore": 0.25},
+        {"name": "Cosmos", "symbol": "ATOM", "marketCap": 4200000000, "sentimentScore": 0.18},
+        {"name": "Stellar", "symbol": "XLM", "marketCap": 3800000000, "sentimentScore": -0.22},
+        {"name": "Monero", "symbol": "XMR", "marketCap": 3200000000, "sentimentScore": 0.08},
+        {"name": "Ethereum Classic", "symbol": "ETC", "marketCap": 3000000000, "sentimentScore": -0.45},
+        {"name": "Filecoin", "symbol": "FIL", "marketCap": 2800000000, "sentimentScore": -0.65},
+        {"name": "Hedera", "symbol": "HBAR", "marketCap": 2600000000, "sentimentScore": 0.12},
+        {"name": "Aptos", "symbol": "APT", "marketCap": 2500000000, "sentimentScore": 0.92},
+        {"name": "Cronos", "symbol": "CRO", "marketCap": 2400000000, "sentimentScore": -0.15},
+        {"name": "Lido DAO", "symbol": "LDO", "marketCap": 2300000000, "sentimentScore": 0.40},
+        {"name": "Arbitrum", "symbol": "ARB", "marketCap": 2100000000, "sentimentScore": -0.55},
+        {"name": "Near Protocol", "symbol": "NEAR", "marketCap": 2000000000, "sentimentScore": 0.35},
+        {"name": "VeChain", "symbol": "VET", "marketCap": 1900000000, "sentimentScore": 0.02},
+        {"name": "Optimism", "symbol": "OP", "marketCap": 1800000000, "sentimentScore": -0.25},
+        {"name": "Aave", "symbol": "AAVE", "marketCap": 1600000000, "sentimentScore": 0.28},
+        {"name": "Injective", "symbol": "INJ", "marketCap": 1500000000, "sentimentScore": 0.85},
     ]
+    
+    # Optional: ডাটাগুলো একটু র‍্যান্ডমাইজ করা যাতে প্রতিবার রিফ্রেশে কিছুটা পরিবর্তন মনে হয় (Production এ এটা রিয়েল ডাটা হবে)
+    for coin in heatmap_data:
+        fluctuation = random.uniform(-0.05, 0.05)
+        coin["sentimentScore"] = max(-1, min(1, coin["sentimentScore"] + fluctuation))
+
+    return heatmap_data

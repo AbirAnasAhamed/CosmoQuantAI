@@ -16,45 +16,76 @@ const PIE_COLORS = { 'Positive': '#10B981', 'Negative': '#F43F5E', 'Neutral': '#
 
 // --- Sub Components ---
 
-const HeatmapContent = (props: any) => {
-    const { x, y, width, height, name, sentimentScore } = props;
+const ModernHeatmapContent = (props: any) => {
+    const { x, y, width, height, name, sentimentScore, marketCap, symbol } = props;
     const score = typeof sentimentScore === 'number' ? sentimentScore : 0;
 
     if (!width || !height || width < 0 || height < 0) return null;
 
-    let backgroundColor = '#64748B';
-    if (score > 0.5) backgroundColor = '#059669';
-    else if (score > 0.2) backgroundColor = '#10B981';
-    else if (score < -0.5) backgroundColor = '#E11D48';
-    else if (score < -0.2) backgroundColor = '#F43F5E';
+    // Dynamic Styling based on Score
+    let gradient = "from-slate-700/50 to-slate-900/90";
+    let borderColor = "border-slate-600/30";
+    let glow = "";
+    let textColor = "text-slate-200";
+    let scoreColor = "text-slate-400";
+
+    if (score > 0.5) {
+        gradient = "from-emerald-500/30 via-emerald-600/20 to-emerald-900/90";
+        borderColor = "border-emerald-500/50";
+        glow = "shadow-[0_0_15px_rgba(16,185,129,0.3)]";
+        textColor = "text-emerald-100";
+        scoreColor = "text-emerald-400";
+    } else if (score > 0.1) {
+        gradient = "from-teal-500/20 via-teal-600/10 to-slate-900/90";
+        borderColor = "border-teal-500/40";
+        textColor = "text-teal-50";
+        scoreColor = "text-teal-400";
+    } else if (score < -0.5) {
+        gradient = "from-rose-500/30 via-rose-600/20 to-rose-900/90";
+        borderColor = "border-rose-500/50";
+        glow = "shadow-[0_0_15px_rgba(244,63,94,0.3)]";
+        textColor = "text-rose-100";
+        scoreColor = "text-rose-400";
+    } else if (score < -0.1) {
+        gradient = "from-orange-500/20 via-orange-600/10 to-slate-900/90";
+        borderColor = "border-orange-500/40";
+        textColor = "text-orange-50";
+        scoreColor = "text-orange-400";
+    }
+
+    // Only render detail if box is big enough
+    const showDetail = width > 60 && height > 50;
+    const showMini = width > 30 && height > 30;
 
     return (
-        <g>
-            <rect
-                x={x}
-                y={y}
-                width={width}
-                height={height}
-                fill={backgroundColor}
-                stroke="#fff"
-                strokeWidth={2}
-                rx={4}
-                ry={4}
-                style={{ transition: 'all 0.3s ease' }}
-            />
-            {width > 40 && height > 30 && (
-                <foreignObject x={x} y={y} width={width} height={height}>
-                    <div className="flex flex-col items-center justify-center h-full overflow-hidden p-1 text-center pointer-events-none">
-                        <span className="font-bold text-xs truncate w-full px-1 text-white">{name}</span>
-                        {height > 50 && (
-                            <span className="text-[10px] opacity-80 text-white">
-                                {score.toFixed(2)}
+        <foreignObject x={x + 2} y={y + 2} width={width - 4} height={height - 4}>
+            <div 
+                className={`w-full h-full rounded-xl border ${borderColor} bg-gradient-to-br ${gradient} backdrop-blur-md flex flex-col items-center justify-center transition-all duration-300 hover:scale-[0.98] hover:brightness-110 ${glow} overflow-hidden relative group`}
+            >
+                {/* Background Grid Pattern Overlay */}
+                <div className="absolute inset-0 opacity-10 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay"></div>
+                
+                {/* Content */}
+                <div className="z-10 flex flex-col items-center text-center p-1">
+                    {showMini && (
+                        <span className={`font-black tracking-tighter ${width < 50 ? 'text-[10px]' : 'text-sm'} ${textColor} drop-shadow-md`}>
+                            {name}
+                        </span>
+                    )}
+                    
+                    {showDetail && (
+                        <>
+                            <span className={`text-[10px] font-mono mt-0.5 font-bold ${scoreColor}`}>
+                                {score > 0 ? '+' : ''}{score.toFixed(2)}
                             </span>
-                        )}
-                    </div>
-                </foreignObject>
-            )}
-        </g>
+                            <span className="text-[8px] opacity-60 text-white mt-1 uppercase tracking-widest scale-75">
+                                {(marketCap / 1_000_000_000).toFixed(0)}B
+                            </span>
+                        </>
+                    )}
+                </div>
+            </div>
+        </foreignObject>
     );
 };
 
@@ -726,27 +757,58 @@ const SentimentEngine: React.FC = () => {
                 </div>
             </Card>
 
-            <Card className="min-h-[400px] flex flex-col">
-                <div className="flex justify-between items-center mb-4">
-                    <div className="flex items-center gap-2">
-                        <div className="p-2 bg-gradient-to-br from-purple-500 to-indigo-600 rounded-lg text-white">
+            {/* --- REIMAGINED HEATMAP SECTION --- */}
+            <Card className="min-h-[450px] flex flex-col relative overflow-hidden border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-[#0B1121]/80 backdrop-blur-xl">
+                {/* Decorative Elements */}
+                <div className="absolute top-0 right-0 w-64 h-64 bg-brand-primary/5 rounded-full blur-3xl -z-10"></div>
+                
+                <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 z-10">
+                    <div className="flex items-center gap-3">
+                        <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl text-white shadow-lg shadow-indigo-500/20">
                             <Maximize2 size={18} />
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-slate-900 dark:text-white">Crypto Sentiment Heatmap</h3>
-                            <p className="text-xs text-gray-500">Global market sentiment visualization (Top 50 Assets)</p>
+                            <h3 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+                                Quantum Sentiment Map
+                            </h3>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
+                                Visualizing Market Emotions & Capital Flow
+                            </p>
                         </div>
                     </div>
-                    <Button variant="outline" size="sm" onClick={fetchHeatmap} disabled={isHeatmapLoading}>
-                        {isHeatmapLoading ? <Loader2 className="animate-spin w-4 h-4" /> : <RefreshCw className="w-4 h-4" />}
-                    </Button>
+                    
+                    <div className="flex items-center gap-2">
+                         <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={fetchHeatmap} 
+                            disabled={isHeatmapLoading}
+                            className="border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs"
+                        >
+                            {isHeatmapLoading ? (
+                                <span className="flex items-center gap-2">
+                                    <Loader2 className="animate-spin w-3 h-3" /> Syncing...
+                                </span>
+                            ) : (
+                                <span className="flex items-center gap-2">
+                                    <RefreshCw className="w-3 h-3" /> Refresh Data
+                                </span>
+                            )}
+                        </Button>
+                    </div>
                 </div>
 
-                <div className="flex-grow w-full h-[350px] min-h-[350px] bg-slate-50 dark:bg-slate-900/50 rounded-xl overflow-hidden border border-slate-200 dark:border-slate-800 relative">
+                {/* Heatmap Container */}
+                <div className="flex-grow w-full h-[380px] min-h-[380px] bg-slate-100 dark:bg-[#0f1623] rounded-2xl p-1 overflow-hidden border border-slate-200 dark:border-slate-800/60 shadow-inner relative">
                     {isHeatmapLoading && heatmapData.length === 0 ? (
-                        <div className="flex items-center justify-center h-full text-gray-400">
-                            <Loader2 className="w-8 h-8 animate-spin mb-2" />
-                            Loading Market Data...
+                        <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-white/80 dark:bg-[#0f1623]/80 backdrop-blur-sm">
+                            <div className="relative">
+                                <div className="w-12 h-12 border-4 border-brand-primary/30 border-t-brand-primary rounded-full animate-spin"></div>
+                                <div className="absolute inset-0 flex items-center justify-center">
+                                    <div className="w-2 h-2 bg-brand-primary rounded-full animate-pulse"></div>
+                                </div>
+                            </div>
+                            <p className="text-xs font-mono text-brand-primary mt-4 animate-pulse">INITIALIZING NEURAL GRID...</p>
                         </div>
                     ) : (
                         <ResponsiveContainer width="100%" height="100%">
@@ -754,27 +816,38 @@ const SentimentEngine: React.FC = () => {
                                 data={heatmapData}
                                 dataKey="marketCap"
                                 aspectRatio={4 / 3}
-                                stroke="#fff"
+                                stroke="transparent"
                                 fill="#8884d8"
-                                content={<HeatmapContent />}
+                                content={<ModernHeatmapContent />}
+                                animationDuration={800}
                             >
                                 <Tooltip
+                                    cursor={{ stroke: 'rgba(255,255,255,0.1)', strokeWidth: 2 }}
                                     content={({ active, payload }) => {
                                         if (active && payload && payload.length) {
                                             const data = payload[0].payload;
                                             return (
-                                                <div className="bg-white dark:bg-slate-800 p-3 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700">
-                                                    <p className="font-bold text-slate-900 dark:text-white">{data.name} ({data.symbol})</p>
-                                                    <div className="mt-2 space-y-1 text-xs">
-                                                        <div className="flex justify-between gap-4">
-                                                            <span className="text-gray-500">Sentiment:</span>
-                                                            <span className={data.sentimentScore > 0 ? 'text-green-500' : 'text-red-500'}>
-                                                                {typeof data.sentimentScore === 'number' ? data.sentimentScore.toFixed(2) : 'N/A'}
+                                                <div className="bg-white/95 dark:bg-[#0F172A]/95 backdrop-blur-xl p-4 rounded-xl shadow-2xl border border-slate-100 dark:border-slate-700 min-w-[200px]">
+                                                    <div className="flex justify-between items-start mb-2">
+                                                        <div>
+                                                            <h4 className="text-lg font-black text-slate-800 dark:text-white flex items-center gap-2">
+                                                                {data.name} 
+                                                                <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500 border border-slate-200 dark:border-slate-700">{data.symbol}</span>
+                                                            </h4>
+                                                        </div>
+                                                        <div className={`w-3 h-3 rounded-full ${data.sentimentScore > 0 ? 'bg-emerald-500 shadow-[0_0_10px_#10B981]' : 'bg-rose-500 shadow-[0_0_10px_#F43F5E]'}`}></div>
+                                                    </div>
+                                                    
+                                                    <div className="space-y-2 mt-3">
+                                                        <div className="flex justify-between items-center text-xs p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                                                            <span className="text-slate-500">Sentiment Score</span>
+                                                            <span className={`font-bold font-mono ${data.sentimentScore > 0 ? 'text-emerald-500' : 'text-rose-500'}`}>
+                                                                {typeof data.sentimentScore === 'number' ? data.sentimentScore.toFixed(3) : 'N/A'}
                                                             </span>
                                                         </div>
-                                                        <div className="flex justify-between gap-4">
-                                                            <span className="text-gray-500">Market Cap:</span>
-                                                            <span className="text-slate-700 dark:text-slate-300">
+                                                        <div className="flex justify-between items-center text-xs p-2 rounded-lg bg-slate-50 dark:bg-slate-800/50">
+                                                            <span className="text-slate-500">Market Cap</span>
+                                                            <span className="font-bold font-mono text-slate-700 dark:text-slate-300">
                                                                 ${(data.marketCap / 1_000_000_000).toFixed(2)}B
                                                             </span>
                                                         </div>
@@ -790,12 +863,21 @@ const SentimentEngine: React.FC = () => {
                     )}
                 </div>
 
-                <div className="flex items-center justify-center gap-4 mt-4 text-xs font-mono text-gray-500">
-                    <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#E11D48] rounded"></div> Extreme Bearish</div>
-                    <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#F43F5E] rounded"></div> Bearish</div>
-                    <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#64748B] rounded"></div> Neutral</div>
-                    <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#10B981] rounded"></div> Bullish</div>
-                    <div className="flex items-center gap-2"><div className="w-3 h-3 bg-[#059669] rounded"></div> Extreme Bullish</div>
+                {/* Stylish Legend */}
+                <div className="flex flex-wrap items-center justify-center gap-3 mt-5 px-4">
+                    <div className="text-[10px] uppercase font-bold text-slate-400 mr-2">Sentiment Intensity:</div>
+                    
+                    {[
+                        { label: 'Bearish', color: 'bg-gradient-to-r from-rose-600 to-rose-500', glow: 'shadow-rose-500/20' },
+                        { label: 'Neutral', color: 'bg-gradient-to-r from-slate-600 to-slate-500', glow: 'shadow-slate-500/20' },
+                        { label: 'Bullish', color: 'bg-gradient-to-r from-teal-600 to-emerald-500', glow: 'shadow-emerald-500/20' },
+                        { label: 'Extreme Hype', color: 'bg-gradient-to-r from-emerald-500 to-green-400', glow: 'shadow-green-500/40 animate-pulse' },
+                    ].map((item, idx) => (
+                        <div key={idx} className={`flex items-center gap-2 px-3 py-1.5 rounded-full bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700 ${item.glow} shadow-sm transition-transform hover:scale-105 cursor-default`}>
+                            <div className={`w-2.5 h-2.5 rounded-full ${item.color}`}></div>
+                            <span className="text-[10px] font-bold text-slate-600 dark:text-slate-300">{item.label}</span>
+                        </div>
+                    ))}
                 </div>
             </Card>
 
