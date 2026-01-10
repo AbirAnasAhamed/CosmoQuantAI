@@ -223,8 +223,13 @@ class LiveBotEngine:
                 # Futures হলে মার্জিন (USDT) চেক করতে হবে, Spot হলে Asset
                 if self.deployment_target == 'future':
                     available = float(balance[quote_currency]['free'])
-                    # ফিউচারসে সেলিং বা শর্ট করার জন্য মার্জিন লাগে
-                    return True # আপাতত ফিউচারস ব্যালেন্স চেক সরল রাখা হলো
+                    leverage = float(self.config.get('leverage', 1))
+                    cost = (required_amount * price) / leverage
+                    
+                    if available < cost:
+                        self.log(f"❌ Insufficient Futures Margin! Required: {cost:.4f} {quote_currency}, Available: {available:.4f}", "WARNING")
+                        return False
+                    return True
                 else:
                     available = float(balance[base_currency]['free'])
                     # Spot Sell মানে আমাদের কাছে Asset থাকতে হবে
@@ -319,7 +324,12 @@ class LiveBotEngine:
                  amount = self.position["amount"] * (amount_pct / 100.0)
 
             # এক্সচেঞ্জ প্রিসিশন অনুযায়ী ঠিক করা
-            # amount = self.exchange.amount_to_precision(self.symbol, amount) # Uncomment if strict checking needed
+            # এক্সচেঞ্জ প্রিসিশন অনুযায়ী ঠিক করা
+            amount = float(self.exchange.amount_to_precision(self.symbol, amount))
+            
+            # লিমিট অর্ডারের জন্য প্রাইসও ঠিক করতে হবে
+            if self.order_type != 'market':
+                price = float(self.exchange.price_to_precision(self.symbol, price))
 
             # ---------------------------------------------------------
             # ✅ ধাপ ৩: ট্রেডের আগে ব্যালেন্স ভ্যালিডেশন
