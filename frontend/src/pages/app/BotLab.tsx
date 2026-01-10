@@ -13,7 +13,16 @@ import { botService } from '@/services/botService';
 import SearchableSelect from '@/components/common/SearchableSelect';
 import { strategyService } from '@/services/strategyService';
 import client from '@/services/client';
+
 import { runBacktestApi, getBacktestStatus } from '@/services/backtester';
+
+// 0. স্ট্র্যাটেজি লিস্ট (Backend Factory Pattern এর সাথে মিল রেখে)
+const STRATEGY_OPTIONS = [
+    { value: 'RSI Strategy', label: 'RSI Strategy (Default)' },
+    { value: 'MACD Trend', label: 'MACD Trend' },
+    { value: 'Bollinger Bands', label: 'Bollinger Bands' },
+    { value: 'SMA Cross', label: 'SMA Crossover' }
+];
 
 // Icons
 const PlayIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -670,12 +679,15 @@ const CreateBotModal: React.FC<{
     const [isLoadingPairs, setIsLoadingPairs] = useState(false);
 
     // Strategy & Params
-    const [strategies, setStrategies] = useState<string[]>([]);
-    const [strategy, setStrategy] = useState('');
-    const [isLoadingStrategies, setIsLoadingStrategies] = useState(false);
-    const [dynamicParamsSchema, setDynamicParamsSchema] = useState<Record<string, any>>({});
-    const [paramValues, setParamValues] = useState<Record<string, any>>({});
-    const [isLoadingParams, setIsLoadingParams] = useState(false);
+    // const [strategies, setStrategies] = useState<string[]>([]); // Removed dynamic list
+    const [strategy, setStrategy] = useState(STRATEGY_OPTIONS[0].value); // Default to first option
+    // const [isLoadingStrategies, setIsLoadingStrategies] = useState(false);
+    // const [dynamicParamsSchema, setDynamicParamsSchema] = useState<Record<string, any>>({});
+    // const [paramValues, setParamValues] = useState<Record<string, any>>({});
+    // const [isLoadingParams, setIsLoadingParams] = useState(false);
+
+    // JSON Config State
+    const [strategyConfigJson, setStrategyConfigJson] = useState('{\n  "period": 14,\n  "lower": 30,\n  "upper": 70\n}');
 
     const [timeframe, setTimeframe] = useState('1h');
 
@@ -705,25 +717,11 @@ const CreateBotModal: React.FC<{
     // ... (useEffect for Strategies, Exchanges, Pairs, Params Loading - আগের মতোই থাকবে)
     // (এই অংশগুলো অপরিবর্তিত আছে বলে এখানে আর লিখলাম না, আপনার ফাইলে যা আছে তাই থাকবে)
 
-    useEffect(() => {
-        const fetchStrategies = async () => {
-            setIsLoadingStrategies(true);
-            try {
-                // ✅ FIX: Removed extra '/api' prefix
-                const { data } = await client.get('/v1/strategies/list');
-                setStrategies(data);
-                if (data.length > 0) setStrategy(data[0]);
-            } catch (error) {
-                console.error("Failed to fetch strategies:", error);
-                // Fallback to mock data if API fails
-                setStrategies(MOCK_STRATEGIES);
-                setStrategy(MOCK_STRATEGIES[0]);
-            } finally {
-                setIsLoadingStrategies(false);
-            }
-        };
-        fetchStrategies();
-    }, []);
+    // Strategy list fetch logic removed in favor of static STRATEGY_OPTIONS
+    // useEffect(() => {
+    //     const fetchStrategies = async () => { ... }
+    //     fetchStrategies();
+    // }, []);
 
     // ... (Exchange & Pair loading logic same as before)
     useEffect(() => {
@@ -751,30 +749,24 @@ const CreateBotModal: React.FC<{
         }
     }, [exchange]);
 
-    useEffect(() => {
-        if (!strategy) return;
-        const fetchStrategyParams = async () => {
-            setIsLoadingParams(true);
-            try {
-                // ✅ FIX: Removed extra '/api' prefix and added URL encoding
-                const { data } = await client.get(`/v1/strategies/source/${encodeURIComponent(strategy)}`);
+    // Params fetch logic removed in favor of JSON input
+    // useEffect(() => {
+    //     if (!strategy) return;
+    //     const fetchStrategyParams = async () => { ... }
+    //     fetchStrategyParams();
+    // }, [strategy]);
 
-                if (data.inferred_params) {
-                    setDynamicParamsSchema(data.inferred_params);
-                    const defaults: Record<string, any> = {};
-                    Object.entries(data.inferred_params).forEach(([key, config]: [string, any]) => {
-                        defaults[key] = config.default;
-                    });
-                    setParamValues(defaults);
-                }
-            } catch (error) {
-                console.error("Failed to fetch params:", error);
-                setDynamicParamsSchema({});
-            } finally {
-                setIsLoadingParams(false);
-            }
-        };
-        fetchStrategyParams();
+    // Auto-populate JSON example based on strategy selection
+    useEffect(() => {
+        if (strategy.includes('RSI')) {
+            setStrategyConfigJson('{\n  "period": 14,\n  "lower": 30,\n  "upper": 70\n}');
+        } else if (strategy.includes('MACD')) {
+            setStrategyConfigJson('{\n  "fast_period": 12,\n  "slow_period": 26,\n  "signal_period": 9\n}');
+        } else if (strategy.includes('Bollinger')) {
+            setStrategyConfigJson('{\n  "period": 20,\n  "devfactor": 2.0\n}');
+        } else if (strategy.includes('SMA')) {
+            setStrategyConfigJson('{\n  "fast_period": 10,\n  "slow_period": 30\n}');
+        }
     }, [strategy]);
 
 
@@ -825,7 +817,8 @@ const CreateBotModal: React.FC<{
             api_key_id: apiKeyId,
             is_regime_aware: advanced.regimeFilter,
             config: {
-                strategyParams: paramValues,
+                // strategyParams: paramValues, // Replaced by JSON spread
+                ...JSON.parse(strategyConfigJson), // Spread params to root for backend access
                 riskParams: finalRiskParams,
                 advanced,
                 notifications,
@@ -916,15 +909,14 @@ const CreateBotModal: React.FC<{
 
                             <div className="md:col-span-1">
                                 <label className={labelClasses}>
-                                    Strategy {isLoadingStrategies && <span className="text-xs text-brand-primary lowercase ml-1">(syncing...)</span>}
+                                    Strategy
                                 </label>
                                 <select
                                     className={inputClasses}
                                     value={strategy}
                                     onChange={e => setStrategy(e.target.value)}
-                                    disabled={isLoadingStrategies}
                                 >
-                                    {strategies.map(s => <option key={s} value={s}>{s}</option>)}
+                                    {STRATEGY_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
                                 </select>
                             </div>
                             <div className="md:col-span-2">
@@ -1002,34 +994,23 @@ const CreateBotModal: React.FC<{
 
                         <div className="h-px bg-gray-200 dark:bg-brand-border-dark my-6"></div>
 
-                        {/* --- Section 3: Dynamic Strategy Params --- */}
+                        {/* --- Section 3: Strategy Config (JSON) --- */}
                         <div>
                             <h3 className={sectionTitleClasses}>
-                                Strategy Parameters ({strategy})
-                                {isLoadingParams && <span className="text-xs text-brand-primary font-normal ml-2 animate-pulse">Loading params...</span>}
+                                Strategy Configuration (JSON)
                             </h3>
-                            {Object.keys(dynamicParamsSchema).length > 0 ? (
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                    {Object.entries(dynamicParamsSchema).map(([key, config]: [string, any]) => (
-                                        <div key={key}>
-                                            <label className={labelClasses} title={key}>{config.label || key}</label>
-                                            <input
-                                                type="number"
-                                                className={inputClasses}
-                                                value={paramValues[key] ?? config.default}
-                                                onChange={e => setParamValues({ ...paramValues, [key]: Number(e.target.value) })}
-                                                step={config.step || "any"}
-                                                min={config.min}
-                                                max={config.max}
-                                            />
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div className="p-4 bg-gray-100 dark:bg-brand-darkest/50 rounded-xl text-center text-gray-500 text-sm">
-                                    {isLoadingParams ? "Fetching parameters..." : "No configurable parameters detected for this strategy."}
-                                </div>
-                            )}
+                            <div className="space-y-2">
+                                <label className="text-xs text-gray-500">Parameters for {strategy}</label>
+                                <textarea
+                                    className="w-full p-3 border rounded-xl bg-gray-100 dark:bg-brand-darkest/50 dark:border-brand-border-dark text-slate-900 dark:text-white font-mono text-xs focus:ring-2 focus:ring-brand-primary outline-none"
+                                    rows={5}
+                                    value={strategyConfigJson}
+                                    onChange={(e) => setStrategyConfigJson(e.target.value)}
+                                />
+                                <p className="text-[10px] text-gray-400">
+                                    Edit the JSON above to configure strategy parameters like period, devfactor, etc.
+                                </p>
+                            </div>
                         </div>
 
                         <div className="h-px bg-gray-200 dark:bg-brand-border-dark my-6"></div>
