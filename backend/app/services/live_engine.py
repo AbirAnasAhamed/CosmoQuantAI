@@ -12,7 +12,9 @@ from app.utils import get_redis_client
 from app.core.config import settings
 # ✅ সিকিউরিটি এবং স্ট্র্যাটেজি ইমপোর্ট
 from app.core.security import decrypt_key
+from app.core.security import decrypt_key
 from app.strategies.live_strategies import LiveStrategyFactory
+from app.models.trade import Trade
 
 redis_log_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
 
@@ -62,10 +64,34 @@ class LiveBotEngine:
         self.highest_price = 0.0 # To track high water mark
 
         # Position State (In-Memory)
-        self.position = { "amount": 0.0, "entry_price": 0.0 }
+        self.position = { "amount": 0.0, "entry_price": 0.0, "trade_id": None }
+        
+        self._load_state()
 
         # ✅ EXCHANGE INITIALIZATION WITH SECURITY
         self.exchange = self._initialize_exchange()
+
+    def _load_state(self):
+        """ডাটাবেস চেক করে দেখবে কোনো ওপেন ট্রেড আছে কিনা"""
+        try:
+            open_trade = self.db.query(Trade).filter(
+                Trade.bot_id == self.bot.id,
+                Trade.status == "OPEN"
+            ).first()
+
+            if open_trade:
+                self.position = {
+                    "amount": open_trade.quantity,
+                    "entry_price": open_trade.entry_price,
+                    "trade_id": open_trade.id
+                }
+                self.highest_price = open_trade.entry_price
+                self.log(f"🔄 Restored Open Position: {open_trade.quantity} @ {open_trade.entry_price}", "SYSTEM")
+            else:
+                self.log("✅ No open positions found. Starting fresh.", "SYSTEM")
+                
+        except Exception as e:
+            self.log(f"⚠️ Error loading state: {e}", "ERROR")
 
     # ---------------------------------------------------------
     # ✅ ধাপ ১: এনক্রিপ্টেড API Key লোড এবং ডিক্রিপ্ট করা
@@ -265,8 +291,8 @@ class LiveBotEngine:
             self.log(f"🕵️ Simulated {side} ({amount_pct}%) at {price}", "TRADE")
              # Simulation Logic Update
             if side == "BUY":
-                self.position["amount"] = self.trade_value / price # Simplified
-                self.position["entry_price"] = price
+                quantity = self.trade_value / price
+                self.position = {"amount": quantity, "entry_price": price, "trade_id": "SIM_ID"}
                 self.highest_price = price # Reset Trailing High
                 # Reset TP flags
                 for tp in self.take_profits: tp["executed"] = False
@@ -309,26 +335,65 @@ class LiveBotEngine:
                 order = self.exchange.create_limit_order(self.symbol, side.lower(), amount, price)
             
             if order:
-                self.log(f"✅ Order Placed: ID {order['id']}", "TRADE")
+                executed_price = float(order.get('average', price))
+                executed_qty = float(order['amount'])
+                self.log(f"✅ Order Placed: ID {order['id']} @ {executed_price}", "TRADE")
                 
-                # পজিশন আপডেট
+                # ✅ ৫. ডাটাবেস আপডেট লজিক
                 if side == "BUY":
-                    self.position["amount"] += float(order['amount'])
-                    self.position["entry_price"] = float(order.get('average', price))
-                    
-                    # Reset Risk State
-                    self.highest_price = price 
+                    # নতুন ট্রেড তৈরি করা
+                    new_trade = Trade(
+                        bot_id=self.bot.id,
+                        symbol=self.symbol,
+                        side="BUY", # Long
+                        entry_price=executed_price,
+                        quantity=executed_qty,
+                        status="OPEN"
+                    )
+                    self.db.add(new_trade)
+                    self.db.commit()
+                    self.db.refresh(new_trade)
+
+                    # ইন-মেমোরি স্টেট আপডেট
+                    self.position = {
+                        "amount": executed_qty, 
+                        "entry_price": executed_price,
+                        "trade_id": new_trade.id
+                    }
+                    self.highest_price = executed_price
                     for tp in self.take_profits: tp["executed"] = False
 
                 elif side == "SELL":
-                    self.position["amount"] -= float(order['amount'])
+                    # পজিশন কমানো
+                    self.position["amount"] -= executed_qty
+                    
+                    # ট্রেড আপডেট করা (যদি সম্পূর্ণ বিক্রি হয়)
                     if self.position["amount"] < 0.00001: 
                         self.position["amount"] = 0
+                        
+                        # ডাটাবেসে ট্রেড ক্লোজ করা
+                        if self.position["trade_id"]:
+                            trade_record = self.db.query(Trade).get(self.position["trade_id"])
+                            if trade_record:
+                                trade_record.exit_price = executed_price
+                                trade_record.status = "CLOSED"
+                                trade_record.closed_at = datetime.now()
+                                
+                                # PnL ক্যালকুলেশন
+                                trade_record.pnl = (executed_price - trade_record.entry_price) * trade_record.quantity
+                                trade_record.pnl_percent = ((executed_price - trade_record.entry_price) / trade_record.entry_price) * 100
+                                
+                                self.db.commit()
+                                self.log(f"💰 PnL: {trade_record.pnl:.2f} ({trade_record.pnl_percent:.2f}%)", "PROFIT" if trade_record.pnl > 0 else "LOSS")
+                                
+                                # ইন-মেমোরি ট্রেড আইডি রিসেট
+                                self.position["trade_id"] = None
                 
                 return True
 
         except Exception as e:
             self.log(f"❌ Trade Execution Error: {e}", "ERROR")
+            self.db.rollback()
             return False
 
     async def run_loop(self):
