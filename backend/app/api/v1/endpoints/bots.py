@@ -7,6 +7,8 @@ from app.api import deps
 from app.db.session import SessionLocal 
 from app.tasks import run_live_bot_task
 from app import utils
+from app.models.trade import Trade
+from app.schemas.trade import TradeResponse
 
 router = APIRouter()
 
@@ -130,3 +132,23 @@ def control_bot(
         
     db.refresh(bot)
     return bot
+
+@router.get("/{bot_id}/trades", response_model=List[TradeResponse])
+def get_bot_trades(
+    bot_id: int,
+    skip: int = 0,
+    limit: int = 100,
+    db: Session = Depends(deps.get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """
+    Get trade history for a specific bot.
+    """
+    # 1. Check Bot (User Authenticated)
+    bot = db.query(models.Bot).filter(models.Bot.id == bot_id, models.Bot.owner_id == current_user.id).first()
+    if not bot:
+        raise HTTPException(status_code=404, detail="Bot not found")
+        
+    # 2. Return Trade List
+    trades = db.query(Trade).filter(Trade.bot_id == bot_id).order_by(Trade.opened_at.desc()).offset(skip).limit(limit).all()
+    return trades
