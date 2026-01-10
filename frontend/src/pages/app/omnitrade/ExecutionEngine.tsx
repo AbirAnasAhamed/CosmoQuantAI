@@ -1,8 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Clock, TrendingDown, CheckCircle, Layers, AlertOctagon, Activity, TrendingUp, ArrowRightLeft, Crosshair, BookOpen, Zap, StopCircle, PlayCircle, Globe, Shield, Brain, Calculator, Flame, Info, FileText, Download, ArrowUpDown, ArrowUp, ArrowDown, Microscope, ChevronUp, ChevronDown, RefreshCcw, Lock } from 'lucide-react';
 import { Trade } from '@/types';
+import apiClient from '../../../services/client'; // ✅ Import API Client
+import { toast } from 'react-hot-toast'; // ✅ Import Toast if not already there, assuming standard setup
 
 export const ExecutionEngine = () => {
+    // ✅ New State for Real Trading
+    const [selectedExchange, setSelectedExchange] = useState('binance');
+
     const [isRunning, setIsRunning] = useState(false);
     const [expandedTradeId, setExpandedTradeId] = useState<string | null>(null);
     // Sorting State
@@ -182,7 +187,7 @@ export const ExecutionEngine = () => {
                 const currentTrend = trendRef.current;
                 let side: 'BUY' | 'SELL';
                 const correctSide = currentTrend > 0 ? 'BUY' : 'SELL';
-                const isSmartMove = Math.random() < (confidence/100);
+                const isSmartMove = Math.random() < (confidence / 100);
 
                 if (isSmartMove) side = correctSide;
                 else side = correctSide === 'BUY' ? 'SELL' : 'BUY';
@@ -307,7 +312,7 @@ export const ExecutionEngine = () => {
     // Liquidation happens when loss ~= Margin. Margin = 1/Leverage.
     const liquidationDistancePercent = (100 / riskConfig.leverage);
     // Approx Liquidation Price for Longs: Entry * (1 - 1/Lev)
-    const liquidationPrice = marketMetrics.currentPrice * (1 - (liquidationDistancePercent/100));
+    const liquidationPrice = marketMetrics.currentPrice * (1 - (liquidationDistancePercent / 100));
 
     // Proximity Check
     const marginHealth = (liquidationDistancePercent - slPercentage) / liquidationDistancePercent; // crude check
@@ -322,31 +327,50 @@ export const ExecutionEngine = () => {
         setExpandedTradeId(expandedTradeId === tradeId ? null : tradeId);
     };
     // Manual Trade Handler
-    const handleManualTrade = (side: 'BUY' | 'SELL') => {
-        const confidence = 100; // Manual = 100% human confidence
-        const baseMargin = calculatePositionSize(confidence);
-        const effectiveNotional = baseMargin * riskConfig.leverage;
-        const price = orderType === 'MARKET' ? marketMetrics.currentPrice : manualPrice;
-        const amount = manualAmount > 0 ? manualAmount : (effectiveNotional / price);
+    const handleManualTrade = async (side: 'BUY' | 'SELL') => {
+        // --- REAL TRADING EXECUTION ---
+        try {
+            const payload = {
+                symbol: 'BTC/USDT', // Hardcoded for now based on UI context, or use state if available
+                side: side.toLowerCase(),
+                type: orderType.toLowerCase(),
+                amount: manualAmount,
+                price: orderType === 'LIMIT' ? manualPrice : undefined,
+                exchange_id: selectedExchange
+            };
 
-        const newTrade: Trade = {
-            id: `M-${Math.floor(1000 + Math.random() * 9000)}`,
-            symbol: 'BTC/USDT',
-            side: side,
-            amount: parseFloat(amount.toFixed(4)),
-            price: price,
-            timestamp: new Date().toLocaleTimeString(),
-            status: 'FILLED',
-            pnl: 0,
-            confidence: confidence,
-            leverage: riskConfig.leverage,
-            marketSnapshot: {
-                volatilityIndex: marketMetrics.volatilityIndex,
-                atr: marketMetrics.atr,
-                trend: marketMetrics.trend
-            }
-        };
-        setTrades(prev => [newTrade, ...prev]);
+            toast.loading("Sending Order...", { id: 'order-submit' });
+
+            // Call Backend
+            const { data } = await apiClient.post('/v1/trading/order', payload);
+
+            toast.success(`Order Placed: ${data.id}`, { id: 'order-submit' });
+
+            // Add to local blotter for immediate feedback
+            const newTrade: Trade = {
+                id: data.id || `M-${Math.floor(1000 + Math.random() * 9000)}`,
+                symbol: data.symbol || 'BTC/USDT',
+                side: side,
+                amount: parseFloat(data.amount) || manualAmount,
+                price: parseFloat(data.price) || manualPrice,
+                timestamp: new Date().toLocaleTimeString(),
+                status: data.status.toUpperCase(),
+                pnl: 0,
+                confidence: 100, // Manual = 100%
+                leverage: riskConfig.leverage,
+                marketSnapshot: {
+                    volatilityIndex: marketMetrics.volatilityIndex,
+                    atr: marketMetrics.atr,
+                    trend: marketMetrics.trend
+                }
+            };
+            setTrades(prev => [newTrade, ...prev]);
+
+        } catch (error: any) {
+            console.error("Order Failed", error);
+            const msg = error.response?.data?.detail || "Execution Failed";
+            toast.error(`Order Failed: ${msg}`, { id: 'order-submit' });
+        }
     };
 
     // Calculated Stats for Kelly
@@ -439,6 +463,20 @@ export const ExecutionEngine = () => {
                                     {type}
                                 </button>
                             ))}
+                        </div>
+
+                        {/* ✅ Exchange Selector */}
+                        <div className="mb-2">
+                            <label className="text-xs text-slate-400 block mb-1">Target Venue</label>
+                            <select
+                                value={selectedExchange}
+                                onChange={(e) => setSelectedExchange(e.target.value)}
+                                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white text-xs focus:border-blue-500 outline-none"
+                            >
+                                <option value="binance">Binance Spot/Margin</option>
+                                <option value="binanceusdm">Binance Futures (USD-M)</option>
+                                <option value="kraken">Kraken</option>
+                            </select>
                         </div>
 
                         <div className="space-y-4">

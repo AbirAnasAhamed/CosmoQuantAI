@@ -33,10 +33,13 @@ def create_bot(
     """
     Create new bot.
     """
+    # ✅ ফিক্স: model_dump থেকে 'status' বাদ দেওয়া হয়েছে যাতে কনফ্লিক্ট না হয়
+    bot_data = bot_in.model_dump(exclude={"status"}) 
+    
     bot = models.Bot(
-        **bot_in.model_dump(),
+        **bot_data,
         owner_id=current_user.id,
-        status="inactive" # Default status inactive থাকবে
+        status="inactive" # ডিফল্ট স্ট্যাটাস সেট করা হচ্ছে
     )
     db.add(bot)
     db.commit()
@@ -77,26 +80,19 @@ def delete_bot(
     """
     Delete a bot. If the bot is running, it force-stops the background task first.
     """
-    # ১. বট খুঁজে বের করা
     bot = db.query(models.Bot).filter(models.Bot.id == bot_id, models.Bot.owner_id == current_user.id).first()
     if not bot:
         raise HTTPException(status_code=404, detail="Bot not found")
         
-    # ✅ ২. লজিক: বট যদি একটিভ থাকে, তবে আগে ওয়ার্কার থামাতে হবে
-    # আমরা control_bot এর মতই Redis key ডিলিট করে লুপ থামিয়ে দেব
     if bot.status == "active":
         try:
             r = utils.get_redis_client()
             task_key = f"bot_task:{bot_id}"
-            
-            # Redis key ডিলিট করলে Celery টাস্কের লুপ ভেঙে যাবে
             r.delete(task_key)
             print(f"Force stopped worker for bot {bot_id} before deletion.")
         except Exception as e:
             print(f"Error stopping worker for bot {bot_id}: {e}")
-            # এরর হলেও আমরা ডিলিট প্রসেস চালিয়ে যাব, যাতে ডাটাবেস ক্লিন থাকে
             
-    # ৩. ডাটাবেস থেকে বট মুছে ফেলা
     db.delete(bot)
     db.commit()
     return bot
@@ -125,15 +121,11 @@ def control_bot(
             
         bot.status = "active"
         db.commit()
-        
-        # ✅ Celery টাস্ক ব্যাকগ্রাউন্ডে স্টার্ট করা হচ্ছে
         run_live_bot_task.delay(bot_id=bot.id)
         
     elif action == "stop":
         bot.status = "inactive"
         db.commit()
-        
-        # ✅ Redis Key ডিলিট করে লুপ থামানো হচ্ছে
         r.delete(task_key)
         
     db.refresh(bot)

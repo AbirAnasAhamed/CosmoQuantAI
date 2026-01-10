@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Dialog } from '@headlessui/react';
-import { X } from 'lucide-react';
 import { botService } from '../../services/botService';
 import { strategyService } from '../../services/strategyService';
+// ✅ Import apiClient for fetching keys
+import apiClient from '../../services/client';
 
 interface BotLabModalProps {
     isOpen: boolean;
@@ -16,6 +17,12 @@ const BotLabModal: React.FC<BotLabModalProps> = ({ isOpen, onClose, onSuccess })
     // ✅ নতুন স্টেট: স্ট্র্যাটেজি লিস্ট রাখার জন্য
     const [strategyOptions, setStrategyOptions] = useState<{ value: string, label: string }[]>([]);
 
+    // ✅ Real Trading States
+    const [apiKeyId, setApiKeyId] = useState<string>('');
+    const [leverage, setLeverage] = useState<number>(1);
+    const [marginMode, setMarginMode] = useState<string>('cross');
+    const [userApiKeys, setUserApiKeys] = useState<any[]>([]);
+
     const [formData, setFormData] = useState({
         name: '',
         market: 'BTC/USDT',
@@ -26,7 +33,7 @@ const BotLabModal: React.FC<BotLabModalProps> = ({ isOpen, onClose, onSuccess })
         take_profit: 0
     });
 
-    // ✅ নতুন useEffect: মডাল লোড হলে ব্যাকএন্ড থেকে স্ট্র্যাটেজি আনবে
+    // ✅ নতুন useEffect: মডাল লোড হলে ব্যাকএন্ড থেকে স্ট্র্যাটেজি এবং API Keys আনবে
     useEffect(() => {
         if (isOpen) {
             const fetchStrategies = async () => {
@@ -42,7 +49,23 @@ const BotLabModal: React.FC<BotLabModalProps> = ({ isOpen, onClose, onSuccess })
                     console.error("Error loading strategies", err);
                 }
             };
+
+            const fetchApiKeys = async () => {
+                try {
+                    // Fetch API Keys
+                    const { data } = await apiClient.get('/api-keys');
+                    setUserApiKeys(data); // Assuming data is array of keys
+                } catch (err) {
+                    console.error("Error loading keys", err);
+                    // Fallback demo data if endpoint fails or returns empty (for UI testing)
+                    // setUserApiKeys([
+                    //   { id: '1', name: 'Binance Main', exchange: 'binance' },
+                    // ]);
+                }
+            };
+
             fetchStrategies();
+            fetchApiKeys();
         }
     }, [isOpen]);
 
@@ -50,7 +73,16 @@ const BotLabModal: React.FC<BotLabModalProps> = ({ isOpen, onClose, onSuccess })
         e.preventDefault();
         setLoading(true);
         try {
-            await botService.createBot(formData);
+            const botData = {
+                ...formData,
+                api_key_id: apiKeyId,
+                config: {
+                    leverage: Number(leverage),
+                    marginMode: marginMode,
+                    deploymentTarget: 'Future' // Or make dynamic if needed
+                }
+            };
+            await botService.createBot(botData);
             onSuccess();
             onClose();
         } catch (error) {
