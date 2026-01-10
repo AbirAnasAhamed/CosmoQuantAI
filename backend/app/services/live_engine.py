@@ -42,12 +42,24 @@ class LiveBotEngine:
         # Risk Params
         risk_params = self.config.get('riskParams', {})
         self.stop_loss_pct = float(risk_params.get('stopLoss', 0))
+        
+        # Take Profits: [ {target: 2.0, amount: 50, executed: False}, ... ]
         self.take_profits = []
-        raw_tp = risk_params.get('takeProfit')
-        if isinstance(raw_tp, list):
-            self.take_profits = sorted(raw_tp, key=lambda x: x['target'])
-        elif raw_tp and float(raw_tp) > 0:
-            self.take_profits = [{"target": float(raw_tp), "amount": 100}]
+        raw_tps = risk_params.get('takeProfits', [])
+        for tp in raw_tps:
+            self.take_profits.append({
+                "target": float(tp['target']),
+                "amount": float(tp['amount']),
+                "executed": False
+            })
+        # Sort by target percentage (ascending)
+        self.take_profits.sort(key=lambda x: x['target'])
+        
+        # Trailing Stop
+        self.trailing_config = risk_params.get('trailingStop', {})
+        self.is_trailing_enabled = self.trailing_config.get('enabled', False)
+        self.trailing_callback = float(self.trailing_config.get('callbackRate', 1.0))
+        self.highest_price = 0.0 # To track high water mark
 
         # Position State (In-Memory)
         self.position = { "amount": 0.0, "entry_price": 0.0 }
@@ -203,18 +215,77 @@ class LiveBotEngine:
             self.log(f"Strategy Error: {e}", "ERROR")
             return "HOLD", "Error", df['close'].iloc[-1]
 
-    async def execute_trade(self, side, price, reason):
+    async def monitor_risk(self, current_price: float):
+        """
+        Check Stop Loss, Take Profit, and Trailing Stop logic.
+        """
+        if self.position["amount"] == 0:
+            return
+
+        entry_price = self.position["entry_price"]
+        
+        # ১. Stop Loss Check
+        if self.stop_loss_pct > 0:
+            sl_price = entry_price * (1 - self.stop_loss_pct / 100)
+            if current_price <= sl_price:
+                self.log(f"🛑 Stop Loss Hit! Price: {current_price} <= SL: {sl_price}", "RISK")
+                await self.execute_trade("SELL", current_price, "Stop Loss", amount_pct=100)
+                return
+
+        # ২. Trailing Stop Check
+        if self.is_trailing_enabled:
+            # Update Highest Price (High Water Mark)
+            if current_price > self.highest_price:
+                self.highest_price = current_price
+            
+            # Calculate Dynamic SL
+            trailing_sl_price = self.highest_price * (1 - self.trailing_callback / 100)
+            
+            if current_price <= trailing_sl_price:
+                self.log(f"📉 Trailing Stop Hit! Price: {current_price} <= TSL: {trailing_sl_price:.2f}", "RISK")
+                await self.execute_trade("SELL", current_price, "Trailing Stop", amount_pct=100)
+                return
+
+        # ৩. Take Profit Check (Partial Sell supported)
+        for tp in self.take_profits:
+            if not tp.get("executed", False):
+                target_price = entry_price * (1 + tp["target"] / 100)
+                
+                if current_price >= target_price:
+                    self.log(f"🎯 Take Profit Target {tp['target']}% Hit at {current_price}", "PROFIT")
+                    
+                    # Partial Sell Execute
+                    success = await self.execute_trade("SELL", current_price, f"TP {tp['target']}%", amount_pct=tp["amount"])
+                    
+                    if success:
+                        tp["executed"] = True # Mark as executed to avoid duplicate sells
+
+    async def execute_trade(self, side, price, reason, amount_pct=100):
         if not self.exchange:
-            self.log(f"🕵️ Simulated {side} at {price}", "TRADE")
+            self.log(f"🕵️ Simulated {side} ({amount_pct}%) at {price}", "TRADE")
+             # Simulation Logic Update
+            if side == "BUY":
+                self.position["amount"] = self.trade_value / price # Simplified
+                self.position["entry_price"] = price
+                self.highest_price = price # Reset Trailing High
+                # Reset TP flags
+                for tp in self.take_profits: tp["executed"] = False
+            elif side == "SELL":
+                sell_ratio = amount_pct / 100.0
+                self.position["amount"] = self.position["amount"] * (1 - sell_ratio)
             return True
 
         try:
             # ১. অ্যামাউন্ট ক্যালকুলেশন
             amount = 0.0
-            if self.trade_unit == "ASSET":
-                amount = self.trade_value 
-            else:
-                amount = self.trade_value / price
+            if side == "BUY":
+                if self.trade_unit == "ASSET":
+                    amount = self.trade_value 
+                else:
+                    amount = self.trade_value / price
+            elif side == "SELL":
+                 # Partial Sell Logic
+                 amount = self.position["amount"] * (amount_pct / 100.0)
 
             # এক্সচেঞ্জ প্রিসিশন অনুযায়ী ঠিক করা
             # amount = self.exchange.amount_to_precision(self.symbol, amount) # Uncomment if strict checking needed
@@ -227,7 +298,7 @@ class LiveBotEngine:
                 return False
 
             # ২. অর্ডার প্লেসমেন্ট
-            self.log(f"🚀 Executing {side} | Amt: {amount:.4f} | Price: {price}", "TRADE")
+            self.log(f"🚀 Executing {side} | Amt: {amount:.4f} | Reason: {reason}", "TRADE")
             
             order = None
             if self.order_type == 'market':
@@ -244,9 +315,15 @@ class LiveBotEngine:
                 if side == "BUY":
                     self.position["amount"] += float(order['amount'])
                     self.position["entry_price"] = float(order.get('average', price))
+                    
+                    # Reset Risk State
+                    self.highest_price = price 
+                    for tp in self.take_profits: tp["executed"] = False
+
                 elif side == "SELL":
-                    self.position["amount"] = 0.0
-                    self.position["entry_price"] = 0.0
+                    self.position["amount"] -= float(order['amount'])
+                    if self.position["amount"] < 0.00001: 
+                        self.position["amount"] = 0
                 
                 return True
 
@@ -271,6 +348,11 @@ class LiveBotEngine:
                 if df is not None:
                     current_price = df.iloc[-1]['close']
                     
+                    # ১. পজিশন থাকলে আগে রিস্ক চেক করো
+                    if self.position["amount"] > 0:
+                        await self.monitor_risk(current_price)
+
+                    # ২. স্ট্র্যাটেজি সিগনাল চেক
                     # BUY CHECK
                     if self.position["amount"] <= 0:
                         signal, reason, _ = self.check_strategy_signal(df)
@@ -278,16 +360,13 @@ class LiveBotEngine:
                             self.log(f"🔔 Buy Signal: {reason}", "TRADE")
                             await self.execute_trade("BUY", current_price, reason)
                     
-                    # SELL CHECK
+                    # SELL CHECK (Strategy Exit)
                     elif self.position["amount"] > 0:
                         signal, reason, _ = self.check_strategy_signal(df)
                         if signal == "SELL":
                              self.log(f"🔔 Sell Signal: {reason}", "TRADE")
-                             await self.execute_trade("SELL", current_price, reason)
+                             await self.execute_trade("SELL", current_price, reason, amount_pct=100)
                         
-                        # এখানে আপনি Stop Loss / Take Profit লজিকও যোগ করতে পারেন
-                        # await self.monitor_risk(current_price)
-
                 await asyncio.sleep(5) 
 
             except Exception as e:
