@@ -347,8 +347,23 @@ class LiveBotEngine:
                 order = self.exchange.create_limit_order(self.symbol, side.lower(), amount, price)
             
             if order:
-                executed_price = float(order.get('average', price))
-                executed_qty = float(order['amount'])
+                # ✅ FIX: Handle None values safely for Price and Quantity
+                # KuCoin often returns 'average': None for market orders immediately after placement
+                
+                avg_price = order.get('average')
+                if avg_price is None:
+                    executed_price = float(price) # এক্সচেঞ্জ প্রাইস না দিলে আমাদের পাঠানো প্রাইস ব্যবহার হবে
+                else:
+                    executed_price = float(avg_price)
+
+                # Qty এর ক্ষেত্রেও সেফটি চেক
+                ord_amount = order.get('amount')
+                if ord_amount is None:
+                    # যদি amount না থাকে, filled দেখবো, তাও না থাকলে আমাদের পাঠানো amount
+                    executed_qty = float(order.get('filled') or amount)
+                else:
+                    executed_qty = float(ord_amount)
+
                 self.log(f"✅ Order Placed: ID {order['id']} @ {executed_price}", "TRADE")
                 
                 # ✅ ৫. ডাটাবেস আপডেট লজিক
