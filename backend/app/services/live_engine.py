@@ -200,35 +200,26 @@ class LiveBotEngine:
     # ---------------------------------------------------------
     def check_balance(self, side, required_amount, price):
         """ট্রেড করার আগে ওয়ালেটে পর্যাপ্ত টাকা আছে কিনা চেক করা"""
-        if not self.exchange: return True # সিমুলেশন মোডে সবসময় True
+        if not self.exchange: return True 
 
         try:
-            # ব্যালেন্স ফেচ করা (Sync বা Async ব্যবহারের উপর ভিত্তি করে)
-            # যেহেতু এটি লুপের মধ্যে চলবে, আমরা এখানে ব্লকিং কল ব্যবহার করছি (ccxt sync) 
-            # অথবা যদি async ccxt ব্যবহার করেন তবে await দিতে হবে। 
-            # এখানে আমরা ধরে নিচ্ছি লাইব্রেরি sync মোডে চলছে অথবা wrapper ব্যবহার হচ্ছে।
-            
-            # NOTE: LiveBotEngine যদি Async হয়, তবে এটি await করতে হবে
-            # যেহেতু ccxt import করা হয়েছে (sync version), তাই সরাসরি কল করা যাবে।
             balance = self.exchange.fetch_balance()
             
-            # কারেন্সি ডিটেকশন (যেমন: BTC/USDT)
-            base_currency = self.symbol.split('/')[0] # BTC
-            quote_currency = self.symbol.split('/')[1] # USDT
+            base_currency = self.symbol.split('/')[0]
+            quote_currency = self.symbol.split('/')[1]
             
-            # BUY সিগনালের জন্য আমাদের QUOTE কারেন্সি (USDT) চেক করতে হবে
             if side == "BUY":
                 available = float(balance[quote_currency]['free'])
-                cost = required_amount * price if self.trade_unit == "ASSET" else required_amount
+                
+                # ✅ FIX: Always calculate cost as quantity * price
+                cost = required_amount * price
                 
                 if available < cost:
-                    self.log(f"❌ Insufficient Funds! Required: {cost} {quote_currency}, Available: {available}", "WARNING")
+                    self.log(f"❌ Insufficient Funds! Required: {cost:.4f} {quote_currency}, Available: {available:.4f}", "WARNING")
                     return False
                 return True
 
-            # SELL সিগনালের জন্য (Spot) আমাদের BASE কারেন্সি (BTC) চেক করতে হবে
             elif side == "SELL":
-                # Futures হলে মার্জিন (USDT) চেক করতে হবে, Spot হলে Asset
                 if self.deployment_target == 'future':
                     available = float(balance[quote_currency]['free'])
                     leverage = float(self.config.get('leverage', 1))
@@ -240,8 +231,6 @@ class LiveBotEngine:
                     return True
                 else:
                     available = float(balance[base_currency]['free'])
-                    # Spot Sell মানে আমাদের কাছে Asset থাকতে হবে
-                    # এখানে required_amount হলো কতটা BTC বিক্রি করব
                     if available < required_amount:
                         self.log(f"❌ Insufficient Asset! Required: {required_amount} {base_currency}, Available: {available}", "WARNING")
                         return False
@@ -249,7 +238,7 @@ class LiveBotEngine:
 
         except Exception as e:
             self.log(f"⚠️ Balance Check Failed: {e}", "ERROR")
-            return False # সেফটির জন্য False রিটার্ন করা ভালো
+            return False
 
     def check_strategy_signal(self, df):
         try:
