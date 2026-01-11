@@ -131,6 +131,14 @@ class LiveBotEngine:
                 'enableRateLimit': True,
                 'options': {'defaultType': self.deployment_target}
             }
+
+            # Optional Passphrase for KuCoin/OKX
+            if hasattr(api_key_record, 'passphrase') and api_key_record.passphrase:
+                try:
+                    exchange_options['password'] = decrypt_key(api_key_record.passphrase)
+                except Exception:
+                     # Fallback if not encrypted or error
+                    exchange_options['password'] = api_key_record.passphrase
             
             self.log(f"✅ Authenticated with {api_key_record.exchange}", "SYSTEM")
             return exchange_class(exchange_options)

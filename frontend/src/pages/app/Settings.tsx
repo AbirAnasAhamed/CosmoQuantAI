@@ -333,6 +333,22 @@ const Settings: React.FC<{ initialSection?: string | null }> = ({ initialSection
                                             </button>
                                         </div>
                                     </div>
+
+                                    {/* ✅ Passphrase Input (Only for KuCoin or specific exchanges) */}
+                                    {(exchange === 'KuCoin' || exchange === 'OKX') && (
+                                        <div>
+                                            <label className="block text-sm font-medium text-gray-500 dark:text-gray-400 mb-1">Passphrase / Trading Password</label>
+                                            <div className="relative max-w-md">
+                                                <input
+                                                    type="password"
+                                                    value={config.passphrase || ''}
+                                                    onChange={(e) => handleApiKeyChange(exchange, 'passphrase', e.target.value)}
+                                                    className={inputBaseClasses}
+                                                    placeholder="Enter Passphrase"
+                                                />
+                                            </div>
+                                        </div>
+                                    )}
                                     <div className="flex items-center gap-4">
                                         <Button variant="primary" onClick={() => handleSaveApiKeys(exchange)} disabled={isLoading}>
                                             {isLoading ? 'Saving...' : 'Save Connection'}

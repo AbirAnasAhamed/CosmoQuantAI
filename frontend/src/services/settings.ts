@@ -4,6 +4,7 @@ export interface ApiKeyPayload {
     exchange: string;
     api_key: string;
     secret_key: string;
+    passphrase?: string;
 }
 
 // ✅ ফিক্স: পাথগুলো '/users' এবং '/v1' সহ আপডেট করা হয়েছে

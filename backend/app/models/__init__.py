@@ -37,6 +37,7 @@ class ApiKey(Base):
     exchange = Column(String)  # e.g., Binance, KuCoin
     api_key = Column(String)   # Public Key
     secret_key = Column(String) # Encrypted Secret Key
+    passphrase = Column(String, nullable=True) # Encrypted Passphrase (Optional)
     is_enabled = Column(Boolean, default=True)
     user_id = Column(Integer, ForeignKey("users.id"))
 

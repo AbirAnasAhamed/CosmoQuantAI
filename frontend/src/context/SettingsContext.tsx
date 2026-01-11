@@ -8,6 +8,7 @@ export interface ApiKeyConfig {
     id?: number; // ডাটাবেস ID
     apiKey: string;
     secretKey: string;
+    passphrase?: string; // ✅ নতুন ফিল্ড
     isEnabled: boolean;
     isSaved?: boolean;
 }
@@ -39,7 +40,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
 
     const [apiKeys, setApiKeys] = useState<Record<string, ApiKeyConfig>>({
         'Binance': { apiKey: '', secretKey: '', isEnabled: false, isSaved: false },
-        'KuCoin': { apiKey: '', secretKey: '', isEnabled: false, isSaved: false },
+        'KuCoin': { apiKey: '', secretKey: '', passphrase: '', isEnabled: false, isSaved: false },
     });
 
     const [userProfile, setUserProfile] = useState<UserProfile>({
@@ -122,7 +123,8 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
             await apiSaveApiKey({
                 exchange: exchange,
                 api_key: config.apiKey,
-                secret_key: config.secretKey
+                secret_key: config.secretKey,
+                passphrase: config.passphrase
             });
 
             showToast(`${exchange} API keys connected successfully!`, 'success');
