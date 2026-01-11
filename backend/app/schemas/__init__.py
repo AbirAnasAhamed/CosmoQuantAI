@@ -47,6 +47,7 @@ class ApiKeyCreate(BaseModel):
     exchange: str
     api_key: str
     secret_key: str
+    passphrase: Optional[str] = None
 
 class ApiKeyResponse(BaseModel):
     id: int

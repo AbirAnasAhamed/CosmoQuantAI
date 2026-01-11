@@ -28,10 +28,16 @@ def create_user_api_key(db: Session, api_key: schemas.ApiKeyCreate, user_id: int
     # সিক্রেট কি এনক্রিপ্ট করা হচ্ছে
     encrypted_secret = security.encrypt_key(api_key.secret_key)
     
+    # Passphrase এনক্রিপশন লজিক যোগ করুন
+    encrypted_passphrase = None
+    if api_key.passphrase:
+        encrypted_passphrase = security.encrypt_key(api_key.passphrase)
+    
     db_api_key = models.ApiKey(
         exchange=api_key.exchange,
         api_key=api_key.api_key,
         secret_key=encrypted_secret, # এনক্রিপটেড
+        passphrase=encrypted_passphrase,
         user_id=user_id
     )
     db.add(db_api_key)
