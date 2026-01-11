@@ -11,6 +11,7 @@ import { useSettings } from '@/context/SettingsContext';
 import { marketDataService } from '@/services/marketData';
 import { botService } from '@/services/botService';
 import SearchableSelect from '@/components/common/SearchableSelect';
+import BotSettingsModal from './BotSettingsModal';
 import { strategyService } from '@/services/strategyService';
 import client from '@/services/client';
 
@@ -128,7 +129,7 @@ const MiniEquityChart: React.FC<{ isPositive: boolean; id: string }> = ({ isPosi
     const color = isPositive ? '#10B981' : '#F43F5E';
 
     return (
-        <div className="h-20 w-full absolute bottom-0 left-0 right-0 opacity-40 group-hover:opacity-60 transition-opacity duration-300 pointer-events-none">
+        <div className="h-24 w-full absolute bottom-0 left-0 right-0 opacity-40 group-hover:opacity-60 transition-opacity duration-300 pointer-events-none">
             <ResponsiveContainer width="100%" height="100%">
                 <AreaChart data={data}>
                     <defs>
@@ -329,7 +330,8 @@ const BotCard: React.FC<{
     onToggleStatus: (id: string) => void;
     onDelete: (id: string) => void;
     onDetails: (bot: ActiveBot) => void;
-}> = ({ bot, index, isLoading, onRunBacktest, onToggleStatus, onDelete, onDetails }) => {
+    onSettings: (bot: ActiveBot) => void;
+}> = ({ bot, index, isLoading, onRunBacktest, onToggleStatus, onDelete, onDetails, onSettings }) => {
     const isPositive = bot.pnl >= 0;
     const statusColor = bot.status === 'active' ? 'bg-brand-success' : 'bg-gray-400';
     const statusGlow = bot.status === 'active' ? 'shadow-[0_0_10px_rgba(16,185,129,0.5)]' : '';
@@ -386,7 +388,11 @@ const BotCard: React.FC<{
                 {/* Actions Footer */}
                 <div className="flex justify-between items-center mt-4 pt-4 border-t border-brand-border-light/50 dark:border-brand-border-dark/50 z-20 relative">
                     <div className="flex gap-2">
-                        <button className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-brand-darkest text-gray-500 dark:text-gray-400 transition-colors" title="Settings">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onSettings(bot); }}
+                            className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-brand-darkest text-gray-500 dark:text-gray-400 transition-colors"
+                            title="Settings"
+                        >
                             <SettingsIcon />
                         </button>
 
@@ -1173,6 +1179,8 @@ const BotLab: React.FC = () => {
     const [isBacktestModalOpen, setIsBacktestModalOpen] = useState(false);
     const [selectedBot, setSelectedBot] = useState<ActiveBot | null>(null);
     const [selectedDetailBot, setSelectedDetailBot] = useState<ActiveBot | null>(null);
+    const [isSettingsModalOpen, setIsSettingsModalOpen] = useState(false);
+    const [settingsBot, setSettingsBot] = useState<ActiveBot | null>(null);
     const [backtestResult, setBacktestResult] = useState<BacktestResult | null>(null);
 
     // ✅ ১. পেজ লোড হলে ব্যাকএন্ড থেকে বট লোড করা
@@ -1334,6 +1342,18 @@ const BotLab: React.FC = () => {
         }
     };
 
+    const openSettings = (bot: ActiveBot) => {
+        setSettingsBot(bot);
+        setIsSettingsModalOpen(true);
+    };
+
+    const handleBotUpdate = (updatedBot: ActiveBot) => {
+        setBots(prevBots => prevBots.map(b => b.id === updatedBot.id ? updatedBot : b));
+        if (selectedBot?.id === updatedBot.id) {
+            setSelectedBot(updatedBot);
+        }
+    };
+
     // ✅ ৪. ডিলেট হ্যান্ডলার
     const handleDeleteBot = async (id: string) => {
         // ডিলিট করার আগে চেক করি বটটি রানিং কিনা
@@ -1408,6 +1428,7 @@ const BotLab: React.FC = () => {
                         onToggleStatus={handleToggleStatus}
                         onDelete={handleDeleteBot}
                         onDetails={setSelectedDetailBot}
+                        onSettings={openSettings}
                     />
                 ))}
 
@@ -1426,6 +1447,13 @@ const BotLab: React.FC = () => {
                     <p className="text-sm text-gray-400 max-w-[200px] mt-2">Launch a pre-built strategy or connect a custom model.</p>
                 </button>
             </div>
+
+            <BotSettingsModal
+                isOpen={isSettingsModalOpen}
+                onClose={() => setIsSettingsModalOpen(false)}
+                bot={settingsBot}
+                onUpdate={handleBotUpdate}
+            />
         </div>
     );
 };

@@ -20,6 +20,11 @@ export const botService = {
         return response.data;
     },
 
+    updateBot: async (id: number | string, data: any): Promise<ActiveBot> => {
+        const response = await apiClient.put(`/v1/bots/${id}`, data);
+        return response.data;
+    },
+
     deleteBot: async (botId: string | number): Promise<void> => {
         await apiClient.delete(`/v1/bots/${botId}`);
     }
