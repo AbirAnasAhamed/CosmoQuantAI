@@ -1,0 +1,51 @@
+from datetime import datetime
+from typing import Optional
+from pydantic import BaseModel
+
+# SentimentPoll Schemas
+class SentimentPollBase(BaseModel):
+    user_id: int
+    vote_type: str  # 'bullish' or 'bearish'
+
+class SentimentPollCreate(SentimentPollBase):
+    pass
+
+class SentimentPoll(SentimentPollBase):
+    id: int
+    timestamp: datetime
+
+    class Config:
+        from_attributes = True
+
+# InfluencerTrack Schemas
+class InfluencerTrackBase(BaseModel):
+    name: str
+    handle: str
+    platform: str
+    last_sentiment: Optional[str] = None
+    reliability_score: Optional[float] = None
+
+class InfluencerTrackCreate(InfluencerTrackBase):
+    pass
+
+class InfluencerTrack(InfluencerTrackBase):
+    id: int
+    last_updated: datetime
+
+    class Config:
+        from_attributes = True
+
+# SocialDominance Schemas
+class SocialDominanceBase(BaseModel):
+    asset: str
+    dominance_percentage: float
+
+class SocialDominanceCreate(SocialDominanceBase):
+    pass
+
+class SocialDominance(SocialDominanceBase):
+    id: int
+    timestamp: datetime
+
+    class Config:
+        from_attributes = True
