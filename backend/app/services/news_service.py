@@ -14,21 +14,31 @@ import urllib.parse
 
 logger = logging.getLogger(__name__)
 
+# Global Singleton for FinBERT
+_sentiment_pipeline = None
+
+def get_pipeline():
+    """Singleton Accessor for FinBERT Pipeline (Lazy Loading)"""
+    global _sentiment_pipeline
+    if _sentiment_pipeline is None:
+        if settings.ENABLE_FINBERT:
+            try:
+                print("🧠 Loading FinBERT model... (This may take a moment)")
+                _sentiment_pipeline = pipeline("sentiment-analysis", model="ProsusAI/finbert")
+                print("✅ FinBERT model loaded and cached globally.")
+            except Exception as e:
+                print(f"⚠️ FinBERT Load Failed (Memory/Network): {e}. Falling back to VADER.")
+                _sentiment_pipeline = False # Mark as failed so we don't retry forever
+        else:
+            _sentiment_pipeline = False
+    return _sentiment_pipeline if _sentiment_pipeline else None
+
 class NewsService:
     def __init__(self):
         # We are using RSS now, so GNews init is removed.
         self.vader = SentimentIntensityAnalyzer()
-        self.finbert = None
+        # FinBERT is now accessed via get_pipeline() global singleton
         
-        if settings.ENABLE_FINBERT:
-            try:
-                print("🧠 Loading FinBERT model... (This may take a moment)")
-                self.finbert = pipeline("sentiment-analysis", model="ProsusAI/finbert")
-                print("✅ FinBERT model loaded successfully.")
-            except Exception as e:
-                print(f"⚠️ FinBERT Load Failed (Memory/Network): {e}. Falling back to VADER.")
-                self.finbert = None
-
     async def analyze_sentiment(self, text, keyword_weights=None):
         """
         Analyze text and return a compound score.
@@ -42,11 +52,13 @@ class NewsService:
         # Define the synchronous prediction logic
         def _predict_sync(text_input):
             score = 0
-            if self.finbert:
+            model = get_pipeline()
+            
+            if model:
                 try:
                     # FinBERT returns [{'label': 'positive', 'score': 0.9}]
                     # Truncate to 512 tokens to avoid errors
-                    result = self.finbert(str(text_input)[:512])[0]
+                    result = model(str(text_input)[:512])[0]
                     label = result['label'].lower()
                     confidence = result['score']
                     
