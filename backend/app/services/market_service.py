@@ -12,6 +12,7 @@ from app.services.websocket_manager import manager
 from fastapi.concurrency import run_in_threadpool
 from app.core.cache import cache
 from fastapi import HTTPException
+from app.core.config import settings
 
 class MarketService:
     def __init__(self):
@@ -70,10 +71,16 @@ class MarketService:
 
     async def fetch_and_store_candles(self, db: Session, symbol: str, timeframe: str, start_date: str = None, end_date: str = None, limit: int = 1000):
         # 1. Exchange Setup
-        exchange = ccxt.binance({
+        exchange_config = {
             'enableRateLimit': True,
             'userAgent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-        })
+        }
+        
+        if settings.BINANCE_API_KEY:
+            exchange_config['apiKey'] = settings.BINANCE_API_KEY
+            exchange_config['secret'] = settings.BINANCE_SECRET_KEY
+            
+        exchange = ccxt.binance(exchange_config)
         
         # ✅ সেফ সিম্বল জেনারেট করা (স্ল্যাশ ছাড়া) - ফ্রন্টএন্ডের সাথে মিল রাখার জন্য
         safe_symbol = symbol.replace('/', '') 
@@ -380,9 +387,17 @@ class MarketService:
                     'userAgent': 'CosmoQuant/1.0',  # User Agent সরল করা হলো
                 }
 
-                # ২. .env থেকে API Key চেক করা
-                env_api_key = os.getenv(f"{exchange_id.upper()}_API_KEY")
-                env_secret = os.getenv(f"{exchange_id.upper()}_SECRET")
+                # ২. .env থেকে API Key চেক করা (Via Settings for known keys, fallback to env for others if needed)
+                env_api_key = None
+                env_secret = None
+                
+                if exchange_id == 'binance':
+                    env_api_key = settings.BINANCE_API_KEY
+                    env_secret = settings.BINANCE_SECRET_KEY
+                else:
+                    # Fallback for other exchanges not yet in Settings explicitly
+                    env_api_key = os.getenv(f"{exchange_id.upper()}_API_KEY")
+                    env_secret = os.getenv(f"{exchange_id.upper()}_SECRET")
                 
                 if env_api_key and env_secret:
                     config['apiKey'] = env_api_key

@@ -53,6 +53,13 @@ class Settings(BaseSettings):
     OPENAI_API_KEY: Optional[str] = None
     DEEPSEEK_API_KEY: Optional[str] = None
     
+    # Exchange API Keys
+    BINANCE_API_KEY: Optional[str] = None
+    BINANCE_SECRET_KEY: Optional[str] = None
+    
+    # News API Key
+    NEWS_API_KEY: Optional[str] = None
+    
     # Custom Base URLs (Optional, for local LLMs or proxies)
     OPENAI_BASE_URL: str = "https://api.openai.com/v1"
     DEEPSEEK_BASE_URL: str = "https://api.deepseek.com"
