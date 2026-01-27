@@ -1,10 +1,11 @@
-from fastapi import APIRouter, HTTPException, Depends, status
+from fastapi import APIRouter, HTTPException, Depends, status, Request
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.services.news_service import news_service
 from app.services.ai_service import ai_service
 from app.api import deps
 from app.services.market_service import MarketService
+from app.services.sentiment_service import sentiment_service
 from app.models.sentiment import SentimentPoll, InfluencerTrack, SocialDominance
 from app.schemas.sentiment import SentimentPollCreate, InfluencerTrack as InfluencerTrackSchema, SocialDominance as SocialDominanceSchema
 import ccxt.async_support as ccxt
@@ -260,21 +261,31 @@ async def get_sentiment_heatmap():
 
 # --- New Endpoints ---
 
+# --- Helper Function ---
+def get_client_ip(request: Request) -> str:
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0]
+    return request.client.host
+
 @router.post("/poll", status_code=status.HTTP_201_CREATED)
-async def submit_sentiment_poll(poll: SentimentPollCreate, db: Session = Depends(deps.get_db)):
+async def submit_sentiment_poll(request: Request, poll: SentimentPollCreate, db: Session = Depends(deps.get_db)):
     """
     Submit a user's sentiment vote.
     """
     try:
-        new_vote = SentimentPoll(
+        ip_address = get_client_ip(request)
+        return sentiment_service.cast_vote(
+            db=db,
             user_id=poll.user_id,
+            ip_address=ip_address,
+            symbol=poll.symbol,
             vote_type=poll.vote_type
         )
-        db.add(new_vote)
-        db.commit()
-        db.refresh(new_vote)
-        return {"status": "success", "message": "Vote recorded", "data": new_vote}
     except Exception as e:
+        # If it's an HTTPException (like 429), re-raise it
+        if isinstance(e, HTTPException):
+            raise e
         db.rollback()
         raise HTTPException(status_code=500, detail=str(e))
 

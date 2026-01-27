@@ -27,8 +27,10 @@ class SentimentPoll(Base):
     __tablename__ = "sentiment_poll"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, index=True)
+    user_id = Column(Integer, index=True, nullable=True) # Modified to allow null for IP-only votes if needed, though user_id is preferred
+    symbol = Column(String, index=True)  # Added symbol column
     vote_type = Column(String)  # 'bullish' or 'bearish'
+    ip_address = Column(String, index=True, nullable=True) # Added ip_address column
     timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
 
