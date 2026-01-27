@@ -140,111 +140,122 @@ const AnimatedNumber = ({ value, prefix = '', suffix = '', className = '' }: any
 };
 
 const SentimentOrb = ({ score, momentum, volume }: any) => {
-    // Determine State (Bullish/Bearish/Neutral)
+    // Determine State
     const mood = score > 0.2 ? "Bullish" : score < -0.2 ? "Bearish" : "Neutral";
 
-    // Color Palettes
-    const colors = {
+    // Advanced Color Palettes for Neon/Holographic Effect
+    const themes = {
         Bullish: {
-            text: "text-emerald-500",
-            bg: "bg-emerald-500",
-            border: "border-emerald-500",
-            shadow: "shadow-emerald-500/50",
-            gradient: "from-emerald-500 to-teal-400"
+            primary: "emerald",
+            hex: "#10b981",
+            gradient: "from-emerald-500 via-teal-400 to-green-300",
+            shadow: "shadow-[0_0_50px_-12px_rgba(16,185,129,0.6)]",
+            textGlow: "drop-shadow-[0_0_10px_rgba(16,185,129,0.8)]"
         },
         Bearish: {
-            text: "text-rose-500",
-            bg: "bg-rose-500",
-            border: "border-rose-500",
-            shadow: "shadow-rose-500/50",
-            gradient: "from-rose-500 to-red-600"
+            primary: "rose",
+            hex: "#f43f5e",
+            gradient: "from-rose-500 via-red-500 to-orange-400",
+            shadow: "shadow-[0_0_50px_-12px_rgba(244,63,94,0.6)]",
+            textGlow: "drop-shadow-[0_0_10px_rgba(244,63,94,0.8)]"
         },
         Neutral: {
-            text: "text-blue-400",
-            bg: "bg-blue-400",
-            border: "border-blue-400",
-            shadow: "shadow-blue-500/50",
-            gradient: "from-blue-400 to-indigo-500"
+            primary: "indigo",
+            hex: "#6366f1",
+            gradient: "from-indigo-500 via-blue-400 to-cyan-300",
+            shadow: "shadow-[0_0_50px_-12px_rgba(99,102,241,0.6)]",
+            textGlow: "drop-shadow-[0_0_10px_rgba(99,102,241,0.8)]"
         }
     };
 
-    const activeTheme = colors[mood as keyof typeof colors];
-    const rotationSpeed = Math.max(2, 10 - Math.abs(momentum)); // Momentum high = Fast spin
+    const theme = themes[mood as keyof typeof themes];
+    const rotationSpeed = Math.max(3, 15 - Math.abs(momentum));
 
     return (
-        <div className="relative w-full h-full flex flex-col items-center justify-center overflow-hidden bg-slate-50 dark:bg-slate-900">
-            {/* Background Mesh Grid Animation */}
-            <div className="absolute inset-0 opacity-10"
+        <div className="relative w-full h-full flex flex-col items-center justify-center overflow-hidden bg-[#0f172a] rounded-2xl border border-slate-700/50">
+            {/* --- Background Cyber Grid --- */}
+            <div className="absolute inset-0 opacity-20 pointer-events-none"
                 style={{
-                    backgroundImage: 'radial-gradient(circle at 2px 2px, gray 1px, transparent 0)',
-                    backgroundSize: '20px 20px'
+                    backgroundImage: `linear-gradient(${theme.hex}22 1px, transparent 1px), linear-gradient(90deg, ${theme.hex}22 1px, transparent 1px)`,
+                    backgroundSize: '40px 40px',
+                    maskImage: 'radial-gradient(circle at center, black 40%, transparent 80%)'
                 }}>
             </div>
 
-            {/* Main Reactor Core */}
-            <div className="relative flex items-center justify-center w-40 h-40">
+            {/* --- Main Reactor Core --- */}
+            {/* --- Main Reactor Core --- */}
+            <div className="relative flex items-center justify-center w-72 h-72">
 
-                {/* Outer Rotating Ring (Momentum Indicator) */}
-                <div className={`absolute w-full h-full rounded-full border-2 border-dashed ${activeTheme.border} opacity-30 animate-spin-slow`}
+                {/* 1. Outer Static Ring with Ticks */}
+                <div className="absolute inset-0 border border-slate-700/50 rounded-full opacity-50"></div>
+
+                {/* 2. Rotating Dash Ring (Clockwise) */}
+                <div className="absolute inset-2 border-2 border-dashed border-slate-600/60 rounded-full animate-[spin_10s_linear_infinite]"
+                    style={{ animationDuration: `${rotationSpeed * 1.5}s` }}></div>
+
+                {/* 3. Counter-Rotating Arc Ring (Holographic) */}
+                <div className={`absolute inset-4 rounded-full border-t-2 border-b-2 border-l-0 border-r-0 border-${theme.primary}-500/50 animate-[spin_8s_linear_infinite_reverse] blur-[1px]`}
                     style={{ animationDuration: `${rotationSpeed}s` }}>
                 </div>
 
-                {/* Middle Pulsing Ring */}
-                <div className={`absolute w-32 h-32 rounded-full border-4 ${activeTheme.border} opacity-20 animate-ping`}></div>
+                {/* 4. Pulsing Glow Layer */}
+                {/* 4. Pulsing Glow Layer */}
+                <div className={`absolute w-56 h-56 bg-${theme.primary}-500/20 rounded-full blur-xl animate-pulse ${theme.shadow}`}></div>
 
-                {/* Inner Glowing Core */}
-                <div className={`relative w-28 h-28 rounded-full bg-gradient-to-br ${activeTheme.gradient} opacity-10 flex items-center justify-center backdrop-blur-md border border-white/10 shadow-[0_0_40px_rgba(0,0,0,0.3)] ${activeTheme.shadow}`}>
+                {/* 5. Center Core (Glassmorphism) */}
+                <div className={`relative w-48 h-48 rounded-full bg-gradient-to-br from-slate-800/90 to-slate-900/90 flex flex-col items-center justify-center 
+                    backdrop-blur-xl border border-white/10 shadow-2xl z-10 overflow-hidden group transition-all duration-500 hover:scale-105`}>
 
-                    {/* Glass Reflection */}
-                    <div className="absolute top-0 left-0 w-full h-1/2 bg-gradient-to-b from-white/20 to-transparent rounded-t-full"></div>
+                    {/* Inner Shine */}
+                    <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-b from-white/10 to-transparent opacity-50 pointer-events-none"></div>
 
-                    {/* Score Text */}
-                    <div className="flex flex-col items-center z-10">
-                        <span className={`text-3xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white to-white/70 drop-shadow-sm`}>
+                    {/* Value Display */}
+                    <div className="flex flex-col items-center z-20">
+                        <span className={`text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400 mb-1`}>Sentiment</span>
+                        <span className={`text-6xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b ${theme.gradient} ${theme.textGlow}`}>
                             {score.toFixed(2)}
                         </span>
-                        <span className="text-[10px] font-bold uppercase tracking-widest text-white/60 mt-1">
-                            Score
-                        </span>
-                    </div>
-                </div>
 
-                {/* Orbiting Particles */}
-                <div className="absolute w-full h-full animate-spin-reverse" style={{ animationDuration: '15s' }}>
-                    <div className={`absolute top-0 left-1/2 w-2 h-2 ${activeTheme.bg} rounded-full blur-[1px] shadow-lg`}></div>
+                        <div className={`mt-2 px-2 py-0.5 rounded text-[10px] font-black uppercase tracking-widest border border-${theme.primary}-500/30 bg-${theme.primary}-500/10 text-${theme.primary}-400`}>
+                            {mood}
+                        </div>
+                    </div>
+
+                    {/* Orbiting Particle */}
+                    <div className="absolute inset-0 animate-[spin_3s_linear_infinite]">
+                        <div className={`absolute top-2 left-1/2 w-1.5 h-1.5 bg-${theme.primary}-400 rounded-full shadow-[0_0_10px_currentColor]`}></div>
+                    </div>
                 </div>
             </div>
 
-            {/* Status Panel */}
-            <div className="mt-6 flex flex-col items-center gap-2 z-10 w-full px-4">
-                <h3 className={`text-xl font-bold uppercase tracking-widest ${activeTheme.text} drop-shadow-sm`}>
-                    {mood}
-                </h3>
-
-                {/* --- Quick Trade Integration --- */}
-                {score > 0.5 && (
-                    <button className="w-full bg-emerald-500 hover:bg-emerald-600 text-white text-xs font-bold py-1.5 rounded shadow-lg shadow-emerald-500/30 transition-all animate-pulse">
-                        🚀 LONG {mood === 'Bullish' ? '' : 'Trade'}
+            {/* --- Bottom Status Panel (HUD Style) --- */}
+            <div className="mt-8 w-full px-8 flex flex-col items-center gap-4 relative z-10">
+                {/* Dynamic Trade Button */}
+                {Math.abs(score) > 0.5 && (
+                    <button className={`w-full group relative overflow-hidden px-4 py-2 rounded-lg bg-${theme.primary}-500/10 border border-${theme.primary}-500/30 hover:bg-${theme.primary}-500/20 transition-all`}>
+                        <div className={`absolute inset-0 bg-${theme.primary}-500/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300`}></div>
+                        <div className="relative flex items-center justify-center gap-2">
+                            <span className="text-lg animate-bounce">{score > 0 ? '🚀' : '🔻'}</span>
+                            <span className={`text-sm font-bold uppercase tracking-wider text-${theme.primary}-400 group-hover:text-${theme.primary}-300`}>
+                                Signal: {score > 0 ? 'Long' : 'Short'}
+                            </span>
+                        </div>
                     </button>
                 )}
-                {score < -0.5 && (
-                    <button className="w-full bg-rose-500 hover:bg-rose-600 text-white text-xs font-bold py-1.5 rounded shadow-lg shadow-rose-500/30 transition-all animate-pulse">
-                        🔻 SHORT {mood === 'Bearish' ? '' : 'Trade'}
-                    </button>
-                )}
-                {/* ------------------------------- */}
 
-                <div className="flex items-center gap-4 text-xs font-mono">
-                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-200/50 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700">
-                        <span className={`w-1.5 h-1.5 rounded-full ${activeTheme.bg} animate-pulse`}></span>
-                        <span className="text-slate-600 dark:text-slate-400">MOM:</span>
-                        <span className="font-bold text-slate-800 dark:text-white">{momentum.toFixed(2)}</span>
+                {/* Metrics HUD */}
+                <div className="flex justify-between w-full text-xs font-mono border-t border-slate-700/50 pt-3 mt-1">
+                    <div className="flex flex-col items-center gap-1 group cursor-default">
+                        <span className="text-slate-500 uppercase text-[10px]">Momentum</span>
+                        <span className={`text-slate-300 font-bold group-hover:text-${theme.primary}-400 transition-colors`}>{momentum.toFixed(2)}</span>
                     </div>
-
-                    <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-200/50 dark:bg-slate-800/50 border border-slate-300 dark:border-slate-700">
-                        <svg className={`w-3 h-3 ${activeTheme.text}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                        <span className="text-slate-600 dark:text-slate-400">VOL:</span>
-                        <span className="font-bold text-slate-800 dark:text-white">{volume}</span>
+                    <div className={`w-px h-8 bg-gradient-to-b from-transparent via-slate-600 to-transparent`}></div>
+                    <div className="flex flex-col items-center gap-1 group cursor-default">
+                        <span className="text-slate-500 uppercase text-[10px]">Active Vol</span>
+                        <div className="flex items-center gap-1">
+                            <span className={`animate-pulse text-${theme.primary}-500`}>⚡</span>
+                            <span className={`text-slate-300 font-bold group-hover:text-${theme.primary}-400 transition-colors`}>{volume}</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -757,7 +768,7 @@ const SentimentEngine: React.FC = () => {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-1 space-y-6">
-                    <Card className="h-64 !p-0 overflow-hidden relative">
+                    <Card className="h-[420px] !p-0 overflow-hidden relative">
                         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
                         <SentimentOrb score={currentScore} momentum={currentMomentum} volume={currentVolume} />
                     </Card>
