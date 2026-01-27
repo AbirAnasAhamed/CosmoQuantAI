@@ -29,39 +29,46 @@ class NewsService:
                 print(f"⚠️ FinBERT Load Failed (Memory/Network): {e}. Falling back to VADER.")
                 self.finbert = None
 
-    def analyze_sentiment(self, text, keyword_weights=None):
+    async def analyze_sentiment(self, text, keyword_weights=None):
         """
         Analyze text and return a compound score.
         Supports keyword boosting for specific terms (e.g., 'Moon', 'Rekt').
+        CPU-bound tasks (FinBERT/VADER) are offloaded to a thread.
         """
         if not text: return 0
         
         final_score = 0
         
-        # 1. Primary: FinBERT (If enabled and loaded)
-        if self.finbert:
-            try:
-                # FinBERT returns [{'label': 'positive', 'score': 0.9}]
-                # Truncate to 512 tokens to avoid errors
-                result = self.finbert(str(text)[:512])[0]
-                label = result['label'].lower()
-                confidence = result['score']
-                
-                if label == 'positive':
-                    final_score = confidence
-                elif label == 'negative':
-                    final_score = -confidence
-                else: # neutral
-                    final_score = 0
-            except Exception as e:
-                # Fallback on error
-                print(f"FinBERT Error: {e}")
-                scores = self.vader.polarity_scores(str(text))
-                final_score = scores['compound']
-        else:
-            # 2. Fallback: VADER
-            scores = self.vader.polarity_scores(str(text))
-            final_score = scores['compound']
+        # Define the synchronous prediction logic
+        def _predict_sync(text_input):
+            score = 0
+            if self.finbert:
+                try:
+                    # FinBERT returns [{'label': 'positive', 'score': 0.9}]
+                    # Truncate to 512 tokens to avoid errors
+                    result = self.finbert(str(text_input)[:512])[0]
+                    label = result['label'].lower()
+                    confidence = result['score']
+                    
+                    if label == 'positive':
+                        score = confidence
+                    elif label == 'negative':
+                        score = -confidence
+                    else: # neutral
+                        score = 0
+                except Exception as e:
+                    # Fallback on error
+                    print(f"FinBERT Error: {e}")
+                    vader_scores = self.vader.polarity_scores(str(text_input))
+                    score = vader_scores['compound']
+            else:
+                # 2. Fallback: VADER
+                vader_scores = self.vader.polarity_scores(str(text_input))
+                score = vader_scores['compound']
+            return score
+
+        # Offload to thread
+        final_score = await asyncio.to_thread(_predict_sync, text)
         
         # Keyword Boosting Logic
         if keyword_weights:
@@ -146,7 +153,7 @@ class NewsService:
             else:
                 title_en = title
 
-            score = self.analyze_sentiment(title_en)
+            score = await self.analyze_sentiment(title_en)
             
             results.append({
                 "id": f"gn_{abs(hash(title))}",

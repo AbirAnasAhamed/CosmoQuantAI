@@ -38,7 +38,7 @@ async def get_fear_greed():
 @router.post("/summary")
 async def generate_sentiment_summary(request: SummaryRequest):
     try:
-        summary = ai_service.generate_market_sentiment_summary(
+        summary = await ai_service.generate_market_sentiment_summary(
             headlines=request.headlines,
             asset=request.asset,
             provider=request.provider
@@ -50,7 +50,7 @@ async def generate_sentiment_summary(request: SummaryRequest):
 @router.post("/verify-news")
 async def verify_news_credibility(request: VerifyNewsRequest):
     try:
-        result = ai_service.analyze_news_credibility(news_content=request.content)
+        result = await ai_service.analyze_news_credibility(news_content=request.content)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -69,7 +69,7 @@ async def get_market_narratives():
             return {"word_cloud": [], "narratives": ["No sufficient data to generate narratives."]}
 
         # AI সার্ভিস কল করা
-        result = ai_service.generate_market_narratives(headlines=headlines)
+        result = await ai_service.generate_market_narratives(headlines=headlines)
         return result
     except Exception as e:
         print(f"Narrative Error: {e}")

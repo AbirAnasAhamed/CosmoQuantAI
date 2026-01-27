@@ -2,6 +2,7 @@ import os
 import json
 import requests
 import re
+import asyncio
 try:
     from google import genai
 except ImportError:
@@ -33,15 +34,15 @@ class AIService:
 
     # --- Core Generation Methods ---
 
-    def generate_market_sentiment_summary(self, headlines: str, asset: str, provider: str = None) -> str:
+    async def generate_market_sentiment_summary(self, headlines: str, asset: str, provider: str = None) -> str:
         system_prompt = f"""
         You are a crypto market analyst. 
         Analyze these headlines for {asset} and provide a concise 2-sentence summary of the current market sentiment (Bullish/Bearish/Neutral) and why.
         """
         user_content = f"Headlines: {headlines}"
-        return self._route_request(system_prompt, user_content, provider)
+        return await self._route_request(system_prompt, user_content, provider)
 
-    def generate_ai_strategy_templates(self, user_prompt: str = None, provider: str = None):
+    async def generate_ai_strategy_templates(self, user_prompt: str = None, provider: str = None):
         system_instruction = """
         You are a professional quantitative trading architect. Generate 3 unique algorithmic trading strategies in JSON format.
         Strict Output Format (Array of Objects):
@@ -50,27 +51,27 @@ class AIService:
         """
         user_content = f"User Requirement: {user_prompt}" if user_prompt else "Generate 3 diverse strategies."
         
-        response_text = self._route_request(system_instruction, user_content, provider)
+        response_text = await self._route_request(system_instruction, user_content, provider)
         return self._clean_and_parse_json(response_text)
 
-    def generate_strategy_code(self, user_prompt: str, provider: str = None) -> str:
+    async def generate_strategy_code(self, user_prompt: str, provider: str = None) -> str:
         system_instruction = """
         You are an expert algorithmic trading developer using 'backtrader'. 
         Convert natural language ideas into a Python Backtrader Strategy.
         (Output ONLY raw Python code. No markdown.)
         """
-        return self._route_request(system_instruction, f"User Strategy Idea: {user_prompt}", provider)
+        return await self._route_request(system_instruction, f"User Strategy Idea: {user_prompt}", provider)
 
-    def generate_visual_strategy(self, user_prompt: str, provider: str = None) -> dict:
+    async def generate_visual_strategy(self, user_prompt: str, provider: str = None) -> dict:
         system_instruction = """
         You are an architect for a Visual Strategy Builder.
         Convert the idea into a JSON configuration of Nodes and Edges for a React Flow diagram.
         Output ONLY raw JSON.
         """
-        response_text = self._route_request(system_instruction, f"User Idea: {user_prompt}", provider)
+        response_text = await self._route_request(system_instruction, f"User Idea: {user_prompt}", provider)
         return self._clean_and_parse_json(response_text, default={"nodes": [], "edges": []})
 
-    def generate_market_narratives(self, headlines: str, provider: str = None) -> dict:
+    async def generate_market_narratives(self, headlines: str, provider: str = None) -> dict:
         system_instruction = """
         You are a crypto narrative hunter. Analyze the provided headlines and extract:
         1. 'word_cloud': Top 20 trending keywords/tokens (e.g., 'Solana', 'ETF', 'Hack') with a 'weight' (10-100) based on frequency/importance.
@@ -88,10 +89,10 @@ class AIService:
         Return ONLY raw JSON.
         """
         user_content = f"Analyze these headlines: {headlines}"
-        response_text = self._route_request(system_instruction, user_content, provider)
+        response_text = await self._route_request(system_instruction, user_content, provider)
         return self._clean_and_parse_json(response_text, default={"word_cloud": [], "narratives": []})
 
-    def analyze_news_credibility(self, news_content: str, provider: str = None) -> dict:
+    async def analyze_news_credibility(self, news_content: str, provider: str = None) -> dict:
         system_instruction = """
         You are an AI 'FUD Buster' and Fact Checker for Crypto News.
         Analyze the provided news content for credibility, logical fallacies, and 'FUD' (Fear, Uncertainty, Doubt).
@@ -105,12 +106,12 @@ class AIService:
         Return ONLY raw JSON.
         """
         user_content = f"Analyze this news item: {news_content}"
-        response_text = self._route_request(system_instruction, user_content, provider)
+        response_text = await self._route_request(system_instruction, user_content, provider)
         return self._clean_and_parse_json(response_text, default={"score": 50, "label": "Unknown", "reason": "Analysis failed."})
 
     # --- Internal Routing & API Calls ---
 
-    def _route_request(self, system_prompt: str, user_content: str, provider: str = None) -> str:
+    async def _route_request(self, system_prompt: str, user_content: str, provider: str = None) -> str:
         """
         Routes the request to the appropriate LLM provider.
         """
@@ -120,10 +121,10 @@ class AIService:
         try:
             # ✅ Syntax Error Fix: Ensure if/elif chain is clean
             if active_provider == "gemini":
-                return self._call_gemini(full_prompt)
+                return await self._call_gemini(full_prompt)
             
             elif active_provider == "openai":
-                return self._call_openai_compatible(
+                return await self._call_openai_compatible(
                     settings.OPENAI_API_KEY, 
                     settings.OPENAI_BASE_URL, 
                     "gpt-4o", 
@@ -132,7 +133,7 @@ class AIService:
                 )
             
             elif active_provider == "deepseek":
-                return self._call_openai_compatible(
+                return await self._call_openai_compatible(
                     settings.DEEPSEEK_API_KEY, 
                     settings.DEEPSEEK_BASE_URL, 
                     "deepseek-chat", 
@@ -147,16 +148,20 @@ class AIService:
             print(f"❌ AI Error ({active_provider}): {e}")
             return f"Error generating content via {active_provider}."
 
-    def _call_gemini(self, full_prompt: str) -> str:
+    async def _call_gemini(self, full_prompt: str) -> str:
         if not gemini_client:
             return "❌ Gemini API Key missing or client init failed."
-        response = gemini_client.models.generate_content(
-            model="gemini-2.5-flash",
-            contents=full_prompt
-        )
-        return response.text.strip()
+        
+        def _sync_gemini():
+            response = gemini_client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=full_prompt
+            )
+            return response.text.strip()
+            
+        return await asyncio.to_thread(_sync_gemini)
 
-    def _call_openai_compatible(self, api_key: str, base_url: str, model: str, system_msg: str, user_msg: str) -> str:
+    async def _call_openai_compatible(self, api_key: str, base_url: str, model: str, system_msg: str, user_msg: str) -> str:
         if not api_key:
             return "❌ API Key missing for selected provider."
         
@@ -173,16 +178,19 @@ class AIService:
             "temperature": 0.7
         }
         
-        try:
-            response = requests.post(f"{base_url}/chat/completions", headers=headers, json=payload, timeout=30)
-            if response.status_code == 200:
-                return response.json()['choices'][0]['message']['content'].strip()
-            else:
-                return f"API Error {response.status_code}: {response.text}"
-        except Exception as e:
-            return f"Connection Error: {str(e)}"
+        def _sync_request():
+            try:
+                response = requests.post(f"{base_url}/chat/completions", headers=headers, json=payload, timeout=30)
+                if response.status_code == 200:
+                    return response.json()['choices'][0]['message']['content'].strip()
+                else:
+                    return f"API Error {response.status_code}: {response.text}"
+            except Exception as e:
+                return f"Connection Error: {str(e)}"
 
-    def generate_strategy_config(self, prompt: str) -> dict:
+        return await asyncio.to_thread(_sync_request)
+
+    async def generate_strategy_config(self, prompt: str) -> dict:
         """
         Generates a structured trading strategy configuration from a natural language prompt.
         Currently uses MOCK logic for demonstration.
@@ -227,7 +235,7 @@ class AIService:
         # `strategy_name`, `description`, `leverage` (1-125), `stop_loss` (%), `take_profit` (%), `timeframe` (e.g., '15m'), and `amount_per_trade`.
         # Ensure strict JSON output.
         # """
-        # response_text = self._route_request(system_instruction, f"User Request: {prompt}")
+        # response_text = await self._route_request(system_instruction, f"User Request: {prompt}")
         # return self._clean_and_parse_json(response_text)
 
     def _clean_and_parse_json(self, text: str, default=None):
@@ -246,23 +254,23 @@ ai_service = AIService()
 # ✅ Module-Level Wrapper Functions (Backwards Compatibility for strategies.py)
 # strategies.py ফাইলটি মডিউল ফাংশন এক্সপেক্ট করে, তাই আমরা ক্লাসের মেথডগুলোকে র‍্যাপ করে দিচ্ছি।
 
-def generate_ai_strategy_templates(user_prompt: str = None):
-    return ai_service.generate_ai_strategy_templates(user_prompt)
+async def generate_ai_strategy_templates(user_prompt: str = None):
+    return await ai_service.generate_ai_strategy_templates(user_prompt)
 
-def generate_strategy_code(user_prompt: str):
-    return ai_service.generate_strategy_code(user_prompt)
+async def generate_strategy_code(user_prompt: str):
+    return await ai_service.generate_strategy_code(user_prompt)
 
-def generate_visual_strategy(user_prompt: str):
-    return ai_service.generate_visual_strategy(user_prompt)
+async def generate_visual_strategy(user_prompt: str):
+    return await ai_service.generate_visual_strategy(user_prompt)
 
-def generate_market_sentiment_summary(headlines: str, asset: str):
-    return ai_service.generate_market_sentiment_summary(headlines, asset)
+async def generate_market_sentiment_summary(headlines: str, asset: str):
+    return await ai_service.generate_market_sentiment_summary(headlines, asset)
 
-def generate_market_narratives(headlines: str):
-    return ai_service.generate_market_narratives(headlines)
+async def generate_market_narratives(headlines: str):
+    return await ai_service.generate_market_narratives(headlines)
 
-def analyze_news_credibility(news_content: str):
-    return ai_service.analyze_news_credibility(news_content)
+async def analyze_news_credibility(news_content: str):
+    return await ai_service.analyze_news_credibility(news_content)
 
-def generate_strategy_config(prompt: str):
-    return ai_service.generate_strategy_config(prompt)
+async def generate_strategy_config(prompt: str):
+    return await ai_service.generate_strategy_config(prompt)

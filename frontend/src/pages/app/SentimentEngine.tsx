@@ -375,7 +375,7 @@ const FearGreedFlux = ({ score, classification }: any) => {
             </div>
 
             {/* Footer Timer */}
-            <div className="mt-8 flex items-center gap-2 text-[10px] bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700/50">
+            <div className="mt-2 flex items-center gap-2 text-[10px] bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700/50">
                 <span className="text-slate-400">Next Update:</span>
                 <span className="font-mono text-slate-200">{timeLeft}</span>
             </div>
@@ -514,6 +514,9 @@ const SentimentEngine: React.FC = () => {
     const [hasNarrativesLoaded, setHasNarrativesLoaded] = useState(false);
     const [newSourceId, setNewSourceId] = useState<string | null>(null);
 
+    // ✅ AbortController Ref for Race Condition Handling
+    const abortControllerRef = React.useRef<AbortController | null>(null);
+
     // New Features State
     const [pollStats, setPollStats] = useState({ bullish_pct: 0, bearish_pct: 0, total_votes: 0 });
     const [influencers, setInfluencers] = useState<Influencer[]>([]);
@@ -551,6 +554,15 @@ const SentimentEngine: React.FC = () => {
             }
         };
         loadPersistedData();
+
+        // Auto-trigger sync when pair changes (with abort safety)
+        syncData();
+
+        return () => {
+            if (abortControllerRef.current) {
+                abortControllerRef.current.abort();
+            }
+        };
     }, [activePair]);
 
     // Helper: Calculate Correlation
@@ -584,13 +596,23 @@ const SentimentEngine: React.FC = () => {
 
     // 2. Manual Sync Function
     const syncData = async () => {
+        // Cancel previous request if exists
+        if (abortControllerRef.current) {
+            abortControllerRef.current.abort();
+        }
+
+        const controller = new AbortController();
+        abortControllerRef.current = controller;
+        const signal = controller.signal;
+
         setIsHeatmapLoading(true); // Re-using heatmap loading state as a global "syncing" indicator for now, or create a new one
         try {
-            console.log("☁️ Syncing Sentiment Data...");
-            showToast('Syncing latest market sentiment...', 'info');
+            console.log("☁️ Syncing Sentiment Data...", activePair);
+            // Only show toast if manual click (not auto-sync on mount to avoid spam) - logic can be refined
+            // showToast('Syncing latest market sentiment...', 'info'); 
 
             // --- A. Fetch News ---
-            const newsResponse = await api.get('/sentiment/news');
+            const newsResponse = await api.get('/sentiment/news', { signal });
             const rawNews = Array.isArray(newsResponse.data) ? newsResponse.data : [];
             const formattedNews = rawNews.map((item: any) => ({
                 id: item.id?.toString() || Math.random().toString(),
@@ -606,7 +628,7 @@ const SentimentEngine: React.FC = () => {
             localStorage.setItem(`sentiment_sources_${activePair}`, JSON.stringify(finalNews));
 
             // --- B. Fetch Fear & Greed ---
-            const fgResponse = await api.get('/sentiment/fear-greed');
+            const fgResponse = await api.get('/sentiment/fear-greed', { signal });
             if (fgResponse.data.value) {
                 const idx = parseInt(fgResponse.data.value);
                 const lbl = fgResponse.data.value_classification;
@@ -617,7 +639,8 @@ const SentimentEngine: React.FC = () => {
 
             // --- C. Fetch Chart & Correlation ---
             const chartResponse = await api.get('/sentiment/correlation', {
-                params: { symbol: activePair, period: timeframe }
+                params: { symbol: activePair, period: timeframe },
+                signal
             });
             if (Array.isArray(chartResponse.data)) {
                 setChartData(chartResponse.data);
@@ -626,28 +649,35 @@ const SentimentEngine: React.FC = () => {
             }
 
             // --- D. Fetch Heatmap ---
-            const heatmapRes = await api.get('/sentiment/heatmap');
+            const heatmapRes = await api.get('/sentiment/heatmap', { signal });
             const hData = heatmapRes.data || [];
             setHeatmapData(hData);
             localStorage.setItem('sentiment_heatmap', JSON.stringify(hData));
 
             // --- E. Fetch New Features ---
-            const pollRes = await api.get('/sentiment/poll-stats');
+            const pollRes = await api.get('/sentiment/poll-stats', { signal });
             setPollStats(pollRes.data);
 
-            const inflRes = await api.get('/sentiment/influencers');
+            const inflRes = await api.get('/sentiment/influencers', { signal });
             setInfluencers(inflRes.data);
 
-            const domRes = await api.get('/sentiment/social-dominance');
+            const domRes = await api.get('/sentiment/social-dominance', { signal });
             setSocialDominance(domRes.data || []);
 
             showToast('Sentiment Data Synced Successfully', 'success');
 
-        } catch (err) {
+        } catch (err: any) {
+            if (err.name === 'AbortError' || err.code === "ERR_CANCELED") {
+                console.log('Fetch aborted');
+                return;
+            }
             console.error("Failed to sync data", err);
             showToast('Sync Failed. Check connection.', 'error');
         } finally {
-            setIsHeatmapLoading(false);
+            // Only turn off loading if this is the active controller
+            if (abortControllerRef.current === controller) {
+                setIsHeatmapLoading(false);
+            }
         }
     };
 
