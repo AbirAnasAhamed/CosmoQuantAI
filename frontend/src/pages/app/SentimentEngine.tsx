@@ -775,45 +775,152 @@ const SentimentEngine: React.FC = () => {
                     </div>
                     <div className="flex-grow w-full h-full min-h-[300px]" style={{ position: 'relative', width: '100%', height: '100%' }}>
                         <ResponsiveContainer width="100%" height="100%">
-                            <ComposedChart data={combinedData}>
+                            <ComposedChart data={combinedData} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
                                 <defs>
-                                    <linearGradient id="sentimentGrad" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3} />
-                                        <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
+                                    {/* Sentiment Area Gradient - Purple/Indigo */}
+                                    <linearGradient id="sentimentGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="5%" stopColor="#818cf8" stopOpacity={0.4} />
+                                        <stop offset="50%" stopColor="#818cf8" stopOpacity={0.1} />
+                                        <stop offset="95%" stopColor="#818cf8" stopOpacity={0} />
                                     </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" stroke={gridColor} vertical={false} opacity={0.4} />
-                                <XAxis dataKey="time" stroke={axisColor} tickFormatter={time => new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} tick={{ fontSize: 10 }} minTickGap={50} axisLine={false} tickLine={false} dy={10} />
+                                    
+                                    {/* Volume Bar Gradient - Blue */}
+                                    <linearGradient id="volumeGradient" x1="0" y1="0" x2="0" y2="1">
+                                        <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.3} />
+                                        <stop offset="100%" stopColor="#3b82f6" stopOpacity={0.05} />
+                                    </linearGradient>
 
-                                <YAxis yAxisId="left" orientation="left" stroke="#6366F1" domain={[-1.5, 1.5]} tick={{ fontSize: 10 }} hide />
-                                <YAxis yAxisId="right" orientation="right" stroke="#10B981" domain={['auto', 'auto']} tickFormatter={val => `$${Math.round(val / 1000)}k`} tick={{ fontSize: 10 }} axisLine={false} tickLine={false} />
-                                <YAxis yAxisId="vol" orientation="right" domain={[0, 'dataMax * 3']} hide />
+                                    {/* Neon Glow Filter */}
+                                    <filter id="neonGlow" height="300%" width="300%" x="-75%" y="-75%">
+                                        <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+                                        <feMerge>
+                                            <feMergeNode in="coloredBlur" />
+                                            <feMergeNode in="SourceGraphic" />
+                                        </feMerge>
+                                    </filter>
+                                </defs>
+
+                                <CartesianGrid 
+                                    strokeDasharray="3 3" 
+                                    stroke={theme === 'dark' ? '#1e293b' : '#e2e8f0'} 
+                                    vertical={false} 
+                                    opacity={0.5} 
+                                />
+                                
+                                <XAxis 
+                                    dataKey="time" 
+                                    stroke={theme === 'dark' ? '#475569' : '#94a3b8'} 
+                                    tickFormatter={time => new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 
+                                    tick={{ fontSize: 10, fill: theme === 'dark' ? '#94a3b8' : '#64748b' }} 
+                                    minTickGap={60} 
+                                    axisLine={false} 
+                                    tickLine={false} 
+                                    dy={10} 
+                                />
+
+                                <YAxis 
+                                    yAxisId="left" 
+                                    orientation="left" 
+                                    domain={[-1.5, 1.5]} 
+                                    hide 
+                                />
+                                <YAxis 
+                                    yAxisId="right" 
+                                    orientation="right" 
+                                    domain={['auto', 'auto']} 
+                                    tickFormatter={val => `$${val.toLocaleString()}`} 
+                                    tick={{ fontSize: 11, fontWeight: 600, fill: '#10b981' }} 
+                                    axisLine={false} 
+                                    tickLine={false}
+                                    width={60}
+                                />
+                                <YAxis 
+                                    yAxisId="vol" 
+                                    orientation="right" 
+                                    domain={[0, 'dataMax * 4']} 
+                                    hide 
+                                />
 
                                 <Tooltip
-                                    contentStyle={theme === 'dark' ? { backgroundColor: '#0F172A', border: '1px solid #334155', borderRadius: '8px' } : { borderRadius: '8px' }}
-                                    labelStyle={{ color: theme === 'dark' ? '#94A3B8' : '#64748B', marginBottom: '5px' }}
-                                    formatter={(value: any, name: any, props: any) => {
-                                        if (name === 'Smart Money (Whales/News)') {
-                                            const netflowStatus = props.payload.netflow_status;
-                                            return [
-                                                <div key="sm" className="space-y-1">
-                                                    <span>{value}</span>
-                                                    {netflowStatus && (
-                                                        <div className={`text-[10px] uppercase font-bold px-1.5 py-0.5 rounded w-fit ${netflowStatus === 'Accumulating' ? 'bg-emerald-500/20 text-emerald-500' : netflowStatus === 'Dumping' ? 'bg-rose-500/20 text-rose-500' : 'bg-slate-500/20 text-slate-500'}`}>
-                                                            Netflow: {netflowStatus}
+                                    cursor={{ stroke: theme === 'dark' ? '#ffffff' : '#000000', strokeWidth: 1, strokeDasharray: '4 4', opacity: 0.3 }}
+                                    content={({ active, payload, label }) => {
+                                        if (active && payload && payload.length) {
+                                            const score = Number(payload.find(p => p.dataKey === 'score')?.value || 0);
+                                            const price = Number(payload.find(p => p.dataKey === 'price')?.value || 0);
+                                            const netflowStatus = payload[0].payload.netflow_status;
+                                            
+                                            return (
+                                                <div className="backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border border-white/20 dark:border-slate-700/30 p-4 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10">
+                                                    <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-2 font-bold flex justify-between items-center">
+                                                        <span>{new Date(label).toLocaleTimeString()}</span>
+                                                        <span className={score > 0 ? "text-emerald-500" : "text-rose-500"}>{score > 0 ? "BULLISH" : "BEARISH"}</span>
+                                                    </div>
+                                                    
+                                                    <div className="space-y-3">
+                                                        <div className="flex items-center justify-between gap-6">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]"></div>
+                                                                <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Price</span>
+                                                            </div>
+                                                            <span className="text-sm font-bold font-mono text-emerald-600 dark:text-emerald-400">${price.toLocaleString()}</span>
                                                         </div>
-                                                    )}
-                                                </div>,
-                                                name
-                                            ];
+
+                                                        <div className="flex items-center justify-between gap-6">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-2 h-2 rounded-full bg-indigo-400 shadow-[0_0_8px_rgba(129,140,248,0.8)]"></div>
+                                                                <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Sentiment Score</span>
+                                                            </div>
+                                                            <span className={`text-sm font-bold font-mono ${score > 0 ? 'text-indigo-500' : 'text-indigo-400'}`}>{score.toFixed(2)}</span>
+                                                        </div>
+
+                                                        {netflowStatus && (
+                                                            <div className={`mt-2 text-[10px] uppercase font-black px-2 py-1 rounded text-center border border-dashed
+                                                                ${netflowStatus === 'Accumulating' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500' : 
+                                                                  netflowStatus === 'Dumping' ? 'bg-rose-500/10 border-rose-500/30 text-rose-500' : 
+                                                                  'bg-slate-500/10 border-slate-500/30 text-slate-500'}`}>
+                                                                DATA SIGNAL: {netflowStatus}
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
                                         }
-                                        return [value, name];
+                                        return null;
                                     }}
                                 />
 
-                                <Bar yAxisId="vol" dataKey="social_volume" fill="#3B82F6" opacity={0.1} barSize={20} />
-                                <Area yAxisId="left" type="monotone" dataKey="score" stroke="#6366F1" strokeWidth={2} fill="url(#sentimentGrad)" />
-                                <Line yAxisId="right" type="monotone" dataKey="price" stroke="#10B981" strokeWidth={2} dot={false} />
+                                {/* Social Volume as futuristic bars at the bottom */}
+                                <Bar 
+                                    yAxisId="vol" 
+                                    dataKey="social_volume" 
+                                    fill="url(#volumeGradient)" 
+                                    barSize={6}
+                                    radius={[2, 2, 0, 0]}
+                                />
+
+                                {/* Sentiment Area with Glow */}
+                                <Area 
+                                    yAxisId="left" 
+                                    type="monotone" 
+                                    dataKey="score" 
+                                    stroke="#818cf8" 
+                                    strokeWidth={3} 
+                                    fill="url(#sentimentGradient)" 
+                                    filter="url(#neonGlow)"
+                                    activeDot={{ r: 6, strokeWidth: 0, fill: '#818cf8', filter: 'url(#neonGlow)' }}
+                                />
+
+                                {/* Price Line - Sharp Neon Green */}
+                                <Line 
+                                    yAxisId="right" 
+                                    type="monotone" 
+                                    dataKey="price" 
+                                    stroke="#10b981" 
+                                    strokeWidth={2} 
+                                    dot={false} 
+                                    activeDot={{ r: 4, fill: '#fff', stroke: '#10b981', strokeWidth: 2, filter: 'url(#neonGlow)' }}
+                                    style={{ filter: 'drop-shadow(0 0 4px rgba(16, 185, 129, 0.3))' }}
+                                />
                             </ComposedChart>
                         </ResponsiveContainer>
                     </div>
