@@ -11,11 +11,26 @@ from tqdm import tqdm
 from app.services.websocket_manager import manager
 from fastapi.concurrency import run_in_threadpool
 from app.core.cache import cache
+from fastapi import HTTPException
 
 class MarketService:
     def __init__(self):
         self._markets_cache = {} 
-        self._timeframes_cache = {}
+    async def _execute_with_retry(self, coro_func):
+        """
+        Executes a coroutine function with retry logic and exponential backoff.
+        Args:
+            coro_func: A callable that returns an awaitable (coroutine).
+        """
+        for i in range(3):
+            try:
+                return await coro_func()
+            except (ccxt.NetworkError, ccxt.RequestTimeout) as e:
+                if i == 2:  # Last attempt
+                    raise e
+                print(f"Attempt {i+1} failed: {e}. Retrying in {i+1}s...")
+                await asyncio.sleep(1 * (i + 1))
+        return None # Should not be reached due to raise
 
     async def get_exchange_timeframes(self, exchange_id: str):
         # 1. Check cache
@@ -171,17 +186,19 @@ class MarketService:
     @cache(expire=10)
     async def get_real_time_sentiment_metrics(self, symbol: str) -> dict:
         exchange = ccxt.binance({
+            'timeout': 10000, # 10 seconds
             'enableRateLimit': True,
             'userAgent': 'CosmoQuant/1.0'
         })
         try:
             # 1. Fetch Ticker for Price and immediate Volume
-            ticker = await exchange.fetch_ticker(symbol)
+            ticker = await self._execute_with_retry(lambda: exchange.fetch_ticker(symbol))
             current_price = float(ticker['last'])
             
             # 2. Fetch OHLCV for Volume Anomaly Analysis (1h timeframe, limit=50)
+            # 2. Fetch OHLCV for Volume Anomaly Analysis (1h timeframe, limit=50)
             # We need enough history for SMA20
-            ohlcv = await exchange.fetch_ohlcv(symbol, '1h', limit=50)
+            ohlcv = await self._execute_with_retry(lambda: exchange.fetch_ohlcv(symbol, '1h', limit=50))
             
             # Default values
             smart_money_score = 50.0
@@ -246,7 +263,8 @@ class MarketService:
 
             # 3. Exchange Netflow (Buy vs Sell Volume from recent Trades)
             # This is a good proxy for "Flow"
-            trades = await exchange.fetch_trades(symbol, limit=500)
+
+            trades = await self._execute_with_retry(lambda: exchange.fetch_trades(symbol, limit=500))
             buy_vol = 0.0
             sell_vol = 0.0
             
@@ -270,9 +288,18 @@ class MarketService:
                 "retail_sentiment": 50.0 # Placeholder or could be derived from social volume if we had it here
             }
 
+
+        except (ccxt.NetworkError, ccxt.RequestTimeout, HTTPException) as e:
+            # If it's already an HTTPException, re-raise it
+            if isinstance(e, HTTPException):
+                raise e
+            
+            print(f"Market data unavailable temporarily: {e}")
+            raise HTTPException(status_code=503, detail="Market data unavailable temporarily.")
+
         except Exception as e:
             print(f"Error fetching real-time metrics: {e}")
-            # Fallback
+            # Fallback for other unexpected errors
             return {
                 "smart_money_score": 50.0,
                 "exchange_netflow": 0.0,

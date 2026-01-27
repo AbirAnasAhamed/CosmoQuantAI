@@ -23,6 +23,10 @@ def get_pipeline():
     if _sentiment_pipeline is None:
         if settings.ENABLE_FINBERT:
             try:
+                # Suppress noisy 404 warnings from huggingface_hub checking for optional files
+                logging.getLogger("transformers").setLevel(logging.ERROR)
+                logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
+
                 print("🧠 Loading FinBERT model... (This may take a moment)")
                 _sentiment_pipeline = pipeline("sentiment-analysis", model="ProsusAI/finbert")
                 print("✅ FinBERT model loaded and cached globally.")

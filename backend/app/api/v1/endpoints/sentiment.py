@@ -84,27 +84,28 @@ async def get_market_narratives():
 async def get_sentiment_correlation(symbol: str = "BTC/USDT", period: str = "7d"):
     try:
         exchange = ccxt.binance()
-        
-        # Dynamic Timeframe Logic
-        if period == "1h":
-            timeframe = '1m'
-            limit = 60      # 60 * 1m = 1 hour
-            days_history = 1 # For news fetch (min 1 day)
-        elif period == "24h":
-            timeframe = '15m'
-            limit = 96      # 96 * 15m = 24 hours
-            days_history = 1
-        elif period == "30d":
-            timeframe = '4h'
-            limit = 180     # 180 * 4h = 30 days
-            days_history = 30
-        else: # Default 7d
-            timeframe = '1h'
-            limit = 168     # 168 * 1h = 7 days
-            days_history = 7
+        try:
+            # Dynamic Timeframe Logic
+            if period == "1h":
+                timeframe = '1m'
+                limit = 60      # 60 * 1m = 1 hour
+                days_history = 1 # For news fetch (min 1 day)
+            elif period == "24h":
+                timeframe = '15m'
+                limit = 96      # 96 * 15m = 24 hours
+                days_history = 1
+            elif period == "30d":
+                timeframe = '4h'
+                limit = 180     # 180 * 4h = 30 days
+                days_history = 30
+            else: # Default 7d
+                timeframe = '1h'
+                limit = 168     # 168 * 1h = 7 days
+                days_history = 7
 
-        ohlcv = await exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
-        await exchange.close()
+            ohlcv = await exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
+        finally:
+            await exchange.close()
 
         if not ohlcv:
             return []
