@@ -230,18 +230,18 @@ const SentimentOrb = ({ score, momentum, volume }: any) => {
 
             {/* --- Bottom Status Panel (HUD Style) --- */}
             <div className="mt-8 w-full px-8 flex flex-col items-center gap-4 relative z-10">
-                {/* Dynamic Trade Button */}
-                {Math.abs(score) > 0.5 && (
-                    <button className={`w-full group relative overflow-hidden px-4 py-2 rounded-lg bg-${theme.primary}-500/10 border border-${theme.primary}-500/30 hover:bg-${theme.primary}-500/20 transition-all`}>
-                        <div className={`absolute inset-0 bg-${theme.primary}-500/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300`}></div>
-                        <div className="relative flex items-center justify-center gap-2">
-                            <span className="text-lg animate-bounce">{score > 0 ? '🚀' : '🔻'}</span>
-                            <span className={`text-sm font-bold uppercase tracking-wider text-${theme.primary}-400 group-hover:text-${theme.primary}-300`}>
-                                Signal: {score > 0 ? 'Long' : 'Short'}
-                            </span>
-                        </div>
-                    </button>
-                )}
+                {/* Dynamic Unified Trade Button */}
+                <button className={`w-full group relative overflow-hidden px-4 py-3 rounded-xl bg-${theme.primary}-500/10 border border-${theme.primary}-500/30 hover:bg-${theme.primary}-500/20 transition-all shadow-[0_0_20px_rgba(0,0,0,0.2)]`}>
+                    <div className={`absolute inset-0 bg-${theme.primary}-500/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300`}></div>
+                    <div className="relative flex items-center justify-center gap-3">
+                        <span className="text-xl animate-bounce">
+                            {score > 0.1 ? '🚀' : score < -0.1 ? '🔻' : '⚖️'}
+                        </span>
+                        <span className={`text-sm font-black uppercase tracking-widest text-${theme.primary}-400 group-hover:text-${theme.primary}-300`}>
+                            {score > 0.1 ? 'LONG / BUY' : score < -0.1 ? 'SHORT / SELL' : 'HOLD'}
+                        </span>
+                    </div>
+                </button>
 
                 {/* Metrics HUD */}
                 <div className="flex justify-between w-full text-xs font-mono border-t border-slate-700/50 pt-3 mt-1">
@@ -264,20 +264,17 @@ const SentimentOrb = ({ score, momentum, volume }: any) => {
 };
 
 // ✅ UPDATED: Colorful Gauge Design with Countdown Timer
+// ✅ UPDATED: Futuristic Segmented Arc Design
 const FearGreedFlux = ({ score, classification }: any) => {
     const [timeLeft, setTimeLeft] = useState<string>('--h --m');
 
-    // Countdown logic for next UTC Midnight (00:00 UTC)
+    // Countdown logic
     useEffect(() => {
         const updateTimer = () => {
             const now = new Date();
             const nextUpdate = new Date();
-
-            // Set target to next UTC midnight
             nextUpdate.setUTCHours(24, 0, 0, 0);
-
             const diff = nextUpdate.getTime() - now.getTime();
-
             if (diff > 0) {
                 const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
                 const minutes = Math.floor((diff / (1000 * 60)) % 60);
@@ -286,80 +283,101 @@ const FearGreedFlux = ({ score, classification }: any) => {
                 setTimeLeft('Updating...');
             }
         };
-
         updateTimer();
-        const interval = setInterval(updateTimer, 60000); // Update every minute
+        const interval = setInterval(updateTimer, 60000);
         return () => clearInterval(interval);
     }, []);
 
-    const rotation = (score / 100) * 180 - 90;
-
+    // Color Logic
     const getColor = (s: number) => {
-        if (s < 25) return '#ef4444';
-        if (s < 45) return '#f97316';
-        if (s < 55) return '#eab308';
-        if (s < 75) return '#84cc16';
-        return '#22c55e';
+        if (s < 25) return { hex: '#ef4444', label: 'Extreme Fear', tail: 'bg-red-500', text: 'text-red-500' };
+        if (s < 45) return { hex: '#f97316', label: 'Fear', tail: 'bg-orange-500', text: 'text-orange-500' };
+        if (s < 55) return { hex: '#eab308', label: 'Neutral', tail: 'bg-yellow-500', text: 'text-yellow-500' };
+        if (s < 75) return { hex: '#84cc16', label: 'Greed', tail: 'bg-lime-500', text: 'text-lime-500' };
+        return { hex: '#22c55e', label: 'Extreme Greed', tail: 'bg-emerald-500', text: 'text-emerald-500' };
     };
-    const currentColor = getColor(score);
+
+    const theme = getColor(score);
+    const totalSegments = 40;
+    const activeSegments = Math.round((score / 100) * totalSegments);
 
     return (
-        <div className="flex flex-col items-center justify-center h-full relative overflow-hidden p-2">
-            <div className="absolute top-3 flex flex-col items-center">
-                <h4 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-0.5">
-                    Fear & Greed Index
+        <div className="flex flex-col items-center justify-center h-full relative overflow-hidden bg-slate-50 dark:bg-[#0f172a] p-4">
+            {/* Background Noise */}
+            <div className="absolute inset-0 opacity-20 bg-[url('https://grainy-gradients.vercel.app/noise.svg')]"></div>
+
+            {/* Header */}
+            <div className="relative z-10 flex flex-col items-center mb-4 mt-4">
+                <h4 className="text-[10px] font-black uppercase tracking-[0.3em] text-slate-400">
+                    Fear & Greed
                 </h4>
-                {/* Daily Tag Added Here */}
-                <span className="text-[9px] bg-slate-200 dark:bg-slate-800 text-gray-500 px-1.5 rounded border border-gray-300 dark:border-gray-700">
-                    Daily Interval
-                </span>
+                <div className="flex items-center gap-2 mt-1">
+                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
+                    <span className="text-[9px] font-mono text-slate-500 uppercase">Live Index</span>
+                </div>
             </div>
 
-            <div className="relative w-64 h-36 mt-8 flex items-center justify-center">
-                <svg viewBox="0 0 200 110" className="w-full h-full overflow-visible">
+            {/* Main Gauge */}
+            <div className="relative w-full max-w-[280px] aspect-[2/1] flex items-end justify-center mb-2">
+
+                {/* SVG Segmented Arc */}
+                <svg viewBox="0 0 300 160" className="w-full h-full overflow-visible">
                     <defs>
-                        <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                            <stop offset="0%" stopColor="#ef4444" />
-                            <stop offset="25%" stopColor="#f97316" />
-                            <stop offset="50%" stopColor="#eab308" />
-                            <stop offset="75%" stopColor="#84cc16" />
-                            <stop offset="100%" stopColor="#22c55e" />
-                        </linearGradient>
-                        <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
-                            <feGaussianBlur stdDeviation="2" result="blur" />
+                        <filter id="glow-arc" x="-20%" y="-20%" width="140%" height="140%">
+                            <feGaussianBlur stdDeviation="4" result="blur" />
                             <feComposite in="SourceGraphic" in2="blur" operator="over" />
                         </filter>
                     </defs>
-                    <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="#334155" strokeWidth="12" strokeLinecap="round" className="opacity-20" />
-                    <path d="M 20 100 A 80 80 0 0 1 180 100" fill="none" stroke="url(#gaugeGradient)" strokeWidth="12" strokeLinecap="round" filter="url(#glow)" />
-                    <g style={{ transformOrigin: "100px 100px", transform: `rotate(${rotation}deg)`, transition: "transform 1s cubic-bezier(0.4, 0, 0.2, 1)" }}>
-                        <path d="M 100 100 L 100 25" stroke="#slate-800" strokeWidth="4" className="dark:stroke-white stroke-slate-800 drop-shadow-md" strokeLinecap="round" />
-                        <circle cx="100" cy="100" r="8" className="fill-slate-800 dark:fill-white" />
-                    </g>
+
+                    {/* Render Segments */}
+                    {Array.from({ length: totalSegments }).map((_, i) => {
+                        const angle = 180 + (i / (totalSegments - 1)) * 180;
+                        const radius = 120;
+                        const x1 = 150 + radius * Math.cos((angle * Math.PI) / 180);
+                        const y1 = 140 + radius * Math.sin((angle * Math.PI) / 180);
+
+                        const innerRadius = 100;
+                        const x2 = 150 + innerRadius * Math.cos((angle * Math.PI) / 180);
+                        const y2 = 140 + innerRadius * Math.sin((angle * Math.PI) / 180);
+
+                        const isActive = i < activeSegments;
+
+                        return (
+                            <line
+                                key={i}
+                                x1={x1} y1={y1} x2={x2} y2={y2}
+                                stroke={isActive ? theme.hex : '#334155'}
+                                strokeWidth="4"
+                                strokeLinecap="round"
+                                className={`transition-all duration-300 ${isActive ? 'opacity-100' : 'opacity-20'}`}
+                                style={{ filter: isActive ? 'url(#glow-arc)' : 'none' }}
+                            />
+                        );
+                    })}
+
+                    {/* Inner Needle / Indicator Base */}
+                    <circle cx="150" cy="140" r="80" className="fill-transparent stroke-slate-800/50 stroke-1" />
                 </svg>
-                <div className="absolute bottom-6 left-0 right-0 text-center">
-                    <span className="text-4xl font-extrabold transition-colors duration-500 drop-shadow-sm" style={{ color: currentColor }}>
+
+                {/* Central Digital Score */}
+                <div className="absolute bottom-0 flex flex-col items-center transform translate-y-4">
+                    <span className={`text-6xl font-black tracking-tighter transition-colors duration-500 drop-shadow-lg ${theme.text}`}
+                        style={{ textShadow: `0 0 30px ${theme.hex}50` }}
+                    >
                         {Math.round(score)}
                     </span>
+                    <div className={`mt-2 px-3 py-1 rounded-lg border border-white/10 bg-white/5 backdrop-blur-md`}>
+                        <span className={`text-xs font-bold uppercase tracking-widest ${theme.text}`}>
+                            {classification}
+                        </span>
+                    </div>
                 </div>
             </div>
 
-            <div className="flex flex-col items-center mt-[-10px] gap-2">
-                <div
-                    className="text-xs font-bold px-3 py-1 rounded-full border bg-white/50 dark:bg-slate-800/50 backdrop-blur-sm transition-colors duration-500"
-                    style={{ color: currentColor, borderColor: currentColor }}
-                >
-                    {classification}
-                </div>
-
-                {/* Timer Added Here */}
-                <div className="flex items-center gap-1.5 text-[10px] text-gray-400 font-mono bg-gray-100 dark:bg-slate-800/80 px-2 py-0.5 rounded-full">
-                    <span className="relative flex h-1.5 w-1.5">
-                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-blue-500"></span>
-                    </span>
-                    Next Update: {timeLeft}
-                </div>
+            {/* Footer Timer */}
+            <div className="mt-8 flex items-center gap-2 text-[10px] bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700/50">
+                <span className="text-slate-400">Next Update:</span>
+                <span className="font-mono text-slate-200">{timeLeft}</span>
             </div>
         </div>
     );
@@ -777,7 +795,7 @@ const SentimentEngine: React.FC = () => {
                     </Card>
                 </div>
 
-                <Card className="lg:col-span-2 flex flex-col h-[500px]">
+                <Card className="lg:col-span-2 flex flex-col h-[700px]">
                     <div className="flex justify-between items-center mb-6">
                         <div>
                             <h3 className="text-lg font-bold text-slate-900 dark:text-white">Sentiment vs Price Correlation</h3>
