@@ -76,12 +76,28 @@ async def get_market_narratives():
         return {"word_cloud": [], "narratives": ["Error generating narratives."]}
 
 @router.get("/correlation")
-async def get_sentiment_correlation(symbol: str = "BTC/USDT", days: int = 7):
+async def get_sentiment_correlation(symbol: str = "BTC/USDT", period: str = "7d"):
     try:
         exchange = ccxt.binance()
-        timeframe = '1h'
-        limit = 24 * days
         
+        # Dynamic Timeframe Logic
+        if period == "1h":
+            timeframe = '1m'
+            limit = 60      # 60 * 1m = 1 hour
+            days_history = 1 # For news fetch (min 1 day)
+        elif period == "24h":
+            timeframe = '15m'
+            limit = 96      # 96 * 15m = 24 hours
+            days_history = 1
+        elif period == "30d":
+            timeframe = '4h'
+            limit = 180     # 180 * 4h = 30 days
+            days_history = 30
+        else: # Default 7d
+            timeframe = '1h'
+            limit = 168     # 168 * 1h = 7 days
+            days_history = 7
+
         ohlcv = await exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
         await exchange.close()
 
@@ -92,7 +108,7 @@ async def get_sentiment_correlation(symbol: str = "BTC/USDT", days: int = 7):
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
         df.set_index('timestamp', inplace=True)
 
-        sentiment_df = await news_service.fetch_historical_sentiment(days=days)
+        sentiment_df = await news_service.fetch_historical_sentiment(days=days_history)
         merged_df = df.join(sentiment_df, how='left')
         
         merged_df['score'] = merged_df['score'].ffill().fillna(0)
@@ -142,6 +158,22 @@ async def get_sentiment_correlation(symbol: str = "BTC/USDT", days: int = 7):
                 
         except Exception as e:
             print(f"Real-time update failed: {e}")
+
+        # ✅ CRITICAL FIX: If 'score' (News Sentiment) is flat (0) because of missing DB data,
+        # use 'smart_money_score' as a fallback or component so the chart isn't empty.
+        # Logic: If news_score is 0, Sentiment = Smart Money Score.
+        # Else, Average of both.
+        
+        merged_df['news_score'] = merged_df['score'] # Preserve original news score
+        
+        # Vectorized conditional logic
+        # If score is 0, use smart_money_score. Else (score + smart_money_score) / 2
+        merged_df['score'] = np.where(
+            merged_df['score'] == 0, 
+            merged_df['smart_money_score'], 
+            (merged_df['score'] + merged_df['smart_money_score']) / 2
+        )
+
 
         merged_df['momentum'] = merged_df['close'].diff().fillna(0)
         merged_df['social_volume'] = (merged_df['volume'] * merged_df['high'].diff().abs() / 1000).fillna(100).astype(int)

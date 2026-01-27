@@ -459,7 +459,18 @@ const SentimentEngine: React.FC = () => {
     const [activeFilter, setActiveFilter] = useState<'All' | SentimentLabel>('All');
     const [aiSummary, setAiSummary] = useState('');
     const [isSummaryLoading, setIsSummaryLoading] = useState(false);
+
     const [selectedProvider, setSelectedProvider] = useState('gemini');
+
+    // Timeframe State
+    const [timeframe, setTimeframe] = useState('7d');
+    const timeframes = [
+        { label: '1H', value: '1h' },
+        { label: '24H', value: '24h' },
+        { label: '7D', value: '7d' },
+        { label: '30D', value: '30d' }
+    ];
+
     // Correlation Coefficient
     const [correlation, setCorrelation] = useState(0);
 
@@ -577,11 +588,11 @@ const SentimentEngine: React.FC = () => {
 
             // --- C. Fetch Chart & Correlation ---
             const chartResponse = await api.get('/sentiment/correlation', {
-                params: { symbol: activePair, timeframe: '1h', days: 7 }
+                params: { symbol: activePair, period: timeframe }
             });
             if (Array.isArray(chartResponse.data)) {
                 setChartData(chartResponse.data);
-                localStorage.setItem(`sentiment_chart_${activePair}`, JSON.stringify(chartResponse.data));
+                localStorage.setItem(`sentiment_chart_${activePair}_${timeframe}`, JSON.stringify(chartResponse.data));
                 calculateCorrelation(chartResponse.data);
             }
 
@@ -762,6 +773,32 @@ const SentimentEngine: React.FC = () => {
                             <p className="text-xs text-gray-500">Dual-axis analysis of market sentiment and price action.</p>
                         </div>
                         <div className="flex gap-4 text-xs font-mono">
+                            {/* Timeframe Selector */}
+                            <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 mr-4">
+                                {timeframes.map((tf) => (
+                                    <button
+                                        key={tf.value}
+                                        onClick={() => {
+                                            setTimeframe(tf.value);
+                                            // Trigger fetch immediately or rely on useEffect if implemented
+                                            // Ideally, useEffect [timeframe] handles this.
+                                            // For now, let's call syncData or specific fetch
+                                            api.get('/sentiment/correlation', { params: { symbol: activePair, period: tf.value } })
+                                                .then(res => {
+                                                    setChartData(res.data);
+                                                    calculateCorrelation(res.data);
+                                                });
+                                        }}
+                                        className={`px-3 py-1 rounded-md transition-all ${timeframe === tf.value
+                                            ? 'bg-white dark:bg-slate-700 text-brand-primary shadow-sm font-bold'
+                                            : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
+                                            }`}
+                                    >
+                                        {tf.label}
+                                    </button>
+                                ))}
+                            </div>
+
                             <div className="flex items-center gap-2">
                                 <div className="w-3 h-3 rounded-full bg-brand-primary"></div> Sentiment
                             </div>
@@ -783,7 +820,7 @@ const SentimentEngine: React.FC = () => {
                                         <stop offset="50%" stopColor="#818cf8" stopOpacity={0.1} />
                                         <stop offset="95%" stopColor="#818cf8" stopOpacity={0} />
                                     </linearGradient>
-                                    
+
                                     {/* Volume Bar Gradient - Blue */}
                                     <linearGradient id="volumeGradient" x1="0" y1="0" x2="0" y2="1">
                                         <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.3} />
@@ -800,45 +837,45 @@ const SentimentEngine: React.FC = () => {
                                     </filter>
                                 </defs>
 
-                                <CartesianGrid 
-                                    strokeDasharray="3 3" 
-                                    stroke={theme === 'dark' ? '#1e293b' : '#e2e8f0'} 
-                                    vertical={false} 
-                                    opacity={0.5} 
-                                />
-                                
-                                <XAxis 
-                                    dataKey="time" 
-                                    stroke={theme === 'dark' ? '#475569' : '#94a3b8'} 
-                                    tickFormatter={time => new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} 
-                                    tick={{ fontSize: 10, fill: theme === 'dark' ? '#94a3b8' : '#64748b' }} 
-                                    minTickGap={60} 
-                                    axisLine={false} 
-                                    tickLine={false} 
-                                    dy={10} 
+                                <CartesianGrid
+                                    strokeDasharray="3 3"
+                                    stroke={theme === 'dark' ? '#1e293b' : '#e2e8f0'}
+                                    vertical={false}
+                                    opacity={0.5}
                                 />
 
-                                <YAxis 
-                                    yAxisId="left" 
-                                    orientation="left" 
-                                    domain={[-1.5, 1.5]} 
-                                    hide 
+                                <XAxis
+                                    dataKey="time"
+                                    stroke={theme === 'dark' ? '#475569' : '#94a3b8'}
+                                    tickFormatter={time => new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    tick={{ fontSize: 10, fill: theme === 'dark' ? '#94a3b8' : '#64748b' }}
+                                    minTickGap={60}
+                                    axisLine={false}
+                                    tickLine={false}
+                                    dy={10}
                                 />
-                                <YAxis 
-                                    yAxisId="right" 
-                                    orientation="right" 
-                                    domain={['auto', 'auto']} 
-                                    tickFormatter={val => `$${val.toLocaleString()}`} 
-                                    tick={{ fontSize: 11, fontWeight: 600, fill: '#10b981' }} 
-                                    axisLine={false} 
+
+                                <YAxis
+                                    yAxisId="left"
+                                    orientation="left"
+                                    domain={[-1.5, 1.5]}
+                                    hide
+                                />
+                                <YAxis
+                                    yAxisId="right"
+                                    orientation="right"
+                                    domain={['auto', 'auto']}
+                                    tickFormatter={val => `$${val.toLocaleString()}`}
+                                    tick={{ fontSize: 11, fontWeight: 600, fill: '#10b981' }}
+                                    axisLine={false}
                                     tickLine={false}
                                     width={60}
                                 />
-                                <YAxis 
-                                    yAxisId="vol" 
-                                    orientation="right" 
-                                    domain={[0, 'dataMax * 4']} 
-                                    hide 
+                                <YAxis
+                                    yAxisId="vol"
+                                    orientation="right"
+                                    domain={[0, 'dataMax * 4']}
+                                    hide
                                 />
 
                                 <Tooltip
@@ -848,14 +885,14 @@ const SentimentEngine: React.FC = () => {
                                             const score = Number(payload.find(p => p.dataKey === 'score')?.value || 0);
                                             const price = Number(payload.find(p => p.dataKey === 'price')?.value || 0);
                                             const netflowStatus = payload[0].payload.netflow_status;
-                                            
+
                                             return (
                                                 <div className="backdrop-blur-xl bg-white/80 dark:bg-slate-900/80 border border-white/20 dark:border-slate-700/30 p-4 rounded-2xl shadow-2xl ring-1 ring-black/5 dark:ring-white/10">
                                                     <div className="text-[10px] uppercase tracking-wider text-slate-500 mb-2 font-bold flex justify-between items-center">
                                                         <span>{new Date(label).toLocaleTimeString()}</span>
                                                         <span className={score > 0 ? "text-emerald-500" : "text-rose-500"}>{score > 0 ? "BULLISH" : "BEARISH"}</span>
                                                     </div>
-                                                    
+
                                                     <div className="space-y-3">
                                                         <div className="flex items-center justify-between gap-6">
                                                             <div className="flex items-center gap-2">
@@ -873,11 +910,20 @@ const SentimentEngine: React.FC = () => {
                                                             <span className={`text-sm font-bold font-mono ${score > 0 ? 'text-indigo-500' : 'text-indigo-400'}`}>{score.toFixed(2)}</span>
                                                         </div>
 
+                                                        {/* ✅ FIXED: Added Social Volume to Tooltip */}
+                                                        <div className="flex items-center justify-between gap-6">
+                                                            <div className="flex items-center gap-2">
+                                                                <div className="w-2 h-2 rounded bg-blue-500/50 shadow-[0_0_8px_rgba(59,130,246,0.5)]"></div>
+                                                                <span className="text-xs font-medium text-slate-600 dark:text-slate-300">Social Vol</span>
+                                                            </div>
+                                                            <span className="text-sm font-bold font-mono text-blue-500">{Math.round(payload.find(p => p.dataKey === 'social_volume')?.value || 0)}</span>
+                                                        </div>
+
                                                         {netflowStatus && (
                                                             <div className={`mt-2 text-[10px] uppercase font-black px-2 py-1 rounded text-center border border-dashed
-                                                                ${netflowStatus === 'Accumulating' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500' : 
-                                                                  netflowStatus === 'Dumping' ? 'bg-rose-500/10 border-rose-500/30 text-rose-500' : 
-                                                                  'bg-slate-500/10 border-slate-500/30 text-slate-500'}`}>
+                                                                ${netflowStatus === 'Accumulating' ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-500' :
+                                                                    netflowStatus === 'Dumping' ? 'bg-rose-500/10 border-rose-500/30 text-rose-500' :
+                                                                        'bg-slate-500/10 border-slate-500/30 text-slate-500'}`}>
                                                                 DATA SIGNAL: {netflowStatus}
                                                             </div>
                                                         )}
@@ -890,34 +936,34 @@ const SentimentEngine: React.FC = () => {
                                 />
 
                                 {/* Social Volume as futuristic bars at the bottom */}
-                                <Bar 
-                                    yAxisId="vol" 
-                                    dataKey="social_volume" 
-                                    fill="url(#volumeGradient)" 
+                                <Bar
+                                    yAxisId="vol"
+                                    dataKey="social_volume"
+                                    fill="url(#volumeGradient)"
                                     barSize={6}
                                     radius={[2, 2, 0, 0]}
                                 />
 
                                 {/* Sentiment Area with Glow */}
-                                <Area 
-                                    yAxisId="left" 
-                                    type="monotone" 
-                                    dataKey="score" 
-                                    stroke="#818cf8" 
-                                    strokeWidth={3} 
-                                    fill="url(#sentimentGradient)" 
+                                <Area
+                                    yAxisId="left"
+                                    type="monotone"
+                                    dataKey="score"
+                                    stroke="#818cf8"
+                                    strokeWidth={3}
+                                    fill="url(#sentimentGradient)"
                                     filter="url(#neonGlow)"
                                     activeDot={{ r: 6, strokeWidth: 0, fill: '#818cf8', filter: 'url(#neonGlow)' }}
                                 />
 
                                 {/* Price Line - Sharp Neon Green */}
-                                <Line 
-                                    yAxisId="right" 
-                                    type="monotone" 
-                                    dataKey="price" 
-                                    stroke="#10b981" 
-                                    strokeWidth={2} 
-                                    dot={false} 
+                                <Line
+                                    yAxisId="right"
+                                    type="monotone"
+                                    dataKey="price"
+                                    stroke="#10b981"
+                                    strokeWidth={2}
+                                    dot={false}
                                     activeDot={{ r: 4, fill: '#fff', stroke: '#10b981', strokeWidth: 2, filter: 'url(#neonGlow)' }}
                                     style={{ filter: 'drop-shadow(0 0 4px rgba(16, 185, 129, 0.3))' }}
                                 />
