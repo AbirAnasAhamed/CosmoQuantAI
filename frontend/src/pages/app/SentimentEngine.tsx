@@ -139,7 +139,7 @@ const AnimatedNumber = ({ value, prefix = '', suffix = '', className = '' }: any
     return <span className={className}>{prefix}{typeof value === 'number' ? value.toFixed(2) : value}{suffix}</span>;
 };
 
-const SentimentOrb = ({ score, momentum, volume }: any) => {
+const SentimentOrb = ({ score, momentum, volume, netflow }: any) => {
     // Determine State
     const mood = score > 0.2 ? "Bullish" : score < -0.2 ? "Bearish" : "Neutral";
 
@@ -211,7 +211,7 @@ const SentimentOrb = ({ score, momentum, volume }: any) => {
 
                     {/* Value Display */}
                     <div className="flex flex-col items-center z-20">
-                        <span className={`text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400 mb-1`}>Sentiment</span>
+                        <span className={`text-[10px] uppercase font-bold tracking-[0.2em] text-slate-400 mb-1`}>Smart Money</span>
                         <span className={`text-6xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b ${theme.gradient} ${theme.textGlow}`}>
                             {score.toFixed(2)}
                         </span>
@@ -238,7 +238,7 @@ const SentimentOrb = ({ score, momentum, volume }: any) => {
                             {score > 0.1 ? '🚀' : score < -0.1 ? '🔻' : '⚖️'}
                         </span>
                         <span className={`text-sm font-black uppercase tracking-widest text-${theme.primary}-400 group-hover:text-${theme.primary}-300`}>
-                            {score > 0.1 ? 'LONG / BUY' : score < -0.1 ? 'SHORT / SELL' : 'HOLD'}
+                            {netflow?.toUpperCase() || (score > 0.1 ? 'LONG / BUY' : score < -0.1 ? 'SHORT / SELL' : 'HOLD')}
                         </span>
                     </div>
                 </button>
@@ -731,13 +731,15 @@ const SentimentEngine: React.FC = () => {
     };
 
     // Metrics Calculation (Safe access)
-    const { currentScore, currentMomentum, currentVolume } = useMemo(() => {
-        if (chartData.length === 0) return { currentScore: 0, currentMomentum: 0, currentVolume: 0 };
+    const { currentScore, currentMomentum, currentVolume, currentSmartMoney, currentNetflow } = useMemo(() => {
+        if (chartData.length === 0) return { currentScore: 0, currentMomentum: 0, currentVolume: 0, currentSmartMoney: 0, currentNetflow: 'Neutral' };
         const lastPoint = chartData[chartData.length - 1];
         return {
             currentScore: lastPoint.score || 0,
-            currentMomentum: lastPoint.momentum || 0, // Backend now ensures this is calculated
-            currentVolume: lastPoint.social_volume || 0 // Backend now ensures this is calculated
+            currentMomentum: lastPoint.momentum || 0,
+            currentVolume: lastPoint.social_volume || 0,
+            currentSmartMoney: lastPoint.smart_money_score || 0,
+            currentNetflow: lastPoint.netflow_status || 'Neutral'
         };
     }, [chartData]);
 
@@ -818,7 +820,7 @@ const SentimentEngine: React.FC = () => {
                 <div className="lg:col-span-1 space-y-6">
                     <Card className="h-[420px] !p-0 overflow-hidden relative">
                         <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-10"></div>
-                        <SentimentOrb score={currentScore} momentum={currentMomentum} volume={currentVolume} />
+                        <SentimentOrb score={currentSmartMoney} momentum={currentMomentum} volume={currentVolume} netflow={currentNetflow} />
                     </Card>
                     <Card className="h-64 !p-0 overflow-hidden">
                         <FearGreedFlux score={fearGreedIndex} classification={fearGreedLabel} />

@@ -10,6 +10,7 @@ import asyncio
 from tqdm import tqdm
 from app.services.websocket_manager import manager
 from fastapi.concurrency import run_in_threadpool
+from app.core.cache import cache
 
 class MarketService:
     def __init__(self):
@@ -167,67 +168,106 @@ class MarketService:
         finally:
             await exchange.close()
 
+    @cache(expire=10)
     async def get_real_time_sentiment_metrics(self, symbol: str) -> dict:
         exchange = ccxt.binance({
             'enableRateLimit': True,
             'userAgent': 'CosmoQuant/1.0'
         })
         try:
-            # 1. Fetch Ticker for Price and Vol
+            # 1. Fetch Ticker for Price and immediate Volume
             ticker = await exchange.fetch_ticker(symbol)
             current_price = float(ticker['last'])
-            # quoteVolume is usually available for Binance (volume in USDT)
-            current_vol = float(ticker.get('quoteVolume', 0.0))
-            if current_vol == 0 and ticker.get('baseVolume'):
-                current_vol = float(ticker['baseVolume']) * current_price
-
-            # 2. Fetch OHLCV for Avg Vol (24h avg)
-            # Fetching 7 days of 1d candles to approximate 'Average 24h Vol'
-            ohlcv = await exchange.fetch_ohlcv(symbol, '1d', limit=7)
-            if ohlcv:
-                volumes = [c[5] for c in ohlcv] # volume is index 5
-                # Using quote volume would be better if OHLCV standardizes it, 
-                # but ccxt OHLCV volume is usually base volume.
-                # So we might need to convert avg base vol to quote vol for consistency
-                # Or simply rely on ticker's baseVolume comparison.
-                # Let's use baseVolume for netflow consistency if quoteVolume is not guaranteed in OHLCV
+            
+            # 2. Fetch OHLCV for Volume Anomaly Analysis (1h timeframe, limit=50)
+            # We need enough history for SMA20
+            ohlcv = await exchange.fetch_ohlcv(symbol, '1h', limit=50)
+            
+            # Default values
+            smart_money_score = 50.0
+            volume_spike_ratio = 1.0
+            price_change_pct = 0.0
+            
+            if ohlcv and len(ohlcv) >= 20:
+                # OHLCV structure: [timestamp, open, high, low, close, volume]
+                # Extract volumes
+                volumes = [c[5] for c in ohlcv]
                 
-                # Re-evaluating: Ticker has quoteVolume (USDT). OHLCV has baseVolume (BTC).
-                # To compare correctly:
-                avg_base_vol = sum(volumes) / len(volumes)
-                current_base_vol = float(ticker.get('baseVolume', 0.0))
+                # Current candle might be incomplete, let's look at the last closed candle for analysis 
+                # or use current if meaningful. 
+                # NOTE: For "Real Time" Feel, we usually look at the very latest entry even if forming.
+                current_vol = volumes[-1] 
                 
-                netflow = current_base_vol - avg_base_vol
-            else:
-                netflow = 0.0
+                # Avg Volume (last 20 excluding current if we want strict SMA, 
+                # but including it is fine for "current trend"). 
+                # Let's take previous 20 to compare current against historical norm.
+                avg_vol = sum(volumes[-21:-1]) / 20 if len(volumes) > 20 else sum(volumes[:-1]) / len(volumes[:-1])
+                
+                if avg_vol > 0:
+                    volume_spike_ratio = current_vol / avg_vol
+                
+                # Price Momentum (Current Candle Change)
+                open_price = ohlcv[-1][1]
+                close_price = ohlcv[-1][4]
+                if open_price > 0:
+                    price_change_pct = (close_price - open_price) / open_price
+                
+                # --- SMART MONEY LOGIC (Refined for Sensitivity) ---
+                # 1. Accumulation: High Volume + Price UP (Whales buying)
+                # Lowered threshold to 1.2 to capture more activity
+                if volume_spike_ratio > 1.2 and price_change_pct > 0:
+                    # Score 60-100 based on intensity
+                    base_score = 60.0
+                    # Intensity: (1.2 to 2.0 ratio) -> adds 0 to 40 points
+                    intensity = min(40.0, (volume_spike_ratio - 1.2) * 50) 
+                    smart_money_score = base_score + intensity
+                    
+                # 2. Distribution: High Volume + Price DOWN (Whales selling)
+                elif volume_spike_ratio > 1.2 and price_change_pct < 0:
+                    # Score 0-40 based on intensity
+                    base_score = 40.0
+                    intensity = min(40.0, (volume_spike_ratio - 1.2) * 50)
+                    smart_money_score = max(0.0, base_score - intensity)
+                    
+                # 3. Neutral/Retail churn (Normal Activity)
+                else:
+                    # Allow minor fluctuations around 50 based on price action and volume
+                    # Price Change Pct is usually small (e.g., 0.005 for 0.5%)
+                    # multiplied by 500 gives +/- 2.5 points
+                    momentum_drift = price_change_pct * 500
+                    
+                    # Volume drift: if volume is slightly higher/lower than avg
+                    # ratio 0.8 to 1.2 -> -5 to +5 points
+                    volume_drift = (volume_spike_ratio - 1.0) * 20
+                    
+                    smart_money_score = 50.0 + momentum_drift + volume_drift
+                    # Constrain to 40-60 range for neutral
+                    smart_money_score = max(40.0, min(60.0, smart_money_score))
 
-            # 3. Smart Money: Taker Buy/Sell Ratio
-            # Fetch recent trades
+            # 3. Exchange Netflow (Buy vs Sell Volume from recent Trades)
+            # This is a good proxy for "Flow"
             trades = await exchange.fetch_trades(symbol, limit=500)
             buy_vol = 0.0
             sell_vol = 0.0
             
             for trade in trades:
-                # amount is base currency, cost is quote currency
+                # cost = amount * price (Quote Volume)
                 trade_cost = float(trade.get('cost', 0.0))
                 if trade_cost == 0:
-                    trade_cost = float(trade['amount']) * float(trade['price'])
-                    
+                     trade_cost = float(trade['amount']) * float(trade['price'])
+                
                 if trade['side'] == 'buy':
                     buy_vol += trade_cost
                 else:
                     sell_vol += trade_cost
             
-            if buy_vol + sell_vol == 0:
-                ratio_score = 50.0
-            else:
-                # Normalize 0-100.
-                ratio_score = (buy_vol / (buy_vol + sell_vol)) * 100
-
+            netflow = buy_vol - sell_vol
+            
             return {
-                "smart_money_score": ratio_score,
-                "exchange_netflow": netflow,
-                "price": current_price
+                "smart_money_score": round(smart_money_score, 2),
+                "exchange_netflow": round(netflow, 2),
+                "price": current_price,
+                "retail_sentiment": 50.0 # Placeholder or could be derived from social volume if we had it here
             }
 
         except Exception as e:
@@ -236,7 +276,8 @@ class MarketService:
             return {
                 "smart_money_score": 50.0,
                 "exchange_netflow": 0.0,
-                "price": 0.0
+                "price": 0.0,
+                "retail_sentiment": 50.0
             }
         finally:
             await exchange.close()

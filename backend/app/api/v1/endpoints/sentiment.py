@@ -12,8 +12,9 @@ import pandas as pd
 import pandas_ta as ta
 import numpy as np
 from datetime import datetime, timedelta
-import random
+
 from sqlalchemy import func
+from app.core.cache import cache
 
 router = APIRouter()
 
@@ -27,6 +28,7 @@ class VerifyNewsRequest(BaseModel):
     content: str
 
 @router.get("/news")
+@cache(expire=300)
 async def get_sentiment_news():
     return await news_service.fetch_news()
 
@@ -57,6 +59,7 @@ async def verify_news_credibility(request: VerifyNewsRequest):
 
 # ✅ মিসিং /narratives এন্ডপয়েন্ট যোগ করা হয়েছে
 @router.get("/narratives")
+@cache(expire=300)
 async def get_market_narratives():
     try:
         # প্রথমে নিউজ ফেচ করা হবে
@@ -76,6 +79,7 @@ async def get_market_narratives():
         return {"word_cloud": [], "narratives": ["Error generating narratives."]}
 
 @router.get("/correlation")
+@cache(expire=10) # Using 10s same as market data since it uses real-time metrics
 async def get_sentiment_correlation(symbol: str = "BTC/USDT", period: str = "7d"):
     try:
         exchange = ccxt.binance()
@@ -156,6 +160,9 @@ async def get_sentiment_correlation(symbol: str = "BTC/USDT", period: str = "7d"
                 # Update netflow signal for tooltip correctness
                 merged_df.at[last_idx, 'netflow_signal'] = rt_metrics['exchange_netflow'] / max_flow if max_flow else 0
                 
+                # Debug Log
+                print(f"[SENTIMENT DEBUG] Symbol: {symbol}, RT Score: {rt_metrics['smart_money_score']}, Norm: {rt_score_normalized}")
+
         except Exception as e:
             print(f"Real-time update failed: {e}")
 
@@ -209,6 +216,7 @@ async def get_sentiment_correlation(symbol: str = "BTC/USDT", period: str = "7d"
         raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/heatmap")
+@cache(expire=300)
 async def get_sentiment_heatmap():
     # Top 30 Crypto Mock Data for Heatmap
     heatmap_data = [
@@ -245,10 +253,9 @@ async def get_sentiment_heatmap():
     ]
     
     # Optional: ডাটাগুলো একটু র‍্যান্ডমাইজ করা যাতে প্রতিবার রিফ্রেশে কিছুটা পরিবর্তন মনে হয় (Production এ এটা রিয়েল ডাটা হবে)
-    for coin in heatmap_data:
-        fluctuation = random.uniform(-0.05, 0.05)
-        coin["sentimentScore"] = max(-1, min(1, coin["sentimentScore"] + fluctuation))
-
+    # REMOVED: Randomized fluctuation to strictly follow "No Fake Data" rule.
+    # In future: We should replace this hardcoded list with real market cap/volume scan.
+    
     return heatmap_data
 
 # --- New Endpoints ---

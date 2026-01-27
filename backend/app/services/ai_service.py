@@ -146,18 +146,38 @@ class AIService:
 
         except Exception as e:
             print(f"❌ AI Error ({active_provider}): {e}")
-            return f"Error generating content via {active_provider}."
+            # Fallback: Rule-based Summary
+            return self._generate_fallback_summary(user_content)
+
+    def _generate_fallback_summary(self, content: str) -> str:
+        """
+        Generates a basic summary when AI is unavailable.
+        """
+        if "bull" in content.lower() or "surge" in content.lower() or "high" in content.lower():
+            sentiment = "Bullish"
+        elif "bear" in content.lower() or "crash" in content.lower() or "low" in content.lower():
+            sentiment = "Bearish"
+        else:
+            sentiment = "Mixed/Neutral"
+            
+        return f"Market Sentiment appears {sentiment} based on recent headlines. (AI Unavailable, using heuristics)"
 
     async def _call_gemini(self, full_prompt: str) -> str:
         if not gemini_client:
             return "❌ Gemini API Key missing or client init failed."
         
         def _sync_gemini():
-            response = gemini_client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=full_prompt
-            )
-            return response.text.strip()
+            try:
+                # Standard stable model
+                response = gemini_client.models.generate_content(
+                    model="gemini-1.5-flash", 
+                    contents=full_prompt
+                )
+                return response.text.strip()
+            except Exception as e:
+                # If the specific model fails, we can try one fallback or just return the error
+                # print(f"Gemini Model Error: {e}")
+                raise e # Let the outer try/except catch it and format the error string
             
         return await asyncio.to_thread(_sync_gemini)
 
