@@ -167,6 +167,80 @@ class MarketService:
         finally:
             await exchange.close()
 
+    async def get_real_time_sentiment_metrics(self, symbol: str) -> dict:
+        exchange = ccxt.binance({
+            'enableRateLimit': True,
+            'userAgent': 'CosmoQuant/1.0'
+        })
+        try:
+            # 1. Fetch Ticker for Price and Vol
+            ticker = await exchange.fetch_ticker(symbol)
+            current_price = float(ticker['last'])
+            # quoteVolume is usually available for Binance (volume in USDT)
+            current_vol = float(ticker.get('quoteVolume', 0.0))
+            if current_vol == 0 and ticker.get('baseVolume'):
+                current_vol = float(ticker['baseVolume']) * current_price
+
+            # 2. Fetch OHLCV for Avg Vol (24h avg)
+            # Fetching 7 days of 1d candles to approximate 'Average 24h Vol'
+            ohlcv = await exchange.fetch_ohlcv(symbol, '1d', limit=7)
+            if ohlcv:
+                volumes = [c[5] for c in ohlcv] # volume is index 5
+                # Using quote volume would be better if OHLCV standardizes it, 
+                # but ccxt OHLCV volume is usually base volume.
+                # So we might need to convert avg base vol to quote vol for consistency
+                # Or simply rely on ticker's baseVolume comparison.
+                # Let's use baseVolume for netflow consistency if quoteVolume is not guaranteed in OHLCV
+                
+                # Re-evaluating: Ticker has quoteVolume (USDT). OHLCV has baseVolume (BTC).
+                # To compare correctly:
+                avg_base_vol = sum(volumes) / len(volumes)
+                current_base_vol = float(ticker.get('baseVolume', 0.0))
+                
+                netflow = current_base_vol - avg_base_vol
+            else:
+                netflow = 0.0
+
+            # 3. Smart Money: Taker Buy/Sell Ratio
+            # Fetch recent trades
+            trades = await exchange.fetch_trades(symbol, limit=500)
+            buy_vol = 0.0
+            sell_vol = 0.0
+            
+            for trade in trades:
+                # amount is base currency, cost is quote currency
+                trade_cost = float(trade.get('cost', 0.0))
+                if trade_cost == 0:
+                    trade_cost = float(trade['amount']) * float(trade['price'])
+                    
+                if trade['side'] == 'buy':
+                    buy_vol += trade_cost
+                else:
+                    sell_vol += trade_cost
+            
+            if buy_vol + sell_vol == 0:
+                ratio_score = 50.0
+            else:
+                # Normalize 0-100.
+                ratio_score = (buy_vol / (buy_vol + sell_vol)) * 100
+
+            return {
+                "smart_money_score": ratio_score,
+                "exchange_netflow": netflow,
+                "price": current_price
+            }
+
+        except Exception as e:
+            print(f"Error fetching real-time metrics: {e}")
+            # Fallback
+            return {
+                "smart_money_score": 50.0,
+                "exchange_netflow": 0.0,
+                "price": 0.0
+            }
+        finally:
+            await exchange.close()
+
     # ✅ হেল্পার মেথড: সব পসিবল চ্যানেলে ব্রডকাস্ট করার জন্য
     async def _broadcast_progress(self, symbol: str, safe_symbol: str, percent: int, status_msg: str):
         message = {

@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.services.news_service import news_service
 from app.services.ai_service import ai_service
 from app.api import deps
+from app.services.market_service import MarketService
 from app.models.sentiment import SentimentPoll, InfluencerTrack, SocialDominance
 from app.schemas.sentiment import SentimentPollCreate, InfluencerTrack as InfluencerTrackSchema, SocialDominance as SocialDominanceSchema
 import ccxt.async_support as ccxt
@@ -101,31 +102,46 @@ async def get_sentiment_correlation(symbol: str = "BTC/USDT", days: int = 7):
         merged_df.ta.cmf(append=True)
         cmf_col = merged_df.columns[-1]
         
-        # --- NEW: On-Chain Whale Tracking Logic (Simulated) ---
-        # 1. Simulate Exchange Netflow (Mock Data)
-        # Logic: Random noise + inverse price movement (Whales buy dips)
-        np.random.seed(42) # For reproducibility
-        merged_df['exchange_netflow'] = np.random.normal(0, 1000, len(merged_df)) 
-        
-        # Create Divergence: Price drops but Netflow is Negative (Outflow) -> Whales Accumulating
-        # We'll just force some negative netflow when price is dropping to simulate "Smart Money Buying the Dip"
-        merged_df['price_change'] = merged_df['close'].diff()
-        merged_df.loc[merged_df['price_change'] < 0, 'exchange_netflow'] -= 500  # More outflow on dips
-        
-        # 2. Normalize Netflow (-1 to 1)
-        # Negative Netflow (Outflow) = Bullish (Positive Score)
-        # Positive Netflow (Inflow) = Bearish (Negative Score)
+        # --- REFACTORED: Real Data Logic (No Fake Data) ---
+        # 1. Deterministic Historical Netflow (Volume Delta)
+        # Netflow = Volume - Moving Average of Volume
+        # Using a rolling 24h average for calculation
+        merged_df['vol_ma'] = merged_df['volume'].rolling(24).mean()
+        merged_df['exchange_netflow'] = merged_df['volume'] - merged_df['vol_ma']
+        merged_df['exchange_netflow'] = merged_df['exchange_netflow'].fillna(0)
+
+        # 2. Deterministic Netflow Signal
         max_flow = merged_df['exchange_netflow'].abs().max()
-        merged_df['netflow_signal'] = -1 * (merged_df['exchange_netflow'] / max_flow) # Invert sign
-        
-        # 3. Enhanced Smart Money Score formula
-        # smart_money_score = (0.4 * CMF_Score) + (0.6 * Netflow_Signal)
-        # Note: CMF is already -1 to 1 approx
-        cmf_score = merged_df[cmf_col].rolling(3).mean() * 5 # Scale CMF slightly as before
+        if max_flow == 0: max_flow = 1
+        merged_df['netflow_signal'] = merged_df['exchange_netflow'] / max_flow
+
+        # 3. Deterministic Smart Money Score
+        # Using CMF + Netflow Signal combination
+        cmf_score = merged_df[cmf_col].rolling(3).mean() * 5 
         cmf_score = cmf_score.clip(-1, 1).fillna(0)
         
         merged_df['smart_money_score'] = (0.4 * cmf_score) + (0.6 * merged_df['netflow_signal'])
         merged_df['smart_money_score'] = merged_df['smart_money_score'].clip(-1, 1).fillna(0)
+
+        # --- REAL-TIME INJECTION ---
+        # Update the LATEST data point with high-precision real-time metrics
+        try:
+            rt_metrics = await MarketService().get_real_time_sentiment_metrics(symbol)
+            
+            # Map 0-100 score to -1 to 1 range
+            # 0 -> -1, 50 -> 0, 100 -> 1
+            rt_score_normalized = (rt_metrics['smart_money_score'] - 50) / 50.0
+            
+            # Update last row (if exists)
+            if not merged_df.empty:
+                last_idx = merged_df.index[-1]
+                merged_df.at[last_idx, 'smart_money_score'] = rt_score_normalized
+                merged_df.at[last_idx, 'exchange_netflow'] = rt_metrics['exchange_netflow']
+                # Update netflow signal for tooltip correctness
+                merged_df.at[last_idx, 'netflow_signal'] = rt_metrics['exchange_netflow'] / max_flow if max_flow else 0
+                
+        except Exception as e:
+            print(f"Real-time update failed: {e}")
 
         merged_df['momentum'] = merged_df['close'].diff().fillna(0)
         merged_df['social_volume'] = (merged_df['volume'] * merged_df['high'].diff().abs() / 1000).fillna(100).astype(int)
@@ -148,7 +164,7 @@ async def get_sentiment_correlation(symbol: str = "BTC/USDT", days: int = 7):
                 "score": round(row['score'], 2),
                 "retail_score": round(retail_val, 2),        
                 "smart_money_score": round(smart_val, 2),
-                "netflow_status": netflow_status, # NEW field for Tooltip
+                "netflow_status": netflow_status, 
                 "momentum": round(row['momentum'], 2), 
                 "social_volume": int(row['social_volume']),
                 "volume": row['volume'],
@@ -156,7 +172,6 @@ async def get_sentiment_correlation(symbol: str = "BTC/USDT", days: int = 7):
             })
 
         return chart_data
-
     except Exception as e:
         print(f"Correlation API Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
