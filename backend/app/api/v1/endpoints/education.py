@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app import models, schemas
 from app.api import deps
-from app.services.news_scraper import fetch_crypto_news
+from app.services.news_service import news_service
 
 router = APIRouter()
 
@@ -22,8 +22,8 @@ def read_education(
     return query.order_by(models.EducationResource.published_at.desc()).limit(50).all()
 
 @router.post("/refresh-news")
-def refresh_news(db: Session = Depends(deps.get_db)):
-    count = fetch_crypto_news(db)
+async def refresh_news(db: Session = Depends(deps.get_db)):
+    count = await news_service.fetch_and_process_latest_news()
     return {"message": f"Fetched {count} new articles"}
 
 @router.post("/init", response_model=dict)

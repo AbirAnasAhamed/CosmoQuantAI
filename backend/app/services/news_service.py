@@ -7,7 +7,7 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import pandas as pd
 import random
 from deep_translator import GoogleTranslator
-from transformers import pipeline
+# from transformers import pipeline # Moved to inside get_pipeline to save memory on import
 from app.core.config import settings
 import logging
 import urllib.parse
@@ -30,6 +30,7 @@ def get_pipeline():
                 logging.getLogger("huggingface_hub").setLevel(logging.ERROR)
 
                 print("🧠 Loading FinBERT model... (This may take a moment)")
+                from transformers import pipeline
                 _sentiment_pipeline = pipeline("sentiment-analysis", model="ProsusAI/finbert")
                 print("✅ FinBERT model loaded and cached globally.")
             except Exception as e:
@@ -76,36 +77,59 @@ class NewsService:
         """
         try:
             print("📰 Starting Market News Fetch Job...")
-            # Using the scraper function we saw in news_scraper.py
-            # We need to import it inside or allow passing db session
             from app.db.session import SessionLocal
-            from app.services.news_scraper import fetch_crypto_news
+            from app.services.news_scraper import NewsScraper
+            from app.models.education import EducationResource
             
             db = SessionLocal()
+            count = 0
+            new_resources = []
+            
             try:
-                # Run the synchronous scraper
-                # Since fetch_crypto_news is sync (uses requests/feedparser), 
-                # we can run it directly here if this method is called from a sync task,
-                # BUT this method is async? 
-                # The prompt asks for NewsService to have this method.
-                # If this method is async, we should wrap the sync call.
+                # Initialize Scraper
+                scraper = NewsScraper()
                 
-                # Call scraper which now returns (count, new_items)
-                result = await asyncio.to_thread(fetch_crypto_news, db)
-                if isinstance(result, tuple):
-                    count, new_items = result
-                else:
-                    count = result
-                    new_items = []
+                # Fetch News (Unified)
+                news_items = await scraper.get_crypto_news()
+                
+                # Process and Save
+                for item in news_items:
+                    # Check duplicate by link
+                    existing = db.query(EducationResource).filter(EducationResource.link == item['url']).first()
+                    if existing:
+                        continue
+                        
+                    # Calculate simple category
+                    title_lower = item['title'].lower()
+                    cat = "General"
+                    if "bitcoin" in title_lower: cat = "Bitcoin"
+                    elif "ethereum" in title_lower: cat = "Ethereum"
+                    elif "defi" in title_lower: cat = "DeFi"
+                    
+                    resource = EducationResource(
+                        title=item['title'],
+                        description=f"Source: {item['source']}", # Summary often missing in simple RSS, using source as desc placeholder or extend
+                        type="News",
+                        category=cat,
+                        source=item['source'],
+                        link=item['url'],
+                        image_url="", # RSS often doesn't give easy image without parsing XML content content:media
+                        published_at=item.get('published_at', datetime.now())
+                    )
+                    db.add(resource)
+                    new_resources.append(resource)
+                    count += 1
+                
+                db.commit()
 
-                if new_items:
+                if new_resources:
                     print(f"✅ Market News Fetch Completed. {count} new items. Sending notifications...")
                     from app.services.notification import NotificationService
                     # Notify Admin (User ID 1)
                     target_user_id = 1 
                     
-                    for item in new_items:
-                        msg = f"📰 *{item.title}*\n\n🔗 {item.link}\nSources: {item.source}"
+                    for r in new_resources:
+                        msg = f"📰 *{r.title}*\n\n🔗 {r.link}\nSources: {r.source}"
                         await NotificationService.send_message(db, target_user_id, msg)
                 
                 print(f"✅ Market News Fetch Completed. {count} new items.")

@@ -1,48 +1,124 @@
 import feedparser
-from sqlalchemy.orm import Session
-from app.models.education import EducationResource
+import asyncio
 from datetime import datetime
 from dateutil import parser
+import logging
+import urllib.parse
 
-RSS_FEEDS = {
-    "CoinDesk": "https://feeds.feedburner.com/CoinDesk",
-    "Cointelegraph": "https://cointelegraph.com/rss",
-    "Decrypt": "https://decrypt.co/feed",
-}
+# Setup logger
+logger = logging.getLogger(__name__)
 
-def fetch_crypto_news(db: Session):
-    count = 0
-    new_items = []
-    for source, url in RSS_FEEDS.items():
+class NewsScraper:
+    COINTELEGRAPH_RSS = "https://cointelegraph.com/rss"
+    COINDESK_RSS = "https://www.coindesk.com/arc/outboundfeeds/rss/"
+    CRYPTOPANIC_RSS = "https://cryptopanic.com/news/rss/"
+    GOOGLE_NEWS_RSS_TEMPLATE = "https://news.google.com/rss/search?q={query}+when:{period}&hl={lang}-{country}&gl={country}&ceid={country}:{lang}"
+
+    def __init__(self):
+        pass
+
+    def fetch_rss_feed(self, url: str, source_name: str) -> list[dict]:
+        """
+        Generic RSS fetcher and parser.
+        Returns a list of dictionaries with normalized keys.
+        """
+        news_items = []
         try:
+            # feedparser is blocking, but we will run this method in a thread via get_crypto_news
             feed = feedparser.parse(url)
-            for entry in feed.entries[:5]: # Latest 5 news
-                existing = db.query(EducationResource).filter(EducationResource.link == entry.link).first()
-                if existing: continue
+            
+            if feed.bozo:
+                logger.warning(f"Feedparser reported issue with {source_name}: {feed.bozo_exception}")
 
-                # Category detection
-                cat = "General"
-                if "bitcoin" in entry.title.lower(): cat = "Bitcoin"
-                elif "ethereum" in entry.title.lower(): cat = "Ethereum"
-                elif "defi" in entry.title.lower(): cat = "DeFi"
-
-                img = None
-                if 'media_content' in entry: img = entry.media_content[0]['url']
+            for entry in feed.entries[:10]: # Limit to 10 latest per source
+                # Normalization
+                title = entry.get('title', 'No Title')
+                link = entry.get('link', '')
                 
-                resource = EducationResource(
-                    title=entry.title,
-                    description=entry.summary[:300] + "..." if hasattr(entry, 'summary') else "",
-                    type="News",
-                    category=cat,
-                    source=source,
-                    link=entry.link,
-                    image_url=img,
-                    published_at=datetime.now()
-                )
-                db.add(resource)
-                new_items.append(resource)
-                count += 1
+                # Published Date Parsing
+                pub_date = datetime.now()
+                if 'published' in entry:
+                    try:
+                        pub_date = parser.parse(entry.published)
+                    except:
+                        pass
+                elif 'updated' in entry:
+                     try:
+                        pub_date = parser.parse(entry.updated)
+                     except:
+                        pass
+                
+                # Ensure timezone aware if possible, or naive. 
+                # For simplicity in this scraper, we keep the object but might need standardization later.
+
+                item = {
+                    'title': title,
+                    'url': link,
+                    'source': source_name,
+                    'published_at': pub_date
+                }
+                news_items.append(item)
+                
         except Exception as e:
-            print(f"Error fetching {source}: {e}")
-    db.commit()
-    return count, new_items
+            logger.error(f"Error fetching RSS from {source_name} ({url}): {e}")
+            # Do NOT crash, just return what we have (or empty)
+            
+        return news_items
+
+    def fetch_google_news(self, query="Cryptocurrency", period="1d") -> list[dict]:
+        """
+        Fetches news from Google News RSS.
+        """
+        url = self.GOOGLE_NEWS_RSS_TEMPLATE.format(
+            query=urllib.parse.quote(query),
+            period=period,
+            lang="en",
+            country="US"
+        )
+        # Re-use the generic fetcher, though Google News structure is standard RSS mostly.
+        return self.fetch_rss_feed(url, "Google News")
+
+    async def get_crypto_news(self) -> list[dict]:
+        """
+        Aggregates news from all sources asynchronously.
+        """
+        tasks = []
+        
+        # Define tasks for each source
+        # We verify feedparser is IO bound but blocking, so we use to_thread
+        
+        # 1. Google News
+        tasks.append(asyncio.to_thread(self.fetch_google_news))
+        
+        # 2. CoinTelegraph
+        tasks.append(asyncio.to_thread(self.fetch_rss_feed, self.COINTELEGRAPH_RSS, "CoinTelegraph"))
+        
+        # 3. CoinDesk
+        tasks.append(asyncio.to_thread(self.fetch_rss_feed, self.COINDESK_RSS, "CoinDesk"))
+        
+        # 4. CryptoPanic
+        tasks.append(asyncio.to_thread(self.fetch_rss_feed, self.CRYPTOPANIC_RSS, "CryptoPanic"))
+        
+        # Execute all concurrently
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        
+        all_news = []
+        for res in results:
+            if isinstance(res, list):
+                all_news.extend(res)
+            else:
+                logger.error(f"Task failed with error: {res}")
+
+        # Sort by published_at descending (newest first)
+        # Handle cases where published_at might be None or invalid if something slipped through
+        all_news.sort(key=lambda x: x.get('published_at') or datetime.min, reverse=True)
+        
+        return all_news
+
+# Basic usage for testing (if run directly)
+if __name__ == "__main__":
+    scraper = NewsScraper()
+    news = asyncio.run(scraper.get_crypto_news())
+    print(f"Fetched {len(news)} items.")
+    for n in news[:5]:
+        print(f"[{n['source']}] {n['title']} ({n['published_at']})")

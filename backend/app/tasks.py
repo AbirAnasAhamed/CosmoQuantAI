@@ -13,7 +13,7 @@ import json
 from app.models import SentimentHistory
 from app.models.whale_alert import WhaleAlert
 from app.services.notification import NotificationService
-from app.services.news_scraper import fetch_crypto_news
+
 from app.services.news_service import news_service 
 
 @celery_app.task
@@ -38,12 +38,18 @@ def fetch_market_news():
 def task_fetch_latest_news():
     """
     Background task to fetch crypto news automatically every hour.
+    Redirecting to the main service orchestrator.
     """
-    db = SessionLocal()
+    # Reuse the same logic as fetch_market_news or just call it directly if possible,
+    # but here we replicate the async wrapper logic for safety.
     try:
-        fetch_crypto_news(db)
-    finally:
-        db.close()
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(news_service.fetch_and_process_latest_news())
+        loop.close()
+        return f"News fetch executed successfully: {result}"
+    except Exception as e:
+        return f"News fetch failed: {str(e)}"
 
 def publish_task_status(task_type, task_id, status, progress, data=None):
     try:
