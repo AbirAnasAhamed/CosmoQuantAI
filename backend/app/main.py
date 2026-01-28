@@ -23,6 +23,15 @@ app = FastAPI(
     version="1.0.0"
 )
 
+# ✅ Register Global Exception Handlers
+from fastapi.exceptions import RequestValidationError
+from fastapi import HTTPException
+from app.core.errors import http_exception_handler, validation_exception_handler, general_exception_handler
+
+app.add_exception_handler(HTTPException, http_exception_handler)
+app.add_exception_handler(RequestValidationError, validation_exception_handler)
+app.add_exception_handler(Exception, general_exception_handler)
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
