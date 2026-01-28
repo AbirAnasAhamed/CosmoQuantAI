@@ -12,6 +12,7 @@ RSS_FEEDS = {
 
 def fetch_crypto_news(db: Session):
     count = 0
+    new_items = []
     for source, url in RSS_FEEDS.items():
         try:
             feed = feedparser.parse(url)
@@ -39,8 +40,9 @@ def fetch_crypto_news(db: Session):
                     published_at=datetime.now()
                 )
                 db.add(resource)
+                new_items.append(resource)
                 count += 1
         except Exception as e:
             print(f"Error fetching {source}: {e}")
     db.commit()
-    return count
+    return count, new_items

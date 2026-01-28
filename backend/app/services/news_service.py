@@ -90,7 +90,24 @@ class NewsService:
                 # The prompt asks for NewsService to have this method.
                 # If this method is async, we should wrap the sync call.
                 
-                count = await asyncio.to_thread(fetch_crypto_news, db)
+                # Call scraper which now returns (count, new_items)
+                result = await asyncio.to_thread(fetch_crypto_news, db)
+                if isinstance(result, tuple):
+                    count, new_items = result
+                else:
+                    count = result
+                    new_items = []
+
+                if new_items:
+                    print(f"✅ Market News Fetch Completed. {count} new items. Sending notifications...")
+                    from app.services.notification import NotificationService
+                    # Notify Admin (User ID 1)
+                    target_user_id = 1 
+                    
+                    for item in new_items:
+                        msg = f"📰 *{item.title}*\n\n🔗 {item.link}\nSources: {item.source}"
+                        await NotificationService.send_message(db, target_user_id, msg)
+                
                 print(f"✅ Market News Fetch Completed. {count} new items.")
                 return count
             finally:
