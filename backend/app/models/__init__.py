@@ -94,7 +94,7 @@ from .bot import Bot
 from .backtest import Backtest
 from .portfolio import PortfolioSnapshot
 from .indicator import UserIndicator
-from .sentiment import SentimentHistory
+from .sentiment_history import SentimentHistory
 from .trade import Trade
 from .education import EducationResource, UserEducationProgress
 from .arbitrage import ArbitrageBot

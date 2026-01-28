@@ -10,8 +10,7 @@ from app.strategies import STRATEGY_MAP
 from app.services.live_engine import LiveBotEngine
 import asyncio
 import json
-from app.models.sentiment import SentimentHistory
-from app.models.sentiment import SentimentHistory
+from app.models import SentimentHistory
 from app.models.whale_alert import WhaleAlert
 from app.services.notification import NotificationService
 from app.services.news_scraper import fetch_crypto_news
