@@ -23,26 +23,34 @@ services:
       - .env
 
   # 2. Celery Worker (Background Tasks) - NEW
-  worker:
-    build: ./backend
-    container_name: cosmoquant_worker
-    command: celery -A app.celery_app worker -B --loglevel=info --uid=nobody --gid=nogroup
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cosmo_celery_worker
+    command: celery -A app.core.celery_app worker --loglevel=info
     volumes:
       - ./backend:/app
-    environment:
-      - DATABASE_URL=postgresql://user:password@db:5432/cosmoquant_db
-      - CELERY_BROKER_URL=redis://redis:6379/0
-      - CELERY_RESULT_BACKEND=redis://redis:6379/0
-      - REDIS_URL=redis://redis:6379/0
-      - PYTHONUNBUFFERED=1
-      - MPLCONFIGDIR=/tmp/matplotlib_cache
-      - NUMBA_CACHE_DIR=/tmp
-    env_file:
-      - .env
     depends_on:
       - db
       - redis
-      - backend
+    env_file:
+      - ./backend/.env
+    restart: always
+
+  # 2b. Celery Beat (Scheduler) - NEW
+  celery_beat:
+    build: ./backend
+    container_name: cosmo_celery_beat
+    command: celery -A app.core.celery_app beat --loglevel=info
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis
+      - db
+    env_file:
+      - ./backend/.env
+    restart: always
 
   # 3. Redis Service - NEW
   redis:

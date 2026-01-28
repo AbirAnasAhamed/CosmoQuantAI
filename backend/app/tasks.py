@@ -15,8 +15,25 @@ from app.models.sentiment import SentimentHistory
 from app.models.whale_alert import WhaleAlert
 from app.services.notification import NotificationService
 from app.services.news_scraper import fetch_crypto_news
-# ❌ REMOVED: Top-level import removed to fix Circular Import Error
-# from app.services.news_service import news_service 
+from app.services.news_service import news_service 
+
+@celery_app.task
+def fetch_market_news():
+    """
+    Periodic Task: Fetch Market News every 10 minutes.
+    Wraps async NewsService call in a synchronous Celery task.
+    """
+    try:
+        # Create a new event loop for the async call
+        # asyncio.run(news_service.fetch_and_process_latest_news())
+        # Safe async wrapper for Celery
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        result = loop.run_until_complete(news_service.fetch_and_process_latest_news())
+        loop.close()
+        return f"News fetch executed successfully. Items: {result}"
+    except Exception as e:
+        return f"News fetch failed: {str(e)}"
 
 @celery_app.task
 def task_fetch_latest_news():

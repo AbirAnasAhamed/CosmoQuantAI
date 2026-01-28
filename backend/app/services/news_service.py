@@ -42,6 +42,38 @@ class NewsService:
         # We are using RSS now, so GNews init is removed.
         self.vader = SentimentIntensityAnalyzer()
         # FinBERT is now accessed via get_pipeline() global singleton
+
+    async def fetch_and_process_latest_news(self):
+        """
+        Orchestrator method to be called by Celery Task.
+        Fetches news using the scraper logic and updates DB.
+        """
+        try:
+            print("📰 Starting Market News Fetch Job...")
+            # Using the scraper function we saw in news_scraper.py
+            # We need to import it inside or allow passing db session
+            from app.db.session import SessionLocal
+            from app.services.news_scraper import fetch_crypto_news
+            
+            db = SessionLocal()
+            try:
+                # Run the synchronous scraper
+                # Since fetch_crypto_news is sync (uses requests/feedparser), 
+                # we can run it directly here if this method is called from a sync task,
+                # BUT this method is async? 
+                # The prompt asks for NewsService to have this method.
+                # If this method is async, we should wrap the sync call.
+                
+                count = await asyncio.to_thread(fetch_crypto_news, db)
+                print(f"✅ Market News Fetch Completed. {count} new items.")
+                return count
+            finally:
+                db.close()
+                
+        except Exception as e:
+            print(f"❌ Market News Fetch Failed: {e}")
+            raise e
+
         
     async def analyze_sentiment(self, text, keyword_weights=None):
         """
