@@ -11,6 +11,8 @@ from transformers import pipeline
 from app.core.config import settings
 import logging
 import urllib.parse
+import hashlib
+from app.core.redis import redis_manager
 
 logger = logging.getLogger(__name__)
 
@@ -42,6 +44,30 @@ class NewsService:
         # We are using RSS now, so GNews init is removed.
         self.vader = SentimentIntensityAnalyzer()
         # FinBERT is now accessed via get_pipeline() global singleton
+
+    def _generate_news_hash(self, url: str) -> str:
+        """Generate SHA256 hash for news URL to use as Redis key"""
+        return hashlib.sha256(url.encode('utf-8')).hexdigest()
+
+    async def _is_news_processed(self, news_hash: str) -> bool:
+        """Check if news has been processed in the last 24h"""
+        redis = redis_manager.get_redis()
+        if not redis: return False # Fail open if redis down
+        try:
+            exists = await redis.exists(f"news:processed:{news_hash}")
+            return exists > 0
+        except Exception:
+            return False
+
+    async def _mark_news_as_processed(self, news_hash: str):
+        """Mark news as processed for 24h"""
+        redis = redis_manager.get_redis()
+        if not redis: return
+        try:
+            # TTL = 24 hours (86400 seconds)
+            await redis.setex(f"news:processed:{news_hash}", 86400, "1")
+        except Exception as e:
+            print(f"⚠️ Redis Write Failed: {e}")
 
     async def fetch_and_process_latest_news(self):
         """
@@ -201,7 +227,25 @@ class NewsService:
             else:
                 title_en = title
 
+
+
+            # --- DEDUPLICATION CHECK ---
+            # Use link or title if link is empty/generic
+            unique_id = link if link else title
+            news_hash = self._generate_news_hash(unique_id)
+            
+            if await self._is_news_processed(news_hash):
+                # print(f"♻️ Skipping duplicate: {title[:30]}...")
+                continue
+                
             score = await self.analyze_sentiment(title_en)
+            
+            # Mark as processed AFTER analysis (or before, to be safe against crashes? 
+            # Prompt says "Check... Before sending". Mark usually happens after success, 
+            # but to prevent re-reads on partial failures, marking here is okay or after append.
+            # Let's mark it now or after adding to results. 
+            # Actually, if we mark it now, we prevent re-processing.
+            await self._mark_news_as_processed(news_hash)
             
             results.append({
                 "id": f"gn_{abs(hash(title))}",
