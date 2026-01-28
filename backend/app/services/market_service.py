@@ -13,6 +13,10 @@ from fastapi.concurrency import run_in_threadpool
 from app.core.cache import cache
 from fastapi import HTTPException
 from app.core.config import settings
+import pandas as pd
+import pandas_ta as ta
+import numpy as np
+from app.services.news_service import news_service
 
 class MarketService:
     def __init__(self):
@@ -539,3 +543,166 @@ class MarketService:
                 total_deleted += deleted
         db.commit()
         return total_deleted
+
+    async def get_composite_sentiment(self, symbol: str) -> dict:
+        """
+        Aggregates Real-Time Market Metrics & News Sentiment.
+        Orchestrates calls to internal methods and external services.
+        """
+        try:
+            # 1. Get Real-Time Metrics (Smart Money, Netflow)
+            rt_metrics = await self.get_real_time_sentiment_metrics(symbol)
+            
+            # 2. Get News Sentiment (Latest)
+            # We fetch generic news and calculate average sentiment
+            news_items = await news_service.fetch_google_news_data(query=f"{symbol} crypto news", period='1d')
+            
+            # Calculate simple average sentiment from news items
+            news_score = 0
+            if news_items:
+                score_map = {"Positive": 0.8, "Neutral": 0, "Negative": -0.8}
+                total = sum(score_map.get(item['sentiment'], 0) for item in news_items)
+                news_score = total / len(news_items)
+            
+            # 3. Aggregate
+            response = {
+                "symbol": symbol,
+                "market_sentiment": {
+                    "smart_money_score": rt_metrics.get('smart_money_score', 50),
+                    "exchange_netflow": rt_metrics.get('exchange_netflow', 0),
+                    "price_momentum": "Bullish" if rt_metrics.get('price', 0) > 0 else "Bearish", 
+                },
+                "news_sentiment": {
+                    "score": round(news_score, 2),
+                    "label": "Bullish" if news_score > 0.2 else "Bearish" if news_score < -0.2 else "Neutral",
+                    "article_count": len(news_items)
+                },
+                "composite_score": round((rt_metrics.get('smart_money_score', 50) + ((news_score + 1) * 50)) / 2, 2), 
+                "timestamp": datetime.utcnow().isoformat()
+            }
+            
+            return response
+            
+        except Exception as e:
+            print(f"Error in get_composite_sentiment: {e}")
+            raise HTTPException(status_code=500, detail=str(e))
+
+    async def get_correlation_data(self, symbol: str, period: str) -> list:
+        """
+        Generates correlation data between Price, News Sentiment, and Smart Money.
+        Moved from sentiment.py.
+        """
+        exchange = ccxt.binance()
+        try:
+            # Dynamic Timeframe Logic
+            if period == "1h":
+                timeframe = '1m'
+                limit = 60      # 60 * 1m = 1 hour
+                days_history = 1 
+            elif period == "24h":
+                timeframe = '15m'
+                limit = 96      # 96 * 15m = 24 hours
+                days_history = 1
+            elif period == "30d":
+                timeframe = '4h'
+                limit = 180     # 180 * 4h = 30 days
+                days_history = 30
+            else: # Default 7d
+                timeframe = '1h'
+                limit = 168     # 168 * 1h = 7 days
+                days_history = 7
+
+            ohlcv = await exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
+        except Exception as e:
+            print(f"Error fetching OHLCV for correlation: {e}")
+            raise HTTPException(status_code=500, detail="Failed to fetch market data")
+        finally:
+            await exchange.close()
+
+        if not ohlcv:
+            return []
+
+        df = pd.DataFrame(ohlcv, columns=['timestamp', 'open', 'high', 'low', 'close', 'volume'])
+        df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+        df.set_index('timestamp', inplace=True)
+
+        sentiment_df = await news_service.fetch_historical_sentiment(days=days_history)
+        merged_df = df.join(sentiment_df, how='left')
+        
+        merged_df['score'] = merged_df['score'].ffill().fillna(0)
+        merged_df['retail_score'] = merged_df['score'] * 0.7 + merged_df['close'].pct_change().rolling(5).mean() * 10
+        merged_df['retail_score'] = merged_df['retail_score'].fillna(0)
+
+        merged_df.ta.cmf(append=True)
+        # Check if CMF was actually calculated and added
+        cmf_col = merged_df.columns[-1]
+        
+        merged_df['vol_ma'] = merged_df['volume'].rolling(24).mean()
+        merged_df['exchange_netflow'] = merged_df['volume'] - merged_df['vol_ma']
+        merged_df['exchange_netflow'] = merged_df['exchange_netflow'].fillna(0)
+
+        max_flow = merged_df['exchange_netflow'].abs().max()
+        if max_flow == 0: max_flow = 1
+        merged_df['netflow_signal'] = merged_df['exchange_netflow'] / max_flow
+
+        if cmf_col not in merged_df.columns:
+             merged_df[cmf_col] = 0
+
+        cmf_score = merged_df[cmf_col].rolling(3).mean() * 5 
+        cmf_score = cmf_score.clip(-1, 1).fillna(0)
+        
+        merged_df['smart_money_score'] = (0.4 * cmf_score) + (0.6 * merged_df['netflow_signal'])
+        merged_df['smart_money_score'] = merged_df['smart_money_score'].clip(-1, 1).fillna(0)
+
+        # --- REAL-TIME INJECTION ---
+        try:
+            # We call the internal method
+            rt_metrics = await self.get_real_time_sentiment_metrics(symbol)
+            
+            rt_score_normalized = (rt_metrics['smart_money_score'] - 50) / 50.0
+            
+            if not merged_df.empty:
+                last_idx = merged_df.index[-1]
+                merged_df.at[last_idx, 'smart_money_score'] = rt_score_normalized
+                merged_df.at[last_idx, 'exchange_netflow'] = rt_metrics['exchange_netflow']
+                merged_df.at[last_idx, 'netflow_signal'] = rt_metrics['exchange_netflow'] / max_flow if max_flow else 0
+                
+        except Exception as e:
+            print(f"Real-time update failed in correlation: {e}")
+
+        merged_df['news_score'] = merged_df['score'] 
+        
+        merged_df['score'] = np.where(
+            merged_df['score'] == 0, 
+            merged_df['smart_money_score'], 
+            (merged_df['score'] + merged_df['smart_money_score']) / 2
+        )
+
+        merged_df['momentum'] = merged_df['close'].diff().fillna(0)
+        merged_df['social_volume'] = (merged_df['volume'] * merged_df['high'].diff().abs() / 1000).fillna(100).astype(int)
+
+        merged_df = merged_df.fillna(0)
+        merged_df = merged_df.replace({np.nan: 0})
+
+        chart_data = []
+        for ts, row in merged_df.iterrows():
+            smart_val = row['smart_money_score'] if not pd.isna(row['smart_money_score']) else 0
+            retail_val = row['retail_score'] if not pd.isna(row['retail_score']) else 0
+            
+            netflow_val = row['netflow_signal']
+            netflow_status = "Accumulating" if netflow_val > 0.2 else "Dumping" if netflow_val < -0.2 else "Neutral"
+            
+            chart_data.append({
+                "time": ts.isoformat(),
+                "price": row['close'],
+                "score": round(row['score'], 2),
+                "retail_score": round(retail_val, 2),        
+                "smart_money_score": round(smart_val, 2),
+                "netflow_status": netflow_status, 
+                "momentum": round(row['momentum'], 2), 
+                "social_volume": int(row['social_volume']),
+                "volume": row['volume'],
+                "divergence": round(smart_val - retail_val, 2)
+            })
+
+        return chart_data
