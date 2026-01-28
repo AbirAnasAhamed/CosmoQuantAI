@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     # Reddit API
     REDDIT_CLIENT_ID: Optional[str] = None
     REDDIT_CLIENT_SECRET: Optional[str] = None
-    REDDIT_USER_AGENT: Optional[str] = "CosmoQuant/1.0"
+    REDDIT_USER_AGENT: str = "CosmoQuantAI/1.0"
     
     # ✅ AI / LLM Configuration (NEW)
     # Options: "gemini", "openai", "deepseek"

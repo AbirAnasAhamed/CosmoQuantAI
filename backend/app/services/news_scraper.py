@@ -4,6 +4,8 @@ from datetime import datetime
 from dateutil import parser
 import logging
 import urllib.parse
+import praw # type: ignore
+from app.core.config import settings
 
 # Setup logger
 logger = logging.getLogger(__name__)
@@ -15,7 +17,19 @@ class NewsScraper:
     GOOGLE_NEWS_RSS_TEMPLATE = "https://news.google.com/rss/search?q={query}+when:{period}&hl={lang}-{country}&gl={country}&ceid={country}:{lang}"
 
     def __init__(self):
-        pass
+        self.reddit = None
+        if settings.REDDIT_CLIENT_ID and settings.REDDIT_CLIENT_SECRET:
+            try:
+                self.reddit = praw.Reddit(
+                    client_id=settings.REDDIT_CLIENT_ID,
+                    client_secret=settings.REDDIT_CLIENT_SECRET,
+                    user_agent=settings.REDDIT_USER_AGENT
+                )
+                logger.info("Reddit PRAW initialized successfully.")
+            except Exception as e:
+                logger.error(f"Failed to initialize Reddit PRAW: {e}")
+        else:
+            logger.warning("Reddit credentials missing. Skipping Reddit integration.")
 
     def fetch_rss_feed(self, url: str, source_name: str) -> list[dict]:
         """
@@ -65,6 +79,37 @@ class NewsScraper:
             
         return news_items
 
+    def fetch_reddit_posts(self, limit: int = 10) -> list[dict]:
+        """
+        Fetches top discussions from r/Cryptocurrency and r/Bitcoin using PRAW.
+        """
+        if not self.reddit:
+            return []
+
+        reddit_news = []
+        subreddits = ['Cryptocurrency', 'Bitcoin']
+
+        for sub_name in subreddits:
+            try:
+                subreddit = self.reddit.subreddit(sub_name)
+                # Fetch hot posts
+                for post in subreddit.hot(limit=limit):
+                    if post.stickied:
+                        continue
+                        
+                    # Normalize data
+                    item = {
+                        'title': post.title,
+                        'url': post.url,
+                        'source': f'Reddit (r/{sub_name})',
+                        'published_at': datetime.fromtimestamp(post.created_utc)
+                    }
+                    reddit_news.append(item)
+            except Exception as e:
+                logger.error(f"Error fetching from r/{sub_name}: {e}")
+
+        return reddit_news
+
     def fetch_google_news(self, query="Cryptocurrency", period="1d") -> list[dict]:
         """
         Fetches news from Google News RSS.
@@ -99,6 +144,9 @@ class NewsScraper:
         # 4. CryptoPanic
         tasks.append(asyncio.to_thread(self.fetch_rss_feed, self.CRYPTOPANIC_RSS, "CryptoPanic"))
         
+        # 5. Reddit
+        tasks.append(asyncio.to_thread(self.fetch_reddit_posts, 10))
+
         # Execute all concurrently
         results = await asyncio.gather(*tasks, return_exceptions=True)
         
