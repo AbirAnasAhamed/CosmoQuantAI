@@ -1,0 +1,101 @@
+services:
+  # 1. Backend Service (FastAPI)
+  backend:
+    build: ./backend
+    container_name: cosmoquant_backend
+    command: bash -c "sed -i 's/\r$//' prestart.sh && bash prestart.sh && uvicorn app.main:app --host 0.0.0.0 --port 8000"
+    restart: always
+    volumes:
+      - ./backend:/app
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/cosmoquant_db
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - REDIS_URL=redis://redis:6379/0
+      - PYTHONUNBUFFERED=1
+      - NUMBA_CACHE_DIR=/tmp
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - .env
+
+  # 2. Celery Worker (Background Tasks) - NEW
+  celery_worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cosmo_celery_worker
+    command: celery -A app.core.celery_app worker --loglevel=info
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - ./backend/.env
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/cosmoquant_db
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - REDIS_URL=redis://redis:6379/0
+    restart: always
+
+  # 2b. Celery Beat (Scheduler) - NEW
+  celery_beat:
+    build: ./backend
+    container_name: cosmo_celery_beat
+    command: celery -A app.core.celery_app beat --loglevel=info
+    volumes:
+      - ./backend:/app
+    depends_on:
+      - redis
+      - db
+    env_file:
+      - ./backend/.env
+    environment:
+      - DATABASE_URL=postgresql://user:password@db:5432/cosmoquant_db
+      - CELERY_BROKER_URL=redis://redis:6379/0
+      - CELERY_RESULT_BACKEND=redis://redis:6379/0
+      - REDIS_URL=redis://redis:6379/0
+    restart: always
+
+  # 3. Redis Service - NEW
+  redis:
+    image: redis:7-alpine
+    container_name: cosmoquant_redis
+    ports:
+      - "6379:6379"
+
+  # 4. Frontend Service
+  frontend:
+    build: ./frontend
+    container_name: cosmoquant_frontend
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      - VITE_BACKEND_URL=http://backend:8000
+
+  # 5. Database Service
+  db:
+    image: timescale/timescaledb-ha:pg16
+    container_name: cosmoquant_db
+    restart: always
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: cosmoquant_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/home/postgres/pgdata/data
+
+volumes:
+  postgres_data:
