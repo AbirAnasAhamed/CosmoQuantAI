@@ -253,10 +253,11 @@ async def get_arbitrage_opportunities(exchange_id: str = "binance"):
         # Dynamically instantiate the exchange class
         exchange_class = getattr(ccxt, exchange_id)
         exchange = exchange_class()
-        
-        # Load tickers
-        tickers = await exchange.fetch_tickers()
-        await exchange.close()
+        try:
+            # Load tickers
+            tickers = await exchange.fetch_tickers()
+        finally:
+            await exchange.close()
         
         # Filter & Normalization Logic
         # Different exchanges have different pair formats, but we generally want USDT/USD pairs

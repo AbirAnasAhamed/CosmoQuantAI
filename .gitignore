@@ -10,7 +10,7 @@ pnpm-debug.log*
 lerna-debug.log*
 
 # Node.js
-node_modules/
+**/node_modules/
 dist/
 dist-ssr/
 *.local
@@ -39,11 +39,11 @@ share/python-wheels/
 MANIFEST
 
 # Virtual Environments
-venv/
-.venv/
-env/
-.env/
-ENV/
+**/venv/
+**/.venv/
+**/env/
+**/.env/
+**/ENV/
 env.bak/
 venv.bak/
 
@@ -71,9 +71,9 @@ htmlcov/
 *.sw?
 
 # Environment Variables (Sensitive Data)
-# .env
-# .env.*
-# !.env.example
+.env
+.env.*
+!.env.example
 # Allowing .env files for personal use (User Request)
 !.env
 !.env.*

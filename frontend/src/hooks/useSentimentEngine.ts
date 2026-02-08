@@ -133,7 +133,7 @@ export const useSentimentEngine = () => {
                 source: item.source || 'Unknown',
                 content: item.content || item.text,
                 sentiment: item.sentiment || 'Neutral',
-                timestamp: item.timestamp ? new Date(item.timestamp).toLocaleTimeString() : new Date().toLocaleTimeString(),
+                timestamp: item.timestamp ? new Date(item.timestamp).toISOString() : new Date().toISOString(),
                 url: item.url,
                 type: item.type,
                 impact_level: item.impact_level, // ✅ Added Impact Level

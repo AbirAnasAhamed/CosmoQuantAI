@@ -3,6 +3,7 @@ import Card from '@/components/common/Card';
 import { AlertTriangle, TrendingUp, TrendingDown, Bell, Zap, ExternalLink, Activity } from 'lucide-react';
 import { SentimentSource } from '@/types';
 import { ImpactBadge } from './ImpactBadge';
+import { formatClockTime } from '@/utils/dateUtils';
 
 interface HighImpactWidgetProps {
     news: SentimentSource[];
@@ -74,8 +75,8 @@ export const HighImpactWidget: React.FC<HighImpactWidgetProps> = ({ news }) => {
                                 </div>
 
                                 <div className={`flex-shrink-0 p-2 rounded-lg bg-opacity-10 ${item.sentiment === 'Positive' ? 'bg-emerald-500 text-emerald-500' :
-                                        item.sentiment === 'Negative' ? 'bg-rose-500 text-rose-500' :
-                                            'bg-orange-500 text-orange-500'
+                                    item.sentiment === 'Negative' ? 'bg-rose-500 text-rose-500' :
+                                        'bg-orange-500 text-orange-500'
                                     }`}>
                                     {item.sentiment === 'Positive' ? <TrendingUp className="w-4 h-4" /> :
                                         item.sentiment === 'Negative' ? <TrendingDown className="w-4 h-4" /> :
@@ -84,7 +85,7 @@ export const HighImpactWidget: React.FC<HighImpactWidgetProps> = ({ news }) => {
                             </div>
 
                             <div className="flex items-center justify-between pt-2 mt-1 border-t border-slate-100 dark:border-slate-900/50">
-                                <span className="text-[10px] text-slate-400 font-medium font-mono">{item.timestamp}</span>
+                                <span className="text-[10px] text-slate-400 font-medium font-mono">{formatClockTime(item.timestamp)}</span>
                                 <a href={item.url || '#'} target="_blank" rel="noopener noreferrer" className="opacity-0 group-hover/item:opacity-100 transition-opacity flex items-center gap-1 text-[10px] font-bold text-blue-500">
                                     READ FULL INTEL <ExternalLink className="w-3 h-3" />
                                 </a>
