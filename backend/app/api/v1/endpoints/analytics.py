@@ -6,7 +6,7 @@ import asyncio
 import json
 
 from app.api import deps
-from app.schemas.analytics import PerformanceMetrics, CorrelationRequest, CorrelationResponse
+from app.schemas.analytics import PerformanceMetrics, CorrelationRequest, CorrelationResponse, RollingCorrelationPoint
 from app.services.analytics import analytics_service
 from app.services.market_analysis_service import market_analysis_service
 from app.services.websocket_manager import manager
@@ -46,6 +46,28 @@ def get_correlation_matrix(
         )
         return result
     except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/correlation/rolling", response_model=List[RollingCorrelationPoint])
+def get_rolling_correlation(
+    symbol_a: str,
+    symbol_b: str,
+    timeframe: str = "1h",
+    window: int = 30,
+    db: Session = Depends(deps.get_db)
+) -> Any:
+    """
+    Get rolling correlation history between two assets.
+    """
+    try:
+        return market_analysis_service.get_rolling_correlation(
+            symbol_a=symbol_a,
+            symbol_b=symbol_b,
+            timeframe=timeframe,
+            window=window
+        )
+    except Exception as e:
+        print(f"Error calculating rolling correlation: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
 # IMPORTANT: Using router.websocket, not app.websocket

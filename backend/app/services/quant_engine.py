@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from statsmodels.tsa.stattools import coint
-from typing import Dict, Union, Tuple
+from typing import Dict, Union, Tuple, List
 
 def calculate_correlation_matrix(price_data: pd.DataFrame) -> Dict:
     """
@@ -79,7 +79,39 @@ def calculate_z_score(spread: pd.Series, window: int = 20) -> float:
     # Get the latest value. Handle potential NaNs at the start or if std is 0
     latest_z = z_score.iloc[-1]
     
+    
     if pd.isna(latest_z) or np.isinf(latest_z):
         return 0.0
         
     return float(latest_z)
+
+def calculate_rolling_correlation(series_a: pd.Series, series_b: pd.Series, window: int = 30) -> List[Dict[str, float]]:
+    """
+    Calculate the rolling correlation between two time series.
+
+    Args:
+        series_a (pd.Series): First time series.
+        series_b (pd.Series): Second time series.
+        window (int): Rolling window size.
+
+    Returns:
+        List[Dict[str, float]]: A list of dictionaries containing time and correlation value.
+                                [{'time': timestamp, 'value': correlation}, ...]
+    """
+    # Ensure they are aligned
+    df = pd.DataFrame({'a': series_a, 'b': series_b}).dropna()
+
+    if len(df) < window:
+        return []
+
+    # Calculate rolling correlation
+    rolling_corr = df['a'].rolling(window=window).corr(df['b'])
+
+    # Convert to list of dicts
+    result = []
+    for date, value in rolling_corr.items():
+        if pd.notna(value):
+             time_val = date.isoformat() if hasattr(date, 'isoformat') else str(date)
+             result.append({"time": time_val, "value": value})
+             
+    return result

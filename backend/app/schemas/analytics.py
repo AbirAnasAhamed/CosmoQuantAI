@@ -28,3 +28,8 @@ class CointegrationPair(BaseModel):
 class CorrelationResponse(BaseModel):
     matrix: Dict[str, Dict[str, float]]
     cointegrated_pairs: List[CointegrationPair]
+
+class RollingCorrelationPoint(BaseModel):
+    time: str
+    value: float
+

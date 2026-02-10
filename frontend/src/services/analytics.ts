@@ -35,4 +35,17 @@ export const getPerformanceMetrics = async (startDate?: string, endDate?: string
 export const fetchCorrelationMatrix = async (symbols: string[], timeframe: string = '1h'): Promise<CorrelationResponse> => {
     const response = await apiClient.post<CorrelationResponse>('/analytics/correlation-matrix', { symbols, timeframe });
     return response.data;
+    return response.data;
+};
+
+export interface RollingCorrelationPoint {
+    time: string;
+    value: number;
+}
+
+export const fetchRollingCorrelation = async (symbol_a: string, symbol_b: string, timeframe: string = '1h', window: number = 30): Promise<RollingCorrelationPoint[]> => {
+    const response = await apiClient.get<RollingCorrelationPoint[]>('/analytics/correlation/rolling', {
+        params: { symbol_a, symbol_b, timeframe, window }
+    });
+    return response.data;
 };

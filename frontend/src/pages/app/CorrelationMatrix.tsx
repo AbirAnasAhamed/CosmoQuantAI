@@ -7,6 +7,7 @@ import type { CointegratedPair } from '@/types';
 import { fetchCorrelationMatrix } from '@/services/analytics';
 import { ArrowPathIcon, SignalIcon } from '@heroicons/react/24/solid';
 import { useCorrelationSocket } from '@/hooks/useCorrelationSocket';
+import RollingCorrelationModal from './RollingCorrelationModal';
 
 // --- Utility Functions ---
 
@@ -77,7 +78,8 @@ const MatrixCell: React.FC<{
     isHovered: boolean;
     onHover: (r: string, c: string) => void;
     onLeave: () => void;
-}> = ({ value, row, col, isHovered, onHover, onLeave }) => {
+    onClick: (r: string, c: string) => void;
+}> = ({ value, row, col, isHovered, onHover, onLeave, onClick }) => {
     const bg = getCorrelationColor(value, isHovered ? 1 : 0.8);
     const text = getCorrelationTextColor(value);
 
@@ -85,6 +87,7 @@ const MatrixCell: React.FC<{
         <div
             onMouseEnter={() => onHover(row, col)}
             onMouseLeave={onLeave}
+            onClick={() => onClick(row, col)}
             className={`relative h-14 flex items-center justify-center text-sm font-bold transition-all duration-200 cursor-pointer border border-transparent hover:border-white/20 hover:scale-105 hover:z-10 rounded-lg ${text}`}
             style={{ backgroundColor: bg }}
         >
@@ -155,13 +158,18 @@ const CorrelationMatrix: React.FC = () => {
     const [cointegratedPairs, setCointegratedPairs] = useState<CointegratedPair[]>([]);
     const [error, setError] = useState<string | null>(null);
 
+    const [selectedTimeframe, setSelectedTimeframe] = useState<string>('1h');
+
+    const [selectedPair, setSelectedPair] = useState<{ a: string, b: string } | null>(null);
+
     // Use WebSocket Hook
     const { isConnected, socketData } = useCorrelationSocket(null);
 
     const processData = (data: any) => {
         setMatrixData(data.matrix);
         // Transform API pairs to UI CointegratedPair type
-        const transformedPairs: CointegratedPair[] = data.cointegrated_pairs.map((p: any, idx: number) => {
+        const pairs = data.cointegrated_pairs || [];
+        const transformedPairs: CointegratedPair[] = pairs.map((p: any, idx: number) => {
             let signal: 'Buy Pair' | 'Sell Pair' | 'Hold' = 'Hold';
             if (p.z_score < -2.0) signal = 'Buy Pair';
             else if (p.z_score > 2.0) signal = 'Sell Pair';
@@ -187,7 +195,7 @@ const CorrelationMatrix: React.FC = () => {
         setLoading(true);
         setError(null);
         try {
-            const data = await fetchCorrelationMatrix(assets);
+            const data = await fetchCorrelationMatrix(assets, selectedTimeframe);
             processData(data);
         } catch (err) {
             console.error(err);
@@ -198,7 +206,7 @@ const CorrelationMatrix: React.FC = () => {
 
     useEffect(() => {
         loadData();
-    }, [assets]);
+    }, [assets, selectedTimeframe]);
 
     // Update on WS Message
     useEffect(() => {
@@ -237,18 +245,37 @@ const CorrelationMatrix: React.FC = () => {
                         Advanced correlation analysis and cointegration scanner to identify mean-reversion opportunities between assets.
                     </p>
                 </div>
-                <div className="flex flex-col items-end gap-2">
-                    <div className="flex gap-2 text-xs font-bold uppercase tracking-wider mb-2">
+                <div className="flex flex-col items-end gap-3">
+                    <div className="flex gap-2 text-xs font-bold uppercase tracking-wider mb-1">
                         <div className="flex items-center gap-1"><div className="w-3 h-3 bg-emerald-500 rounded-sm"></div> Pos Correl</div>
                         <div className="flex items-center gap-1"><div className="w-3 h-3 bg-rose-500 rounded-sm"></div> Neg Correl</div>
                     </div>
-                    <button
-                        onClick={loadData}
-                        disabled={loading}
-                        className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary/90 transition-colors disabled:opacity-50 text-sm font-bold"
-                    >
-                        {loading ? 'Scanning...' : <><ArrowPathIcon className="w-4 h-4" /> Refresh Scan</>}
-                    </button>
+
+                    <div className="flex items-center gap-2">
+                        {/* Timeframe Selector */}
+                        <div className="flex bg-slate-200 dark:bg-slate-800 rounded-lg p-1">
+                            {['1H', '4H', '1D'].map((tf) => (
+                                <button
+                                    key={tf}
+                                    onClick={() => setSelectedTimeframe(tf.toLowerCase())}
+                                    className={`px-3 py-1.5 text-xs font-bold rounded-md transition-all ${selectedTimeframe === tf.toLowerCase()
+                                        ? 'bg-white dark:bg-brand-primary text-slate-900 dark:text-white shadow-sm'
+                                        : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                                        }`}
+                                >
+                                    {tf}
+                                </button>
+                            ))}
+                        </div>
+
+                        <button
+                            onClick={loadData}
+                            disabled={loading}
+                            className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary/90 transition-colors disabled:opacity-50 text-sm font-bold h-[34px]"
+                        >
+                            {loading ? 'Scanning...' : <><ArrowPathIcon className="w-4 h-4" /> Refresh</>}
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -296,6 +323,9 @@ const CorrelationMatrix: React.FC = () => {
                                                     isHovered={hoveredCell ? (hoveredCell.r === rowAsset || hoveredCell.c === colAsset) : false}
                                                     onHover={(r, c) => setHoveredCell({ r, c })}
                                                     onLeave={() => setHoveredCell(null)}
+                                                    onClick={(r, c) => {
+                                                        if (r !== c) setSelectedPair({ a: r, b: c });
+                                                    }}
                                                 />
                                             ))}
                                         </div>
@@ -332,6 +362,14 @@ const CorrelationMatrix: React.FC = () => {
                         </div>
                     </div>
                 </div>
+            )}
+
+            {selectedPair && (
+                <RollingCorrelationModal
+                    symbolA={selectedPair.a}
+                    symbolB={selectedPair.b}
+                    onClose={() => setSelectedPair(null)}
+                />
             )}
         </div>
     );

@@ -78,4 +78,40 @@ class MarketAnalysisService:
             "cointegrated_pairs": cointegrated_pairs
         }
 
+
+    def get_rolling_correlation(self, symbol_a: str, symbol_b: str, timeframe: str = "1h", window: int = 30) -> List[Dict[str, Any]]:
+        """
+        Get rolling correlation history for two assets.
+        """
+        # Mock data generation (consistent with get_correlation_data)
+        np.random.seed(42)
+        periods = 200 # More history for rolling
+        dates = pd.date_range(end=datetime.now(), periods=periods, freq=timeframe)
+        
+        # Base series
+        base_series = np.cumsum(np.random.randn(periods))
+        
+        # Symbol A (base + noise)
+        series_a = base_series + np.random.randn(periods) * 0.5 + 1000
+        
+        # Symbol B (correlated or not based on random choice? Let's make them correlated for demo)
+        # Or even better, let's make correlation change over time
+        # First half correlated, second half less correlated
+        noise_b = np.random.randn(periods)
+        series_b = base_series.copy()
+        
+        # Introduce regime change in correlation
+        split = periods // 2
+        series_b[split:] = series_b[split:] * -1 # Flip correlation in second half
+        
+        series_b = series_b + noise_b * 0.5 + 2000
+        
+        # Create DataFrames
+        df_a = pd.Series(series_a, index=dates)
+        df_b = pd.Series(series_b, index=dates)
+        
+        from app.services.quant_engine import calculate_rolling_correlation
+        return calculate_rolling_correlation(df_a, df_b, window=window)
+
 market_analysis_service = MarketAnalysisService()
+
