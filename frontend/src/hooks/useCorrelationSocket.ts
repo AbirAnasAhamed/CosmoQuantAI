@@ -7,7 +7,10 @@ interface WebSocketMessage {
     data: CorrelationResponse;
 }
 
-export const useCorrelationSocket = (initialData: Record<string, any> | null) => {
+export const useCorrelationSocket = (
+    initialData: Record<string, any> | null,
+    onAlert?: (message: string) => void
+) => {
     const [isConnected, setIsConnected] = useState(false);
     const [socketData, setSocketData] = useState<CorrelationResponse | null>(null);
     const socketRef = useRef<WebSocket | null>(null);
@@ -35,6 +38,10 @@ export const useCorrelationSocket = (initialData: Record<string, any> | null) =>
                 const message: WebSocketMessage = JSON.parse(event.data);
                 if (message.type === 'update') {
                     setSocketData(message.data);
+                } else if (message.type === 'alert' && onAlert) {
+                    // Check if it's a message object or just string
+                    const msgText = (message as any).message || "Alert Received";
+                    onAlert(msgText);
                 }
             } catch (err) {
                 console.error("Error parsing WS message:", err);

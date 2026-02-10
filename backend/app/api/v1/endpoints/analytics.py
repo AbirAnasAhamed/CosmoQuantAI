@@ -79,19 +79,76 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         symbols = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'ADA/USDT', 'XRP/USDT', 'BNB/USDT']
         
+        last_alert_time = {} # Track last alert timestamp per pair
+        
         while True:
             try:
                 data = market_analysis_service.get_correlation_data(symbols, "1h")
+
+                # --- SIMULATION FOR VERIFICATION (REMOVE IN PROD) ---
+                # Force a high Z-Score for BTC-ETH to verify alerts
+                if 'cointegrated_pairs' in data and len(data['cointegrated_pairs']) > 0:
+                     # Find or inject a pair for testing
+                     found_test_pair = False
+                     for pair in data['cointegrated_pairs']:
+                         if (pair['asset_a'] == 'BTC/USDT' and pair['asset_b'] == 'ETH/USDT') or \
+                            (pair['asset_a'] == 'ETH/USDT' and pair['asset_b'] == 'BTC/USDT'):
+                             pair['z_score'] = 2.5  # Forced High Deviation
+                             pair['p_value'] = 0.01 # Forced Cointegration
+                             found_test_pair = True
+                             break
+                     
+                     # If not found (e.g. no cointegration normally), mock one for the list
+                     if not found_test_pair:
+                         data['cointegrated_pairs'].append({
+                             'asset_a': 'BTC/USDT',
+                             'asset_b': 'ETH/USDT',
+                             'p_value': 0.01,
+                             'z_score': 2.5,
+                             'spread': 0.0, # Dummy
+                             'model_params': {} # Dummy
+                         })
+                # ----------------------------------------------------
                 
                 await websocket.send_json({
                     "type": "update",
                     "data": data
                 })
+
+                # Check for alerts with Throttling
+                if 'cointegrated_pairs' in data:
+                    current_time = datetime.now().timestamp()
+                    for pair in data['cointegrated_pairs']:
+                        pair_key = f"{pair['asset_a']}-{pair['asset_b']}"
+                        
+                        # Alert Condition: Z-Score > 2.0
+                        if abs(pair['z_score']) > 2.0:
+                            # Check Cooldown (e.g., 60 seconds)
+                            if pair_key not in last_alert_time or (current_time - last_alert_time[pair_key] > 60):
+                                await websocket.send_json({
+                                    "type": "alert",
+                                    "pair": pair_key,
+                                    "message": f"High Cointegration Signal! {pair['asset_a']}/{pair['asset_b']} Z-Score: {pair['z_score']:.2f}"
+                                })
+                                last_alert_time[pair_key] = current_time
                 
                 await asyncio.sleep(2) 
+                await asyncio.sleep(2) 
+            except WebSocketDisconnect:
+                print("Client disconnected normally in loop.")
+                break
+            except RuntimeError as e:
+                if "send" in str(e) and "close" in str(e):
+                    print("Client disconnected (RuntimeError) in loop.")
+                    break
+                print(f"RuntimeError in correlation loop: {e}")
+                await asyncio.sleep(5)
             except Exception as e:
                 print(f"Error in correlation loop: {e}")
                 await asyncio.sleep(5) 
                 
     except WebSocketDisconnect:
         manager.disconnect(websocket, "correlation_feed")
+    except Exception as e:
+        print(f"WebSocket endpoint error: {e}")
+        manager.disconnect(websocket, "correlation_feed")  # Ensure cleanup

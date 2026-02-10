@@ -8,6 +8,7 @@ import { fetchCorrelationMatrix } from '@/services/analytics';
 import { ArrowPathIcon, SignalIcon } from '@heroicons/react/24/solid';
 import { useCorrelationSocket } from '@/hooks/useCorrelationSocket';
 import RollingCorrelationModal from './RollingCorrelationModal';
+import { Toaster, toast } from 'react-hot-toast';
 
 // --- Utility Functions ---
 
@@ -99,12 +100,13 @@ const MatrixCell: React.FC<{
 const PairCard: React.FC<{ pairData: CointegratedPair; index: number }> = ({ pairData, index }) => {
     const { theme } = useTheme();
 
+    const isHighAlert = Math.abs(pairData.zScore) > 2.0;
     const isOpportunity = Math.abs(pairData.zScore) > 1.5;
     const signalColor = pairData.signal === 'Buy Pair' ? 'text-emerald-500' : pairData.signal === 'Sell Pair' ? 'text-rose-500' : 'text-gray-400';
     const signalBg = pairData.signal === 'Buy Pair' ? 'bg-emerald-500/10 border-emerald-500/20' : pairData.signal === 'Sell Pair' ? 'bg-rose-500/10 border-rose-500/20' : 'bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10';
 
     return (
-        <div className={`staggered-fade-in bg-white dark:bg-brand-dark border border-gray-200 dark:border-brand-border-dark rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 ${isOpportunity ? 'ring-1 ring-brand-primary/50' : ''}`} style={{ animationDelay: `${index * 100}ms` }}>
+        <div className={`staggered-fade-in bg-white dark:bg-brand-dark border border-gray-200 dark:border-brand-border-dark rounded-xl overflow-hidden shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 ${isHighAlert ? 'ring-2 ring-rose-500 shadow-[0_0_20px_rgba(244,63,94,0.4)] animate-pulse' : isOpportunity ? 'ring-1 ring-brand-primary/50' : ''}`} style={{ animationDelay: `${index * 100}ms` }}>
             <div className="p-5">
                 <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center gap-3">
@@ -163,7 +165,51 @@ const CorrelationMatrix: React.FC = () => {
     const [selectedPair, setSelectedPair] = useState<{ a: string, b: string } | null>(null);
 
     // Use WebSocket Hook
-    const { isConnected, socketData } = useCorrelationSocket(null);
+    const { isConnected, socketData } = useCorrelationSocket(null, (msg) => {
+        // Prevent duplicate toasts if needed, but backend throttling should handle it.
+        // Custom Premium Toast
+        toast.custom((t) => (
+            <div
+                className={`${t.visible ? 'animate-enter' : 'animate-leave'
+                    } max-w-sm w-full bg-slate-900/90 dark:bg-slate-900/90 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-2xl pointer-events-auto flex ring-1 ring-white/10 overflow-hidden`}
+            >
+                <div className="flex-1 w-0 p-4">
+                    <div className="flex items-start gap-4">
+                        <div className="flex-shrink-0 pt-0.5 relative">
+                            <span className="relative flex h-3 w-3 absolute top-0 right-0 -mt-1 -mr-1">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-rose-500 opacity-75"></span>
+                                <span className="relative inline-flex rounded-full h-3 w-3 bg-rose-500"></span>
+                            </span>
+                            <div className="h-10 w-10 rounded-full bg-rose-500/20 flex items-center justify-center border border-rose-500/30">
+                                <SignalIcon className="h-6 w-6 text-rose-500" />
+                            </div>
+                        </div>
+                        <div className="flex-1">
+                            <p className="text-sm font-bold text-white">
+                                Arbitrage Opportunity
+                            </p>
+                            <p className="mt-1 text-xs text-gray-300 leading-relaxed">
+                                {msg.replace("High Cointegration Signal!", "")}
+                            </p>
+                            <p className="mt-2 text-[10px] text-gray-500 font-mono uppercase tracking-wider">
+                                {new Date().toLocaleTimeString()} • Z-Score Alert
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <div className="flex flex-col border-l border-white/10 bg-white/5">
+                    <button
+                        onClick={() => toast.dismiss(t.id)}
+                        className="w-full h-full border-transparent p-4 flex items-center justify-center text-sm font-medium text-gray-400 hover:text-white focus:outline-none transition-colors"
+                    >
+                        ✕
+                    </button>
+                </div>
+                {/* Progress bar animation (optional CSS) */}
+                <div className="absolute bottom-0 left-0 h-0.5 bg-rose-500/50 w-full animate-[shrink_4s_linear_forwards]"></div>
+            </div>
+        ), { duration: 4000, position: 'top-right' });
+    });
 
     const processData = (data: any) => {
         setMatrixData(data.matrix);
@@ -220,6 +266,7 @@ const CorrelationMatrix: React.FC = () => {
 
     return (
         <div className="space-y-8 animate-fade-in-slide-up">
+            <Toaster position="top-right" />
 
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
