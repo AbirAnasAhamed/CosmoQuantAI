@@ -1,10 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, ReferenceLine } from 'recharts';
 import Card from '@/components/common/Card';
-import { MOCK_CORRELATION_MATRIX, MOCK_CORRELATION_ASSETS, MOCK_COINTEGRATED_PAIRS } from '@/constants';
 import { useTheme } from '@/context/ThemeContext';
 import type { CointegratedPair } from '@/types';
+import { fetchCorrelationMatrix } from '@/services/analytics';
+import { ArrowPathIcon, SignalIcon } from '@heroicons/react/24/solid';
+import { useCorrelationSocket } from '@/hooks/useCorrelationSocket';
 
 // --- Utility Functions ---
 
@@ -12,7 +14,7 @@ const getCorrelationColor = (value: number, opacity: number = 1) => {
     const absVal = Math.abs(value);
     // 1.0 = Indigo (Self), Positive = Emerald, Negative = Rose
     if (value === 1) return `rgba(99, 102, 241, ${opacity})`; // Brand Primary
-    
+
     if (value > 0) {
         // Green intensity based on value
         if (value > 0.75) return `rgba(16, 185, 129, ${opacity})`;
@@ -54,10 +56,9 @@ const ZScoreGauge: React.FC<{ zScore: number }> = ({ zScore }) => {
                 <div className="absolute left-1/2 top-0 bottom-0 w-0.5 bg-gray-400 dark:bg-gray-600 transform -translate-x-1/2"></div> {/* Mean */}
 
                 {/* The Indicator Puck */}
-                <div 
-                    className={`absolute top-0 bottom-0 w-1.5 h-full rounded-full shadow-[0_0_10px_currentColor] transition-all duration-500 ease-out transform -translate-x-1/2 ${
-                        zScore > 1.5 ? 'bg-rose-500 shadow-rose-500' : zScore < -1.5 ? 'bg-emerald-500 shadow-emerald-500' : 'bg-blue-400'
-                    }`}
+                <div
+                    className={`absolute top-0 bottom-0 w-1.5 h-full rounded-full shadow-[0_0_10px_currentColor] transition-all duration-500 ease-out transform -translate-x-1/2 ${zScore > 1.5 ? 'bg-rose-500 shadow-rose-500' : zScore < -1.5 ? 'bg-emerald-500 shadow-emerald-500' : 'bg-blue-400'
+                        }`}
                     style={{ left: `${percent}%` }}
                 ></div>
             </div>
@@ -69,19 +70,19 @@ const ZScoreGauge: React.FC<{ zScore: number }> = ({ zScore }) => {
 };
 
 // 2. The Quantum Grid Cell
-const MatrixCell: React.FC<{ 
-    value: number; 
-    row: string; 
-    col: string; 
-    isHovered: boolean; 
-    onHover: (r: string, c: string) => void; 
+const MatrixCell: React.FC<{
+    value: number;
+    row: string;
+    col: string;
+    isHovered: boolean;
+    onHover: (r: string, c: string) => void;
     onLeave: () => void;
 }> = ({ value, row, col, isHovered, onHover, onLeave }) => {
     const bg = getCorrelationColor(value, isHovered ? 1 : 0.8);
     const text = getCorrelationTextColor(value);
-    
+
     return (
-        <div 
+        <div
             onMouseEnter={() => onHover(row, col)}
             onMouseLeave={onLeave}
             className={`relative h-14 flex items-center justify-center text-sm font-bold transition-all duration-200 cursor-pointer border border-transparent hover:border-white/20 hover:scale-105 hover:z-10 rounded-lg ${text}`}
@@ -94,8 +95,7 @@ const MatrixCell: React.FC<{
 
 const PairCard: React.FC<{ pairData: CointegratedPair; index: number }> = ({ pairData, index }) => {
     const { theme } = useTheme();
-    const axisColor = theme === 'dark' ? '#64748B' : '#94A3B8';
-    
+
     const isOpportunity = Math.abs(pairData.zScore) > 1.5;
     const signalColor = pairData.signal === 'Buy Pair' ? 'text-emerald-500' : pairData.signal === 'Sell Pair' ? 'text-rose-500' : 'text-gray-400';
     const signalBg = pairData.signal === 'Buy Pair' ? 'bg-emerald-500/10 border-emerald-500/20' : pairData.signal === 'Sell Pair' ? 'bg-rose-500/10 border-rose-500/20' : 'bg-gray-100 dark:bg-white/5 border-gray-200 dark:border-white/10';
@@ -124,14 +124,14 @@ const PairCard: React.FC<{ pairData: CointegratedPair; index: number }> = ({ pai
                         <AreaChart data={pairData.spreadHistory}>
                             <defs>
                                 <linearGradient id={`grad-${pairData.id}`} x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3}/>
-                                    <stop offset="95%" stopColor="#6366F1" stopOpacity={0}/>
+                                    <stop offset="5%" stopColor="#6366F1" stopOpacity={0.3} />
+                                    <stop offset="95%" stopColor="#6366F1" stopOpacity={0} />
                                 </linearGradient>
                             </defs>
                             <ReferenceLine y={0} stroke="#94A3B8" strokeDasharray="3 3" />
                             <XAxis dataKey="time" hide />
                             <YAxis domain={['dataMin', 'dataMax']} hide />
-                            <Tooltip 
+                            <Tooltip
                                 contentStyle={theme === 'dark' ? { backgroundColor: '#0F172A', border: '1px solid #334155' } : {}}
                                 formatter={(value: number) => [value.toFixed(4), 'Spread']}
                                 labelFormatter={() => ''}
@@ -149,91 +149,192 @@ const PairCard: React.FC<{ pairData: CointegratedPair; index: number }> = ({ pai
 
 const CorrelationMatrix: React.FC = () => {
     const [hoveredCell, setHoveredCell] = useState<{ r: string, c: string } | null>(null);
+    const [loading, setLoading] = useState<boolean>(true);
+    const [matrixData, setMatrixData] = useState<Record<string, Record<string, number>>>({});
+    const [assets, setAssets] = useState<string[]>(['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'ADA/USDT', 'XRP/USDT', 'BNB/USDT']);
+    const [cointegratedPairs, setCointegratedPairs] = useState<CointegratedPair[]>([]);
+    const [error, setError] = useState<string | null>(null);
+
+    // Use WebSocket Hook
+    const { isConnected, socketData } = useCorrelationSocket(null);
+
+    const processData = (data: any) => {
+        setMatrixData(data.matrix);
+        // Transform API pairs to UI CointegratedPair type
+        const transformedPairs: CointegratedPair[] = data.cointegrated_pairs.map((p: any, idx: number) => {
+            let signal: 'Buy Pair' | 'Sell Pair' | 'Hold' = 'Hold';
+            if (p.z_score < -2.0) signal = 'Buy Pair';
+            else if (p.z_score > 2.0) signal = 'Sell Pair';
+
+            return {
+                id: `pair-${idx}`,
+                pair: [p.asset_a, p.asset_b],
+                cointegrationScore: (1 - p.p_value),
+                zScore: p.z_score,
+                signal: signal,
+                spreadHistory: Array.from({ length: 20 }, (_, i) => ({
+                    time: i,
+                    value: Math.random() * 2 - 1 + p.z_score
+                }))
+            };
+        });
+        setCointegratedPairs(transformedPairs);
+        setLoading(false);
+    };
+
+    // Initial Load
+    const loadData = async () => {
+        setLoading(true);
+        setError(null);
+        try {
+            const data = await fetchCorrelationMatrix(assets);
+            processData(data);
+        } catch (err) {
+            console.error(err);
+            setError("Failed to load correlation data. Ensure backend is running.");
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        loadData();
+    }, [assets]);
+
+    // Update on WS Message
+    useEffect(() => {
+        if (socketData) {
+            processData(socketData);
+        }
+    }, [socketData]);
+
+    const displayAssets = Object.keys(matrixData).length > 0 ? Object.keys(matrixData) : assets;
+    const gridTemplateCols = `repeat(${displayAssets.length + 1}, minmax(0, 1fr))`;
 
     return (
         <div className="space-y-8 animate-fade-in-slide-up">
-            
+
             {/* Header Section */}
             <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4">
                 <div>
-                    <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight">Statistical Arbitrage</h2>
+                    <h2 className="text-3xl font-extrabold text-slate-900 dark:text-white tracking-tight flex items-center gap-3">
+                        Statistical Arbitrage
+                        {isConnected && (
+                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-500 text-[10px] font-bold uppercase tracking-wider border border-emerald-500/20">
+                                <span className="relative flex h-2 w-2">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                                </span>
+                                Live Feed
+                            </span>
+                        )}
+                        {!isConnected && (
+                            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-500/10 text-gray-500 text-[10px] font-bold uppercase tracking-wider border border-gray-500/20">
+                                Offline
+                            </span>
+                        )}
+                    </h2>
                     <p className="text-sm text-gray-500 dark:text-gray-400 mt-2 max-w-2xl">
                         Advanced correlation analysis and cointegration scanner to identify mean-reversion opportunities between assets.
                     </p>
                 </div>
-                <div className="flex gap-2 text-xs font-bold uppercase tracking-wider">
-                     <div className="flex items-center gap-1"><div className="w-3 h-3 bg-emerald-500 rounded-sm"></div> Pos Correl</div>
-                     <div className="flex items-center gap-1"><div className="w-3 h-3 bg-rose-500 rounded-sm"></div> Neg Correl</div>
+                <div className="flex flex-col items-end gap-2">
+                    <div className="flex gap-2 text-xs font-bold uppercase tracking-wider mb-2">
+                        <div className="flex items-center gap-1"><div className="w-3 h-3 bg-emerald-500 rounded-sm"></div> Pos Correl</div>
+                        <div className="flex items-center gap-1"><div className="w-3 h-3 bg-rose-500 rounded-sm"></div> Neg Correl</div>
+                    </div>
+                    <button
+                        onClick={loadData}
+                        disabled={loading}
+                        className="flex items-center gap-2 px-4 py-2 bg-brand-primary text-white rounded-lg hover:bg-brand-primary/90 transition-colors disabled:opacity-50 text-sm font-bold"
+                    >
+                        {loading ? 'Scanning...' : <><ArrowPathIcon className="w-4 h-4" /> Refresh Scan</>}
+                    </button>
                 </div>
             </div>
 
-            <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
-                
-                {/* Left Column: The Quantum Grid */}
-                <div className="xl:col-span-7">
-                    <Card className="h-full bg-slate-50 dark:bg-brand-dark border-0 shadow-xl p-6">
-                        <div className="overflow-x-auto">
-                            <div className="min-w-[500px]">
-                                {/* Matrix Header */}
-                                <div className="grid grid-cols-6 gap-2 mb-2">
-                                    <div className="h-10"></div> {/* Empty corner */}
-                                    {MOCK_CORRELATION_ASSETS.map(asset => (
-                                        <div key={asset} className={`h-10 flex items-center justify-center font-bold text-slate-700 dark:text-gray-300 transition-opacity ${hoveredCell && hoveredCell.c !== asset ? 'opacity-30' : 'opacity-100'}`}>
-                                            {asset}
+            {error && (
+                <div className="p-4 bg-rose-500/10 border border-rose-500/20 text-rose-500 rounded-lg">
+                    {error}
+                    <button onClick={loadData} className="ml-4 underline">Retry</button>
+                </div>
+            )}
+
+            {loading && !matrixData['BTC/USDT'] ? ( // Simple loading state if no data
+                <div className="h-96 flex items-center justify-center">
+                    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary"></div>
+                </div>
+            ) : (
+                <div className="grid grid-cols-1 xl:grid-cols-12 gap-8">
+
+                    {/* Left Column: The Quantum Grid */}
+                    <div className="xl:col-span-7">
+                        <Card className="h-full bg-slate-50 dark:bg-brand-dark border-0 shadow-xl p-6">
+                            <div className="overflow-x-auto">
+                                <div className="min-w-[500px]">
+                                    {/* Matrix Header */}
+                                    <div className="grid gap-2 mb-2" style={{ gridTemplateColumns: gridTemplateCols }}>
+                                        <div className="h-10"></div> {/* Empty corner */}
+                                        {displayAssets.map(asset => (
+                                            <div key={asset} className={`h-10 flex items-center justify-center font-bold text-slate-700 dark:text-gray-300 transition-opacity text-xs ${hoveredCell && hoveredCell.c !== asset ? 'opacity-30' : 'opacity-100'}`}>
+                                                {asset.split('/')[0]}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    {/* Matrix Rows */}
+                                    {displayAssets.map(rowAsset => (
+                                        <div key={rowAsset} className={`grid gap-2 mb-2`} style={{ gridTemplateColumns: gridTemplateCols }}>
+                                            <div className={`h-14 flex items-center justify-start pl-2 font-bold text-slate-700 dark:text-gray-300 transition-opacity text-xs ${hoveredCell && hoveredCell.r !== rowAsset ? 'opacity-30' : 'opacity-100'}`}>
+                                                {rowAsset.split('/')[0]}
+                                            </div>
+                                            {displayAssets.map(colAsset => (
+                                                <MatrixCell
+                                                    key={`${rowAsset}-${colAsset}`}
+                                                    row={rowAsset}
+                                                    col={colAsset}
+                                                    value={matrixData[rowAsset]?.[colAsset] || 0}
+                                                    isHovered={hoveredCell ? (hoveredCell.r === rowAsset || hoveredCell.c === colAsset) : false}
+                                                    onHover={(r, c) => setHoveredCell({ r, c })}
+                                                    onLeave={() => setHoveredCell(null)}
+                                                />
+                                            ))}
                                         </div>
                                     ))}
                                 </div>
-
-                                {/* Matrix Rows */}
-                                {MOCK_CORRELATION_ASSETS.map(rowAsset => (
-                                    <div key={rowAsset} className="grid grid-cols-6 gap-2 mb-2">
-                                        <div className={`h-14 flex items-center justify-start pl-2 font-bold text-slate-700 dark:text-gray-300 transition-opacity ${hoveredCell && hoveredCell.r !== rowAsset ? 'opacity-30' : 'opacity-100'}`}>
-                                            {rowAsset}
-                                        </div>
-                                        {MOCK_CORRELATION_ASSETS.map(colAsset => (
-                                            <MatrixCell 
-                                                key={`${rowAsset}-${colAsset}`}
-                                                row={rowAsset}
-                                                col={colAsset}
-                                                value={MOCK_CORRELATION_MATRIX[rowAsset as keyof typeof MOCK_CORRELATION_MATRIX][colAsset]}
-                                                isHovered={hoveredCell ? (hoveredCell.r === rowAsset || hoveredCell.c === colAsset) : false}
-                                                onHover={(r, c) => setHoveredCell({ r, c })}
-                                                onLeave={() => setHoveredCell(null)}
-                                            />
-                                        ))}
-                                    </div>
-                                ))}
                             </div>
-                        </div>
-                        <div className="mt-4 text-center text-xs text-gray-500 italic">
-                            Hover over cells to cross-reference. Click to analyze pair deep-dive.
-                        </div>
-                    </Card>
-                </div>
+                            <div className="mt-4 text-center text-xs text-gray-500 italic">
+                                Hover over cells to cross-reference. Click to analyze pair deep-dive.
+                            </div>
+                        </Card>
+                    </div>
 
-                {/* Right Column: Cointegration Scanner */}
-                <div className="xl:col-span-5 flex flex-col gap-6">
-                     <div className="flex items-center justify-between bg-white dark:bg-brand-dark p-4 rounded-xl border border-gray-200 dark:border-brand-border-dark shadow-sm">
-                        <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                            <span className="relative flex h-3 w-3">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-primary opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-3 w-3 bg-brand-primary"></span>
-                            </span>
-                            Live Pairs Scanner
-                        </h3>
-                        <span className="text-xs font-mono text-gray-500">Updated: 12s ago</span>
-                     </div>
+                    {/* Right Column: Cointegration Scanner */}
+                    <div className="xl:col-span-5 flex flex-col gap-6">
+                        <div className="flex items-center justify-between bg-white dark:bg-brand-dark p-4 rounded-xl border border-gray-200 dark:border-brand-border-dark shadow-sm">
+                            <h3 className="font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                                <span className="relative flex h-3 w-3">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-primary opacity-75"></span>
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-brand-primary"></span>
+                                </span>
+                                Live Pairs Scanner
+                            </h3>
+                            <span className="text-xs font-mono text-gray-500">Updated: Just now</span>
+                        </div>
 
-                    <div className="space-y-6">
-                        {MOCK_COINTEGRATED_PAIRS.map((pair, index) => (
-                            <PairCard key={pair.id} pairData={pair} index={index} />
-                        ))}
+                        <div className="space-y-6">
+                            {cointegratedPairs.length === 0 ? (
+                                <div className="text-center text-gray-500 py-10">No cointegrated pairs found in this scan.</div>
+                            ) : (
+                                cointegratedPairs.map((pair, index) => (
+                                    <PairCard key={pair.id} pairData={pair} index={index} />
+                                ))
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };
 
 export default CorrelationMatrix;
-

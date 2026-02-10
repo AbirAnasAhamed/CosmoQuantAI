@@ -1,4 +1,5 @@
 import apiClient from './client';
+import { CointegratedPair } from '@/types';
 
 export interface PerformanceMetrics {
     sharpe_ratio: number;
@@ -10,11 +11,28 @@ export interface PerformanceMetrics {
     end_date?: string;
 }
 
+export interface CorrelationResponse {
+    matrix: Record<string, Record<string, number>>;
+    cointegrated_pairs: {
+        asset_a: string;
+        asset_b: string;
+        score: number;
+        p_value: number;
+        is_cointegrated: boolean;
+        z_score: number;
+    }[];
+}
+
 export const getPerformanceMetrics = async (startDate?: string, endDate?: string): Promise<PerformanceMetrics> => {
     const params: any = {};
     if (startDate) params.start_date = startDate;
     if (endDate) params.end_date = endDate;
 
     const response = await apiClient.get('/analytics/performance', { params });
+    return response.data;
+};
+
+export const fetchCorrelationMatrix = async (symbols: string[], timeframe: string = '1h'): Promise<CorrelationResponse> => {
+    const response = await apiClient.post<CorrelationResponse>('/analytics/correlation-matrix', { symbols, timeframe });
     return response.data;
 };

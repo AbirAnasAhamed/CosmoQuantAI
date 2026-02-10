@@ -80,3 +80,4 @@ deep-translator
 python-dateutil
 spacy
 aiohttp
+statsmodels
