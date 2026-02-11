@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Activity, Play, Square, Terminal, TrendingUp, DollarSign, Clock, BarChart2, FastForward, Wifi, AlertTriangle } from 'lucide-react';
+import { Activity, Play, Square, Terminal, TrendingUp, DollarSign, Clock, FastForward, Wifi, AlertTriangle, BarChart2 } from 'lucide-react';
 import Button from '@/components/common/Button';
 import Card from '@/components/common/Card';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import SimulationChart, { SimulationChartHandle } from '@/components/features/simulation/SimulationChart';
+import { CandlestickData, Time, SeriesMarker } from 'lightweight-charts';
 
 interface LogMessage {
     time: string;
@@ -14,7 +15,8 @@ const EventDrivenSimulator: React.FC = () => {
     const [isRunning, setIsRunning] = useState(false);
     const [symbol, setSymbol] = useState('BTC/USDT');
     const [logs, setLogs] = useState<LogMessage[]>([]);
-    const [marketData, setMarketData] = useState<any[]>([]);
+    const [marketData, setMarketData] = useState<CandlestickData[]>([]);
+    const [markers, setMarkers] = useState<SeriesMarker<Time>[]>([]);
     const [pnl, setPnl] = useState(0);
     const [holdings, setHoldings] = useState(0);
     const [price, setPrice] = useState(0);
@@ -33,6 +35,7 @@ const EventDrivenSimulator: React.FC = () => {
         buy_probability: 0.2
     });
 
+    const chartRef = useRef<SimulationChartHandle>(null);
     const socketRef = useRef<WebSocket | null>(null);
     const logEndRef = useRef<HTMLDivElement>(null);
 
@@ -74,16 +77,58 @@ const EventDrivenSimulator: React.FC = () => {
             const data = JSON.parse(event.data);
 
             if (data.type === "MARKET") {
-                setPrice(data.price);
+                const time = (new Date(data.time).getTime() / 1000) as Time;
+                const candle: CandlestickData = {
+                    time: time,
+                    open: data.open,
+                    high: data.high,
+                    low: data.low,
+                    close: data.close,
+                };
+
+                setPrice(data.close);
+
+                // Update React State for persistence (keep last 100 candles)
                 setMarketData(prev => {
-                    const newData = [...prev, { time: data.time.split('T')[1].split('.')[0], price: data.price }];
-                    if (newData.length > 50) return newData.slice(newData.length - 50);
-                    return newData;
+                    const lastCandle = prev[prev.length - 1];
+                    // If same time, update last candle. If new time, push new.
+                    if (lastCandle && (lastCandle.time === time)) {
+                        const updated = [...prev];
+                        updated[updated.length - 1] = candle;
+                        return updated;
+                    } else {
+                        const newData = [...prev, candle];
+                        if (newData.length > 200) return newData.slice(newData.length - 200);
+                        return newData;
+                    }
                 });
+
+                // Update chart directly for performance
+                if (chartRef.current) {
+                    chartRef.current.updateCandle(candle);
+                }
             } else if (data.type === "LOG") {
                 addLog(data.message, 'INFO');
             } else if (data.type === "FILL") {
                 addLog(`FILLED: ${data.direction} ${data.quantity} @ ${data.price}`, 'fill');
+
+                // Add Marker
+                const time = (new Date(data.time).getTime() / 1000) as Time;
+                const newMarker: SeriesMarker<Time> = {
+                    time: time,
+                    position: data.direction === 'BUY' ? 'belowBar' : 'aboveBar',
+                    color: data.direction === 'BUY' ? '#2196F3' : '#E91E63',
+                    shape: data.direction === 'BUY' ? 'arrowUp' : 'arrowDown',
+                    text: `${data.direction} @ ${data.price}`
+                };
+
+                setMarkers(prev => {
+                    const updated = [...prev, newMarker];
+                    if (chartRef.current) {
+                        chartRef.current.setMarkers(updated);
+                    }
+                    return updated;
+                });
 
                 // Simple PnL/Holdings Simulation update (Logic normally on backend, but visualization here)
                 if (data.direction === 'BUY') {
@@ -159,7 +204,13 @@ const EventDrivenSimulator: React.FC = () => {
     const handleStart = () => {
         setIsRunning(true);
         setLogs([]);
+        setLogs([]);
         setMarketData([]);
+        setMarkers([]);
+        // Reset chart
+        if (chartRef.current) {
+            chartRef.current.reset();
+        }
         setPnl(0);
         setHoldings(0);
         setIsPaused(false);
@@ -489,7 +540,7 @@ const EventDrivenSimulator: React.FC = () => {
             {/* Right Monitor Panel */}
             <div className="flex-1 flex flex-col gap-6">
                 {/* Live Chart */}
-                <Card className="h-1/3 bg-white dark:bg-[#1e293b] p-4 relative overflow-hidden">
+                <Card className="h-1/3 bg-white dark:bg-[#1e293b] p-4 relative overflow-hidden flex flex-col">
                     <div className="absolute top-4 left-4 z-10 flex gap-2">
                         <div className="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
                             <span className="text-xs font-mono text-white flex items-center gap-2">
@@ -498,24 +549,16 @@ const EventDrivenSimulator: React.FC = () => {
                             </span>
                         </div>
                     </div>
-                    <ResponsiveContainer width="100%" height="100%">
-                        <AreaChart data={marketData}>
-                            <defs>
-                                <linearGradient id="colorPrice" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.3} />
-                                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
-                                </linearGradient>
-                            </defs>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
-                            <XAxis dataKey="time" hide />
-                            <YAxis domain={['auto', 'auto']} orientation="right" tick={{ fill: '#94a3b8' }} tickLine={false} axisLine={false} />
-                            <Tooltip
-                                contentStyle={{ backgroundColor: '#0f172a', borderColor: '#334155', color: '#fff' }}
-                                itemStyle={{ color: '#10b981' }}
-                            />
-                            <Area type="monotone" dataKey="price" stroke="#10b981" fillOpacity={1} fill="url(#colorPrice)" strokeWidth={2} />
-                        </AreaChart>
-                    </ResponsiveContainer>
+                    <div className="flex-1 w-full h-full">
+                        <SimulationChart
+                            ref={chartRef}
+                            data={marketData}
+                            colors={{
+                                backgroundColor: '#1e293b',
+                                textColor: '#CBD5E1'
+                            }}
+                        />
+                    </div>
                 </Card>
 
                 {/* System Terminal */}

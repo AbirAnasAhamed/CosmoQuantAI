@@ -339,7 +339,11 @@ class EventDrivenEngine:
         await self._send({
             "type": "MARKET",
             "symbol": event.symbol,
-            "price": event.close,
+            "open": event.open,
+            "high": event.high,
+            "low": event.low,
+            "close": event.close,
+            "volume": event.volume,
             "time": event.date.isoformat()
         })
             
@@ -487,7 +491,8 @@ class EventDrivenEngine:
             "direction": event.direction,
             "quantity": event.quantity,
             "price": event.fill_cost,
-            "commission": event.commission
+            "commission": event.commission,
+            "time": event.timestamp.isoformat()
         })
         await self._send({
             "type": "LOG",
