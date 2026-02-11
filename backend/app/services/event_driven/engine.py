@@ -50,6 +50,58 @@ class DataHandler:
             await self.events.put(event)
             # No sleep here! Speed is controlled by the Engine.
 
+class SimulationStrategy:
+    """
+    A simple strategy for the simulation engine that supports hot-reloading parameters.
+    """
+    def __init__(self):
+        # Default Parameters
+        self.params = {
+            "stop_loss": 0.01,   # 1%
+            "take_profit": 0.02, # 2%
+            "buy_probability": 0.2 # 20% chance to buy on signal check
+        }
+        print(f"Strategy Initialized with: {self.params}", flush=True)
+
+    def update_parameters(self, new_params: dict):
+        """
+        Updates parameters safely.
+        """
+        for key, value in new_params.items():
+            if key in self.params:
+                # Basic validation (e.g. correct type)
+                try:
+                    # Convert to float if it's a number
+                    if isinstance(self.params[key], float):
+                        self.params[key] = float(value)
+                    else:
+                        self.params[key] = value
+                    print(f"Updated {key} to {self.params[key]}", flush=True)
+                except ValueError:
+                    print(f"Invalid value for {key}: {value}", flush=True)
+            else:
+                print(f"Ignoring unknown parameter: {key}", flush=True)
+
+    def calculate_signal(self, event: MarketEvent) -> Optional[SignalEvent]:
+        """
+        Determines if a signal should be generated based on current market data and parameters.
+        """
+        import random
+        
+        # Simple Logic: Randomly generate signal based on buy_probability
+        # in a real strategy, this would check indicators
+        if random.random() < self.params["buy_probability"]:
+            signal_type = "LONG" if random.random() > 0.5 else "SHORT"
+            
+            return SignalEvent(
+                strategy_id="SimHotReload",
+                symbol=event.symbol,
+                datetime=datetime.now(),
+                signal_type=signal_type,
+                strength=1.0
+            )
+        return None
+
 class EventDrivenEngine:
     def __init__(self, symbol: str, websocket: WebSocket = None):
         self.events = asyncio.Queue()
@@ -60,6 +112,13 @@ class EventDrivenEngine:
         self.speed_multiplier: Optional[float] = None # None or 0 means Max Speed
         self.last_event_time: Optional[datetime] = None
         self.data_task: Optional[asyncio.Task] = None
+        
+        # Pause & Step Control
+        self.is_paused = False
+        self.step_trigger = asyncio.Event()
+
+        # Strategy Instance
+        self.strategy = SimulationStrategy()
 
     def set_speed(self, speed: float):
         """
@@ -78,10 +137,28 @@ class EventDrivenEngine:
         """
         Handles commands from WebSocket or API.
         """
-        if command.get("type") == "UPDATE_SPEED":
+        cmd_type = command.get("type")
+        
+        if cmd_type == "UPDATE_SPEED":
             speed = float(command.get("speed", 0))
             self.set_speed(speed)
             await self._send({"type": "SYSTEM", "message": f"Speed set to {speed}x"})
+            
+        elif cmd_type == "PAUSE":
+            self.pause()
+            await self._send({"type": "SYSTEM", "message": "Simulation Paused"})
+            
+        elif cmd_type == "RESUME":
+            self.resume()
+            await self._send({"type": "SYSTEM", "message": "Simulation Resumed"})
+            
+        elif cmd_type == "STEP":
+            self.step()
+
+        elif cmd_type == "UPDATE_PARAMS":
+            new_params = command.get("params", {})
+            self.strategy.update_parameters(new_params)
+            await self._send({"type": "SYSTEM", "message": f"Strategy Params Updated: {new_params}"})
 
     async def _send(self, data: Dict[str, Any]):
         """Helper to send WebSocket messages safely."""
@@ -90,6 +167,16 @@ class EventDrivenEngine:
                 await self.websocket.send_json(data)
             except Exception as e:
                 print(f"Error sending WS message: {e}", flush=True)
+
+    def pause(self):
+        self.is_paused = True
+
+    def resume(self):
+        self.is_paused = False
+        self.step_trigger.set()
+
+    def step(self):
+        self.step_trigger.set()
 
     async def run(self):
         """
@@ -105,6 +192,14 @@ class EventDrivenEngine:
         await self._send({"type": "SYSTEM", "message": "Simulation Started"})
 
         while self.running:
+            # --- Pause Logic ---
+            if self.is_paused:
+                await self._send({"type": "PAUSED_STATE", "value": True}) # Notify UI
+                await self.step_trigger.wait()
+                self.step_trigger.clear()
+                await self._send({"type": "PAUSED_STATE", "value": False}) 
+            # -------------------
+
             try:
                 # Check for new events
                 # Use a timeout to allow checking for other things if needed, though get() is fine
@@ -150,6 +245,8 @@ class EventDrivenEngine:
     def stop(self):
         print("Stopping Event Loop...", flush=True)
         self.running = False
+        self.is_paused = False # Unpause to allow exit
+        self.step_trigger.set() # Wake up if waiting
         
         if self.data_task:
             self.data_task.cancel()
@@ -175,18 +272,10 @@ class EventDrivenEngine:
             "time": event.date.isoformat()
         })
             
-        # 2. Simulate Strategy interacting (Simple Moving Average Logic Placeholder)
-        # For demonstration: Generate a random signal every 5th market event
-        import random
-        if random.random() > 0.8:
-            signal_type = "LONG" if random.random() > 0.5 else "SHORT"
-            signal = SignalEvent(
-                strategy_id="SimStrategy",
-                symbol=event.symbol,
-                datetime=datetime.now(),
-                signal_type=signal_type
-            )
-            await self.events.put(signal)
+        # 2. Simulate Strategy interacting via Strategy Class
+        signal = self.strategy.calculate_signal(event)
+        if signal:
+             await self.events.put(signal)
 
     async def handle_signal_event(self, event: SignalEvent):
         await self._send({
@@ -195,6 +284,8 @@ class EventDrivenEngine:
         })
             
         # Simulate Portfolio Manager generating an Order
+        # Use simple risk logic relative to current price or hardcoded
+        # Here we just blindly follow signal
         order = OrderEvent(
             symbol=event.symbol,
             order_type="MKT",
@@ -217,7 +308,7 @@ class EventDrivenEngine:
              exchange="SIM_EXCHANGE",
              quantity=event.quantity,
              direction=event.direction,
-             fill_cost=100.0, # Simplified
+             fill_cost=100.0, # Simplified (should use current price but for sim we use placeholder)
              commission=1.5
          )
          await self.events.put(fill)
