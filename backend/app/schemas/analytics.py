@@ -27,6 +27,7 @@ class CointegrationPair(BaseModel):
 
 class CorrelationResponse(BaseModel):
     matrix: Dict[str, Dict[str, float]]
+    lead_lag_matrix: Dict[str, Dict[str, int]]
     cointegrated_pairs: List[CointegrationPair]
 
 class RollingCorrelationPoint(BaseModel):

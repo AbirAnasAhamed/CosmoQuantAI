@@ -13,6 +13,7 @@ export interface PerformanceMetrics {
 
 export interface CorrelationResponse {
     matrix: Record<string, Record<string, number>>;
+    lead_lag_matrix?: Record<string, Record<string, number>>;
     cointegrated_pairs: {
         asset_a: string;
         asset_b: string;

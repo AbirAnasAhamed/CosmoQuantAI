@@ -2,7 +2,7 @@ import pandas as pd
 import numpy as np
 from typing import List, Dict, Any
 from datetime import datetime, timedelta
-from app.services.quant_engine import calculate_correlation_matrix, calculate_cointegration, calculate_z_score
+from app.services.quant_engine import calculate_correlation_matrix, calculate_cointegration, calculate_z_score, detect_lead_lag
 
 class MarketAnalysisService:
     def get_correlation_data(self, symbols: List[str], timeframe: str) -> Dict[str, Any]:
@@ -14,7 +14,7 @@ class MarketAnalysisService:
             timeframe (str): Timeframe (e.g., '1h', '1d').
 
         Returns:
-            Dict[str, Any]: Dictionary containing 'matrix' and 'cointegrated_pairs'.
+            Dict[str, Any]: Dictionary containing 'matrix', 'lead_lag_matrix', and 'cointegrated_pairs'.
         """
         # 1. Fetch OHLCV Data (Mocked for now as per instructions)
         # Using a fixed seed for consistency during dev/test
@@ -28,53 +28,100 @@ class MarketAnalysisService:
         # Generate some correlated random walks
         base_series = np.cumsum(np.random.randn(periods))
         
+        # Create a dictionary to hold the series for DataFrame creation
+        series_dict = {}
+
+        # Base for BTC
+        btc_series = base_series + np.random.randn(periods) * 0.1 + 30000
+        series_dict['BTC/USDT'] = btc_series
+        
         for symbol in symbols:
-            # Create some variety: some highly correlated to base, some noise
-            noise = np.random.randn(periods) * 0.5
-            # Just a simple mock: symbol price is base + specific trend + noise
-            # randomize trend direction slightly so not all are identical
-            trend = np.linspace(0, np.random.randint(-10, 10), periods)
-            price_series = base_series + trend + noise + 1000 # Add base price
-            data[symbol] = price_series
+            if symbol == 'BTC/USDT':
+                continue
+                
+            # Create some variety
+            if symbol == 'ETH/USDT':
+                # Make ETH follow BTC by 2 steps (lag -2)
+                # ETH[t] ~ BTC[t-2]
+                # BTC leads ETH.
+                # If we shift BTC forward by 2, it matches ETH?
+                # No, if BTC leads, BTC happens first.
+                # ETH is a delayed version of BTC.
+                # ETH[t] = BTC[t-2] + noise.
+                # So we take BTC, shift it by 2 (fill with something), adds noise.
+                # pd.Series(btc).shift(2) -> [NaN, NaN, btc[0], btc[1]...]
+                # So index t has value from t-2. 
+                eth_series = pd.Series(btc_series).shift(2)
+                eth_series = eth_series.bfill() # Fill start
+                eth_series = eth_series + np.random.randn(periods) * 0.1 * 10 # scale
+                series_dict[symbol] = eth_series.values
+            else:
+                noise = np.random.randn(periods) * 0.5
+                trend = np.linspace(0, np.random.randint(-10, 10), periods)
+                price_series = base_series + trend + noise + 1000 
+                series_dict[symbol] = price_series
             
-        df = pd.DataFrame(data, index=dates)
+        df = pd.DataFrame(series_dict, index=dates)
+        # Ensure all requested symbols are in df (handle case where BTC wasn't in input but we used it)
+        # If 'BTC/USDT' not in symbols, we might have added it extra, but let's assume it is in list generally.
+        # But to be safe, only keep requested symbols
+        df = df[symbols]
         
         # 2. Calculate Correlation Matrix
         correlation_matrix = calculate_correlation_matrix(df)
         
-        # 3. Find Cointegrated Pairs & Calculate Z-Scores
+        # 3. Calculate Lead-Lag Matrix & Cointegration
         cointegrated_pairs = []
+        lead_lag_matrix = {s: {} for s in symbols}
         
+        # Initialize lead_lag_matrix with 0s
+        for r in symbols:
+            for c in symbols:
+                lead_lag_matrix[r][c] = 0
+
         # Iterate through unique pairs
         for i in range(len(symbols)):
-            for j in range(i + 1, len(symbols)):
+            for j in range(len(symbols)): # Full matrix for lead/lag
                 sym_a = symbols[i]
                 sym_b = symbols[j]
                 
-                series_a = df[sym_a]
-                series_b = df[sym_b]
+                if i == j:
+                    lead_lag_matrix[sym_a][sym_b] = 0
+                    continue
                 
-                # Cointegration Test
-                coint_res = calculate_cointegration(series_a, series_b)
+                # Only calculate if we haven't already (symmetric? No, lag(A,B) = -lag(B,A))
+                # calculated[a][b] = lag. calculated[b][a] = -lag.
+                # Let's just calc for all or optimize.
+                # detect_lead_lag(A, B) -> lag k.
+                # detect_lead_lag(B, A) -> lag -k approximately.
+                # Let's compute single direction to save time if j > i
+                if j > i:
+                    res = detect_lead_lag(df[sym_a], df[sym_b])
+                    lag = res['lag']
+                    lead_lag_matrix[sym_a][sym_b] = lag
+                    lead_lag_matrix[sym_b][sym_a] = -lag
                 
-                if coint_res['is_cointegrated']:
-                    # Calculate Spread and Z-Score for this pair
-                    # Basic spread: A - B (in reality, requires hedge ratio)
-                    # For this mock, we'll assume spread = A - B
-                    spread = series_a - series_b
-                    z_score = calculate_z_score(spread)
+                # Cointegration (only upper triangle)
+                if j > i:
+                     # Cointegration Test
+                    coint_res = calculate_cointegration(df[sym_a], df[sym_b])
                     
-                    cointegrated_pairs.append({
-                        "asset_a": sym_a,
-                        "asset_b": sym_b,
-                        "score": coint_res['score'],
-                        "p_value": coint_res['p_value'],
-                        "is_cointegrated": coint_res['is_cointegrated'],
-                        "z_score": z_score
-                    })
+                    if coint_res['is_cointegrated']:
+                        spread = df[sym_a] - df[sym_b]
+                        z_score = calculate_z_score(spread)
+                        
+                        cointegrated_pairs.append({
+                            "asset_a": sym_a,
+                            "asset_b": sym_b,
+                            "score": coint_res['score'],
+                            "p_value": coint_res['p_value'],
+                            "is_cointegrated": coint_res['is_cointegrated'],
+                            "z_score": z_score
+                        })
                     
         return {
             "matrix": correlation_matrix,
+            "lead_lag_matrix": lead_lag_matrix,
             "cointegrated_pairs": cointegrated_pairs
         }
 

@@ -74,25 +74,74 @@ const ZScoreGauge: React.FC<{ zScore: number }> = ({ zScore }) => {
 // 2. The Quantum Grid Cell
 const MatrixCell: React.FC<{
     value: number;
+    leadLag: number; // Lag in steps. Negative = Row leads Col. Positive = Col leads Row.
     row: string;
     col: string;
+    timeframe: string;
     isHovered: boolean;
     onHover: (r: string, c: string) => void;
     onLeave: () => void;
     onClick: (r: string, c: string) => void;
-}> = ({ value, row, col, isHovered, onHover, onLeave, onClick }) => {
+}> = ({ value, leadLag, row, col, timeframe, isHovered, onHover, onLeave, onClick }) => {
     const bg = getCorrelationColor(value, isHovered ? 1 : 0.8);
     const text = getCorrelationTextColor(value);
+
+    // Calculate Lead/Lag Text
+    let leadLagText = "";
+    if (leadLag !== 0 && Math.abs(value) > 0.5) { // Only show for significant correlation
+        const absLag = Math.abs(leadLag);
+        // Estimate time based on timeframe
+        let timeUnit = "period";
+        let timeMult = 1;
+        if (timeframe === '1h') { timeUnit = "hr"; timeMult = 1; }
+        else if (timeframe === '4h') { timeUnit = "hr"; timeMult = 4; }
+        else if (timeframe === '1d') { timeUnit = "day"; timeMult = 1; }
+        // Attempt to parse if it's strictly mins/hours (e.g. from a helper, but simple switch for now)
+        // If "1h", lag 1 = 1 hour.
+
+        const timeVal = absLag // * timeMult if we want absolute time, but lag is steps.
+        // Let's formatting: "~2 steps" or "~2 hours".
+        // Simplification: just show steps and timeframe for context, or try to be smart.
+        // Prompt says: "BTC leads ETH by ~2 mins".
+        // If timeframe is 1m (not in list), but let's assume 1h.
+
+        const formatTime = (lag: number, tf: string) => {
+            if (tf === '1h') return `${lag} hr${lag > 1 ? 's' : ''}`;
+            if (tf === '4h') return `${lag * 4} hrs`;
+            if (tf === '1d') return `${lag} day${lag > 1 ? 's' : ''}`;
+            return `${lag} period${lag > 1 ? 's' : ''}`;
+        };
+
+        const timeStr = formatTime(absLag, timeframe);
+
+        if (leadLag < 0) {
+            // Row leads Col
+            leadLagText = `${row.split('/')[0]} leads ${col.split('/')[0]} by ~${timeStr}`;
+        } else {
+            // Col leads Row
+            leadLagText = `${col.split('/')[0]} leads ${row.split('/')[0]} by ~${timeStr}`;
+        }
+    }
 
     return (
         <div
             onMouseEnter={() => onHover(row, col)}
             onMouseLeave={onLeave}
             onClick={() => onClick(row, col)}
-            className={`relative h-14 flex items-center justify-center text-sm font-bold transition-all duration-200 cursor-pointer border border-transparent hover:border-white/20 hover:scale-105 hover:z-10 rounded-lg ${text}`}
+            className={`relative h-14 flex items-center justify-center text-sm font-bold transition-all duration-200 cursor-pointer border border-transparent hover:border-white/20 hover:scale-105 hover:z-10 rounded-lg ${text} group`}
             style={{ backgroundColor: bg }}
         >
             {value.toFixed(2)}
+
+            {/* Tooltip */}
+            <div className="absolute opacity-0 group-hover:opacity-100 bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white text-xs rounded-md px-2 py-1 pointer-events-none whitespace-nowrap z-50 shadow-xl border border-slate-700 transition-opacity duration-200">
+                <div className="font-bold">{row} vs {col}</div>
+                <div>Corr: {value.toFixed(4)}</div>
+                {leadLagText && (
+                    <div className="text-emerald-400 font-bold mt-0.5">{leadLagText}</div>
+                )}
+                <div className="absolute bottom-[-4px] left-1/2 transform -translate-x-1/2 w-2 h-2 bg-slate-900 rotate-45 border-r border-b border-slate-700"></div>
+            </div>
         </div>
     );
 };
@@ -156,6 +205,7 @@ const CorrelationMatrix: React.FC = () => {
     const [hoveredCell, setHoveredCell] = useState<{ r: string, c: string } | null>(null);
     const [loading, setLoading] = useState<boolean>(true);
     const [matrixData, setMatrixData] = useState<Record<string, Record<string, number>>>({});
+    const [leadLagData, setLeadLagData] = useState<Record<string, Record<string, number>>>({});
     const [assets, setAssets] = useState<string[]>(['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'ADA/USDT', 'XRP/USDT', 'BNB/USDT']);
     const [cointegratedPairs, setCointegratedPairs] = useState<CointegratedPair[]>([]);
     const [error, setError] = useState<string | null>(null);
@@ -213,6 +263,9 @@ const CorrelationMatrix: React.FC = () => {
 
     const processData = (data: any) => {
         setMatrixData(data.matrix);
+        if (data.lead_lag_matrix) {
+            setLeadLagData(data.lead_lag_matrix);
+        }
         // Transform API pairs to UI CointegratedPair type
         const pairs = data.cointegrated_pairs || [];
         const transformedPairs: CointegratedPair[] = pairs.map((p: any, idx: number) => {
@@ -367,6 +420,8 @@ const CorrelationMatrix: React.FC = () => {
                                                     row={rowAsset}
                                                     col={colAsset}
                                                     value={matrixData[rowAsset]?.[colAsset] || 0}
+                                                    leadLag={leadLagData[rowAsset]?.[colAsset] || 0}
+                                                    timeframe={selectedTimeframe}
                                                     isHovered={hoveredCell ? (hoveredCell.r === rowAsset || hoveredCell.c === colAsset) : false}
                                                     onHover={(r, c) => setHoveredCell({ r, c })}
                                                     onLeave={() => setHoveredCell(null)}
