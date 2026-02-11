@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Activity, Play, Square, Terminal, TrendingUp, DollarSign, Clock, BarChart2 } from 'lucide-react';
+import { Activity, Play, Square, Terminal, TrendingUp, DollarSign, Clock, BarChart2, FastForward } from 'lucide-react';
 import Button from '@/components/common/Button';
 import Card from '@/components/common/Card';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -19,6 +19,7 @@ const EventDrivenSimulator: React.FC = () => {
     const [pnl, setPnl] = useState(0);
     const [holdings, setHoldings] = useState(0);
     const [price, setPrice] = useState(0);
+    const [playbackSpeed, setPlaybackSpeed] = useState<number>(0); // 0 = Max
 
     const socketRef = useRef<WebSocket | null>(null);
     const logEndRef = useRef<HTMLDivElement>(null);
@@ -42,6 +43,8 @@ const EventDrivenSimulator: React.FC = () => {
             addLog("System: Connected to Simulation Server", 'INFO');
             if (isRunning) {
                 ws.send(JSON.stringify({ action: "START", symbol }));
+                // Send initial speed
+                ws.send(JSON.stringify({ type: "UPDATE_SPEED", speed: playbackSpeed }));
             }
         };
 
@@ -81,6 +84,13 @@ const EventDrivenSimulator: React.FC = () => {
         socketRef.current = ws;
     }, [isRunning, symbol]);
 
+    // Handle Speed Change properly
+    useEffect(() => {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({ type: "UPDATE_SPEED", speed: playbackSpeed }));
+        }
+    }, [playbackSpeed]);
+
     useEffect(() => {
         return () => {
             if (socketRef.current) {
@@ -102,16 +112,15 @@ const EventDrivenSimulator: React.FC = () => {
 
         if (!socketRef.current || socketRef.current.readyState !== WebSocket.OPEN) {
             connect();
-            // Wait for connection to open before sending START, 
-            // logic handled in onopen if isRunning is true, 
-            // but if already connected:
             setTimeout(() => {
                 if (socketRef.current?.readyState === WebSocket.OPEN) {
                     socketRef.current.send(JSON.stringify({ action: "START", symbol }));
+                    socketRef.current.send(JSON.stringify({ type: "UPDATE_SPEED", speed: playbackSpeed }));
                 }
             }, 100);
         } else {
             socketRef.current.send(JSON.stringify({ action: "START", symbol }));
+            socketRef.current.send(JSON.stringify({ type: "UPDATE_SPEED", speed: playbackSpeed }));
         }
     };
 
@@ -121,6 +130,13 @@ const EventDrivenSimulator: React.FC = () => {
         }
         setIsRunning(false);
     };
+
+    const speedOptions = [
+        { label: '1x', value: 1.0 },
+        { label: '10x', value: 10.0 },
+        { label: '100x', value: 100.0 },
+        { label: 'MAX', value: 0 },
+    ];
 
     return (
         <div className="flex h-[calc(100vh-8rem)] gap-6 p-2">
@@ -141,6 +157,28 @@ const EventDrivenSimulator: React.FC = () => {
                                 onChange={(e) => setSymbol(e.target.value)}
                                 className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-primary outline-none transaction-all"
                             />
+                        </div>
+
+                        {/* Speed Control */}
+                        <div>
+                            <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2 flex items-center gap-2">
+                                <FastForward size={16} />
+                                Playback Speed
+                            </label>
+                            <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-lg">
+                                {speedOptions.map((opt) => (
+                                    <button
+                                        key={opt.label}
+                                        onClick={() => setPlaybackSpeed(opt.value)}
+                                        className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${playbackSpeed === opt.value
+                                                ? 'bg-white dark:bg-slate-700 text-brand-primary shadow-sm'
+                                                : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
+                                            }`}
+                                    >
+                                        {opt.label}
+                                    </button>
+                                ))}
+                            </div>
                         </div>
 
                         <div className="grid grid-cols-2 gap-4">
@@ -206,7 +244,7 @@ const EventDrivenSimulator: React.FC = () => {
                     <div className="absolute top-4 left-4 z-10 bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
                         <span className="text-xs font-mono text-white flex items-center gap-2">
                             <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-                            LIVE FEED
+                            LIVE FEED {playbackSpeed === 0 ? '(MAX)' : `(${playbackSpeed}x)`}
                         </span>
                     </div>
                     <ResponsiveContainer width="100%" height="100%">
