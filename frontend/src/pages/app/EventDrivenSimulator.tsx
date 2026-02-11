@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Activity, Play, Square, Terminal, TrendingUp, DollarSign, Clock, BarChart2, FastForward } from 'lucide-react';
+import { Activity, Play, Square, Terminal, TrendingUp, DollarSign, Clock, BarChart2, FastForward, Wifi, AlertTriangle } from 'lucide-react';
 import Button from '@/components/common/Button';
 import Card from '@/components/common/Card';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -21,6 +20,11 @@ const EventDrivenSimulator: React.FC = () => {
     const [price, setPrice] = useState(0);
     const [playbackSpeed, setPlaybackSpeed] = useState<number>(0); // 0 = Max
     const [isPaused, setIsPaused] = useState(false);
+    const [latency, setLatency] = useState<number>(0); // Network Latency in ms
+    const [slippage, setSlippage] = useState<number>(0); // Slippage in %
+    const [makerFee, setMakerFee] = useState<number>(0.001); // Maker Fee (0.1%)
+    const [takerFee, setTakerFee] = useState<number>(0.002); // Taker Fee (0.2%)
+    const [volumeParticipation, setVolumeParticipation] = useState<number>(100); // 100% (Full Fill)
 
     // Strategy Parameters State
     const [strategyParams, setStrategyParams] = useState({
@@ -55,6 +59,14 @@ const EventDrivenSimulator: React.FC = () => {
                 ws.send(JSON.stringify({ type: "UPDATE_SPEED", speed: playbackSpeed }));
                 // Send initial params
                 ws.send(JSON.stringify({ type: "UPDATE_PARAMS", params: strategyParams }));
+                // Send initial latency
+                ws.send(JSON.stringify({ type: "UPDATE_LATENCY", latency: latency }));
+                // Send initial slippage
+                ws.send(JSON.stringify({ type: "UPDATE_SLIPPAGE", slippage: slippage }));
+                // Send initial fees
+                ws.send(JSON.stringify({ type: "UPDATE_FEES", maker: makerFee, taker: takerFee }));
+                // Send initial participation
+                ws.send(JSON.stringify({ type: "UPDATE_PARTICIPATION", rate: volumeParticipation / 100.0 }));
             }
         };
 
@@ -104,6 +116,34 @@ const EventDrivenSimulator: React.FC = () => {
         }
     }, [playbackSpeed]);
 
+    // Handle Latency Change
+    useEffect(() => {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({ type: "UPDATE_LATENCY", latency: latency }));
+        }
+    }, [latency]);
+
+    // Handle Slippage Change
+    useEffect(() => {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({ type: "UPDATE_SLIPPAGE", slippage: slippage }));
+        }
+    }, [slippage]);
+
+    // Handle Fee Change
+    useEffect(() => {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({ type: "UPDATE_FEES", maker: makerFee, taker: takerFee }));
+        }
+    }, [makerFee, takerFee]);
+
+    // Handle Volume Participation Change
+    useEffect(() => {
+        if (socketRef.current?.readyState === WebSocket.OPEN) {
+            socketRef.current.send(JSON.stringify({ type: "UPDATE_PARTICIPATION", rate: volumeParticipation / 100.0 }));
+        }
+    }, [volumeParticipation]);
+
     useEffect(() => {
         return () => {
             if (socketRef.current) {
@@ -131,12 +171,18 @@ const EventDrivenSimulator: React.FC = () => {
                     socketRef.current.send(JSON.stringify({ action: "START", symbol }));
                     socketRef.current.send(JSON.stringify({ type: "UPDATE_SPEED", speed: playbackSpeed }));
                     socketRef.current.send(JSON.stringify({ type: "UPDATE_PARAMS", params: strategyParams }));
+                    socketRef.current.send(JSON.stringify({ type: "UPDATE_LATENCY", latency: latency }));
+                    socketRef.current.send(JSON.stringify({ type: "UPDATE_SLIPPAGE", slippage: slippage }));
+                    socketRef.current.send(JSON.stringify({ type: "UPDATE_PARTICIPATION", rate: volumeParticipation / 100.0 }));
                 }
             }, 100);
         } else {
             socketRef.current.send(JSON.stringify({ action: "START", symbol }));
             socketRef.current.send(JSON.stringify({ type: "UPDATE_SPEED", speed: playbackSpeed }));
             socketRef.current.send(JSON.stringify({ type: "UPDATE_PARAMS", params: strategyParams }));
+            socketRef.current.send(JSON.stringify({ type: "UPDATE_LATENCY", latency: latency }));
+            socketRef.current.send(JSON.stringify({ type: "UPDATE_SLIPPAGE", slippage: slippage }));
+            socketRef.current.send(JSON.stringify({ type: "UPDATE_PARTICIPATION", rate: volumeParticipation / 100.0 }));
         }
     };
 
@@ -241,6 +287,93 @@ const EventDrivenSimulator: React.FC = () => {
                             >
                                 ⚡ APPLY LIVE
                             </Button>
+                        </div>
+
+                        {/* Latency Control - NEW */}
+                        <div>
+                            <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2 flex items-center gap-2">
+                                <Wifi size={16} />
+                                Network Latency: {latency} ms
+                            </label>
+                            <input
+                                type="range"
+                                min="0"
+                                max="2000"
+                                step="50"
+                                value={latency}
+                                onChange={(e) => setLatency(parseInt(e.target.value))}
+                                className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-brand-primary"
+                            />
+                            <div className="flex justify-between text-xs text-slate-500 mt-1">
+                                <span>0ms (Instant)</span>
+                                <span>2000ms (Very Slow)</span>
+                            </div>
+                        </div>
+
+                        {/* Slippage Control - NEW */}
+                        <div>
+                            <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2 flex items-center gap-2">
+                                <AlertTriangle size={16} />
+                                Slippage: {slippage}%
+                            </label>
+                            <input
+                                type="number"
+                                min="0"
+                                max="20"
+                                step="0.1"
+                                value={slippage}
+                                onChange={(e) => setSlippage(parseFloat(e.target.value))}
+                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-primary outline-none"
+                            />
+                            <p className="text-xs text-slate-500 mt-1">Simulates execution volatility (Price drift + Noise)</p>
+                        </div>
+
+                        {/* Commission Config - NEW */}
+                        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                            <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
+                                <DollarSign size={16} /> Commission Config
+                            </h3>
+                            <div className="grid grid-cols-2 gap-3">
+                                <div>
+                                    <label className="text-xs text-slate-500">Maker Fee (%)</label>
+                                    <input
+                                        type="number" step="0.01"
+                                        value={makerFee}
+                                        onChange={(e) => setMakerFee(parseFloat(e.target.value))}
+                                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm"
+                                    />
+                                </div>
+                                <div>
+                                    <label className="text-xs text-slate-500">Taker Fee (%)</label>
+                                    <input
+                                        type="number" step="0.01"
+                                        value={takerFee}
+                                        onChange={(e) => setTakerFee(parseFloat(e.target.value))}
+                                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm"
+                                    />
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Volume Participation - NEW */}
+                        <div>
+                            <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-2 flex items-center gap-2">
+                                <BarChart2 size={16} />
+                                Volume Participation: {volumeParticipation}%
+                            </label>
+                            <input
+                                type="range"
+                                min="1"
+                                max="100"
+                                step="1"
+                                value={volumeParticipation}
+                                onChange={(e) => setVolumeParticipation(parseInt(e.target.value))}
+                                className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-brand-primary"
+                            />
+                            <div className="flex justify-between text-xs text-slate-500 mt-1">
+                                <span>1% (Drip Feed)</span>
+                                <span>100% (Full Fill)</span>
+                            </div>
                         </div>
 
                         {/* Speed Control */}
