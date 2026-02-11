@@ -638,6 +638,7 @@ export enum AppView {
   NURAL_CORE = 'Neural Architecture',
   EDUCATION_HUB = 'Education Hub',
   TASK_MANAGER = 'Task Manager',
+  EVENT_DRIVEN = 'Event Driven Simulator',
   SETTINGS = 'Settings',
 
   // OmniTrade Views

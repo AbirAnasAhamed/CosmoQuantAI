@@ -41,6 +41,7 @@ import Backtester from './Backtester';
 import BotLab from './BotLab';
 import ArbitrageBot from './ArbitrageBot';
 import GridBot from './GridBot';
+import EventDrivenSimulator from './EventDrivenSimulator';
 import PanicButton from '@/components/common/PanicButton';
 import { useSettings } from '@/context/SettingsContext';
 
@@ -136,6 +137,7 @@ const Sidebar: React.FC<{
             title: 'Core Engines',
             items: [
                 { view: AppView.BACKTESTER, icon: <BacktesterIcon />, label: 'Backtester' },
+                { view: AppView.EVENT_DRIVEN, icon: <Activity />, label: 'Live Simulation' },
                 { view: AppView.ARBITRAGE_BOT, icon: <Bot />, label: 'Arbitrage Bot' },
                 { view: AppView.GRID_BOT, icon: <Layers />, label: 'Grid Bot' },
                 { view: AppView.BOT_LAB, icon: <BotLabIcon />, label: 'Bot Laboratory' },
@@ -310,6 +312,7 @@ const AppDashboard: React.FC<AppDashboardProps> = ({ currentView, onNavigate, on
 
             case AppView.PORTFOLIO: return <PortfolioTracker />;
             case AppView.BACKTESTER: return <Backtester />;
+            case AppView.EVENT_DRIVEN: return <EventDrivenSimulator />;
             case AppView.ARBITRAGE_BOT: return <ArbitrageBot />;
             case AppView.GRID_BOT: return <GridBot />;
             case AppView.BOT_LAB: return <BotLab />;

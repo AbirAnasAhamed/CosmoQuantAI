@@ -26,3 +26,6 @@ from app.api.v1.endpoints import whale_alerts
 api_router.include_router(whale_alerts.router, prefix="/whale-alerts", tags=["whale-alerts"])
 api_router.include_router(on_chain.router, prefix="/on-chain", tags=["on-chain"])
 api_router.include_router(market_discovery.router, prefix="/market", tags=["market-discovery"])
+
+from app.api.v1.endpoints import event_driven
+api_router.include_router(event_driven.router, prefix="/simulation", tags=["event-driven"])
