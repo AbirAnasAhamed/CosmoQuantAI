@@ -39,8 +39,11 @@ const SimulationChart = forwardRef<SimulationChartHandle, SimulationChartProps>(
         },
         setMarkers: (markers: SeriesMarker<Time>[]) => {
             if (seriesRef.current) {
-                // Cast to any to avoid strict type issues with setMarkers in some versions
-                (seriesRef.current as any).setMarkers(markers);
+                // @ts-ignore - setMarkers exists on CandlestickSeries but types availability varies by version
+                if (typeof seriesRef.current.setMarkers === 'function') {
+                    // @ts-ignore
+                    seriesRef.current.setMarkers(markers);
+                }
             }
         },
         reset: () => {

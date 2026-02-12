@@ -4,6 +4,7 @@ from datetime import datetime
 from dateutil import parser
 import logging
 import urllib.parse
+import requests
 import praw # type: ignore
 from app.core.config import settings
 
@@ -14,6 +15,7 @@ class NewsScraper:
     COINTELEGRAPH_RSS = "https://cointelegraph.com/rss"
     COINDESK_RSS = "https://www.coindesk.com/arc/outboundfeeds/rss/"
     CRYPTOPANIC_RSS = "https://cryptopanic.com/news/rss/"
+    CRYPTOPANIC_API_URL = "https://cryptopanic.com/api/v1/posts/?auth_token={token}&public=true"
     GOOGLE_NEWS_RSS_TEMPLATE = "https://news.google.com/rss/search?q={query}+when:{period}&hl={lang}-{country}&gl={country}&ceid={country}:{lang}"
 
     def __init__(self):
@@ -123,6 +125,65 @@ class NewsScraper:
         # Re-use the generic fetcher, though Google News structure is standard RSS mostly.
         return self.fetch_rss_feed(url, "Google News")
 
+    def fetch_cryptopanic_api(self) -> list[dict]:
+        """
+        Fetches news from CryptoPanic API.
+        """
+        api_key = settings.CRYPTOPANIC_API_KEY
+        if not api_key:
+            logger.warning("CryptoPanic API key not found. Skipping API fetch.")
+            return []
+
+        url = self.CRYPTOPANIC_API_URL.format(token=api_key)
+        news_items = []
+        
+        # Add basic User-Agent to avoid Cloudflare blocking API calls
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+        }
+
+        try:
+            response = requests.get(url, headers=headers, timeout=10)
+            if response.status_code != 200:
+                logger.error(f"CryptoPanic API returned status {response.status_code}: {response.text[:200]}")
+                return []
+            
+            try:
+                data = response.json()
+            except ValueError: # requests.json() raises ValueError (or JSONDecodeError)
+                logger.error(f"CryptoPanic API returned non-JSON response (likely Cloudflare blocking): {response.text[:200]}")
+                return []
+            
+            if 'results' in data:
+                for post in data['results']:
+                    # Normalize
+                    title = post.get('title', 'No Title')
+                    # CryptoPanic returns 'url' which is the source url (usually).
+                    # Sometimes it might be a bit different, but 'url' is best bet.
+                    link = post.get('url', '') 
+                    
+                    published_at = datetime.now()
+                    if 'published_at' in post:
+                        try:
+                            published_at = parser.parse(post['published_at'])
+                        except:
+                            pass
+                            
+                    item = {
+                        'title': title,
+                        'url': link,
+                        'source': 'CryptoPanic',
+                        'published_at': published_at
+                    }
+                    news_items.append(item)
+            else:
+                logger.warning(f"CryptoPanic API returned unexpected format: {list(data.keys())}")
+
+        except Exception as e:
+            logger.error(f"Error fetching from CryptoPanic API: {e}")
+            
+        return news_items
+
     async def get_crypto_news(self) -> list[dict]:
         """
         Aggregates news from all sources asynchronously.
@@ -142,7 +203,10 @@ class NewsScraper:
         tasks.append(asyncio.to_thread(self.fetch_rss_feed, self.COINDESK_RSS, "CoinDesk"))
         
         # 4. CryptoPanic
-        tasks.append(asyncio.to_thread(self.fetch_rss_feed, self.CRYPTOPANIC_RSS, "CryptoPanic"))
+        if settings.CRYPTOPANIC_API_KEY:
+             tasks.append(asyncio.to_thread(self.fetch_cryptopanic_api))
+        else:
+             tasks.append(asyncio.to_thread(self.fetch_rss_feed, self.CRYPTOPANIC_RSS, "CryptoPanic"))
         
         # 5. Reddit
         tasks.append(asyncio.to_thread(self.fetch_reddit_posts, 10))

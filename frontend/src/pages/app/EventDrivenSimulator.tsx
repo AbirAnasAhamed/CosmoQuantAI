@@ -3,6 +3,7 @@ import { Activity, Play, Square, Terminal, TrendingUp, DollarSign, Clock, FastFo
 import Button from '@/components/common/Button';
 import Card from '@/components/common/Card';
 import SimulationChart, { SimulationChartHandle } from '@/components/features/simulation/SimulationChart';
+import EquityCurve from '@/components/features/simulation/EquityCurve';
 import { CandlestickData, Time, SeriesMarker } from 'lightweight-charts';
 
 interface LogMessage {
@@ -16,6 +17,7 @@ const EventDrivenSimulator: React.FC = () => {
     const [symbol, setSymbol] = useState('BTC/USDT');
     const [logs, setLogs] = useState<LogMessage[]>([]);
     const [marketData, setMarketData] = useState<CandlestickData[]>([]);
+    const [equityData, setEquityData] = useState<{ time: string; value: number; timestamp: number }[]>([]);
     const [markers, setMarkers] = useState<SeriesMarker<Time>[]>([]);
     const [pnl, setPnl] = useState(0);
     const [holdings, setHoldings] = useState(0);
@@ -138,6 +140,18 @@ const EventDrivenSimulator: React.FC = () => {
                     setHoldings(h => h - data.quantity);
                     setPnl(p => p - data.commission);
                 }
+            } else if (data.type === "EQUITY_UPDATE") {
+                setEquityData(prev => {
+                    const newPoint = {
+                        time: data.time,
+                        value: data.value,
+                        timestamp: new Date(data.time).getTime()
+                    };
+                    // Keep last 100 points
+                    const updated = [...prev, newPoint];
+                    if (updated.length > 100) return updated.slice(updated.length - 100);
+                    return updated;
+                });
             } else if (data.type === "SYSTEM") {
                 addLog(data.message, 'INFO');
             } else if (data.type === "PAUSED_STATE") {
@@ -205,7 +219,9 @@ const EventDrivenSimulator: React.FC = () => {
         setIsRunning(true);
         setLogs([]);
         setLogs([]);
+        setLogs([]);
         setMarketData([]);
+        setEquityData([]);
         setMarkers([]);
         // Reset chart
         if (chartRef.current) {
@@ -559,6 +575,11 @@ const EventDrivenSimulator: React.FC = () => {
                             }}
                         />
                     </div>
+                </Card>
+
+                {/* Equity Curve */}
+                <Card className="h-1/4 bg-white dark:bg-[#1e293b] p-4 relative overflow-hidden flex flex-col">
+                    <EquityCurve data={equityData} />
                 </Card>
 
                 {/* System Terminal */}

@@ -3,6 +3,7 @@ import queue
 from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Callable, Any
 from .events import Event, EventType, MarketEvent, SignalEvent, OrderEvent, FillEvent
+from .portfolio import Portfolio
 from fastapi import WebSocket
 
 class DataHandler:
@@ -135,6 +136,9 @@ class EventDrivenEngine:
         self.volume_participation_rate: float = 1.0 # 1.0 = 100% of volume
         self.current_market_event: Optional[MarketEvent] = None
         self.waiting_for_volume_orders: List[OrderEvent] = []
+
+        # Portfolio Management
+        self.portfolio = Portfolio(initial_cash=10000.0)
 
     def set_speed(self, speed: float):
         """
@@ -346,6 +350,14 @@ class EventDrivenEngine:
             "volume": event.volume,
             "time": event.date.isoformat()
         })
+
+        # 1.5 Calculate and Broadcast Equity
+        current_equity = self.portfolio.calculate_total_equity({event.symbol: event.close})
+        await self._send({
+            "type": "EQUITY_UPDATE",
+            "value": current_equity,
+            "time": event.date.isoformat()
+        })
             
         # 2. Simulate Strategy interacting via Strategy Class
         signal = self.strategy.calculate_signal(event)
@@ -483,8 +495,11 @@ class EventDrivenEngine:
                  "type": "LOG",
                  "message": f"Partial Fill: {fill_qty} filled, {remaining_qty} remaining (Limit: {self.volume_participation_rate*100:.1f}% of Vol {current_volume})"
              })
-
+            
     async def handle_fill_event(self, event: FillEvent):
+        # Update Portfolio
+        self.portfolio.update_fill(event)
+        
         await self._send({
             "type": "FILL",
             "symbol": event.symbol,
