@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Optional, Callable, Any
 from .events import Event, EventType, MarketEvent, SignalEvent, OrderEvent, FillEvent
 from .portfolio import Portfolio
+from .market_maker import OrderBookGenerator
 from fastapi import WebSocket
 
 class DataHandler:
@@ -356,6 +357,15 @@ class EventDrivenEngine:
         await self._send({
             "type": "EQUITY_UPDATE",
             "value": current_equity,
+            "time": event.date.isoformat()
+        })
+            
+        # 1.6 Generate and Broadcast Order Book Snapshot
+        order_book = OrderBookGenerator.generate_snapshot(event.close)
+        await self._send({
+            "type": "ORDER_BOOK",
+            "bids": order_book["bids"],
+            "asks": order_book["asks"],
             "time": event.date.isoformat()
         })
             

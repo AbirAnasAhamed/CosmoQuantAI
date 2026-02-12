@@ -4,6 +4,7 @@ import Button from '@/components/common/Button';
 import Card from '@/components/common/Card';
 import SimulationChart, { SimulationChartHandle } from '@/components/features/simulation/SimulationChart';
 import EquityCurve from '@/components/features/simulation/EquityCurve';
+import OrderBookWidget from '@/components/features/simulation/OrderBookWidget';
 import { CandlestickData, Time, SeriesMarker } from 'lightweight-charts';
 
 interface LogMessage {
@@ -22,6 +23,8 @@ const EventDrivenSimulator: React.FC = () => {
     const [pnl, setPnl] = useState(0);
     const [holdings, setHoldings] = useState(0);
     const [price, setPrice] = useState(0);
+    const [bids, setBids] = useState<number[][]>([]);
+    const [asks, setAsks] = useState<number[][]>([]);
     const [playbackSpeed, setPlaybackSpeed] = useState<number>(0); // 0 = Max
     const [isPaused, setIsPaused] = useState(false);
     const [latency, setLatency] = useState<number>(0); // Network Latency in ms
@@ -109,6 +112,9 @@ const EventDrivenSimulator: React.FC = () => {
                 if (chartRef.current) {
                     chartRef.current.updateCandle(candle);
                 }
+            } else if (data.type === "ORDER_BOOK") {
+                setBids(data.bids);
+                setAsks(data.asks);
             } else if (data.type === "LOG") {
                 addLog(data.message, 'INFO');
             } else if (data.type === "FILL") {
@@ -577,8 +583,21 @@ const EventDrivenSimulator: React.FC = () => {
                     </div>
                 </Card>
 
+                {/* Order Book - NEW */}
+                <Card className="h-1/4 bg-white dark:bg-[#1e293b] p-0 relative overflow-hidden flex flex-col">
+                    <div className="absolute top-2 left-2 z-10 bg-slate-900/80 px-2 py-1 rounded text-xs text-white border border-slate-700">
+                        Order Book (Simulated)
+                    </div>
+                    <OrderBookWidget
+                        bids={bids}
+                        asks={asks}
+                        currentPrice={price}
+                        symbol={symbol}
+                    />
+                </Card>
+
                 {/* Equity Curve */}
-                <Card className="h-1/4 bg-white dark:bg-[#1e293b] p-4 relative overflow-hidden flex flex-col">
+                <Card className="h-1/6 bg-white dark:bg-[#1e293b] p-4 relative overflow-hidden flex flex-col">
                     <EquityCurve data={equityData} />
                 </Card>
 
