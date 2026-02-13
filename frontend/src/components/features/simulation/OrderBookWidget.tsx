@@ -1,5 +1,4 @@
 import React, { useMemo } from 'react';
-import { useAutoAnimate } from '@formkit/auto-animate/react';
 
 interface OrderBookLevel {
     price: number;
@@ -16,7 +15,6 @@ interface OrderBookWidgetProps {
 }
 
 const OrderBookWidget: React.FC<OrderBookWidgetProps> = ({ bids, asks, currentPrice, symbol }) => {
-    const [listRef] = useAutoAnimate<HTMLDivElement>();
 
     const processedBids = useMemo(() => {
         let total = 0;
@@ -63,7 +61,7 @@ const OrderBookWidget: React.FC<OrderBookWidgetProps> = ({ bids, asks, currentPr
             </div>
 
             {/* Asks (Red) - Top Half */}
-            <div className="flex-1 overflow-hidden flex flex-col justify-end" ref={listRef}>
+            <div className="flex-1 overflow-hidden flex flex-col justify-end">
                 {processedAsks.map((level, i) => (
                     <div key={`ask-${level.price}`} className="flex justify-between items-center px-2 py-0.5 relative group hover:bg-slate-800 cursor-pointer transition-colors">
                         <span className="text-red-500 z-10">{level.price.toFixed(2)}</span>
@@ -84,7 +82,7 @@ const OrderBookWidget: React.FC<OrderBookWidgetProps> = ({ bids, asks, currentPr
             </div>
 
             {/* Bids (Green) - Bottom Half */}
-            <div className="flex-1 overflow-hidden" ref={listRef}>
+            <div className="flex-1 overflow-hidden">
                 {processedBids.map((level, i) => (
                     <div key={`bid-${level.price}`} className="flex justify-between items-center px-2 py-0.5 relative group hover:bg-slate-800 cursor-pointer transition-colors">
                         <span className="text-green-500 z-10">{level.price.toFixed(2)}</span>

@@ -35,16 +35,46 @@ class NewsScraper:
 
     def fetch_rss_feed(self, url: str, source_name: str) -> list[dict]:
         """
-        Generic RSS fetcher and parser.
+        Generic RSS fetcher and parser with improved error handling and user-agent headers.
         Returns a list of dictionaries with normalized keys.
         """
         news_items = []
         try:
-            # feedparser is blocking, but we will run this method in a thread via get_crypto_news
-            feed = feedparser.parse(url)
+            # Use requests with headers to mimic a browser and avoid some basic bot protections
+            headers = {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+            }
             
+            response = requests.get(url, headers=headers, timeout=10)
+            
+            if response.status_code != 200:
+                logger.error(f"Failed to fetch RSS from {source_name} ({url}). Status: {response.status_code}")
+                return []
+
+            # content = response.content
+            # feedparser.parse can take a string or bytes.
+            feed = feedparser.parse(response.content)
+            
+            # check for bozo bit (malformed XML or other errors)
             if feed.bozo:
-                logger.warning(f"Feedparser reported issue with {source_name}: {feed.bozo_exception}")
+                excerpt = str(feed.bozo_exception)
+                # Check for common Cloudflare/HTML block signatures in the exception or feed
+                if "mismatched tag" in excerpt or "SAXParseException" in excerpt:
+                     # Identify if it's likely a Cloudflare block (HTML returned instead of XML)
+                     if b"<!DOCTYPE html>" in response.content or b"Cloudflare" in response.content:
+                         logger.warning(
+                             f"Feedparser reported 'mismatched tag' for {source_name}. "
+                             f"This likely means the RSS feed is blocked by Cloudflare and returning HTML. "
+                             f"If this is CryptoPanic, please ensure CRYPTOPANIC_API_KEY is set in your .env file."
+                         )
+                     else:
+                         logger.warning(f"Feedparser reported issue with {source_name}: {feed.bozo_exception}")
+                else:
+                    logger.warning(f"Feedparser reported issue with {source_name}: {feed.bozo_exception}")
+
+            if not feed.entries:
+                 logger.info(f"No entries found for {source_name}. It might be blocked or empty.")
 
             for entry in feed.entries[:10]: # Limit to 10 latest per source
                 # Normalization
@@ -64,9 +94,6 @@ class NewsScraper:
                      except:
                         pass
                 
-                # Ensure timezone aware if possible, or naive. 
-                # For simplicity in this scraper, we keep the object but might need standardization later.
-
                 item = {
                     'title': title,
                     'url': link,

@@ -1,26 +1,12 @@
-
-import React, { useState, useEffect, useRef, useMemo, useCallback, FormEvent } from 'react';
-import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, BarChart, Bar, Cell } from 'recharts';
+import React, { useState, useEffect, useRef, useCallback, FormEvent } from 'react';
+import { ResponsiveContainer, AreaChart, Area, Tooltip } from 'recharts';
+import { ReferenceLine } from 'recharts';
 import Card from '@/components/common/Card';
 import { useTheme } from '@/context/ThemeContext';
-import Button from '@/components/common/Button';
 import { ExpandIcon, CollapseIcon } from '@/constants';
+import { useLiquidationWebSocket, LiquidationEvent, CldData, AggregatedStats } from '../../hooks/useLiquidationWebSocket';
 
-interface LiquidationEvent {
-    id: number;
-    time: string;
-    type: 'Long' | 'Short';
-    amount: number;
-    price: number;
-    isNew?: boolean;
-    isWhale?: boolean;
-}
-
-interface CldData {
-    time: number;
-    value: number;
-}
-
+// --- ICONS ---
 const SearchIcon = () => (
     <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
         <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
@@ -29,8 +15,8 @@ const SearchIcon = () => (
 
 const SkullIcon = ({ className }: { className?: string }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="currentColor">
-        <path d="M12 2a7 7 0 0 0-7 7v1.53a4.004 4.004 0 0 0 .994 2.634L7.96 16H6a1 1 0 0 0 0 2h12a1 1 0 0 0 0-2h-1.96l1.966-2.836A4.004 4.004 0 0 0 19 10.53V9a7 7 0 0 0-7-7Zm-2.5 7a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z"/>
-        <path d="M8 20a1 1 0 0 0 0 2h8a1 1 0 0 0 0-2H8Z"/>
+        <path d="M12 2a7 7 0 0 0-7 7v1.53a4.004 4.004 0 0 0 .994 2.634L7.96 16H6a1 1 0 0 0 0 2h12a1 1 0 0 0 0-2h-1.96l1.966-2.836A4.004 4.004 0 0 0 19 10.53V9a7 7 0 0 0-7-7Zm-2.5 7a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Zm5 0a1.5 1.5 0 1 1 0-3 1.5 1.5 0 0 1 0 3Z" />
+        <path d="M8 20a1 1 0 0 0 0 2h8a1 1 0 0 0 0-2H8Z" />
     </svg>
 );
 
@@ -40,31 +26,18 @@ const FireIcon = ({ className }: { className?: string }) => (
     </svg>
 );
 
-const getBasePriceForSymbol = (symbol: string): number => {
-    const s = symbol.toUpperCase();
-    if (s.includes('ETH')) return 3500;
-    if (s.includes('SOL')) return 170;
-    if (s.includes('ADA')) return 0.45;
-    if (s.includes('BTC')) return 68500;
-    let hash = 0;
-    for (let i = 0; i < s.length; i++) {
-        hash = s.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return (Math.abs(hash) % 1000) + 10;
-};
-
 // Custom component for the "Kill Feed" items
 const KillFeedItem: React.FC<{ event: LiquidationEvent }> = ({ event }) => {
     const isLong = event.type === 'Long';
     const bgColor = isLong ? 'bg-rose-500/10 border-rose-500/20' : 'bg-emerald-500/10 border-emerald-500/20';
     const textColor = isLong ? 'text-rose-500' : 'text-emerald-500';
     const label = isLong ? 'Long Rekt' : 'Short Rekt';
-    
+
     return (
         <div className={`relative flex items-center justify-between p-3 mb-2 rounded-lg border-l-4 ${isLong ? 'border-l-rose-500' : 'border-l-emerald-500'} ${bgColor} ${event.isNew ? 'animate-fade-in-right shadow-lg' : ''}`}>
             {/* Flash effect overlay */}
             {event.isNew && <div className={`absolute inset-0 opacity-20 ${isLong ? 'bg-rose-500' : 'bg-emerald-500'} animate-ping rounded-lg`}></div>}
-            
+
             <div className="flex items-center gap-3 relative z-10">
                 <div className={`p-1.5 rounded-full ${isLong ? 'bg-rose-500/20' : 'bg-emerald-500/20'}`}>
                     {event.isWhale ? <SkullIcon className={`w-5 h-5 ${textColor}`} /> : <FireIcon className={`w-4 h-4 ${textColor}`} />}
@@ -79,10 +52,10 @@ const KillFeedItem: React.FC<{ event: LiquidationEvent }> = ({ event }) => {
                     </div>
                 </div>
             </div>
-            
+
             <div className="text-right relative z-10">
                 <div className={`font-bold font-mono ${event.isWhale ? 'text-lg' : 'text-sm'} ${textColor}`}>
-                    ${(event.amount/1000).toFixed(1)}K
+                    ${(event.amount).toLocaleString(undefined, { maximumFractionDigits: 0 })}
                 </div>
                 {event.isWhale && <span className="text-[10px] bg-yellow-500/20 text-yellow-500 px-1 rounded uppercase font-bold border border-yellow-500/30">Whale</span>}
             </div>
@@ -98,11 +71,23 @@ const LiquidationMap: React.FC = () => {
 
     const [activePair, setActivePair] = useState('BTC/USDT');
     const [symbolInput, setSymbolInput] = useState('BTC/USDT');
-    const [currentPrice, setCurrentPrice] = useState(68500);
-    const [liveFeed, setLiveFeed] = useState<LiquidationEvent[]>([]);
-    const [cldData, setCldData] = useState<CldData[]>([]);
-    const [aggregatedStats, setAggregatedStats] = useState({ longLiqs: 0, shortLiqs: 0, totalVol: 0 });
 
+    // --- REAL DATA INTEGRATION ---
+    const {
+        liveFeed,
+        aggregatedStats,
+        cldData,
+        currentPrice: wsPrice,
+        priceUpdateStatus,
+        isConnected
+    } = useLiquidationWebSocket(activePair);
+
+    // Initial fallback price logic removed in favor of real data or waiting for it.
+    // However, if we want to show a base price before first trade, we can keep using a static value or just show 'Waiting...'.
+    // Better UX: Show '---' until data arrives or rely on Chart to show visual price.
+    // But since the chart shows price, we can just show '---' in the Oracle Price card initially.
+
+    // Resize & Layout State
     const [isResizing, setIsResizing] = useState(false);
     const [chartWidth, setChartWidth] = useState(70);
     const [rightPanelTab, setRightPanelTab] = useState<'feed' | 'cld'>('feed');
@@ -110,13 +95,10 @@ const LiquidationMap: React.FC = () => {
 
     const [isChartFullScreen, setIsChartFullScreen] = useState(false);
     const [widgetKey, setWidgetKey] = useState(Date.now());
-    
-    const [priceUpdateStatus, setPriceUpdateStatus] = useState<'up' | 'down' | 'none'>('none');
+
     const [highlightedLevels, setHighlightedLevels] = useState<number[]>([]);
     const [highlightLevelInput, setHighlightLevelInput] = useState('');
 
-    // ... (Existing Resizing & FullScreen Handlers remain same for functionality) ...
-    // Keeping standard logic for brevity, assume handlers from previous version are here.
     const toggleFullScreen = () => { setIsChartFullScreen(prev => !prev); setWidgetKey(Date.now()); };
     useEffect(() => { document.body.classList.toggle('body-no-scroll', isChartFullScreen); }, [isChartFullScreen]);
     const handleMouseDown = useCallback((e: React.MouseEvent) => { e.preventDefault(); setIsResizing(true); }, []);
@@ -133,69 +115,15 @@ const LiquidationMap: React.FC = () => {
         return () => { document.removeEventListener('mousemove', handleMouseMove); document.removeEventListener('mouseup', handleMouseUp); };
     }, [isResizing, handleMouseMove, handleMouseUp]);
 
-    // ... (Data Generation Logic) ...
-    useEffect(() => {
-        const newPrice = getBasePriceForSymbol(activePair);
-        setCurrentPrice(newPrice);
-        setLiveFeed([]);
-        setCldData([]);
-        setAggregatedStats({ longLiqs: 0, shortLiqs: 0, totalVol: 0 });
-        setWidgetKey(Date.now());
-    }, [activePair]);
-
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setCurrentPrice(prevPrice => {
-                const basePrice = getBasePriceForSymbol(activePair);
-                const priceMultiplier = basePrice * 0.001;
-                const priceChange = (Math.random() - 0.5) * priceMultiplier;
-                const newPrice = prevPrice + priceChange;
-
-                setPriceUpdateStatus(priceChange > 0 ? 'up' : 'down');
-                setTimeout(() => setPriceUpdateStatus('none'), 500);
-
-                if (Math.random() > 0.5) {
-                    const isLong = Math.random() > 0.5;
-                    const amount = Math.random() * 100000 + 10000;
-                    const newEvent: LiquidationEvent = {
-                        id: Date.now(),
-                        time: new Date().toLocaleTimeString(),
-                        type: isLong ? 'Long' : 'Short',
-                        amount: amount,
-                        price: newPrice,
-                        isNew: true,
-                        isWhale: amount > 75000,
-                    };
-                
-                    setLiveFeed(feed => [newEvent, ...feed.map(f => ({...f, isNew: false}))].slice(0, 30));
-                    setAggregatedStats(prev => ({
-                        longLiqs: prev.longLiqs + (isLong ? amount : 0),
-                        shortLiqs: prev.shortLiqs + (!isLong ? amount : 0),
-                        totalVol: prev.totalVol + amount
-                    }));
-        
-                    setCldData(data => {
-                        const lastValue = data[data.length - 1]?.value || 0;
-                        // Long liq = sell pressure (-), Short liq = buy pressure (+)
-                        const change = isLong ? -amount : amount;
-                        const newValue = lastValue + change;
-                        return [...data.slice(-99), { time: Date.now(), value: newValue }];
-                    });
-                }
-                return newPrice;
-            });
-        }, 1500);
-        return () => clearInterval(interval);
-    }, [activePair]);
-
     // TradingView Widget
     useEffect(() => {
         const containerId = isChartFullScreen ? `tradingview_fullscreen_liquidation_chart_${widgetKey}` : `tradingview_liquidation_chart_${widgetKey}`;
         const createWidget = () => {
             const container = document.getElementById(containerId);
             if (!container) return;
-            if (widgetRef.current) { try { widgetRef.current.remove(); } catch(e) {} widgetRef.current = null; }
-            
+            if (widgetRef.current) { try { widgetRef.current.remove(); } catch (e) { } widgetRef.current = null; }
+
+            // @ts-ignore
             const widget = new window.TradingView.widget({
                 symbol: `BINANCE:${activePair.replace('/', '')}`,
                 interval: '15',
@@ -215,7 +143,7 @@ const LiquidationMap: React.FC = () => {
         };
         const checkLibraryAndCreate = () => { if (typeof window.TradingView !== 'undefined' && window.TradingView.widget) createWidget(); else setTimeout(checkLibraryAndCreate, 100); }
         checkLibraryAndCreate();
-        return () => { if (widgetRef.current) { try { widgetRef.current.remove(); widgetRef.current = null; chartApiRef.current = null; } catch(e) {} } };
+        return () => { if (widgetRef.current) { try { widgetRef.current.remove(); widgetRef.current = null; chartApiRef.current = null; } catch (e) { } } };
     }, [activePair, theme, widgetKey, isChartFullScreen]);
 
     // Drawing Lines
@@ -230,10 +158,10 @@ const LiquidationMap: React.FC = () => {
         const level = parseFloat(highlightLevelInput);
         if (!isNaN(level)) { handleAddHighlight(level); setHighlightLevelInput(''); }
     };
-    
+
     useEffect(() => {
         if (chartApiRef.current) {
-            drawnLinesRef.current.forEach(line => { try { chartApiRef.current.removeEntity(line.id); } catch(e) {} });
+            drawnLinesRef.current.forEach(line => { try { chartApiRef.current.removeEntity(line.id); } catch (e) { } });
             drawnLinesRef.current = [];
             highlightedLevels.forEach(level => {
                 try {
@@ -241,7 +169,7 @@ const LiquidationMap: React.FC = () => {
                         price: level, text: `$${level.toLocaleString()}`, lineStyle: 2, lineColor: '#FBBF24', textColor: '#000000', backgroundColor: '#FBBF24', showLabel: true
                     });
                     drawnLinesRef.current.push(line);
-                } catch(e) {}
+                } catch (e) { }
             });
         }
     }, [highlightedLevels, chartApiRef.current]);
@@ -257,7 +185,7 @@ const LiquidationMap: React.FC = () => {
 
     return (
         <div className="flex flex-col h-full gap-4 overflow-hidden">
-            
+
             {/* High-Tech HUD */}
             <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-4 gap-4 staggered-fade-in">
                 {/* Search & Price */}
@@ -273,9 +201,12 @@ const LiquidationMap: React.FC = () => {
                         <button type="submit" className="text-brand-primary hover:text-white"><SearchIcon /></button>
                     </form>
                     <div className="relative z-10">
-                        <p className="text-[10px] text-gray-400 uppercase tracking-wider">Oracle Price</p>
+                        <div className="flex justify-between items-center">
+                            <p className="text-[10px] text-gray-400 uppercase tracking-wider">Oracle Price</p>
+                            {!isConnected && <span className="text-[10px] text-red-500 animate-pulse">DISCONNECTED</span>}
+                        </div>
                         <p className={`text-2xl font-mono font-bold transition-colors duration-300 ${priceUpdateStatus === 'up' ? 'text-emerald-400' : priceUpdateStatus === 'down' ? 'text-rose-400' : 'text-white'}`}>
-                            ${currentPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                            {wsPrice > 0 ? `$${wsPrice.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : 'Waiting for Data...'}
                         </p>
                     </div>
                 </Card>
@@ -283,11 +214,11 @@ const LiquidationMap: React.FC = () => {
                 {/* Stats: Total Vol */}
                 <Card className="flex flex-col justify-center !p-4">
                     <div className="flex items-center gap-3">
-                         <div className="p-2 bg-red-500/10 rounded-lg text-red-500"><FireIcon className="w-5 h-5" /></div>
-                         <div>
-                             <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Rekt (Session)</p>
-                             <p className="text-xl font-bold text-slate-900 dark:text-white">${(aggregatedStats.totalVol/1000000).toFixed(2)}M</p>
-                         </div>
+                        <div className="p-2 bg-red-500/10 rounded-lg text-red-500"><FireIcon className="w-5 h-5" /></div>
+                        <div>
+                            <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider">Total Rekt (Session)</p>
+                            <p className="text-xl font-bold text-slate-900 dark:text-white">${(aggregatedStats.totalVol / 1000).toLocaleString(undefined, { maximumFractionDigits: 0 })}k</p>
+                        </div>
                     </div>
                 </Card>
 
@@ -296,11 +227,11 @@ const LiquidationMap: React.FC = () => {
                     <div className="flex justify-between items-end mb-2">
                         <div>
                             <p className="text-xs font-bold text-rose-500 uppercase">Longs Rekt</p>
-                            <p className="text-lg font-mono text-slate-900 dark:text-white">${(aggregatedStats.longLiqs/1000).toFixed(0)}k</p>
+                            <p className="text-lg font-mono text-slate-900 dark:text-white">${(aggregatedStats.longLiqs / 1000).toLocaleString(undefined, { maximumFractionDigits: 0 })}k</p>
                         </div>
                         <div className="text-right">
                             <p className="text-xs font-bold text-emerald-500 uppercase">Shorts Rekt</p>
-                            <p className="text-lg font-mono text-slate-900 dark:text-white">${(aggregatedStats.shortLiqs/1000).toFixed(0)}k</p>
+                            <p className="text-lg font-mono text-slate-900 dark:text-white">${(aggregatedStats.shortLiqs / 1000).toLocaleString(undefined, { maximumFractionDigits: 0 })}k</p>
                         </div>
                     </div>
                     {/* The Ratio Bar */}
@@ -314,22 +245,22 @@ const LiquidationMap: React.FC = () => {
             </div>
 
             {/* Main Content Area */}
-            <div ref={containerRef} className="flex-1 flex gap-3 relative min-h-0 staggered-fade-in" style={{animationDelay: '100ms'}}>
-                 {isResizing && <div className="absolute inset-0 z-50 cursor-col-resize" />}
-                
+            <div ref={containerRef} className="flex-1 flex gap-3 relative min-h-0 staggered-fade-in" style={{ animationDelay: '100ms' }}>
+                {isResizing && <div className="absolute inset-0 z-50 cursor-col-resize" />}
+
                 {/* Left: Chart */}
                 <div className="h-full flex flex-col transition-all duration-75" style={{ width: `${chartWidth}%` }}>
                     <Card className="flex-1 min-h-0 relative p-0 overflow-hidden border-0 shadow-xl bg-white dark:bg-brand-dark">
                         <div id={`tradingview_liquidation_chart_${widgetKey}`} className="w-full h-full" />
-                        
+
                         {/* Floating Toolbar for Highlights */}
                         <div className="absolute bottom-4 left-4 right-4 z-10">
                             <div className="bg-white/90 dark:bg-brand-darkest/90 backdrop-blur-md border border-gray-200 dark:border-brand-border-dark rounded-xl p-2 flex items-center gap-3 shadow-lg max-w-2xl mx-auto">
                                 <span className="text-xs font-bold text-gray-500 uppercase px-2">Liquidation Levels</span>
                                 <div className="h-4 w-px bg-gray-300 dark:bg-gray-700"></div>
                                 <form onSubmit={handleHighlightSubmit} className="flex gap-2">
-                                    <input 
-                                        type="number" 
+                                    <input
+                                        type="number"
                                         value={highlightLevelInput}
                                         onChange={(e) => setHighlightLevelInput(e.target.value)}
                                         placeholder="Add Price Level..."
@@ -355,7 +286,7 @@ const LiquidationMap: React.FC = () => {
                 </div>
 
                 {/* Dragger */}
-                <div 
+                <div
                     className="w-1.5 cursor-col-resize flex items-center justify-center group flex-shrink-0 hover:scale-x-150 transition-transform"
                     onMouseDown={handleMouseDown}
                 >
@@ -381,7 +312,9 @@ const LiquidationMap: React.FC = () => {
                                     {liveFeed.length === 0 && (
                                         <div className="h-full flex flex-col items-center justify-center text-gray-400 space-y-2">
                                             <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-brand-primary"></div>
-                                            <span className="text-xs uppercase tracking-widest">Scanning Network...</span>
+                                            <span className="text-xs uppercase tracking-widest">
+                                                {isConnected ? `Scanning for ${activePair} Liquidations...` : 'Connecting...'}
+                                            </span>
                                         </div>
                                     )}
                                     {liveFeed.map(e => (
@@ -396,22 +329,22 @@ const LiquidationMap: React.FC = () => {
                                             <AreaChart data={cldData}>
                                                 <defs>
                                                     <linearGradient id="cldGradient" x1="0" y1="0" x2="0" y2="1">
-                                                        <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.3}/>
-                                                        <stop offset="95%" stopColor="#F43F5E" stopOpacity={0}/>
+                                                        <stop offset="5%" stopColor="#F43F5E" stopOpacity={0.3} />
+                                                        <stop offset="95%" stopColor="#F43F5E" stopOpacity={0} />
                                                     </linearGradient>
                                                 </defs>
-                                                <Tooltip 
-                                                    contentStyle={theme === 'dark' ? { backgroundColor: '#1E293B', border: '1px solid #334155' } : {}} 
-                                                    formatter={(v: number) => [`$${(v/1000).toFixed(0)}k`, 'Delta']}
+                                                <Tooltip
+                                                    contentStyle={theme === 'dark' ? { backgroundColor: '#1E293B', border: '1px solid #334155' } : {}}
+                                                    formatter={(v: number) => [`$${(v).toLocaleString()}`, 'Delta']}
                                                     labelFormatter={() => ''}
                                                 />
                                                 <ReferenceLine y={0} stroke="#666" strokeDasharray="3 3" />
-                                                <Area 
-                                                    type="monotone" 
-                                                    dataKey="value" 
-                                                    stroke="#F43F5E" 
-                                                    strokeWidth={2} 
-                                                    fill="url(#cldGradient)" 
+                                                <Area
+                                                    type="monotone"
+                                                    dataKey="value"
+                                                    stroke="#F43F5E"
+                                                    strokeWidth={2}
+                                                    fill="url(#cldGradient)"
                                                     isAnimationActive={false}
                                                 />
                                             </AreaChart>
@@ -429,7 +362,7 @@ const LiquidationMap: React.FC = () => {
             </div>
 
             {/* Fullscreen Chart Portal */}
-             {isChartFullScreen && (
+            {isChartFullScreen && (
                 <div className="fixed inset-0 z-[100] bg-white dark:bg-brand-darkest p-0 animate-modal-fade-in">
                     <div id={`tradingview_fullscreen_liquidation_chart_${widgetKey}`} className="w-full h-full" />
                     <button onClick={toggleFullScreen} className="absolute top-4 right-4 z-20 p-2 bg-brand-darkest/50 backdrop-blur-md rounded-lg text-white hover:bg-brand-darkest transition-colors">
@@ -441,8 +374,4 @@ const LiquidationMap: React.FC = () => {
     );
 };
 
-// Helper for ReferenceLine (Recharts doesn't export it by default in some versions, mocking simple line if needed, but usually available)
-import { ReferenceLine } from 'recharts';
-
 export default LiquidationMap;
-

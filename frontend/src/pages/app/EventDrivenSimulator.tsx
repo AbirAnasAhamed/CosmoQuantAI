@@ -1,17 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { Activity, Play, Square, Terminal, TrendingUp, DollarSign, Clock, FastForward, Wifi, AlertTriangle, BarChart2 } from 'lucide-react';
+import { Activity, Play, Square, TrendingUp, DollarSign, FastForward, Wifi, AlertTriangle, BarChart2 } from 'lucide-react';
 import Button from '@/components/common/Button';
 import Card from '@/components/common/Card';
 import SimulationChart, { SimulationChartHandle } from '@/components/features/simulation/SimulationChart';
 import EquityCurve from '@/components/features/simulation/EquityCurve';
 import OrderBookWidget from '@/components/features/simulation/OrderBookWidget';
+import LogConsole, { LogMessage } from '@/components/features/simulation/LogConsole';
 import { CandlestickData, Time, SeriesMarker } from 'lightweight-charts';
-
-interface LogMessage {
-    time: string;
-    message: string;
-    type: 'INFO' | 'fill' | 'market'; // Simplified types
-}
 
 const EventDrivenSimulator: React.FC = () => {
     const [isRunning, setIsRunning] = useState(false);
@@ -42,15 +37,6 @@ const EventDrivenSimulator: React.FC = () => {
 
     const chartRef = useRef<SimulationChartHandle>(null);
     const socketRef = useRef<WebSocket | null>(null);
-    const logEndRef = useRef<HTMLDivElement>(null);
-
-    const scrollToBottom = () => {
-        logEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    };
-
-    useEffect(() => {
-        scrollToBottom();
-    }, [logs]);
 
     // WebSocket Connection Logic
     const connect = useCallback(() => {
@@ -115,10 +101,19 @@ const EventDrivenSimulator: React.FC = () => {
             } else if (data.type === "ORDER_BOOK") {
                 setBids(data.bids);
                 setAsks(data.asks);
+            } else if (data.type === "system_log") {
+                // New Structured Logging
+                setLogs(prev => [...prev, {
+                    timestamp: data.timestamp,
+                    level: data.level,
+                    message: data.message,
+                    metadata: data.metadata
+                }]);
             } else if (data.type === "LOG") {
+                // FALLBACK for old logs
                 addLog(data.message, 'INFO');
             } else if (data.type === "FILL") {
-                addLog(`FILLED: ${data.direction} ${data.quantity} @ ${data.price}`, 'fill');
+                // Note: The engine now sends a system_log for FILLs too, but we keep this for markers/Pnl
 
                 // Add Marker
                 const time = (new Date(data.time).getTime() / 1000) as Time;
@@ -217,14 +212,16 @@ const EventDrivenSimulator: React.FC = () => {
         };
     }, []);
 
-    const addLog = (message: string, type: 'INFO' | 'fill' | 'market') => {
-        setLogs(prev => [...prev, { time: new Date().toLocaleTimeString(), message, type }]);
+    const addLog = (message: string, level: 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR') => {
+        setLogs(prev => [...prev, {
+            timestamp: new Date().toISOString(),
+            level: level,
+            message: message
+        }]);
     };
 
     const handleStart = () => {
         setIsRunning(true);
-        setLogs([]);
-        setLogs([]);
         setLogs([]);
         setMarketData([]);
         setEquityData([]);
@@ -302,7 +299,7 @@ const EventDrivenSimulator: React.FC = () => {
         <div className="flex h-[calc(100vh-8rem)] gap-6 p-2">
             {/* Left Configuration Panel */}
             <div className="w-1/3 flex flex-col gap-6">
-                <Card className="p-6 bg-white dark:bg-[#1e293b] border-slate-200 dark:border-slate-700 shadow-xl overflow-y-auto">
+                <Card className="p-6 bg-white dark:bg-[#1e293b] border-slate-200 dark:border-slate-700 shadow-xl overflow-y-auto max-h-[70vh]">
                     <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2">
                         <Activity className="text-brand-primary" />
                         Simulation Config
@@ -601,31 +598,12 @@ const EventDrivenSimulator: React.FC = () => {
                     <EquityCurve data={equityData} />
                 </Card>
 
-                {/* System Terminal */}
-                <Card className="flex-1 bg-black border-slate-800 font-mono text-sm p-0 flex flex-col shadow-2xl overflow-hidden relative">
-                    <div className="bg-slate-900/50 p-2 border-b border-slate-800 flex justify-between items-center px-4">
-                        <span className="text-slate-400 flex items-center gap-2">
-                            <Terminal size={14} />
-                            Event Loop Output
-                        </span>
-                        <span className="text-xs text-slate-600">v1.0.0</span>
-                    </div>
-                    <div className="flex-1 overflow-y-auto p-4 space-y-1 custom-scrollbar">
-                        {logs.length === 0 && (
-                            <div className="h-full flex flex-col items-center justify-center text-slate-600 opacity-50">
-                                <Terminal size={48} className="mb-4" />
-                                <p>Waiting for simulation start...</p>
-                            </div>
-                        )}
-                        {logs.map((log, i) => (
-                            <div key={i} className={`flex gap-3 ${log.type === 'fill' ? 'text-yellow-400' : 'text-green-500'}`}>
-                                <span className="text-slate-600 select-none">[{log.time}]</span>
-                                <span>{log.type === 'fill' ? '⚡' : '>'} {log.message}</span>
-                            </div>
-                        ))}
-                        <div ref={logEndRef} />
-                    </div>
-                </Card>
+                {/* System Terminal - REPLACED */}
+                <LogConsole
+                    logs={logs}
+                    onClear={() => setLogs([])}
+                    className="flex-1"
+                />
             </div>
         </div>
     );

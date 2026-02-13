@@ -318,6 +318,25 @@ class EventDrivenEngine:
         except asyncio.QueueFull:
             pass
 
+    async def log_event(self, level: str, message: str, metadata: Optional[Dict[str, Any]] = None):
+        """
+        Structured logging for the simulation.
+        Levels: INFO, SUCCESS, WARNING, ERROR
+        """
+        # Use simulation time if available, else real time
+        timestamp = self.last_event_time.isoformat() if self.last_event_time else datetime.now().isoformat()
+        
+        payload = {
+            "type": "system_log",
+            "level": level,
+            "message": message,
+            "timestamp": timestamp,
+            "metadata": metadata or {}
+        }
+        await self._send(payload)
+        # Print to console for server-side debugging
+        print(f"[{level}] {message}", flush=True)
+
     async def handle_market_event(self, event: MarketEvent):
         # 0. Store current market event for volume checks
         self.current_market_event = event
@@ -375,10 +394,7 @@ class EventDrivenEngine:
              await self.events.put(signal)
 
     async def handle_signal_event(self, event: SignalEvent):
-        await self._send({
-            "type": "LOG",
-            "message": f"Signal Received: {event.signal_type} on {event.symbol}"
-        })
+        await self.log_event("INFO", f"Signal Received: {event.signal_type} on {event.symbol}")
             
         # Simulate Portfolio Manager generating an Order
         # Use simple risk logic relative to current price or hardcoded
@@ -392,10 +408,7 @@ class EventDrivenEngine:
         await self.events.put(order)
 
     async def handle_order_event(self, event: OrderEvent):
-         await self._send({
-            "type": "LOG",
-            "message": f"Order Placed (Buffering {self.latency_ms}ms): {event.direction} {event.quantity} {event.symbol}"
-         })
+         await self.log_event("INFO", f"Order Placed (Buffering {self.latency_ms}ms): {event.direction} {event.quantity} {event.symbol}")
          
          # Calculate execution time
          current_time = self.last_event_time if self.last_event_time else datetime.now()
@@ -455,10 +468,8 @@ class EventDrivenEngine:
                  # Re-queue for next bar
                  if event not in self.waiting_for_volume_orders:
                      self.waiting_for_volume_orders.append(event)
-                 await self._send({
-                     "type": "LOG",
-                     "message": f"Order Waiting: Low Volume ({current_volume}) for Participation {(self.volume_participation_rate*100):.1f}%"
-                 })
+                 
+                 await self.log_event("WARNING", f"Order Waiting: Low Volume ({current_volume}) for Participation {(self.volume_participation_rate*100):.1f}%")
                  return
 
              if event.quantity > max_fillable:
@@ -472,10 +483,7 @@ class EventDrivenEngine:
          slippage_cost = abs(exec_price - market_price) * fill_qty
          
          if slippage_cost > 0.01:
-             await self._send({
-                "type": "LOG",
-                "message": f"⚠ Slippage Applied: ${slippage_cost:.2f} difference"
-             })
+             await self.log_event("WARNING", f"⚠ Slippage Applied: ${slippage_cost:.2f} difference")
 
          # Calculate Commission
          # Rule: MKT -> Taker Fee, LMT -> Maker Fee
@@ -501,10 +509,7 @@ class EventDrivenEngine:
              # Add to waiting queue for next bar
              self.waiting_for_volume_orders.append(event)
              
-             await self._send({
-                 "type": "LOG",
-                 "message": f"Partial Fill: {fill_qty} filled, {remaining_qty} remaining (Limit: {self.volume_participation_rate*100:.1f}% of Vol {current_volume})"
-             })
+             await self.log_event("INFO", f"Partial Fill: {fill_qty} filled, {remaining_qty} remaining (Limit: {self.volume_participation_rate*100:.1f}% of Vol {current_volume})")
             
     async def handle_fill_event(self, event: FillEvent):
         # Update Portfolio
@@ -519,10 +524,17 @@ class EventDrivenEngine:
             "commission": event.commission,
             "time": event.timestamp.isoformat()
         })
-        await self._send({
-            "type": "LOG",
-            "message": f"Order Filled: {event.direction} {event.quantity} @ {event.fill_cost:.2f} (Comm: ${event.commission:.4f})"
-        })
+        
+        await self.log_event(
+            "SUCCESS", 
+            f"Order Filled: {event.direction} {event.quantity} @ {event.fill_cost:.2f} (Comm: ${event.commission:.4f})",
+            metadata={
+                "type": "FILL",
+                "symbol": event.symbol,
+                "price": event.fill_cost,
+                "commission": event.commission
+            }
+        )
             
     def stop(self):
         self.running = False
