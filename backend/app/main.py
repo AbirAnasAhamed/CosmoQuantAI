@@ -11,6 +11,7 @@ from app.utils import RedisLogHandler
 import ccxt.async_support as ccxt
 from datetime import datetime
 from app.core.redis import redis_manager # ✅ Import RedisManager
+from app.services.liquidation_service import liquidation_service # ✅ Import Liquidation Service
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
@@ -322,6 +323,11 @@ async def startup_event():
     running_tasks.add(task_update_task)
     task_update_task.add_done_callback(running_tasks.discard)
 
+    # Task E: Liquidation Service
+    liquidation_task = asyncio.create_task(liquidation_service.start())
+    running_tasks.add(liquidation_task)
+    liquidation_task.add_done_callback(running_tasks.discard)
+
     # Task D: Active Bot PnL Broadcast
     async def broadcast_active_bot_pnl():
         print("💰 Starting Active Bot PnL Broadcast...")
@@ -405,6 +411,9 @@ async def shutdown_event():
     if running_tasks:
         await asyncio.gather(*running_tasks, return_exceptions=True)
     
+    # Stop Liquidation Service
+    await liquidation_service.stop()
+
     print("✅ All background tasks stopped.")
 
 # --- WebSocket Endpoints ---

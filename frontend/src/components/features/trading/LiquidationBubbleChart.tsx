@@ -69,31 +69,40 @@ const LiquidationBubbleChart: React.FC<LiquidationBubbleChartProps> = ({ data, a
 
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (active && payload && payload.length) {
-            // Determine if we are hovering a bubble or a candle/line point
             const dataPoint = payload[0].payload;
 
-            // If it's a bubble (has 'type' and 'amount')
+            // Bubble Tooltip (Liquidation)
             if (dataPoint.type) {
+                const isLong = dataPoint.type === 'Long';
+                const colorClass = isLong ? 'text-rose-400' : 'text-emerald-400';
+                const borderColor = isLong ? 'border-rose-500/30' : 'border-emerald-500/30';
+                const glowClass = isLong ? 'shadow-[0_0_15px_rgba(244,63,94,0.3)]' : 'shadow-[0_0_15px_rgba(16,185,129,0.3)]';
+
                 return (
-                    <div className={`p-2 border rounded shadow-lg text-xs font-mono z-50 ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-gray-200 text-slate-900'}`}>
-                        <p className="font-bold mb-1 border-b border-gray-600 pb-1">{dataPoint.type} Liquidation</p>
-                        <div className="grid grid-cols-2 gap-x-4 gap-y-1">
-                            <span className="text-gray-400">Price:</span>
-                            <span>${dataPoint.price.toLocaleString()}</span>
-                            <span className="text-gray-400">Amount:</span>
-                            <span>${(dataPoint.amount || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
-                            <span className="text-gray-400">Time:</span>
-                            <span>{dataPoint.time}</span>
+                    <div className={`p-3 rounded-xl border backdrop-blur-md bg-black/60 ${borderColor} ${glowClass} text-xs font-mono z-50 min-w-[180px]`}>
+                        <div className="flex items-center justify-between mb-2 border-b border-white/10 pb-2">
+                            <span className={`font-bold uppercase tracking-wider ${colorClass}`}>{dataPoint.type} REKT</span>
+                            <span className="text-[10px] text-gray-400">{dataPoint.time}</span>
+                        </div>
+                        <div className="space-y-1.5">
+                            <div className="flex justify-between">
+                                <span className="text-gray-400">Price</span>
+                                <span className="font-bold text-white">${dataPoint.price.toLocaleString()}</span>
+                            </div>
+                            <div className="flex justify-between">
+                                <span className="text-gray-400">Initial Pos</span>
+                                <span className={`font-bold ${colorClass}`}>${(dataPoint.amount || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span>
+                            </div>
                         </div>
                     </div>
                 );
             }
-            // If it's a candle/line point
+            // Candle/Line Tooltip
             return (
-                <div className={`p-2 border rounded shadow-lg text-xs font-mono z-50 ${theme === 'dark' ? 'bg-slate-800 border-slate-700 text-white' : 'bg-white border-gray-200 text-slate-900'}`}>
-                    <p className="font-bold mb-1 border-b border-gray-600 pb-1">Price Action</p>
-                    <div>Price: ${dataPoint.close?.toLocaleString()}</div>
-                    <div className="text-[10px] text-gray-500">{new Date(dataPoint.time).toLocaleTimeString()}</div>
+                <div className="p-2 rounded-lg border border-slate-700/50 bg-slate-900/80 backdrop-blur-sm shadow-xl text-xs font-mono z-50">
+                    <p className="font-bold text-slate-300 mb-1">Price Action</p>
+                    <div className="text-white">${dataPoint.close?.toLocaleString()}</div>
+                    <div className="text-[10px] text-gray-500 mt-1">{new Date(dataPoint.time).toLocaleTimeString()}</div>
                 </div>
             );
         }
@@ -101,62 +110,80 @@ const LiquidationBubbleChart: React.FC<LiquidationBubbleChartProps> = ({ data, a
     };
 
     return (
-        <div className="w-full h-full min-h-[200px]" style={{ width: '100%', height: '100%' }}>
+        <div className="w-full h-full min-h-[200px] animate-fade-in relative group">
             <ResponsiveContainer width="100%" height="100%" debounce={50}>
                 <ComposedChart data={candles} margin={{ top: 20, right: 20, bottom: 20, left: 0 }}>
-                    <CartesianGrid strokeDasharray="3 3" stroke={theme === 'dark' ? '#334155' : '#e2e8f0'} opacity={0.2} />
+                    <defs>
+                        <radialGradient id="longGradient" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+                            <stop offset="0%" stopColor="#F43F5E" stopOpacity={0.9} />
+                            <stop offset="70%" stopColor="#F43F5E" stopOpacity={0.4} />
+                            <stop offset="100%" stopColor="#F43F5E" stopOpacity={0} />
+                        </radialGradient>
+                        <radialGradient id="shortGradient" cx="50%" cy="50%" r="50%" fx="50%" fy="50%">
+                            <stop offset="0%" stopColor="#10B981" stopOpacity={0.9} />
+                            <stop offset="70%" stopColor="#10B981" stopOpacity={0.4} />
+                            <stop offset="100%" stopColor="#10B981" stopOpacity={0} />
+                        </radialGradient>
+                        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                            <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+                            <feMerge>
+                                <feMergeNode in="coloredBlur" />
+                                <feMergeNode in="SourceGraphic" />
+                            </feMerge>
+                        </filter>
+                    </defs>
+
+                    <CartesianGrid strokeDasharray="2 4" stroke={theme === 'dark' ? '#334155' : '#e2e8f0'} opacity={0.15} vertical={false} />
 
                     <XAxis
                         type="number"
                         dataKey="time"
-                        name="Time"
-                        domain={['dataMin', 'dataMax']} // Should include both if Scatters are recognized
+                        domain={['dataMin', 'dataMax']}
                         tickFormatter={(unixTime) => new Date(unixTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                        tick={{ fontSize: 10, fill: theme === 'dark' ? '#94a3b8' : '#64748b' }}
-                        stroke={theme === 'dark' ? '#334155' : '#cbd5e1'}
-                        allowDataOverflow={false}
+                        tick={{ fontSize: 9, fill: '#64748b' }}
+                        axisLine={false}
+                        tickLine={false}
+                        minTickGap={30}
                     />
                     <YAxis
                         type="number"
                         dataKey="close"
-                        name="Price"
                         domain={['auto', 'auto']}
-                        tick={{ fontSize: 10, fill: theme === 'dark' ? '#94a3b8' : '#64748b' }}
+                        tick={{ fontSize: 9, fill: '#64748b' }}
                         tickFormatter={(value) => `$${value.toLocaleString()}`}
-                        width={60}
                         orientation="right"
-                        stroke={theme === 'dark' ? '#334155' : '#cbd5e1'}
+                        axisLine={false}
+                        tickLine={false}
+                        width={60}
                     />
-                    <ZAxis type="number" dataKey="z" range={[50, 600]} name="Amount" />
+                    {/* ZAxis controls bubble size range */}
+                    <ZAxis type="number" dataKey="z" range={[60, 1200]} name="Amount" />
 
-                    <Tooltip content={<CustomTooltip />} cursor={{ strokeDasharray: '3 3' }} />
+                    <Tooltip content={<CustomTooltip />} cursor={{ stroke: '#64748b', strokeWidth: 1, strokeDasharray: '4 4', opacity: 0.5 }} />
 
-                    {/* Price Line (Context) */}
                     <Line
                         type="monotone"
                         dataKey="close"
-                        stroke="#64748b"
-                        strokeWidth={1}
+                        stroke="#94a3b8"
+                        strokeWidth={1.5}
                         dot={false}
-                        activeDot={false}
-                        opacity={0.5}
+                        activeDot={{ r: 4, fill: '#fff' }}
+                        opacity={0.3}
                         isAnimationActive={false}
                     />
 
-                    {/* Liquidation Bubbles */}
                     <Scatter
                         name="Liquidations"
                         data={bubbleData}
-                        fill="#8884d8"
-                        isAnimationActive={false}
+                        isAnimationActive={true}
+                        animationDuration={500}
                     >
                         {bubbleData.map((entry, index) => (
                             <Cell
                                 key={`cell-${index}`}
-                                fill={entry.type === 'Long' ? '#F43F5E' : '#10B981'}
-                                fillOpacity={0.6}
-                                stroke={entry.type === 'Long' ? '#F43F5E' : '#10B981'}
-                                strokeWidth={1}
+                                fill={entry.type === 'Long' ? 'url(#longGradient)' : 'url(#shortGradient)'}
+                                style={{ filter: 'url(#glow)' }}
+                                stroke="none"
                             />
                         ))}
                     </Scatter>

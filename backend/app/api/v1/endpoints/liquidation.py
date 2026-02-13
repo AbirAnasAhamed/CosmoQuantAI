@@ -1,14 +1,10 @@
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 import logging
 import asyncio
-from app.services.liquidation_service import LiquidationService
+from app.services.liquidation_service import liquidation_service
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
-
-# Global instance for the service (Singleton pattern for this module)
-liquidation_service = LiquidationService()
-service_task = None
 
 @router.get("/candles")
 async def get_candles(symbol: str, interval: str = "15m", limit: int = 50):
@@ -21,21 +17,14 @@ async def get_candles(symbol: str, interval: str = "15m", limit: int = 50):
 async def websocket_liquidation_stream(websocket: WebSocket, symbol: str = "BTCUSDT"):
     """
     WebSocket endpoint to stream real-time liquidation data.
-    Args:
+    args:
         symbol: The trading pair symbol to subscribe to (default: BTCUSDT).
     """
-    global service_task
-    
     await websocket.accept()
     logger.info(f"Client connected to Liquidation Stream for {symbol}")
 
     # Ensure symbol is uppercase for consistency
     target_symbol = symbol.upper()
-
-    # Start the service if not already running
-    if not liquidation_service._running:
-         service_task = asyncio.create_task(liquidation_service.start())
-         logger.info("Liquidation Service started on demand.")
 
     # Subscribe to the requested symbol
     await liquidation_service.subscribe([target_symbol])

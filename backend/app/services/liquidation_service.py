@@ -299,3 +299,6 @@ class LiquidationService:
             await self._session.close()
         logger.info("LiquidationService stopped.")
 
+# Global Singleton Instance
+liquidation_service = LiquidationService()
+
