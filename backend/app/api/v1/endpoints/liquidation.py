@@ -10,6 +10,13 @@ logger = logging.getLogger(__name__)
 liquidation_service = LiquidationService()
 service_task = None
 
+@router.get("/candles")
+async def get_candles(symbol: str, interval: str = "15m", limit: int = 50):
+    """
+    Get historical candle data (klines).
+    """
+    return await liquidation_service.get_klines(symbol, interval, limit)
+
 @router.websocket("/ws/stream")
 async def websocket_liquidation_stream(websocket: WebSocket, symbol: str = "BTCUSDT"):
     """

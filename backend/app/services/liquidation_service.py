@@ -181,6 +181,49 @@ class LiquidationService:
         except Exception as e:
             logger.error(f"Error processing message: {e}")
 
+    async def get_klines(self, symbol: str, interval: str = '15m', limit: int = 50) -> list[Dict[str, Any]]:
+        """
+        Fetch historical klines (candles) from Binance REST API.
+        
+        Args:
+            symbol: Trading pair symbol (e.g., 'BTCUSDT').
+            interval: Time interval (e.g., '15m').
+            limit: Number of candles to fetch.
+            
+        Returns:
+            List of formatted candle data.
+        """
+        url = "https://api.binance.com/api/v3/klines"
+        params = {
+            "symbol": symbol.upper(),
+            "interval": interval,
+            "limit": limit
+        }
+        
+        async with aiohttp.ClientSession() as session:
+            try:
+                async with session.get(url, params=params) as response:
+                    if response.status == 200:
+                        raw_data = await response.json()
+                        # Format: [open_time, open, high, low, close, volume, ...]
+                        formatted_data = []
+                        for d in raw_data:
+                            formatted_data.append({
+                                "time": d[0],
+                                "open": float(d[1]),
+                                "high": float(d[2]),
+                                "low": float(d[3]),
+                                "close": float(d[4]),
+                                "volume": float(d[5])
+                            })
+                        return formatted_data
+                    else:
+                        logger.error(f"Failed to fetch klines: {response.status}")
+                        return []
+            except Exception as e:
+                logger.error(f"Error fetching klines: {e}")
+                return []
+
     async def start(self):
         """
         Start the WebSocket connection loop with auto-reconnection.
