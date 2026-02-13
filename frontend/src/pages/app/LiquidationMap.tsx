@@ -5,6 +5,7 @@ import Card from '@/components/common/Card';
 import { useTheme } from '@/context/ThemeContext';
 import { ExpandIcon, CollapseIcon } from '@/constants';
 import { useLiquidationWebSocket, LiquidationEvent, CldData, AggregatedStats } from '../../hooks/useLiquidationWebSocket';
+import LiquidationBubbleChart from '@/components/features/trading/LiquidationBubbleChart';
 
 // --- ICONS ---
 const SearchIcon = () => (
@@ -82,11 +83,6 @@ const LiquidationMap: React.FC = () => {
         isConnected
     } = useLiquidationWebSocket(activePair);
 
-    // Initial fallback price logic removed in favor of real data or waiting for it.
-    // However, if we want to show a base price before first trade, we can keep using a static value or just show 'Waiting...'.
-    // Better UX: Show '---' until data arrives or rely on Chart to show visual price.
-    // But since the chart shows price, we can just show '---' in the Oracle Price card initially.
-
     // Resize & Layout State
     const [isResizing, setIsResizing] = useState(false);
     const [chartWidth, setChartWidth] = useState(70);
@@ -99,6 +95,9 @@ const LiquidationMap: React.FC = () => {
     const [highlightedLevels, setHighlightedLevels] = useState<number[]>([]);
     const [highlightLevelInput, setHighlightLevelInput] = useState('');
     const [minLiquidationThreshold, setMinLiquidationThreshold] = useState(10000);
+
+    // View Switcher State
+    const [chartView, setChartView] = useState<'price' | 'bubbles'>('price');
 
     const toggleFullScreen = () => { setIsChartFullScreen(prev => !prev); setWidgetKey(Date.now()); };
     useEffect(() => { document.body.classList.toggle('body-no-scroll', isChartFullScreen); }, [isChartFullScreen]);
@@ -118,6 +117,8 @@ const LiquidationMap: React.FC = () => {
 
     // TradingView Widget
     useEffect(() => {
+        if (chartView !== 'price') return; // Don't init TV if not in price mode
+
         const containerId = isChartFullScreen ? `tradingview_fullscreen_liquidation_chart_${widgetKey}` : `tradingview_liquidation_chart_${widgetKey}`;
         const createWidget = () => {
             const container = document.getElementById(containerId);
@@ -145,7 +146,7 @@ const LiquidationMap: React.FC = () => {
         const checkLibraryAndCreate = () => { if (typeof window.TradingView !== 'undefined' && window.TradingView.widget) createWidget(); else setTimeout(checkLibraryAndCreate, 100); }
         checkLibraryAndCreate();
         return () => { if (widgetRef.current) { try { widgetRef.current.remove(); widgetRef.current = null; chartApiRef.current = null; } catch (e) { } } };
-    }, [activePair, theme, widgetKey, isChartFullScreen]);
+    }, [activePair, theme, widgetKey, isChartFullScreen, chartView]);
 
     // Drawing Lines
     const handleAddHighlight = useCallback((level: number) => {
@@ -280,11 +281,35 @@ const LiquidationMap: React.FC = () => {
                 {/* Left: Chart */}
                 <div className="h-full flex flex-col transition-all duration-75" style={{ width: `${chartWidth}%` }}>
                     <Card className="flex-1 min-h-0 relative p-0 overflow-hidden border-0 shadow-xl bg-white dark:bg-brand-dark">
-                        <div id={`tradingview_liquidation_chart_${widgetKey}`} className="w-full h-full" />
+                        {/* View Switcher (Absolute Top-Left) */}
+                        <div className="absolute top-3 left-3 z-20 flex bg-white/20 dark:bg-black/20 backdrop-blur-sm rounded-lg p-1 gap-1">
+                            <button
+                                onClick={() => setChartView('price')}
+                                className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-colors ${chartView === 'price' ? 'bg-brand-primary text-white shadow-lg' : 'text-slate-600 dark:text-slate-400 hover:text-white'}`}
+                            >
+                                Price Action
+                            </button>
+                            <button
+                                onClick={() => setChartView('bubbles')}
+                                className={`px-3 py-1 text-[10px] font-bold uppercase rounded-md transition-colors ${chartView === 'bubbles' ? 'bg-brand-primary text-white shadow-lg' : 'text-slate-600 dark:text-slate-400 hover:text-white'}`}
+                            >
+                                Liquidations
+                            </button>
+                        </div>
+
+                        {chartView === 'price' && (
+                            <div id={`tradingview_liquidation_chart_${widgetKey}`} className="w-full h-full" />
+                        )}
+
+                        {chartView === 'bubbles' && (
+                            <div className="w-full h-full p-4 bg-slate-50 dark:bg-[#0B1120]">
+                                <LiquidationBubbleChart data={liveFeed} activePair={activePair} />
+                            </div>
+                        )}
 
                         {/* Floating Toolbar for Highlights */}
-                        <div className="absolute bottom-4 left-4 right-4 z-10">
-                            <div className="bg-white/90 dark:bg-brand-darkest/90 backdrop-blur-md border border-gray-200 dark:border-brand-border-dark rounded-xl p-2 flex items-center gap-3 shadow-lg max-w-2xl mx-auto">
+                        <div className="absolute bottom-4 left-4 right-4 z-10 pointer-events-none">
+                            <div className="bg-white/90 dark:bg-brand-darkest/90 backdrop-blur-md border border-gray-200 dark:border-brand-border-dark rounded-xl p-2 flex items-center gap-3 shadow-lg max-w-2xl mx-auto pointer-events-auto">
                                 <span className="text-xs font-bold text-gray-500 uppercase px-2">Liquidation Levels</span>
                                 <div className="h-4 w-px bg-gray-300 dark:bg-gray-700"></div>
                                 <form onSubmit={handleHighlightSubmit} className="flex gap-2">

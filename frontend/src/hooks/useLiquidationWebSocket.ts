@@ -7,6 +7,7 @@ export interface LiquidationEvent {
     amount: number;
     price: number;
     symbol?: string;
+    timestamp: number; // Raw timestamp for charting
     isNew?: boolean;
     isWhale?: boolean;
 }
@@ -61,6 +62,7 @@ export const useLiquidationWebSocket = (activePair: string) => {
                     const newEvent: LiquidationEvent = {
                         id: Date.now() + Math.random(),
                         time: new Date(data.timestamp).toLocaleTimeString(),
+                        timestamp: data.timestamp, // Store raw timestamp
                         type: isLong ? 'Long' : 'Short',
                         amount: amount,
                         price: price,
