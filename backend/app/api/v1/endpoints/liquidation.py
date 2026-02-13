@@ -11,23 +11,33 @@ liquidation_service = LiquidationService()
 service_task = None
 
 @router.websocket("/ws/stream")
-async def websocket_liquidation_stream(websocket: WebSocket):
+async def websocket_liquidation_stream(websocket: WebSocket, symbol: str = "BTCUSDT"):
     """
     WebSocket endpoint to stream real-time liquidation data.
+    Args:
+        symbol: The trading pair symbol to subscribe to (default: BTCUSDT).
     """
     global service_task
     
     await websocket.accept()
-    logger.info("Client connected to Liquidation Stream")
+    logger.info(f"Client connected to Liquidation Stream for {symbol}")
+
+    # Ensure symbol is uppercase for consistency
+    target_symbol = symbol.upper()
 
     # Start the service if not already running
     if not liquidation_service._running:
          service_task = asyncio.create_task(liquidation_service.start())
          logger.info("Liquidation Service started on demand.")
 
+    # Subscribe to the requested symbol
+    await liquidation_service.subscribe([target_symbol])
+
     async def send_to_client(data):
         try:
-            await websocket.send_json(data)
+            # Filter messages: Only send data for the requested symbol
+            if data.get('symbol') == target_symbol:
+                await websocket.send_json(data)
         except Exception as e:
             # If sending fails, we assume client disconnected or error state
             # The loop below will catch disconnect, but this handles send errors
@@ -44,9 +54,8 @@ async def websocket_liquidation_stream(websocket: WebSocket):
             await websocket.receive_text()
             
     except WebSocketDisconnect:
-        logger.info("Client disconnected from Liquidation Stream")
-        # Remove callback? verify simplistic removal or just handle error in broadcast
-        # simple list.remove might be risky if not exact object ref, but here we defined inner function
+        logger.info(f"Client disconnected from Liquidation Stream ({target_symbol})")
+        # Remove callback
         if send_to_client in liquidation_service._callbacks:
             liquidation_service._callbacks.remove(send_to_client)
             

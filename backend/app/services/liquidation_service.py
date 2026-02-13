@@ -2,7 +2,7 @@ import asyncio
 import json
 import logging
 import time
-from typing import Optional, Dict, Any, Callable, Awaitable
+from typing import Optional, Dict, Any, Callable, Awaitable, Set
 
 import aiohttp
 
@@ -13,9 +13,11 @@ logger = logging.getLogger(__name__)
 class LiquidationService:
     """
     Service to fetch real-time liquidation data from Binance Futures WebSocket.
+    Supports dynamic subscription to specific symbol streams.
     """
 
-    BINANCE_WS_URL = "wss://fstream.binance.com/ws/!forceOrder@arr"
+    # Base URL for combined streams
+    BINANCE_WS_BASE_URL = "wss://fstream.binance.com/stream"
     RECONNECT_DELAY_BASE = 1  # Seconds
     MAX_RECONNECT_DELAY = 60  # Seconds
 
@@ -27,6 +29,11 @@ class LiquidationService:
         self._session: Optional[aiohttp.ClientSession] = None
         self._ws: Optional[aiohttp.ClientWebSocketResponse] = None
         self._callbacks: list[Callable[[Dict[str, Any]], Awaitable[None]]] = []
+        
+        # Track active subscriptions
+        # We start with no subscriptions, or a default set if needed
+        self._active_symbols: Set[str] = set()
+        self._lock = asyncio.Lock()
 
     def register_callback(self, callback: Callable[[Dict[str, Any]], Awaitable[None]]):
         """
@@ -50,6 +57,75 @@ class LiquidationService:
             except Exception as e:
                 logger.error(f"Error in callback: {e}")
 
+    async def subscribe(self, symbols: list[str]):
+        """
+        Subscribe to specific symbol liquidation streams.
+        
+        Args:
+            symbols: List of symbols to subscribe to (e.g., ['BTCUSDT', 'ETHUSDT']).
+        """
+        if not self._ws or self._ws.closed:
+            # If not connected, just update the set; they will be subscribed on connect
+            async with self._lock:
+                for s in symbols:
+                    self._active_symbols.add(s.lower())
+            return
+
+        # Filter out already subscribed symbols to avoid redundant requests
+        new_symbols = [s.lower() for s in symbols if s.lower() not in self._active_symbols]
+        if not new_symbols:
+            return
+
+        params = [f"{s}@forceOrder" for s in new_symbols]
+        payload = {
+            "method": "SUBSCRIBE",
+            "params": params,
+            "id": int(time.time() * 1000)
+        }
+        
+        try:
+            await self._ws.send_json(payload)
+            async with self._lock:
+                for s in new_symbols:
+                    self._active_symbols.add(s)
+            logger.info(f"Subscribed to: {new_symbols}")
+        except Exception as e:
+            logger.error(f"Failed to subscribe to {new_symbols}: {e}")
+
+    async def unsubscribe(self, symbols: list[str]):
+        """
+        Unsubscribe from specific symbol liquidation streams.
+        
+        Args:
+            symbols: List of symbols to unsubscribe from.
+        """
+        if not self._ws or self._ws.closed:
+            async with self._lock:
+                for s in symbols:
+                    self._active_symbols.discard(s.lower())
+            return
+
+        # Only unsubscribe if we are actually subscribed
+        remove_symbols = [s.lower() for s in symbols if s.lower() in self._active_symbols]
+        if not remove_symbols:
+            return
+
+        params = [f"{s}@forceOrder" for s in remove_symbols]
+        payload = {
+            "method": "UNSUBSCRIBE",
+            "params": params,
+            "id": int(time.time() * 1000)
+        }
+
+        try:
+            await self._ws.send_json(payload)
+            async with self._lock:
+                for s in remove_symbols:
+                    self._active_symbols.discard(s)
+            logger.info(f"Unsubscribed from: {remove_symbols}")
+        except Exception as e:
+            logger.error(f"Failed to unsubscribe from {remove_symbols}: {e}")
+
     async def _process_message(self, message: str):
         """
         Parse and process the incoming WebSocket message.
@@ -59,30 +135,20 @@ class LiquidationService:
         """
         try:
             payload = json.loads(message)
-            # The payload depends on the stream. For !forceOrder@arr, it's a dict or list.
-            # According to Binance docs: {"e":"forceOrder", ...} or {"stream":"...", "data": {...}}
             
-            # Identify if it's a raw event or wrapped stream event
-            data = payload.get('data', payload)
+            # Handle subscription responses (id/result fields)
+            if 'result' in payload and 'id' in payload:
+                # This is just a control message response
+                return
+
+            # Combine stream payloads look like:
+            # {"stream": "<streamName>", "data": <rawEvent>}
             
-            # forceOrder event structure:
-            # {
-            #   "e": "forceOrder",
-            #   "E": 1568014460893,
-            #   "o": {
-            #     "s": "BTCUSDT",
-            #     "S": "SELL",
-            #     "o": "LIMIT",
-            #     "f": "IOC",
-            #     "q": "0.014",
-            #     "p": "9910.41",
-            #     "ap": "9910.41",
-            #     "X": "FILLED",
-            #     "l": "0.014",
-            #     "z": "0.014",
-            #     "T": 1568014460893
-            #   }
-            # }
+            stream_name = payload.get('stream')
+            data = payload.get('data')
+
+            if not data:
+                return
 
             if data.get('e') == 'forceOrder':
                 order_data = data.get('o', {})
@@ -95,8 +161,6 @@ class LiquidationService:
                 usd_value = price * quantity
 
                 # Map side to liquidation type
-                # If the force order is SELL, it means a Long position was liquidated.
-                # If the force order is BUY, it means a Short position was liquidated.
                 liquidation_type = "Long Liquidation" if side == "SELL" else "Short Liquidation"
 
                 processed_data = {
@@ -111,8 +175,6 @@ class LiquidationService:
                 }
                 
                 await self._broadcast(processed_data)
-                # For debugging/logging purposes
-                # logger.info(f"Liquidation: {symbol} {liquidation_type} ${usd_value:,.2f}")
 
         except json.JSONDecodeError:
             logger.error("Failed to decode JSON message")
@@ -130,12 +192,40 @@ class LiquidationService:
             try:
                 async with aiohttp.ClientSession() as session:
                     self._session = session
-                    logger.info(f"Connecting to {self.BINANCE_WS_URL}...")
                     
-                    async with session.ws_connect(self.BINANCE_WS_URL) as ws:
+                    # Construct initial URL. If we have active symbols, we can connect directly to them?
+                    # Actually, for Combined Streams, we can just connect to base URL and then send SUBSCRIBE.
+                    # Or we can pass streams in query param: ?streams=btcusdt@forceOrder/ethusdt@forceOrder
+                    
+                    # Strategy: Connect to base, then immediately subscribe to tracked symbols.
+                    url = self.BINANCE_WS_BASE_URL
+                    
+                    logger.info(f"Connecting to {url}...")
+                    
+                    async with session.ws_connect(url) as ws:
                         self._ws = ws
                         logger.info("Connected to Binance Liquidation Stream.")
                         reconnect_delay = self.RECONNECT_DELAY_BASE # Reset delay on success
+                        
+                        # Resubscribe to tracked symbols
+                        async with self._lock:
+                            current_symbols = list(self._active_symbols)
+                        
+                        if current_symbols:
+                            logger.info(f"Resubscribing to: {current_symbols}")
+                            # We must release lock before calling subscribe because subscribe takes the lock
+                            # So we call the internal logic or just send raw JSON here?
+                            # Let's just use the `active_symbols` set and standard subscribe frame manually 
+                            # to avoid re-adding to set logic, or just call subscribe?
+                            # Calling subscribe checks if active_symbols has it, but here we ARE inside the connection loop.
+                            # Simpler: Just send the SUBCRIBE frame for all in `current_symbols`
+                            params = [f"{s}@forceOrder" for s in current_symbols]
+                            sub_payload = {
+                                "method": "SUBSCRIBE",
+                                "params": params,
+                                "id": int(time.time() * 1000)
+                            }
+                            await ws.send_json(sub_payload)
 
                         async for msg in ws:
                             if not self._running:
@@ -165,3 +255,4 @@ class LiquidationService:
         if self._session:
             await self._session.close()
         logger.info("LiquidationService stopped.")
+

@@ -40,7 +40,9 @@ export const useLiquidationWebSocket = (activePair: string) => {
 
     const connect = useCallback(() => {
         try {
-            const ws = new WebSocket(WS_URL);
+            // detailed logging for debugging
+            console.log(`Connecting to Liquidation Stream for ${activePair}...`);
+            const ws = new WebSocket(`${WS_URL}?symbol=${activePair.replace('/', '')}`);
 
             ws.onopen = () => {
                 console.log('Connected to Liquidation Stream');

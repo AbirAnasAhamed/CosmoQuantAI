@@ -8,11 +8,7 @@ import { useLiquidationWebSocket, LiquidationEvent, CldData, AggregatedStats } f
 import LiquidationBubbleChart from '@/components/features/trading/LiquidationBubbleChart';
 
 // --- ICONS ---
-const SearchIcon = () => (
-    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-    </svg>
-);
+
 
 const SkullIcon = ({ className }: { className?: string }) => (
     <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="currentColor">
@@ -71,7 +67,7 @@ const LiquidationMap: React.FC = () => {
     const drawnLinesRef = useRef<any[]>([]);
 
     const [activePair, setActivePair] = useState('BTC/USDT');
-    const [symbolInput, setSymbolInput] = useState('BTC/USDT');
+
 
     // --- REAL DATA INTEGRATION ---
     const {
@@ -176,10 +172,7 @@ const LiquidationMap: React.FC = () => {
         }
     }, [highlightedLevels, chartApiRef.current]);
 
-    const handleSymbolSearch = (e: FormEvent) => {
-        e.preventDefault();
-        if (symbolInput.trim()) setActivePair(symbolInput.trim().toUpperCase());
-    };
+
 
     // Calculate Ratio
     const totalLiq = aggregatedStats.longLiqs + aggregatedStats.shortLiqs;
@@ -193,15 +186,28 @@ const LiquidationMap: React.FC = () => {
                 {/* Search & Price */}
                 <Card className="md:col-span-1 flex flex-col justify-center !p-4 bg-gradient-to-br from-brand-dark to-brand-darkest border-brand-border-dark relative overflow-hidden">
                     <div className="absolute inset-0 bg-brand-primary/5 animate-pulse"></div>
-                    <form onSubmit={handleSymbolSearch} className="flex gap-2 items-center relative z-10 mb-2">
-                        <input
-                            type="text"
-                            value={symbolInput}
-                            onChange={(e) => setSymbolInput(e.target.value)}
-                            className="bg-black/30 border border-white/10 rounded-md py-1 px-2 text-xs font-mono text-white w-full focus:border-brand-primary outline-none uppercase"
-                        />
-                        <button type="submit" className="text-brand-primary hover:text-white"><SearchIcon /></button>
-                    </form>
+                    {/* Asset Selector */}
+                    <div className="relative z-10 mb-2">
+                        <select
+                            value={activePair}
+                            onChange={(e) => {
+                                setActivePair(e.target.value);
+                            }}
+                            className="bg-black/30 border border-white/10 rounded-md py-1 px-2 text-xs font-mono text-white w-full focus:border-brand-primary outline-none appearance-none cursor-pointer hover:bg-black/40 transition-colors"
+                        >
+                            {['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT'].map((asset) => (
+                                <option key={asset} value={asset} className="bg-slate-900 text-white">
+                                    {asset}
+                                </option>
+                            ))}
+                        </select>
+                        {/* Custom Arrow because appearance-none removes it */}
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                            </svg>
+                        </div>
+                    </div>
                     <div className="relative z-10">
                         <div className="flex justify-between items-center">
                             <p className="text-[10px] text-gray-400 uppercase tracking-wider">Oracle Price</p>
