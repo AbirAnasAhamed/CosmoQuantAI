@@ -98,6 +98,7 @@ const LiquidationMap: React.FC = () => {
 
     const [highlightedLevels, setHighlightedLevels] = useState<number[]>([]);
     const [highlightLevelInput, setHighlightLevelInput] = useState('');
+    const [minLiquidationThreshold, setMinLiquidationThreshold] = useState(10000);
 
     const toggleFullScreen = () => { setIsChartFullScreen(prev => !prev); setWidgetKey(Date.now()); };
     useEffect(() => { document.body.classList.toggle('body-no-scroll', isChartFullScreen); }, [isChartFullScreen]);
@@ -187,7 +188,7 @@ const LiquidationMap: React.FC = () => {
         <div className="flex flex-col h-full gap-4 overflow-hidden">
 
             {/* High-Tech HUD */}
-            <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-4 gap-4 staggered-fade-in">
+            <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-5 gap-4 staggered-fade-in">
                 {/* Search & Price */}
                 <Card className="md:col-span-1 flex flex-col justify-center !p-4 bg-gradient-to-br from-brand-dark to-brand-darkest border-brand-border-dark relative overflow-hidden">
                     <div className="absolute inset-0 bg-brand-primary/5 animate-pulse"></div>
@@ -211,8 +212,36 @@ const LiquidationMap: React.FC = () => {
                     </div>
                 </Card>
 
+                {/* Filter Control */}
+                <Card className="md:col-span-1 flex flex-col justify-center !p-4 relative overflow-hidden">
+                    {minLiquidationThreshold > 50000 && (
+                        <div className="absolute top-0 right-0 p-1">
+                            <span className="text-[9px] bg-yellow-500/20 text-yellow-500 px-1.5 py-0.5 rounded uppercase font-bold border border-yellow-500/30 shadow-[0_0_10px_rgba(234,179,8,0.3)] animate-pulse">
+                                Whale Mode
+                            </span>
+                        </div>
+                    )}
+                    <div className="flex justify-between items-center mb-2">
+                        <p className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider">Min Threshold</p>
+                        <p className="text-xs font-mono font-bold text-brand-primary">${(minLiquidationThreshold / 1000).toFixed(0)}k</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <span className="text-[10px] text-gray-500">0</span>
+                        <input
+                            type="range"
+                            min="0"
+                            max="100000"
+                            step="1000"
+                            value={minLiquidationThreshold}
+                            onChange={(e) => setMinLiquidationThreshold(Number(e.target.value))}
+                            className="w-full h-1 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-brand-primary"
+                        />
+                        <span className="text-[10px] text-gray-500">100k</span>
+                    </div>
+                </Card>
+
                 {/* Stats: Total Vol */}
-                <Card className="flex flex-col justify-center !p-4">
+                <Card className="md:col-span-1 flex flex-col justify-center !p-4">
                     <div className="flex items-center gap-3">
                         <div className="p-2 bg-red-500/10 rounded-lg text-red-500"><FireIcon className="w-5 h-5" /></div>
                         <div>
@@ -317,7 +346,7 @@ const LiquidationMap: React.FC = () => {
                                             </span>
                                         </div>
                                     )}
-                                    {liveFeed.map(e => (
+                                    {liveFeed.filter(e => e.amount >= minLiquidationThreshold).map(e => (
                                         <KillFeedItem key={e.id} event={e} />
                                     ))}
                                 </div>
