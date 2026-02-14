@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useRef, useMemo } from 'react';
-import { Activity, RefreshCcw, Layers, BarChart2 } from 'lucide-react';
+import { Activity, RefreshCcw, Layers, BarChart2, Check, ChevronsUpDown } from 'lucide-react';
 import Button from '@/components/common/Button';
 import { useTheme } from '@/context/ThemeContext';
 import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickData, IPriceLine, CandlestickSeries, Time } from 'lightweight-charts';
+import { Combobox, Transition } from '@headlessui/react';
 
 interface OrderBucket {
     price: number;
@@ -16,6 +17,88 @@ interface MarketDepthData {
     bids: OrderBucket[];
     asks: OrderBucket[];
 }
+
+// Sub-component for Searchable Symbol Select
+const SymbolSelector: React.FC<{
+    selected: string;
+    setSelected: (s: string) => void;
+    options: string[];
+}> = ({ selected, setSelected, options }) => {
+    const [query, setQuery] = useState('');
+
+    const filtered = useMemo(() => {
+        const lowerQuery = query.toLowerCase();
+        const results = query === ''
+            ? options
+            : options.filter((s) => s.toLowerCase().includes(lowerQuery));
+        return results.slice(0, 50);
+    }, [query, options]);
+
+    return (
+        <Combobox value={selected} onChange={setSelected}>
+            <div className="relative">
+                <div className="relative w-full cursor-default overflow-hidden rounded-lg bg-transparent text-left focus:outline-none sm:text-sm">
+                    <Combobox.Input
+                        className="w-full border-none bg-transparent py-0 pl-0 pr-6 text-xs font-bold text-slate-700 dark:text-gray-200 focus:ring-0 uppercase placeholder-gray-500"
+                        displayValue={(s: string) => s}
+                        onChange={(event) => setQuery(event.target.value)}
+                        placeholder="Search..."
+                    />
+                    <Combobox.Button className="absolute inset-y-0 right-0 flex items-center pr-2">
+                        <ChevronsUpDown className="h-3 w-3 text-gray-400" aria-hidden="true" />
+                    </Combobox.Button>
+                </div>
+                <Transition
+                    as={React.Fragment}
+                    leave="transition ease-in duration-100"
+                    leaveFrom="opacity-100"
+                    leaveTo="opacity-0"
+                    afterLeave={() => setQuery('')}
+                >
+                    <Combobox.Options className="absolute mt-1 max-h-60 min-w-[150px] overflow-auto rounded-md bg-white dark:bg-[#1e293b] py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm z-50 custom-scrollbar">
+                        {filtered.length === 0 && query !== '' ? (
+                            <div className="relative cursor-default select-none py-2 px-4 text-gray-700 dark:text-gray-400">
+                                Nothing found.
+                            </div>
+                        ) : (
+                            filtered.map((s) => (
+                                <Combobox.Option
+                                    key={s}
+                                    className={({ active }) =>
+                                        `relative cursor-default select-none py-2 pl-10 pr-4 ${active ? 'bg-brand-primary text-white' : 'text-gray-900 dark:text-gray-100'
+                                        }`
+                                    }
+                                    value={s}
+                                >
+                                    {({ selected, active }) => (
+                                        <>
+                                            <span className={`block truncate ${selected ? 'font-medium' : 'font-normal'}`}>
+                                                {s}
+                                            </span>
+                                            {selected ? (
+                                                <span
+                                                    className={`absolute inset-y-0 left-0 flex items-center pl-3 ${active ? 'text-white' : 'text-brand-primary'
+                                                        }`}
+                                                >
+                                                    <Check className="h-3 w-3" aria-hidden="true" />
+                                                </span>
+                                            ) : null}
+                                        </>
+                                    )}
+                                </Combobox.Option>
+                            ))
+                        )}
+                        {filtered.length === 50 && (
+                            <div className="relative cursor-default select-none py-2 px-4 text-xs text-gray-400 italic text-center border-t border-gray-700">
+                                Keep typing to see more...
+                            </div>
+                        )}
+                    </Combobox.Options>
+                </Transition>
+            </div>
+        </Combobox>
+    );
+};
 
 const MarketDepthWidget: React.FC = () => {
     const { theme } = useTheme();
@@ -239,24 +322,21 @@ const MarketDepthWidget: React.FC = () => {
                             <select
                                 value={selectedExchange}
                                 onChange={(e) => setSelectedExchange(e.target.value)}
-                                className="bg-transparent text-xs font-bold text-slate-700 dark:text-white focus:outline-none cursor-pointer max-w-[80px]"
+                                className="bg-transparent text-xs font-bold text-slate-700 dark:text-gray-200 focus:outline-none cursor-pointer max-w-[80px] dark:bg-[#0f172a]"
                             >
                                 {availableExchanges.map(ex => <option key={ex} value={ex}>{ex.toUpperCase()}</option>)}
                             </select>
                         </div>
                         <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1"></div>
 
-                        {/* Symbol */}
-                        <div className="flex flex-col">
+                        {/* Symbol (Searchable) */}
+                        <div className="flex flex-col relative min-w-[120px]">
                             <span className="text-[10px] text-gray-500 uppercase font-bold">Symbol</span>
-                            <select
-                                value={selectedSymbol}
-                                onChange={(e) => setSelectedSymbol(e.target.value)}
-                                className="bg-transparent text-xs font-bold text-slate-700 dark:text-white focus:outline-none cursor-pointer max-w-[100px]"
-                            >
-                                {availableMarkets.length === 0 && <option>Loading...</option>}
-                                {availableMarkets.map(s => <option key={s} value={s}>{s}</option>)}
-                            </select>
+                            <SymbolSelector
+                                selected={selectedSymbol}
+                                setSelected={setSelectedSymbol}
+                                options={availableMarkets}
+                            />
                         </div>
                     </div>
 
@@ -268,7 +348,7 @@ const MarketDepthWidget: React.FC = () => {
                             <select
                                 value={selectedTimeframe}
                                 onChange={(e) => setSelectedTimeframe(e.target.value)}
-                                className="bg-transparent text-xs font-bold text-brand-primary focus:outline-none cursor-pointer"
+                                className="bg-transparent text-xs font-bold text-brand-primary focus:outline-none cursor-pointer dark:bg-[#0f172a]"
                             >
                                 {timeframeOptions.map(tf => <option key={tf} value={tf}>{tf}</option>)}
                             </select>
@@ -281,7 +361,7 @@ const MarketDepthWidget: React.FC = () => {
                             <select
                                 value={bucketSize}
                                 onChange={(e) => setBucketSize(parseFloat(e.target.value))}
-                                className="bg-transparent text-xs font-bold text-brand-primary focus:outline-none cursor-pointer"
+                                className="bg-transparent text-xs font-bold text-brand-primary focus:outline-none cursor-pointer dark:bg-[#0f172a]"
                             >
                                 {bucketOptions.map(b => <option key={b} value={b}>${b}</option>)}
                             </select>
