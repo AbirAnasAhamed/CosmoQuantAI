@@ -1,9 +1,8 @@
-
-import React, { useEffect, useState, useMemo } from 'react';
-import { Activity, ArrowDown, ArrowUp, RefreshCcw, Layers } from 'lucide-react';
-import Button from '@/components/common/Button';  // Assuming this exists based on AppDashboard import
-import { useSettings } from '@/context/SettingsContext';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { Activity, RefreshCcw, Layers, BarChart2 } from 'lucide-react';
+import Button from '@/components/common/Button';
 import { useTheme } from '@/context/ThemeContext';
+import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickData, IPriceLine, CandlestickSeries, Time } from 'lightweight-charts';
 
 interface OrderBucket {
     price: number;
@@ -20,199 +19,306 @@ interface MarketDepthData {
 
 const MarketDepthWidget: React.FC = () => {
     const { theme } = useTheme();
-    const isDarkMode = theme === 'dark';
-    const [symbol, setSymbol] = useState('BTC/USDT');
-    const [exchange, setExchange] = useState('binance');
+
+    // API Config
+    const API_BASE = 'http://localhost:8000/api/v1/market-depth';
+
+    // State - Selection
+    const [selectedExchange, setSelectedExchange] = useState('binance');
+    const [selectedSymbol, setSelectedSymbol] = useState('BTC/USDT');
+    const [selectedTimeframe, setSelectedTimeframe] = useState('1h');
     const [bucketSize, setBucketSize] = useState(50);
-    const [data, setData] = useState<MarketDepthData | null>(null);
+
+    // State - Data Lists
+    const [availableExchanges, setAvailableExchanges] = useState<string[]>([]);
+    const [availableMarkets, setAvailableMarkets] = useState<string[]>([]);
+
+    // State - Chart Data
+    const [ohlcvData, setOhlcvData] = useState<CandlestickData[]>([]);
+    const [depthData, setDepthData] = useState<MarketDepthData | null>(null);
+
+    // State - UI
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
-    const availableSymbols = ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT', 'XRP/USDT'];
-    const bucketSizes = {
-        'BTC/USDT': [10, 50, 100],
-        'ETH/USDT': [1, 5, 10],
-        'SOL/USDT': [0.1, 0.5, 1],
-        'BNB/USDT': [0.5, 1, 5],
-        'XRP/USDT': [0.001, 0.005, 0.01]
-    };
+    // Refs
+    const chartContainerRef = useRef<HTMLDivElement>(null);
+    const chartRef = useRef<IChartApi | null>(null);
+    const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
+    const priceLinesRef = useRef<IPriceLine[]>([]);
 
-    const currentBucketOptions = bucketSizes[symbol as keyof typeof bucketSizes] || [1, 10, 50];
+    // Constants
+    const timeframeOptions = ['1m', '5m', '15m', '1h', '4h', '1d'];
+    const bucketOptions = [1, 5, 10, 50, 100, 500, 1000]; // Generic options, could be dynamic
 
+    // --- 1. Fetch Available Exchanges ---
+    useEffect(() => {
+        const fetchExchanges = async () => {
+            try {
+                const res = await fetch(`${API_BASE}/exchanges`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setAvailableExchanges(data);
+                }
+            } catch (e) {
+                console.error("Failed to load exchanges", e);
+            }
+        };
+        fetchExchanges();
+    }, []);
+
+    // --- 2. Fetch Markets for Exchange ---
+    useEffect(() => {
+        const fetchMarkets = async () => {
+            if (!selectedExchange) return;
+            try {
+                const res = await fetch(`${API_BASE}/markets?exchange=${selectedExchange}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setAvailableMarkets(data);
+                    // Default to first symbol if current selection not in list
+                    if (!data.includes(selectedSymbol)) {
+                        setSelectedSymbol(data[0] || 'BTC/USDT');
+                    }
+                }
+            } catch (e) {
+                console.error("Failed to load markets", e);
+            }
+        };
+        fetchMarkets();
+    }, [selectedExchange]);
+
+    // --- 3. Fetch Data (OHLCV + Depth) ---
     const fetchData = async () => {
+        if (!selectedSymbol || !selectedExchange) return;
+
         setLoading(true);
         setError(null);
-        try {
-            // Assuming API proxy is set up or full URL is needed. 
-            // Using relative path based on settings.API_V1_STR usually being /api/v1
-            const response = await fetch(`http://localhost:8000/api/v1/market-depth/heatmap?symbol=${symbol}&exchange=${exchange}&bucket_size=${bucketSize}`);
 
-            if (!response.ok) {
-                throw new Error('Failed to fetch market depth data');
+        try {
+            // Parallel Fetch
+            const [ohlcvRes, depthRes] = await Promise.all([
+                fetch(`${API_BASE}/ohlcv?symbol=${encodeURIComponent(selectedSymbol)}&exchange=${selectedExchange}&timeframe=${selectedTimeframe}&limit=1000`),
+                fetch(`${API_BASE}/heatmap?symbol=${encodeURIComponent(selectedSymbol)}&exchange=${selectedExchange}&bucket_size=${bucketSize}`)
+            ]);
+
+            if (!ohlcvRes.ok) throw new Error("Failed to fetch Chart Data");
+            if (!depthRes.ok) throw new Error("Failed to fetch Liquidity Data");
+
+            const ohlcv = await ohlcvRes.json();
+            const depth = await depthRes.json();
+
+            setOhlcvData(ohlcv);
+            setDepthData(depth);
+
+            // Update Chart Data immediately
+            if (candleSeriesRef.current) {
+                // Ensure time is unique and sorted
+                const uniqueData = ohlcv.filter((v: any, i: number, a: any[]) =>
+                    a.findIndex((t: any) => t.time === v.time) === i
+                ).sort((a: any, b: any) => (a.time as number) - (b.time as number));
+
+                candleSeriesRef.current.setData(uniqueData as CandlestickData<Time>[]);
+                chartRef.current?.timeScale().fitContent();
             }
 
-            const jsonData: MarketDepthData = await response.json();
-            setData(jsonData);
-            setLastUpdated(new Date());
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'An unknown error occurred');
+            setError(err instanceof Error ? err.message : 'Error fetching data');
             console.error(err);
         } finally {
             setLoading(false);
         }
     };
 
+    // Load Data on Change
     useEffect(() => {
         fetchData();
-        const interval = setInterval(fetchData, 5000); // Auto-refresh every 5s
+        const interval = setInterval(fetchData, 10000); // Poll every 10s
         return () => clearInterval(interval);
-    }, [symbol, exchange, bucketSize]);
+    }, [selectedExchange, selectedSymbol, selectedTimeframe, bucketSize]);
 
-    // Calculations for visualization
-    const maxVolume = useMemo(() => {
-        if (!data) return 0;
-        const maxBid = Math.max(...data.bids.map(b => b.volume), 0);
-        const maxAsk = Math.max(...data.asks.map(a => a.volume), 0);
-        return Math.max(maxBid, maxAsk);
-    }, [data]);
+    // --- 4. Chart Initialization ---
+    useEffect(() => {
+        if (!chartContainerRef.current) return;
+
+        const chart = createChart(chartContainerRef.current, {
+            layout: {
+                background: { type: ColorType.Solid, color: '#111827' },
+                textColor: '#D1D5DB',
+            },
+            grid: {
+                vertLines: { color: '#374151', style: 1 },
+                horzLines: { color: '#374151', style: 1 },
+            },
+            width: chartContainerRef.current.clientWidth,
+            height: chartContainerRef.current.clientHeight,
+            timeScale: {
+                timeVisible: true,
+                secondsVisible: false,
+                borderColor: '#374151',
+            },
+            rightPriceScale: {
+                borderColor: '#374151',
+            }
+        });
+
+        const candleSeries = chart.addSeries(CandlestickSeries, {
+            upColor: '#26a69a',
+            downColor: '#ef5350',
+            borderVisible: false,
+            wickUpColor: '#26a69a',
+            wickDownColor: '#ef5350',
+        });
+
+        chartRef.current = chart;
+        candleSeriesRef.current = candleSeries;
+
+        // Resize
+        const handleResize = () => {
+            if (chartContainerRef.current) {
+                chart.applyOptions({ width: chartContainerRef.current.clientWidth });
+            }
+        };
+        window.addEventListener('resize', handleResize);
+        const resizeObserver = new ResizeObserver(handleResize);
+        resizeObserver.observe(chartContainerRef.current);
+
+        return () => {
+            window.removeEventListener('resize', handleResize);
+            resizeObserver.disconnect();
+            chart.remove();
+        };
+    }, []);
+
+    // --- 5. Draw Liquidity Zones ---
+    useEffect(() => {
+        if (!candleSeriesRef.current || !depthData) return;
+
+        // Clear old lines
+        priceLinesRef.current.forEach(line => candleSeriesRef.current?.removePriceLine(line));
+        priceLinesRef.current = [];
+
+        const addLines = (buckets: OrderBucket[], color: string, titlePrefix: string) => {
+            const top = [...buckets].sort((a, b) => b.volume - a.volume).slice(0, 5);
+            top.forEach(bucket => {
+                const line = candleSeriesRef.current?.createPriceLine({
+                    price: bucket.price,
+                    color: color,
+                    lineWidth: 2,
+                    lineStyle: 2,
+                    axisLabelVisible: true,
+                    title: `${titlePrefix}: ${bucket.volume.toFixed(2)}`,
+                });
+                if (line) priceLinesRef.current.push(line);
+            });
+        };
+
+        addLines(depthData.bids, '#00C853', 'Buy');
+        addLines(depthData.asks, '#FF3D00', 'Sell');
+
+    }, [depthData]);
+
 
     return (
-        <div className="h-full flex flex-col p-6 space-y-6">
+        <div className="h-full flex flex-col p-6 space-y-4">
             {/* Header Section */}
-            <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white dark:bg-[#1e293b] p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-white dark:bg-[#1e293b] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
                 <div>
-                    <h2 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                        <Activity className="text-brand-primary" />
-                        Market Depth Heatmap
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                        <Activity className="text-brand-primary w-5 h-5" />
+                        Market Depth Integration
                     </h2>
-                    <p className="text-sm text-slate-500 dark:text-gray-400 mt-1">
-                        Visualize real-time order book liquidity and support/resistance levels.
-                    </p>
                 </div>
 
-                <div className="flex flex-wrap items-center gap-3">
-                    {/* Symbol Selector */}
-                    <select
-                        value={symbol}
-                        onChange={(e) => {
-                            setSymbol(e.target.value);
-                            // Reset bucket size to default for new symbol
-                            const newBuckets = bucketSizes[e.target.value as keyof typeof bucketSizes] || [1];
-                            setBucketSize(newBuckets[1] || newBuckets[0]);
-                        }}
-                        className="px-4 py-2 rounded-xl bg-gray-50 dark:bg-[#0f172a] border border-gray-200 dark:border-gray-700 text-sm font-medium focus:ring-2 focus:ring-brand-primary outline-none text-slate-700 dark:text-gray-200"
-                    >
-                        {availableSymbols.map(s => <option key={s} value={s}>{s}</option>)}
-                    </select>
+                <div className="flex flex-wrap items-center gap-2">
+                    {/* Controls Group */}
+                    <div className='flex items-center gap-2 bg-gray-50 dark:bg-[#0f172a] px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700'>
+                        {/* Exchange */}
+                        <div className="flex flex-col">
+                            <span className="text-[10px] text-gray-500 uppercase font-bold">Exchange</span>
+                            <select
+                                value={selectedExchange}
+                                onChange={(e) => setSelectedExchange(e.target.value)}
+                                className="bg-transparent text-xs font-bold text-slate-700 dark:text-white focus:outline-none cursor-pointer max-w-[80px]"
+                            >
+                                {availableExchanges.map(ex => <option key={ex} value={ex}>{ex.toUpperCase()}</option>)}
+                            </select>
+                        </div>
+                        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1"></div>
 
-                    {/* Bucket Size Selector */}
-                    <div className="flex items-center gap-2 bg-gray-50 dark:bg-[#0f172a] px-3 py-2 rounded-xl border border-gray-200 dark:border-gray-700">
-                        <span className="text-xs text-gray-500 uppercase font-bold">Bucket:</span>
-                        <select
-                            value={bucketSize}
-                            onChange={(e) => setBucketSize(parseFloat(e.target.value))}
-                            className="bg-transparent text-sm font-bold text-brand-primary focus:outline-none cursor-pointer"
-                        >
-                            {currentBucketOptions.map(size => (
-                                <option key={size} value={size}>${size}</option>
-                            ))}
-                        </select>
+                        {/* Symbol */}
+                        <div className="flex flex-col">
+                            <span className="text-[10px] text-gray-500 uppercase font-bold">Symbol</span>
+                            <select
+                                value={selectedSymbol}
+                                onChange={(e) => setSelectedSymbol(e.target.value)}
+                                className="bg-transparent text-xs font-bold text-slate-700 dark:text-white focus:outline-none cursor-pointer max-w-[100px]"
+                            >
+                                {availableMarkets.length === 0 && <option>Loading...</option>}
+                                {availableMarkets.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+                        </div>
                     </div>
 
-                    <Button variant="secondary" onClick={fetchData} className="!p-2.5">
+                    {/* Timeframe & Bucket */}
+                    <div className='flex items-center gap-2 bg-gray-50 dark:bg-[#0f172a] px-3 py-1.5 rounded-lg border border-gray-200 dark:border-gray-700'>
+                        {/* Timeframe */}
+                        <div className="flex flex-col">
+                            <span className="text-[10px] text-gray-500 uppercase font-bold">Time</span>
+                            <select
+                                value={selectedTimeframe}
+                                onChange={(e) => setSelectedTimeframe(e.target.value)}
+                                className="bg-transparent text-xs font-bold text-brand-primary focus:outline-none cursor-pointer"
+                            >
+                                {timeframeOptions.map(tf => <option key={tf} value={tf}>{tf}</option>)}
+                            </select>
+                        </div>
+                        <div className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1"></div>
+
+                        {/* Bucket */}
+                        <div className="flex flex-col">
+                            <span className="text-[10px] text-gray-500 uppercase font-bold">Bucket</span>
+                            <select
+                                value={bucketSize}
+                                onChange={(e) => setBucketSize(parseFloat(e.target.value))}
+                                className="bg-transparent text-xs font-bold text-brand-primary focus:outline-none cursor-pointer"
+                            >
+                                {bucketOptions.map(b => <option key={b} value={b}>${b}</option>)}
+                            </select>
+                        </div>
+                    </div>
+
+                    <Button variant="secondary" onClick={fetchData} className="!p-2">
                         <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                     </Button>
                 </div>
             </div>
 
-            {/* Main Content */}
-            <div className="flex-1 bg-white dark:bg-[#1e293b] rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col relative">
+            {/* Main Chart Area */}
+            <div className="flex-1 bg-[#111827] rounded-2xl shadow-lg border border-gray-800 overflow-hidden relative min-h-[400px]">
+                {loading && !depthData && (
+                    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+                        <div className="text-brand-primary animate-pulse font-mono">Fetching Market Data...</div>
+                    </div>
+                )}
                 {error && (
-                    <div className="absolute inset-0 z-10 bg-white/80 dark:bg-black/50 flex items-center justify-center p-8 text-center text-red-500 font-bold">
-                        {error}
+                    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/80 backdrop-blur-sm">
+                        <div className="text-red-500 font-bold">{error}</div>
                     </div>
                 )}
 
-                {!data && !error && (
-                    <div className="absolute inset-0 z-10 bg-white/80 dark:bg-black/50 flex items-center justify-center p-8">
-                        <div className="animate-pulse text-gray-400 font-medium">Loading Market Data...</div>
+                <div ref={chartContainerRef} className="w-full h-full" />
+
+                {/* Overlay Info */}
+                <div className="absolute top-4 left-4 z-10 pointer-events-none">
+                    <div className="flex items-baseline gap-2">
+                        <h1 className="text-2xl font-bold text-white font-mono">{selectedSymbol}</h1>
+                        <span className="text-sm text-gray-400 font-mono">{selectedExchange.toUpperCase()} {selectedTimeframe}</span>
                     </div>
-                )}
-
-                {data && (
-                    <>
-                        {/* Price Header */}
-                        <div className="py-4 px-6 border-b border-gray-100 dark:border-gray-700 flex justify-center items-center bg-gray-50/50 dark:bg-[#161e2e]/50 backdrop-blur-sm sticky top-0 z-10">
-                            <div className="text-center">
-                                <span className="text-xs text-gray-400 font-mono uppercase tracking-widest block mb-1">Current Price ({data.exchange})</span>
-                                <div className="text-3xl font-black tracking-tight text-slate-900 dark:text-white font-mono">
-                                    ${data.current_price.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex-1 overflow-y-auto custom-scrollbar p-6">
-                            <div className="max-w-4xl mx-auto">
-                                <div className="flex gap-8">
-
-                                    {/* BIDS (Green) - Left Side */}
-                                    <div className="flex-1 flex flex-col gap-1">
-                                        <div className="text-right text-xs font-bold text-emerald-500 mb-2 uppercase tracking-wider flex justify-end items-center gap-1">
-                                            Bids (Support) <ArrowUp size={12} />
-                                        </div>
-                                        {data.bids.map((bid, idx) => {
-                                            const widthPercent = (bid.volume / maxVolume) * 100;
-                                            return (
-                                                <div key={bid.price} className="flex items-center justify-end h-8 group relative">
-                                                    <div className="absolute right-0 top-0 bottom-0 bg-emerald-500/10 dark:bg-emerald-500/20 rounded-l-md transition-all duration-500 ease-out" style={{ width: `${widthPercent}%` }}></div>
-                                                    <div className="relative z-10 flex items-center gap-4 pr-3">
-                                                        <span className="text-xs font-medium text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                                                            Vol: {bid.volume.toFixed(4)}
-                                                        </span>
-                                                        <span className="text-sm font-bold font-mono text-slate-700 dark:text-emerald-100">
-                                                            {bid.price.toLocaleString()}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-
-                                    {/* Center Axis */}
-                                    <div className="w-px bg-gray-200 dark:bg-gray-700 relative"></div>
-
-                                    {/* ASKS (Red) - Right Side */}
-                                    <div className="flex-1 flex flex-col gap-1">
-                                        <div className="text-left text-xs font-bold text-rose-500 mb-2 uppercase tracking-wider flex items-center gap-1">
-                                            <ArrowDown size={12} /> Asks (Resistance)
-                                        </div>
-                                        {data.asks.map((ask, idx) => {
-                                            const widthPercent = (ask.volume / maxVolume) * 100;
-                                            return (
-                                                <div key={ask.price} className="flex items-center h-8 group relative">
-                                                    <div className="absolute left-0 top-0 bottom-0 bg-rose-500/10 dark:bg-rose-500/20 rounded-r-md transition-all duration-500 ease-out" style={{ width: `${widthPercent}%` }}></div>
-                                                    <div className="relative z-10 flex items-center gap-4 pl-3">
-                                                        <span className="text-sm font-bold font-mono text-slate-700 dark:text-rose-100">
-                                                            {ask.price.toLocaleString()}
-                                                        </span>
-                                                        <span className="text-xs font-medium text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
-                                                            Vol: {ask.volume.toFixed(4)}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            )
-                                        })}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div className="py-2 px-6 border-t border-gray-100 dark:border-gray-700 bg-gray-50 dark:bg-[#0f172a] flex justify-between items-center text-[10px] text-gray-400">
-                            <span>Source: {exchange.toUpperCase()} (CCXT)</span>
-                            <span>Last Updated: {lastUpdated ? lastUpdated.toLocaleTimeString() : 'Never'}</span>
-                        </div>
-                    </>
-                )}
+                    <div className="text-3xl font-bold text-[#26a69a] font-mono mt-1">
+                        ${depthData?.current_price?.toLocaleString() || '---'}
+                    </div>
+                </div>
             </div>
         </div>
     );

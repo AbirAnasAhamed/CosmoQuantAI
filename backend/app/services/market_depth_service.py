@@ -143,4 +143,85 @@ class MarketDepthService:
         
         return sorted_buckets
 
+    async def get_available_exchanges(self) -> List[str]:
+        """
+        Returns a list of all exchanges supported by CCXT.
+        """
+        # Filter for major exchanges to avoid overwhelming the UI, or return all
+        # For now, let's return a curated list of popular ones + generic
+        popular = ['binance', 'kraken', 'coinbase', 'kucoin', 'bybit', 'okx', 'bitfinex', 'gateio', 'htx', 'mexc']
+        return popular
+
+    async def get_exchange_markets(self, exchange_id: str) -> List[str]:
+        """
+        Returns a list of symbols for a given exchange.
+        """
+        cache_key = f"markets:{exchange_id}"
+        redis = redis_manager.get_redis()
+        
+        if redis:
+            cached = await redis.get(cache_key)
+            if cached:
+                return json.loads(cached)
+
+        exchange_class = getattr(ccxt, exchange_id, None)
+        if not exchange_class:
+            raise ValueError(f"Exchange '{exchange_id}' not supported.")
+        
+        exchange = exchange_class({'enableRateLimit': True})
+        try:
+            markets = await exchange.load_markets()
+            symbols = list(markets.keys())
+            # Cache for 1 hour as markets don't change often
+            if redis:
+                await redis.setex(cache_key, 3600, json.dumps(symbols))
+            return symbols
+        finally:
+            await exchange.close()
+
+    async def fetch_ohlcv(self, symbol: str, exchange_id: str, timeframe: str = '1h', limit: int = 100) -> List[Dict[str, Any]]:
+        """
+        Fetches OHLCV data for a symbol.
+        """
+        cache_key = f"ohlcv:{exchange_id}:{symbol}:{timeframe}"
+        redis = redis_manager.get_redis()
+
+        if redis:
+            cached = await redis.get(cache_key)
+            if cached:
+                return json.loads(cached)
+
+        exchange_class = getattr(ccxt, exchange_id, None)
+        if not exchange_class:
+            raise ValueError(f"Exchange '{exchange_id}' not supported.")
+
+        exchange = exchange_class({'enableRateLimit': True})
+        try:
+            # CCXT returns list of [timestamp, open, high, low, close, volume]
+            ohlcv = await exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
+            
+            # Format for Lightweight Charts: { time: seconds, open, high, low, close }
+            formatted_data = []
+            for candle in ohlcv:
+                formatted_data.append({
+                    "time": int(candle[0] / 1000), # Unix timestamp in seconds
+                    "open": candle[1],
+                    "high": candle[2],
+                    "low": candle[3],
+                    "close": candle[4],
+                    "volume": candle[5]
+                })
+
+            if redis:
+                # Cache for timeframe duration (e.g. 1m -> 60s, 1h -> 3600s)
+                # Simplified TTL: 1 minute for all for now to ensure freshness
+                await redis.setex(cache_key, 60, json.dumps(formatted_data))
+            
+            return formatted_data
+        except Exception as e:
+            logger.error(f"Error fetching OHLCV for {symbol}: {e}")
+            raise e
+        finally:
+            await exchange.close()
+
 market_depth_service = MarketDepthService()

@@ -24,3 +24,30 @@ async def get_order_book_heatmap(
         return data
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+@router.get("/exchanges", response_model=list[str])
+async def get_exchanges() -> Any:
+    """List available exchanges."""
+    return await market_depth_service.get_available_exchanges()
+
+@router.get("/markets", response_model=list[str])
+async def get_markets(
+    exchange: str = Query(..., description="Exchange ID")
+) -> Any:
+    """List markets (symbols) for an exchange."""
+    try:
+        return await market_depth_service.get_exchange_markets(exchange)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+@router.get("/ohlcv", response_model=Any)
+async def get_ohlcv(
+    symbol: str = Query(..., description="Trading Pair"),
+    exchange: str = Query(..., description="Exchange ID"),
+    timeframe: str = Query("1h", description="Timeframe (1m, 1h, 1d)"),
+    limit: int = Query(100, description="Number of candles")
+) -> Any:
+    """Get OHLCV data for chart."""
+    try:
+        return await market_depth_service.fetch_ohlcv(symbol, exchange, timeframe, limit)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
