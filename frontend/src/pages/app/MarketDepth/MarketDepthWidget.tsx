@@ -129,10 +129,23 @@ const MarketDepthWidget: React.FC = () => {
     const chartRef = useRef<IChartApi | null>(null);
     const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
     const priceLinesRef = useRef<IPriceLine[]>([]);
+    const shouldAutoAdjustBucket = useRef(true);
 
     // Constants
     const timeframeOptions = ['1m', '5m', '15m', '1h', '4h', '1d'];
-    const bucketOptions = [1, 5, 10, 50, 100, 500, 1000]; // Generic options, could be dynamic
+    const bucketOptions = [0.0001, 0.001, 0.01, 0.1, 1, 5, 10, 50, 100, 500, 1000];
+
+    // Helper: Auto-calculate bucket size
+    const getSmartBucketSize = (price: number) => {
+        if (price < 0.01) return 0.0001;
+        if (price < 0.1) return 0.001;
+        if (price < 1) return 0.01;
+        if (price < 10) return 0.1;
+        if (price < 100) return 1;
+        if (price < 1000) return 5;
+        if (price < 10000) return 10;
+        return 50;
+    };
 
     // --- 1. Fetch Available Exchanges ---
     useEffect(() => {
@@ -171,6 +184,11 @@ const MarketDepthWidget: React.FC = () => {
         fetchMarkets();
     }, [selectedExchange]);
 
+    // Reset auto-adjust on symbol change
+    useEffect(() => {
+        shouldAutoAdjustBucket.current = true;
+    }, [selectedSymbol]);
+
     // --- 3. Fetch Data (OHLCV + Depth) ---
     const fetchData = async () => {
         if (!selectedSymbol || !selectedExchange) return;
@@ -193,6 +211,15 @@ const MarketDepthWidget: React.FC = () => {
 
             setOhlcvData(ohlcv);
             setDepthData(depth);
+
+            // Auto-Adjust Bucket Size
+            if (shouldAutoAdjustBucket.current && depth.current_price) {
+                const smartBucket = getSmartBucketSize(depth.current_price);
+                if (smartBucket !== bucketSize) {
+                    setBucketSize(smartBucket);
+                }
+                shouldAutoAdjustBucket.current = false;
+            }
 
             // Update Chart Data immediately
             if (candleSeriesRef.current) {
