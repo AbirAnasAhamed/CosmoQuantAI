@@ -32,3 +32,6 @@ api_router.include_router(market_discovery.router, prefix="/market", tags=["mark
 
 from app.api.v1.endpoints import event_driven
 api_router.include_router(event_driven.router, prefix="/simulation", tags=["event-driven"])
+
+from app.api.v1.endpoints import market_depth
+api_router.include_router(market_depth.router, prefix="/market-depth", tags=["market-depth"])

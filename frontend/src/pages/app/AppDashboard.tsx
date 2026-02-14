@@ -41,6 +41,7 @@ import Backtester from './Backtester';
 import BotLab from './BotLab';
 import ArbitrageBot from './ArbitrageBot';
 import GridBot from './GridBot';
+import MarketDepthWidget from './MarketDepth/MarketDepthWidget';
 import EventDrivenSimulator from './EventDrivenSimulator';
 import PanicButton from '@/components/common/PanicButton';
 import { useSettings } from '@/context/SettingsContext';
@@ -160,6 +161,7 @@ const Sidebar: React.FC<{
                 { view: AppView.CORRELATION_MATRIX, icon: <CorrelationIcon />, label: 'Correlation Matrix' },
                 { view: AppView.ON_CHAIN_ANALYZER, icon: <OnChainIcon />, label: 'On-Chain Data' },
                 { view: AppView.QUANT_SCREENER, icon: <QuantScreenerIcon />, label: 'Quant Screener' },
+                { view: AppView.MARKET_DEPTH, icon: <Activity />, label: 'Market Depth' },
                 { view: AppView.ALTERNATIVE_DATA, icon: <AlternativeDataIcon />, label: 'Alternative Data' },
             ]
         },
@@ -282,6 +284,13 @@ const AppDashboard: React.FC<AppDashboardProps> = ({ currentView, onNavigate, on
         }
     }, [currentView]);
 
+    // ✅ Listen for external route navigation
+    useEffect(() => {
+        if (window.location.pathname === '/alpha-engine/market-depth') {
+            onNavigate(AppView.MARKET_DEPTH);
+        }
+    }, [onNavigate]);
+
     const handleConnectWallet = async () => {
         if (window.ethereum) {
             try {
@@ -340,6 +349,7 @@ const AppDashboard: React.FC<AppDashboardProps> = ({ currentView, onNavigate, on
             case AppView.EDUCATION_HUB: return <EducationHub />;
             case AppView.NURAL_CORE: return <NeuralArchitecture />;
             case AppView.TASK_MANAGER: return <TaskManager />;
+            case AppView.MARKET_DEPTH: return <MarketDepthWidget />;
             case AppView.SETTINGS: return <Settings initialSection={activeSettingsSection} />;
             default: return <Dashboard />;
         }

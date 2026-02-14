@@ -651,6 +651,9 @@ export enum AppView {
   OMNI_BOTS = 'Bot Fleet',
   OMNI_EXECUTION = 'Execution Engine',
 
+  // ✅ New Market Depth View
+  MARKET_DEPTH = 'Market Depth',
+
 }
 
 export interface AiAnalysisResult {
