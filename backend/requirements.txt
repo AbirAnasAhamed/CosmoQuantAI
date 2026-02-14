@@ -81,3 +81,4 @@ python-dateutil
 spacy
 aiohttp
 statsmodels
+hmmlearn

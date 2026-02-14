@@ -22,6 +22,8 @@ api_router.include_router(system.router, prefix="/system", tags=["system"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(grid_bot.router, prefix="/grid-bot", tags=["grid-bot"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
+from app.api.v1.endpoints import market_regime
+api_router.include_router(market_regime.router, prefix="/analytics", tags=["analytics"])
 from app.api.v1.endpoints import whale_alerts, liquidation
 api_router.include_router(whale_alerts.router, prefix="/whale-alerts", tags=["whale-alerts"])
 api_router.include_router(liquidation.router, prefix="/liquidation", tags=["liquidation"])
