@@ -1,12 +1,12 @@
 # Node Image
-FROM node:24-alpine
+FROM node:22-alpine
 
 # Set working directory
 WORKDIR /app
 
 # Install dependencies first (caching layer)
 COPY package*.json ./
-RUN npm install
+RUN npm install --legacy-peer-deps
 
 # Copy source files
 COPY . .

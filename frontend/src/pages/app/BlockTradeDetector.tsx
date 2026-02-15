@@ -142,7 +142,21 @@ const BlockTradeDetector: React.FC = () => {
     const [whaleValueInput, setWhaleValueInput] = useState('');
 
     // Mock Unusual Volume (Keep existing mock logic for now)
-    const [unusualVolume, setUnusualVolume] = useState<UnusualVolumeSpikeWithStatus[]>(() => Array.from({ length: 5 }, () => ({ ...generateUnusualVolumeSpike(), isUpdated: false })));
+    const [unusualVolume, setUnusualVolume] = useState<UnusualVolumeSpikeWithStatus[]>(() => {
+        const uniqueSpikes: UnusualVolumeSpikeWithStatus[] = [];
+        const usedTickers = new Set<string>();
+        let attempts = 0;
+        
+        while (uniqueSpikes.length < 5 && attempts < 20) {
+            const spike = generateUnusualVolumeSpike();
+            if (!usedTickers.has(spike.ticker)) {
+                usedTickers.add(spike.ticker);
+                uniqueSpikes.push({ ...spike, isUpdated: false });
+            }
+            attempts++;
+        }
+        return uniqueSpikes;
+    });
     const timersRef = useRef<number[]>([]);
 
     useEffect(() => {
