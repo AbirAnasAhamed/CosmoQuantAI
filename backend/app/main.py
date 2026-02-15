@@ -11,7 +11,9 @@ from app.utils import RedisLogHandler
 import ccxt.async_support as ccxt
 from datetime import datetime
 from app.core.redis import redis_manager # ✅ Import RedisManager
+from app.core.redis import redis_manager # ✅ Import RedisManager
 from app.services.liquidation_service import liquidation_service # ✅ Import Liquidation Service
+from app.services.block_trade_worker import block_trade_worker # ✅ Import Block Trade Worker
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
@@ -125,6 +127,27 @@ async def subscribe_to_task_updates():
                     print(f"Task Update Forward Error: {e}")
     except asyncio.CancelledError:
         print("Task Update Subscriber Cancelled.")
+    finally:
+        await redis.close()
+
+async def subscribe_to_block_trades():
+    print("📡 Listening to Block Trade Stream...")
+    redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
+    pubsub = redis.pubsub()
+    await pubsub.subscribe("block_trade_stream")
+
+    try:
+        async for message in pubsub.listen():
+            if message["type"] == "message":
+                try:
+                    data = json.loads(message["data"])
+                    # Directly broadcast to "block_trades" channel
+                    # Frontend will subscribe to this channel via /ws/block_trades endpoint
+                    await manager.broadcast(data, "block_trades")
+                except Exception as e:
+                    print(f"Block Trade Forward Error: {e}")
+    except asyncio.CancelledError:
+        print("Block Trade Subscriber Cancelled.")
     finally:
         await redis.close()
 
@@ -328,6 +351,15 @@ async def startup_event():
     running_tasks.add(liquidation_task)
     liquidation_task.add_done_callback(running_tasks.discard)
 
+    # Task F: Block Trade Worker & Subscriber
+    # 1. Start Worker
+    asyncio.create_task(block_trade_worker.start()) # Worker manages its own loop
+    
+    # 2. Start Redis Listener
+    block_trade_task = asyncio.create_task(subscribe_to_block_trades())
+    running_tasks.add(block_trade_task)
+    block_trade_task.add_done_callback(running_tasks.discard)
+
     # Task D: Active Bot PnL Broadcast
     async def broadcast_active_bot_pnl():
         print("💰 Starting Active Bot PnL Broadcast...")
@@ -414,6 +446,10 @@ async def shutdown_event():
     # Stop Liquidation Service
     await liquidation_service.stop()
 
+    # Stop Block Trade Worker
+    await block_trade_worker.stop()
+    await block_trade_monitor.close_exchanges()
+
     print("✅ All background tasks stopped.")
 
 # --- WebSocket Endpoints ---
@@ -459,3 +495,11 @@ async def websocket_status(websocket: WebSocket, bot_id: str):
         while True: await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket, channel_id)
+
+@app.websocket("/ws/block_trades")
+async def websocket_block_trades(websocket: WebSocket):
+    await manager.connect(websocket, "block_trades")
+    try:
+        while True: await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, "block_trades")

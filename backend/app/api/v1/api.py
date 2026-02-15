@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 # ১. sentiment ইম্পোর্ট করো
-from app.api.v1.endpoints import auth, users, market_data, strategies, backtest, bots, dashboard, trading, indicators, sentiment, education, arbitrage, system, notifications, grid_bot, analytics, on_chain, fng, market_discovery
+from app.api.v1.endpoints import auth, users, market_data, strategies, backtest, bots, dashboard, trading, indicators, sentiment, education, arbitrage, system, notifications, grid_bot, analytics, on_chain, fng, market_discovery, block_trades
 
 api_router = APIRouter()
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
@@ -35,3 +35,4 @@ api_router.include_router(event_driven.router, prefix="/simulation", tags=["even
 
 from app.api.v1.endpoints import market_depth
 api_router.include_router(market_depth.router, prefix="/market-depth", tags=["market-depth"])
+api_router.include_router(block_trades.router, prefix="/block-trades", tags=["block-trades"])

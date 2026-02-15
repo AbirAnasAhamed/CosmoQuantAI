@@ -7,6 +7,7 @@ import './index.css';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { ToastProvider } from '@/context/ToastContext';
 import { SettingsProvider } from '@/context/SettingsContext';
+import { ChakraProvider } from '@chakra-ui/react';
 
 const rootElement = document.getElementById('root');
 if (!rootElement) {
@@ -16,15 +17,17 @@ if (!rootElement) {
 const root = ReactDOM.createRoot(rootElement);
 root.render(
   <React.StrictMode>
-    <ThemeProvider>
-      <ToastProvider>
-        <SettingsProvider>
-          <BrowserRouter>
-            <App />
-          </BrowserRouter>
-        </SettingsProvider>
-      </ToastProvider>
-    </ThemeProvider>
+    <ChakraProvider>
+      <ThemeProvider>
+        <ToastProvider>
+          <SettingsProvider>
+            <BrowserRouter>
+              <App />
+            </BrowserRouter>
+          </SettingsProvider>
+        </ToastProvider>
+      </ThemeProvider>
+    </ChakraProvider>
   </React.StrictMode>
 );
 
