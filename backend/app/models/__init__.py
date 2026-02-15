@@ -103,3 +103,4 @@ from .grid import GridBot
 from .whale_alert import WhaleAlert
 from .analysis import AnalysisSignal
 from .sentiment import SentimentPoll
+from .options_activity import OptionTrade, OptionSentiment

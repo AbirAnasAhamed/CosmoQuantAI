@@ -36,3 +36,6 @@ api_router.include_router(event_driven.router, prefix="/simulation", tags=["even
 from app.api.v1.endpoints import market_depth
 api_router.include_router(market_depth.router, prefix="/market-depth", tags=["market-depth"])
 api_router.include_router(block_trades.router, prefix="/block-trades", tags=["block-trades"])
+
+from app.api.v1.endpoints import options
+api_router.include_router(options.router, prefix="/options", tags=["options"])

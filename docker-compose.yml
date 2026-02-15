@@ -81,7 +81,8 @@ services:
     depends_on:
       - backend
     environment:
-      - VITE_BACKEND_URL=http://backend:8000
+      - VITE_BACKEND_URL=http://localhost:8000
+      - INTERNAL_BACKEND_URL=http://backend:8000
 
   # 5. Database Service
   db:

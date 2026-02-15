@@ -8,7 +8,12 @@ const __dirname = path.dirname(__filename);
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), '');
-  const backendUrl = process.env.VITE_BACKEND_URL || env.VITE_BACKEND_URL || 'http://localhost:8000';
+  // Prioritize INTERNAL_BACKEND_URL for Docker container-to-container communication
+  const backendUrl = process.env.INTERNAL_BACKEND_URL ||
+    env.INTERNAL_BACKEND_URL ||
+    process.env.VITE_BACKEND_URL ||
+    env.VITE_BACKEND_URL ||
+    'http://localhost:8000';
 
   console.log(`🚀 Proxy targeting: ${backendUrl}`);
 

@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Card from '@/components/common/Card';
-import { generateUnusualOptionTrade } from '@/constants';
 import type { UnusualOptionTrade } from '@/types';
 
 type TradeWithStatus = UnusualOptionTrade & { isNew?: boolean };
@@ -45,17 +44,13 @@ const LiveIndicator: React.FC<{ isLive: boolean }> = ({ isLive }) => (
 );
 
 const formatValue = (value: number) => {
-    if (value >= 1_000_000) return `$${(value/1_000_000).toFixed(1)}M`;
-    if (value >= 1_000) return `$${(value/1_000).toFixed(0)}k`;
+    if (value >= 1_000_000) return `$${(value / 1_000_000).toFixed(1)}M`;
+    if (value >= 1_000) return `$${(value / 1_000).toFixed(0)}k`;
     return `$${value.toFixed(0)}`;
 };
 
 const UnusualOptionsActivity: React.FC = () => {
-    const [trades, setTrades] = useState<TradeWithStatus[]>(() =>
-        Array.from({ length: 25 }, generateUnusualOptionTrade)
-            .map(trade => ({ ...trade, isNew: false }))
-            .sort((a, b) => b.time.localeCompare(a.time))
-    );
+    const [trades, setTrades] = useState<TradeWithStatus[]>([]);
     const [isLive, setIsLive] = useState(true);
     const [filters, setFilters] = useState({
         sentiment: 'All',
@@ -67,17 +62,67 @@ const UnusualOptionsActivity: React.FC = () => {
     useEffect(() => {
         if (!isLive) return;
 
-        const interval = setInterval(() => {
-            const newTrade: TradeWithStatus = { ...generateUnusualOptionTrade(), isNew: true };
-            setTrades(prev => [newTrade, ...prev].slice(0, 100));
-            const timerId = window.setTimeout(() => {
-                setTrades(current => current.map(t => (t.id === newTrade.id ? { ...t, isNew: false } : t)));
-            }, 1000);
-            timersRef.current.push(timerId);
-        }, 2000);
+        // Use environment variable for WebSocket URL
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+        // Convert http/https to ws/wss
+        const wsUrl = backendUrl.replace(/^http/, 'ws') + '/api/v1/options/live';
+
+        console.log(`Connecting to Options WS: ${wsUrl}`);
+        const ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            console.log('Options WebSocket Connected');
+        };
+
+        ws.onmessage = (event) => {
+            try {
+                const message = JSON.parse(event.data);
+
+                if (message.type === 'heartbeat') return;
+
+                if (message.type === 'unusual_options_alert') {
+                    const data = message.data;
+                    const newTrade: TradeWithStatus = {
+                        id: Math.random().toString(36).substr(2, 9),
+                        ticker: data.ticker,
+                        time: new Date(data.timestamp).toLocaleTimeString(),
+                        strike: 0, // Backend needs to provide this or we parse from ticker
+                        expiry: 'Unknown', // Backend needs to provide
+                        type: (data.ticker.endsWith('C') ? 'Call' : 'Put') as 'Call' | 'Put', // Default to Put if unknown or logic fails
+                        volume: data.size,
+                        openInterest: 0, // Backend needs to provide
+                        premium: data.price, // Assuming premium here
+                        tradeType: 'Block', // Default to Block as valid type
+                        sentiment: data.sentiment || 'Neutral',
+                        details: data.reasons.join(', '),
+                        isNew: true
+                    };
+
+                    setTrades(prev => [newTrade, ...prev].slice(0, 100));
+
+                    const timerId = window.setTimeout(() => {
+                        setTrades(current => current.map(t => (t.id === newTrade.id ? { ...t, isNew: false } : t)));
+                    }, 1000);
+                    timersRef.current.push(timerId);
+                }
+            } catch (e) {
+                console.error('Error parsing WS message:', e);
+            }
+        };
+
+        ws.onclose = () => {
+            console.log('Options WebSocket Disconnected');
+            // Auto-reconnect logic could go here
+            if (isLive) {
+                setTimeout(() => {
+                    // Trigger re-render to reconnect if still live
+                    setIsLive(prev => prev);
+                }, 3000);
+            }
+        };
 
         return () => {
-            clearInterval(interval);
+            ws.close();
             timersRef.current.forEach(clearTimeout);
             timersRef.current = [];
         };
