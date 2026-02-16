@@ -10,21 +10,31 @@ export const useBlockTradeSocket = () => {
     const toast = useToast();
 
     useEffect(() => {
+        let isMounted = true;
+        let reconnectTimeout: NodeJS.Timeout;
+
         // Correct WS URL based on environment (assuming localhost for dev or relative for prod)
         const wsUrl = process.env.NODE_ENV === 'production'
             ? `wss://${window.location.host}/ws/block_trades`
             : 'ws://localhost:8000/ws/block_trades';
 
         const connect = () => {
+            if (!isMounted) return;
+
             const socket = new WebSocket(wsUrl);
             socketRef.current = socket;
 
             socket.onopen = () => {
+                if (!isMounted) {
+                    socket.close();
+                    return;
+                }
                 console.log('✅ Connected to Block Trade WebSocket');
                 setIsConnected(true);
             };
 
             socket.onmessage = (event) => {
+                if (!isMounted) return;
                 try {
                     const payload: BlockTradePayload = JSON.parse(event.data);
 
@@ -58,9 +68,11 @@ export const useBlockTradeSocket = () => {
 
             socket.onclose = () => {
                 console.log('❌ Disconnected from Block Trade WebSocket');
-                setIsConnected(false);
-                // Reconnect after 3 seconds
-                setTimeout(connect, 3000);
+                if (isMounted) {
+                    setIsConnected(false);
+                    // Reconnect after 3 seconds
+                    reconnectTimeout = setTimeout(connect, 3000);
+                }
             };
 
             socket.onerror = (error) => {
@@ -72,6 +84,8 @@ export const useBlockTradeSocket = () => {
         connect();
 
         return () => {
+            isMounted = false;
+            clearTimeout(reconnectTimeout);
             if (socketRef.current) {
                 socketRef.current.close();
             }

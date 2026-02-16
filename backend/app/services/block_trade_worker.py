@@ -14,6 +14,10 @@ class BlockTradeWorker:
         # In production, use Redis SET with expiration for robust deduplication across restarts
 
     async def start(self):
+        if self.running:
+            logger.info("ℹ️ Block Trade Worker is already running.")
+            return
+
         logger.info("🚀 Block Trade Worker Started")
         self.running = True
         

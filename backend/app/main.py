@@ -352,10 +352,10 @@ async def startup_event():
     liquidation_task.add_done_callback(running_tasks.discard)
 
     # Task F: Block Trade Worker & Subscriber
-    # 1. Start Worker
-    asyncio.create_task(block_trade_worker.start()) # Worker manages its own loop
+    # 1. Start Worker (Now triggered on-demand via WebSocket)
+    # asyncio.create_task(block_trade_worker.start()) 
     
-    # 2. Start Redis Listener
+    # 2. Start Redis Listener (This can stay running or be on-demand too, but keeping it running is safer for now)
     block_trade_task = asyncio.create_task(subscribe_to_block_trades())
     running_tasks.add(block_trade_task)
     block_trade_task.add_done_callback(running_tasks.discard)
@@ -499,7 +499,16 @@ async def websocket_status(websocket: WebSocket, bot_id: str):
 @app.websocket("/ws/block_trades")
 async def websocket_block_trades(websocket: WebSocket):
     await manager.connect(websocket, "block_trades")
+    
+    # ✅ Start Worker On-Demand
+    if not block_trade_worker.running:
+         asyncio.create_task(block_trade_worker.start())
+
     try:
         while True: await websocket.receive_text()
     except WebSocketDisconnect:
         manager.disconnect(websocket, "block_trades")
+        
+        # ✅ Stop Worker if no one is listening
+        if not manager.active_connections.get("block_trades"):
+            await block_trade_worker.stop()
