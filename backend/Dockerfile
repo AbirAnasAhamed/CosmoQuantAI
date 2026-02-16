@@ -47,7 +47,7 @@ RUN mkdir -p /tmp/.cache && chmod 777 /tmp/.cache \
 # Install dependencies
 COPY requirements.txt .
 RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install -r requirements.txt
+    pip install --default-timeout=1000 -r requirements.txt
 
 # Copy all backend files
 COPY . .

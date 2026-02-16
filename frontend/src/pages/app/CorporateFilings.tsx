@@ -5,6 +5,7 @@ import Button from '@/components/common/Button';
 import { generateNewFiling } from '@/constants';
 import type { InsiderFiling } from '@/types';
 import { useToast } from '@/context/ToastContext';
+import api from '@/services/api';
 
 type InsiderFilingWithStatus = InsiderFiling & { isNew?: boolean };
 
@@ -53,15 +54,14 @@ const AddFilingModal: React.FC<{
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        const newFiling: InsiderFiling = {
-            id: `manual_${new Date().getTime()}`,
+        const newFiling: any = {
             ticker: formData.ticker.toUpperCase(),
             insiderName: formData.insiderName,
             insiderRole: formData.insiderRole,
             transactionType: formData.transactionType,
             transactionDate: formData.transactionDate,
-            shares: parseFloat(formData.shares),
-            sharePrice: parseFloat(formData.sharePrice),
+            shares: parseFloat(formData.shares) || 0,
+            sharePrice: parseFloat(formData.sharePrice) || 0,
             totalValue: totalValue,
         };
         onAddFiling(newFiling);
@@ -136,40 +136,54 @@ const AddFilingModal: React.FC<{
 const CorporateFilings: React.FC = () => {
     const [watchlist, setWatchlist] = useState<string[]>(['AAPL', 'TSLA', 'MSFT', 'NVDA']);
     const [newTicker, setNewTicker] = useState('');
-    const [filings, setFilings] = useState<InsiderFilingWithStatus[]>(() => [
-        { ...generateNewFiling(['AAPL', 'TSLA', 'MSFT', 'NVDA']), isNew: false },
-        { ...generateNewFiling(['AAPL', 'TSLA', 'MSFT', 'NVDA']), isNew: false },
-        { ...generateNewFiling(['AAPL', 'TSLA', 'MSFT', 'NVDA']), isNew: false },
-        { ...generateNewFiling(['AAPL', 'TSLA', 'MSFT', 'NVDA']), isNew: false },
-        { ...generateNewFiling(['AAPL', 'TSLA', 'MSFT', 'NVDA']), isNew: false },
-    ]);
+
+    // Mock data moved to empty array first
+    const [filings, setFilings] = useState<InsiderFilingWithStatus[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [filterType, setFilterType] = useState<'All' | 'Buy' | 'Sell'>('All');
 
     const { showToast } = useToast();
     const timersRef = useRef<number[]>([]);
 
+    // 1. Fetch data from API
+    const fetchFilings = async () => {
+        setIsLoading(true);
+        try {
+            const response = await api.get('/insider/');
+            // API returns data with snake_case keys usually, but let's assume our service returns compatible format
+            // or we might need to map it if backend returns snake_case and frontend expects camelCase.
+            // Our Schema InsiderFiling uses snake_case keys (ticker, insider_name etc), 
+            // but Frontend InsiderFiling type (from types.ts) likely uses camelCase? 
+            // Let's check types.ts if possible, but for now map it to be safe.
+
+            const data = response.data.map((f: any) => ({
+                id: f.id,
+                ticker: f.ticker,
+                insiderName: f.insider_name,
+                insiderRole: f.insider_role,
+                transactionType: f.transaction_type,
+                transactionDate: f.transaction_date,
+                shares: Number(f.shares) || 0,
+                sharePrice: Number(f.share_price) || 0,
+                totalValue: Number(f.total_value) || 0,
+                isNew: false
+            }));
+            setFilings(data);
+        } catch (error) {
+            console.error("Failed to fetch filings", error);
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // 2. Fetch on load and interval
     useEffect(() => {
-        const interval = setInterval(() => {
-            if (watchlist.length > 0) {
-                const newFiling: InsiderFilingWithStatus = { ...generateNewFiling(watchlist), isNew: true };
-                setFilings(currentFilings => [newFiling, ...currentFilings].slice(0, 50));
-
-                showToast(`${newFiling.transactionType.toUpperCase()}: ${newFiling.insiderName} (${newFiling.ticker})`, newFiling.transactionType === 'Buy' ? 'success' : 'warning');
-
-                const timerId = window.setTimeout(() => {
-                    setFilings(current => current.map(f => f.id === newFiling.id ? { ...f, isNew: false } : f));
-                }, 2000);
-                timersRef.current.push(timerId);
-            }
-        }, 6000);
-
-        return () => {
-            clearInterval(interval);
-            timersRef.current.forEach(clearTimeout);
-            timersRef.current = [];
-        };
-    }, [watchlist, showToast]);
+        fetchFilings();
+        const interval = setInterval(fetchFilings, 60000);
+        return () => clearInterval(interval);
+    }, []);
 
     const handleAddTicker = (e: React.FormEvent) => {
         e.preventDefault();
@@ -179,14 +193,25 @@ const CorporateFilings: React.FC = () => {
         }
     };
 
-    const handleAddFiling = (newFilingData: InsiderFiling) => {
-        const newFiling: InsiderFilingWithStatus = { ...newFilingData, isNew: true };
-        setFilings(currentFilings => [newFiling, ...currentFilings]);
-        showToast('Filing logged manually.', 'success');
-        const timerId = window.setTimeout(() => {
-            setFilings(current => current.map(f => f.id === newFiling.id ? { ...f, isNew: false } : f));
-        }, 2000);
-        timersRef.current.push(timerId);
+    // 3. Submit manual entry
+    const handleAddFiling = async (newFilingData: any) => {
+        try {
+            const response = await api.post('/insider/', {
+                ticker: newFilingData.ticker,
+                insider_name: newFilingData.insiderName,
+                insider_role: newFilingData.insiderRole,
+                transaction_type: newFilingData.transactionType,
+                transaction_date: newFilingData.transactionDate,
+                shares: newFilingData.shares,
+                share_price: newFilingData.sharePrice
+            });
+
+            showToast('Filing saved to database successfully!', 'success');
+            fetchFilings(); // Refresh list
+        } catch (error) {
+            showToast('Failed to save filing.', 'error');
+            console.error(error);
+        }
     };
 
     const filteredFilings = useMemo(() => {
@@ -202,7 +227,10 @@ const CorporateFilings: React.FC = () => {
         return { buys, sells, total, buyRatio };
     }, [filings]);
 
-    const maxFilingValue = useMemo(() => Math.max(...filings.map(f => f.totalValue)), [filings]);
+    const maxFilingValue = useMemo(() => {
+        if (filings.length === 0) return 0;
+        return Math.max(...filings.map(f => f.totalValue));
+    }, [filings]);
 
     return (
         <div className="h-[calc(100vh-140px)] flex flex-col gap-6">
@@ -229,8 +257,8 @@ const CorporateFilings: React.FC = () => {
                         <div className="h-full bg-rose-500 flex-1 transition-all duration-1000"></div>
                     </div>
                     <div className="flex justify-between text-[10px] mt-1 text-gray-400">
-                        <span>${(sentimentStats.buys/1000000).toFixed(1)}M Bought</span>
-                        <span>${(sentimentStats.sells/1000000).toFixed(1)}M Sold</span>
+                        <span>${(sentimentStats.buys / 1000000).toFixed(1)}M Bought</span>
+                        <span>${(sentimentStats.sells / 1000000).toFixed(1)}M Sold</span>
                     </div>
                 </Card>
 
@@ -240,7 +268,7 @@ const CorporateFilings: React.FC = () => {
                         <h3 className="font-bold text-slate-900 dark:text-white">Total Volume</h3>
                     </div>
                     <p className="text-3xl font-mono font-bold text-slate-900 dark:text-white">
-                        ${(sentimentStats.total/1000000).toFixed(2)}M
+                        ${(sentimentStats.total / 1000000).toFixed(2)}M
                     </p>
                     <p className="text-xs text-gray-500 mt-1">Aggregate transaction value tracked</p>
                 </Card>
@@ -319,11 +347,13 @@ const CorporateFilings: React.FC = () => {
                             <div className="col-span-3 text-right">Value</div>
                         </div>
 
+                        {isLoading && <div className="text-center text-xs text-gray-500 p-2">Refreshing live data...</div>}
+
                         <div className="flex-1 overflow-y-auto custom-scrollbar">
                             {filteredFilings.length > 0 ? (
                                 filteredFilings.map(filing => {
                                     const isBuy = filing.transactionType === 'Buy';
-                                    const valuePercent = (filing.totalValue / maxFilingValue) * 100;
+                                    const valuePercent = maxFilingValue > 0 ? (filing.totalValue / maxFilingValue) * 100 : 0;
 
                                     return (
                                         <div
@@ -384,6 +414,7 @@ const CorporateFilings: React.FC = () => {
         </div>
     );
 };
+
 
 export default CorporateFilings;
 

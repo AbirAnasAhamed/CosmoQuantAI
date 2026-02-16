@@ -3,6 +3,8 @@ from fastapi import APIRouter
 from app.api.v1.endpoints import auth, users, market_data, strategies, backtest, bots, dashboard, trading, indicators, sentiment, education, arbitrage, system, notifications, grid_bot, analytics, on_chain, fng, market_discovery, block_trades
 
 api_router = APIRouter()
+from app.api.v1.endpoints import insider
+api_router.include_router(insider.router, prefix="/insider", tags=["insider-trading"])
 api_router.include_router(auth.router, prefix="/auth", tags=["auth"])
 api_router.include_router(users.router, prefix="/users", tags=["users"])
 api_router.include_router(market_data.router, prefix="/market-data", tags=["market-data"])
