@@ -39,3 +39,7 @@ api_router.include_router(block_trades.router, prefix="/block-trades", tags=["bl
 
 from app.api.v1.endpoints import options
 api_router.include_router(options.router, prefix="/options", tags=["options"])
+
+from app.api.v1.endpoints import token_unlocks
+api_router.include_router(token_unlocks.router, prefix="/token-unlocks", tags=["token-unlocks"])
+

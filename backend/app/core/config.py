@@ -60,6 +60,9 @@ class Settings(BaseSettings):
     # News API Key
     NEWS_API_KEY: Optional[str] = None
 
+    # CoinGecko API Key
+    COINGECKO_API_KEY: Optional[str] = None
+
     # Etherscan API
     ETHERSCAN_API_KEY: Optional[str] = None
     

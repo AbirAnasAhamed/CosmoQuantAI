@@ -1,13 +1,51 @@
 
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
 import { ResponsiveContainer, AreaChart, Area, PieChart, Pie, Cell, XAxis, YAxis, Tooltip, Legend, CartesianGrid } from 'recharts';
-import { GoogleGenAI } from '@google/genai';
+import { useQuery } from '@tanstack/react-query';
 import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
-import { MOCK_TOKEN_UNLOCK_EVENTS, ClockIcon, ExclamationCircleIcon } from '@/constants';
+import { ClockIcon, AptosLogo, SuiLogo, SeiLogo, BtcLogo, EthLogo, SolLogo, UsdtLogo } from '@/constants';
 import type { TokenUnlockEvent } from '@/types';
 import { useTheme } from '@/context/ThemeContext';
 import { useToast } from '@/context/ToastContext';
+import { unlockService, BackendTokenUnlockEvent } from '../../services/unlockService';
+
+// --- Helper: Map Backend Data to Frontend Interface ---
+const getLogo = (symbol: string) => {
+    switch (symbol.toUpperCase()) {
+        case 'APT': return <AptosLogo />;
+        case 'SUI': return <SuiLogo />;
+        case 'SEI': return <SeiLogo />;
+        case 'BTC': return <BtcLogo />;
+        case 'ETH': return <EthLogo />;
+        case 'SOL': return <SolLogo />;
+        case 'USDT': return <UsdtLogo />;
+        default: return <div className="text-xs font-bold">{symbol.substring(0, 3)}</div>;
+    }
+};
+
+const mapBackendToFrontend = (event: BackendTokenUnlockEvent): TokenUnlockEvent => {
+    return {
+        id: event.id.toString(),
+        tokenName: event.token_name || event.symbol,
+        tokenSymbol: event.symbol,
+        logo: getLogo(event.symbol),
+        unlockDate: event.unlock_date,
+        unlockAmount: event.amount,
+        unlockAmountUSD: event.amount_usd,
+        unlockPercentageOfCirculating: event.circulating_supply_pct || 0,
+        impactScore: event.impact_score || 0,
+        description: event.ai_summary || "Unlock event",
+        vestingSchedule: event.vesting_schedule?.map(v => ({
+            date: v.date,
+            unlockedPercentage: v.unlockedPercentage || 0
+        })) || [],
+        allocation: event.allocations?.map(a => ({
+            name: a.name,
+            value: a.pct || a.value || 0
+        })) || []
+    };
+};
 
 // --- Sub-Components ---
 
@@ -15,7 +53,7 @@ import { useToast } from '@/context/ToastContext';
 const ImpactGauge: React.FC<{ score: number }> = ({ score }) => {
     const radius = 18;
     const circumference = 2 * Math.PI * radius;
-    const offset = circumference - (score/10) * circumference;
+    const offset = circumference - (score / 10) * circumference;
 
     let color = '#10B981'; // Green
     if (score >= 5) color = '#FBBF24'; // Yellow
@@ -37,7 +75,7 @@ const ImpactGauge: React.FC<{ score: number }> = ({ score }) => {
                 />
             </svg>
             <span className={`absolute text-[10px] font-bold ${score >= 8 ? 'text-rose-500' : score >= 5 ? 'text-amber-500' : 'text-emerald-500'}`}>
-                {score}
+                {score.toFixed(1)}
             </span>
         </div>
     );
@@ -94,7 +132,7 @@ const EventDetailModal: React.FC<{ event: TokenUnlockEvent; onClose: () => void;
     const { theme } = useTheme();
     const { showToast } = useToast();
     const [isSummaryLoading, setIsSummaryLoading] = useState(false);
-    const [aiSummary, setAiSummary] = useState('');
+    const [aiSummary, setAiSummary] = useState(event.description || '');
 
     const allocationData = useMemo(() => Array.isArray(event.allocation) ? event.allocation : [], [event.allocation]);
     const axisColor = theme === 'dark' ? '#9CA3AF' : '#6B7280';
@@ -103,30 +141,19 @@ const EventDetailModal: React.FC<{ event: TokenUnlockEvent; onClose: () => void;
 
     const handleGenerateSummary = useCallback(async () => {
         setIsSummaryLoading(true);
-        setAiSummary('');
-        const prompt = `
-            Analyze the following token unlock event and provide a concise, 2-sentence summary of its potential market impact.
-            - Token: ${event.tokenName} (${event.tokenSymbol})
-            - Unlock Amount: ${event.unlockAmount.toLocaleString()} tokens (valued at $${event.unlockAmountUSD.toLocaleString()})
-            - Percentage of Circulating Supply: ${event.unlockPercentageOfCirculating.toFixed(2)}%
-            - Allocation: ${allocationData.map(a => `${a.name} (${a.value}%)`).join(', ')}
-            - Description: ${event.description}
-            
-            Focus on whether this is a high-risk event for price and why.
-        `;
-
         try {
-            const ai = new GoogleGenAI({ apiKey: process.env.API_KEY as string });
-            const response = await ai.models.generateContent({ model: 'gemini-2.5-flash', contents: prompt });
-            setAiSummary(response.text);
+            // Trigger analysis on backend
+            const updatedEvent = await unlockService.getAnalysis(Number(event.id));
+            setAiSummary(updatedEvent.ai_summary || "Analysis complete.");
+            showToast('AI Impact Analysis updated.', 'success');
         } catch (error) {
             console.error("Error generating summary:", error);
-            showToast('Failed to generate AI summary.', 'error');
-            setAiSummary("An error occurred while generating the summary. Please check the console for details and try again.");
+            showToast('Failed to generate AI summary. Ensure backend is running.', 'error');
+            setAiSummary("An error occurred while generating the summary.");
         } finally {
             setIsSummaryLoading(false);
         }
-    }, [event, allocationData, showToast]);
+    }, [event.id, showToast]);
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-backdrop-fade-in" onClick={onClose}>
@@ -142,7 +169,7 @@ const EventDetailModal: React.FC<{ event: TokenUnlockEvent; onClose: () => void;
                             </div>
                             <div>
                                 <h2 className="text-3xl font-bold text-slate-900 dark:text-white tracking-tight">{event.tokenName} <span className="text-gray-400 font-normal">/ {event.tokenSymbol}</span></h2>
-                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{event.description}</p>
+                                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Unlock Event</p>
                             </div>
                         </div>
                         <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-200 dark:hover:bg-white/10 transition-colors text-gray-400">
@@ -158,11 +185,11 @@ const EventDetailModal: React.FC<{ event: TokenUnlockEvent; onClose: () => void;
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                         <div className="p-5 rounded-xl bg-gray-50 dark:bg-brand-darkest/50 border border-gray-100 dark:border-white/5">
                             <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Unlock Value</p>
-                            <p className="text-2xl font-mono font-bold text-slate-900 dark:text-white mt-1">${event.unlockAmountUSD.toLocaleString()}</p>
+                            <p className="text-2xl font-mono font-bold text-slate-900 dark:text-white mt-1">${event.unlockAmountUSD?.toLocaleString()}</p>
                         </div>
                         <div className="p-5 rounded-xl bg-gray-50 dark:bg-brand-darkest/50 border border-gray-100 dark:border-white/5">
                             <p className="text-xs text-gray-500 uppercase tracking-wider font-semibold">Supply Impact</p>
-                            <p className="text-2xl font-mono font-bold text-brand-primary mt-1">{event.unlockPercentageOfCirculating.toFixed(2)}%</p>
+                            <p className="text-2xl font-mono font-bold text-brand-primary mt-1">{event.unlockPercentageOfCirculating?.toFixed(2)}%</p>
                             <p className="text-xs text-gray-400">of circulating supply</p>
                         </div>
                         <div className="p-5 rounded-xl bg-gray-50 dark:bg-brand-darkest/50 border border-gray-100 dark:border-white/5">
@@ -212,22 +239,28 @@ const EventDetailModal: React.FC<{ event: TokenUnlockEvent; onClose: () => void;
                             </h3>
                             <div className="h-64">
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <PieChart>
-                                        <Pie
-                                            data={allocationData as any}
-                                            dataKey="value"
-                                            nameKey="name"
-                                            cx="50%"
-                                            cy="50%"
-                                            innerRadius={60}
-                                            outerRadius={80}
-                                            paddingAngle={5}
-                                        >
-                                            {allocationData.map((entry, index) => <Cell key={`cell-${index}`} fill={ALLOCATION_COLORS[index % ALLOCATION_COLORS.length]} stroke="none" />)}
-                                        </Pie>
-                                        <Tooltip contentStyle={theme === 'dark' ? { backgroundColor: '#0F172A', border: '1px solid #334155', borderRadius: '8px' } : { borderRadius: '8px' }} formatter={(value: number) => `${value}%`} />
-                                        <Legend verticalAlign="bottom" height={36} iconType="circle" />
-                                    </PieChart>
+                                    {allocationData.length > 0 ? (
+                                        <PieChart>
+                                            <Pie
+                                                data={allocationData as any}
+                                                dataKey="value"
+                                                nameKey="name"
+                                                cx="50%"
+                                                cy="50%"
+                                                innerRadius={60}
+                                                outerRadius={80}
+                                                paddingAngle={5}
+                                            >
+                                                {allocationData.map((entry, index) => <Cell key={`cell-${index}`} fill={ALLOCATION_COLORS[index % ALLOCATION_COLORS.length]} stroke="none" />)}
+                                            </Pie>
+                                            <Tooltip contentStyle={theme === 'dark' ? { backgroundColor: '#0F172A', border: '1px solid #334155', borderRadius: '8px' } : { borderRadius: '8px' }} formatter={(value: number) => `${value}%`} />
+                                            <Legend verticalAlign="bottom" height={36} iconType="circle" />
+                                        </PieChart>
+                                    ) : (
+                                        <div className="flex items-center justify-center h-full text-gray-500">
+                                            No allocation data available.
+                                        </div>
+                                    )}
                                 </ResponsiveContainer>
                             </div>
                         </Card>
@@ -280,11 +313,21 @@ const TokenUnlockCalendar: React.FC = () => {
     const [selectedEvent, setSelectedEvent] = useState<TokenUnlockEvent | null>(null);
     const [minImpact, setMinImpact] = useState(0);
 
+    // Fetch data from backend
+    const { data: unlockedEvents = [], isLoading, error } = useQuery({
+        queryKey: ['tokenUnlocks'],
+        queryFn: async () => {
+            const backendEvents = await unlockService.getAll();
+            return backendEvents.map(mapBackendToFrontend);
+        },
+        staleTime: 5 * 60 * 1000, // 5 minutes
+    });
+
     const filteredEvents = useMemo(() => {
-        return MOCK_TOKEN_UNLOCK_EVENTS
+        return unlockedEvents
             .filter(event => event.impactScore >= minImpact)
             .sort((a, b) => new Date(a.unlockDate).getTime() - new Date(b.unlockDate).getTime());
-    }, [minImpact]);
+    }, [unlockedEvents, minImpact]);
 
     const groupedEvents = useMemo(() => {
         const groups: { [key: string]: TokenUnlockEvent[] } = {
@@ -311,6 +354,22 @@ const TokenUnlockCalendar: React.FC = () => {
         if (score >= 5) return '#FBBF24'; // Amber
         return '#10B981'; // Emerald
     };
+
+    if (isLoading) {
+        return (
+            <div className="flex items-center justify-center h-96">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary"></div>
+            </div>
+        );
+    }
+
+    if (error) {
+        return (
+            <div className="text-center p-10 text-red-500">
+                Failed to load token unlocks. Please try again later.
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-10">
@@ -417,10 +476,16 @@ const TokenUnlockCalendar: React.FC = () => {
                         </div>
                     )
                 ))}
+                {filteredEvents.length === 0 && !isLoading && (
+                    <div className="text-center py-20 text-gray-500 dark:text-gray-400">
+                        No token unlocks found matching your filters.
+                    </div>
+                )}
             </div>
         </div>
     );
 };
 
 export default TokenUnlockCalendar;
+
 
