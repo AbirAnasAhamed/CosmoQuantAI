@@ -63,6 +63,9 @@ class Settings(BaseSettings):
     # CoinGecko API Key
     COINGECKO_API_KEY: Optional[str] = None
 
+    # Financial Modeling Prep API Key
+    FMP_API_KEY: Optional[str] = None
+
     # Etherscan API
     ETHERSCAN_API_KEY: Optional[str] = None
     
