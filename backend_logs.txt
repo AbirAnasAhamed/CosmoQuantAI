@@ -1,0 +1,1490 @@
+﻿
+docker : prisma:warn 
+Prisma failed to 
+detect the 
+libssl/openssl 
+version to use, and 
+may not work as 
+expected. Defaulting 
+to "openssl-1.1.x".
+At line:1 char:1
++ docker logs cosmoqua
+nt_backend_node 2>&1 
+| Out-File -Encoding 
+utf8 ba ...
++ ~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo    
+          : NotSpeci  
+  fied: (prisma:war   
+ n Pri...openssl-1    
+.1.x".:String) []    
+, RemoteException
+    + FullyQualifiedE 
+   rrorId : NativeCo  
+  mmandError
+ 
+Please manually 
+install OpenSSL and 
+try installing Prisma 
+again.
+/app/node_modules/@pri
+sma/client/runtime/lib
+rary.js:111
+> cosmoquant-backend-node@1.0.0 dev
+> nodemon index.js
+
+[33m[nodemon] 3.1.11[39m
+[33m[nodemon] to restart at any time, enter `rs`[39m
+[33m[nodemon] watching path(s): *.*[39m
+[33m[nodemon] watching extensions: js,mjs,cjs,json[39m
+[32m[nodemon] starting `node index.js`[39m
+Node.js Microservice running on port 3001
+${r}`,A(n,!0));this.na
+me="RequestError";this
+.code="P5010"}};w(kr,"
+RequestError");async 
+function 
+ct(e,t,r=n=>n){let n=t
+.clientVersion;try{ret
+urn typeof fetch=="fun
+ction"?await 
+r(fetch)(e,t):await r(
+to)(e,t)}catch(i){let 
+o=i.message??"Unknown 
+error";throw new kr(o,
+{clientVersion:n})}}fu
+nction im(e){return{..
+.e.headers,"Content-Ty
+pe":"application/json"
+}}function om(e){retur
+n{method:e.method,head
+ers:im(e)}}function sm
+(e,t){return{text:()=>
+Promise.resolve(Buffer
+.concat(e).toString())
+,json:()=>Promise.reso
+lve().then(()=>JSON.pa
+rse(Buffer.concat(e).t
+oString())),ok:t.statu
+sCode>=200&&t.statusCo
+de<=299,status:t.statu
+sCode,url:t.url,header
+s:new 
+ro(t.headers)}}async 
+function 
+to(e,t={}){let r=am("h
+ttps"),n=om(t),i=[],{o
+rigin:o}=new 
+URL(e);return new 
+Promise((s,a)=>{let l=
+r.request(e,n,u=>{let{
+statusCode:c,headers:{
+location:p}}=u;c>=301&
+&c<=399&&p&&(p.startsW
+ith("http")===!1?s(to(
+`${o}${p}`,t)):s(to(p,
+t))),u.on("data",d=>i.
+push(d)),u.on("end",()
+=>s(sm(i,u))),u.on("er
+ror",a)});l.on("error"
+,a),l.end(t.body??"")}
+)}var am=typeof requir
+e<"u"?require:()=>{},r
+o=class{constructor(t=
+{}){this.headers=new 
+Map;for(let[r,n]of Obj
+ect.entries(t))if(type
+of n=="string")this.he
+aders.set(r,n);else if
+(Array.isArray(n))for(
+let i of n)this.header
+s.set(r,i)}append(t,r)
+{this.headers.set(t,r)
+}delete(t){this.header
+s.delete(t)}get(t){ret
+urn this.headers.get(t
+)??null}has(t){return 
+this.headers.has(t)}se
+t(t,r){this.headers.se
+t(t,r)}forEach(t,r){fo
+r(let[n,i]of this.head
+ers)t.call(r,i,n,this)
+}};var lm=/^[1-9][0-9]
+*\.[0-9]+\.[0-9]+$/,ll
+=L("prisma:client:data
+proxyEngine");async 
+function um(e,t){let r
+=al["@prisma/engines-v
+ersion"],n=t.clientVer
+sion??"unknown";if(pro
+cess.env.PRISMA_CLIENT
+_DATA_PROXY_CLIENT_VER
+SION)return process.en
+v.PRISMA_CLIENT_DATA_P
+ROXY_CLIENT_VERSION;if
+(e.includes("accelerat
+e")&&n!=="0.0.0"&&n!==
+"in-memory")return n;l
+et[i,o]=n?.split("-")?
+?[];if(o===void 
+0&&lm.test(i))return 
+i;if(o!==void 0||n==="
+0.0.0"||n==="in-memory
+"){if(e.startsWith("lo
+calhost")||e.startsWit
+h("127.0.0.1"))return"
+0.0.0";let[s]=r.split(
+"-")??[],[a,l,u]=s.spl
+it("."),c=cm(`<=${a}.$
+{l}.${u}`),p=await ct(
+c,{clientVersion:n});i
+f(!p.ok)throw new 
+Error(`Failed to 
+fetch stable Prisma 
+version, unpkg.com 
+status ${p.status} 
+${p.statusText}, 
+response body: 
+${await 
+p.text()||"<empty 
+body>"}`);let d=await 
+p.text();ll("length 
+of body fetched from u
+npkg.com",d.length);le
+t f;try{f=JSON.parse(d
+)}catch(g){throw conso
+le.error("JSON.parse 
+error: body fetched 
+from unpkg.com: 
+",d),g}return 
+f.version}throw new 
+lt("Only 
+`major.minor.patch` 
+versions are 
+supported by Accelerat
+e.",{clientVersion:n})
+}async function 
+ul(e,t){let r=await 
+um(e,t);return ll("ver
+sion",r),r}function 
+cm(e){return encodeURI
+(`https://unpkg.com/pr
+isma@${e}/package.json
+`)}var cl=3,no=L("pris
+ma:client:dataproxyEng
+ine"),io=class{constru
+ctor({apiKey:t,tracing
+Helper:r,logLevel:n,lo
+gQueries:i,engineHash:
+o}){this.apiKey=t,this
+.tracingHelper=r,this.
+logLevel=n,this.logQue
+ries=i,this.engineHash
+=o}build({traceparent:
+t,interactiveTransacti
+on:r}={}){let n={Autho
+rization:`Bearer ${thi
+s.apiKey}`,"Prisma-Eng
+ine-Hash":this.engineH
+ash};this.tracingHelpe
+r.isEnabled()&&(n.trac
+eparent=t??this.tracin
+gHelper.getTraceParent
+()),r&&(n["X-transacti
+on-id"]=r.id);let i=th
+is.buildCaptureSetting
+s();return i.length>0&
+&(n["X-capture-telemet
+ry"]=i.join(", ")),n}b
+uildCaptureSettings(){
+let t=[];return this.t
+racingHelper.isEnabled
+()&&t.push("tracing"),
+this.logLevel&&t.push(
+this.logLevel),this.lo
+gQueries&&t.push("quer
+y"),t}},Dr=class{const
+ructor(t){this.name="D
+ataProxyEngine";ol(t),
+this.config=t,this.env
+={...t.env,...typeof p
+rocess<"u"?process.env
+:{}},this.inlineSchema
+=il(t.inlineSchema),th
+is.inlineDatasources=t
+.inlineDatasources,thi
+s.inlineSchemaHash=t.i
+nlineSchemaHash,this.c
+lientVersion=t.clientV
+ersion,this.engineHash
+=t.engineVersion,this.
+logEmitter=t.logEmitte
+r,this.tracingHelper=t
+.tracingHelper}apiKey(
+){return this.headerBu
+ilder.apiKey}version()
+{return 
+this.engineHash}async 
+start(){this.startProm
+ise!==void 0&&await th
+is.startPromise,this.s
+tartPromise=(async()=>
+{let[t,r]=this.extract
+HostAndApiKey();this.h
+ost=t,this.headerBuild
+er=new io({apiKey:r,tr
+acingHelper:this.traci
+ngHelper,logLevel:this
+.config.logLevel,logQu
+eries:this.config.logQ
+ueries,engineHash:this
+.engineHash}),this.rem
+oteClientVersion=await
+ ul(t,this.config),no(
+"host",this.host)})(),
+await this.startPromis
+e}async stop(){}propag
+ateResponseExtensions(
+t){t?.logs?.length&&t.
+logs.forEach(r=>{switc
+h(r.level){case"debug"
+:case"error":case"trac
+e":case"warn":case"inf
+o":break;case"query":{
+let n=typeof r.attribu
+tes.query=="string"?r.
+attributes.query:"";if
+(!this.tracingHelper.i
+sEnabled()){let[i]=n.s
+plit("/* traceparent")
+;n=i}this.logEmitter.e
+mit("query",{query:n,t
+imestamp:sl(r.timestam
+p),duration:Number(r.a
+ttributes.duration_ms)
+,params:r.attributes.p
+arams,target:r.attribu
+tes.target})}}}),t?.tr
+aces?.length&&this.tra
+cingHelper.createEngin
+eSpan({span:!0,spans:t
+.traces})}onBeforeExit
+(){throw new 
+Error('"beforeExit" 
+hook is not 
+applicable to the 
+remote query 
+engine')}async 
+url(t){return await th
+is.start(),`https://${
+this.host}/${this.remo
+teClientVersion}/${thi
+s.inlineSchemaHash}/${
+t}`}async 
+uploadSchema(){let t={
+name:"schemaUpload",in
+ternal:!0};return this
+.tracingHelper.runInCh
+ildSpan(t,async()=>{le
+t r=await ct(await thi
+s.url("schema"),{metho
+d:"PUT",headers:this.h
+eaderBuilder.build(),b
+ody:this.inlineSchema,
+clientVersion:this.cli
+entVersion});r.ok||no(
+"schema response 
+status",r.status);let 
+n=await Or(r,this.clie
+ntVersion);if(n)throw 
+this.logEmitter.emit("
+warn",{message:`Error 
+while uploading 
+schema: ${n.message}`,
+timestamp:new Date,tar
+get:""}),n;this.logEmi
+tter.emit("info",{mess
+age:`Schema 
+(re)uploaded (hash: ${
+this.inlineSchemaHash}
+)`,timestamp:new Date,
+target:""})})}request(
+t,{traceparent:r,inter
+activeTransaction:n,cu
+stomDataProxyFetch:i})
+{return this.requestIn
+ternal({body:t,tracepa
+rent:r,interactiveTran
+saction:n,customDataPr
+oxyFetch:i})}async req
+uestBatch(t,{tracepare
+nt:r,transaction:n,cus
+tomDataProxyFetch:i}){
+let o=n?.kind==="itx"?
+n.options:void 0,s=Ft(
+t,n),{batchResult:a,el
+apsed:l}=await this.re
+questInternal({body:s,
+customDataProxyFetch:i
+,interactiveTransactio
+n:o,traceparent:r});re
+turn 
+a.map(u=>"errors"in u&
+&u.errors.length>0?st(
+u.errors[0],this.clien
+tVersion,this.config.a
+ctiveProvider):{data:u
+,elapsed:l})}requestIn
+ternal({body:t,tracepa
+rent:r,customDataProxy
+Fetch:n,interactiveTra
+nsaction:i}){return th
+is.withRetry({actionGe
+rund:"querying",callba
+ck:async({logHttpCall:
+o})=>{let s=i?`${i.pay
+load.endpoint}/graphql
+`:await this.url("grap
+hql");o(s);let 
+a=await ct(s,{method:"
+POST",headers:this.hea
+derBuilder.build({trac
+eparent:r,interactiveT
+ransaction:i}),body:JS
+ON.stringify(t),client
+Version:this.clientVer
+sion},n);a.ok||no("gra
+phql response status",
+a.status),await this.h
+andleError(await Or(a,
+this.clientVersion));l
+et l=await a.json(),u=
+l.extensions;if(u&&thi
+s.propagateResponseExt
+ensions(u),l.errors)th
+row l.errors.length===
+1?st(l.errors[0],this.
+config.clientVersion,t
+his.config.activeProvi
+der):new B(l.errors,{c
+lientVersion:this.conf
+ig.clientVersion});ret
+urn l}})}async transac
+tion(t,r,n){let i={sta
+rt:"starting",commit:"
+committing",rollback:"
+rolling back"};return 
+this.withRetry({action
+Gerund:`${i[t]} transa
+ction`,callback:async(
+{logHttpCall:o})=>{if(
+t==="start"){let s=JSO
+N.stringify({max_wait:
+n.maxWait,timeout:n.ti
+meout,isolation_level:
+n.isolationLevel}),a=a
+wait this.url("transac
+tion/start");o(a);let 
+l=await ct(a,{method:"
+POST",headers:this.hea
+derBuilder.build({trac
+eparent:r.traceparent}
+),body:s,clientVersion
+:this.clientVersion});
+await this.handleError
+(await Or(l,this.clien
+tVersion));let 
+u=await l.json(),c=u.e
+xtensions;c&&this.prop
+agateResponseExtension
+s(c);let p=u.id,d=u["d
+ata-proxy"].endpoint;r
+eturn{id:p,payload:{en
+dpoint:d}}}else{let s=
+`${n.payload.endpoint}
+/${t}`;o(s);let 
+a=await ct(s,{method:"
+POST",headers:this.hea
+derBuilder.build({trac
+eparent:r.traceparent}
+),clientVersion:this.c
+lientVersion});await t
+his.handleError(await 
+Or(a,this.clientVersio
+n));let u=(await a.jso
+n()).extensions;u&&thi
+s.propagateResponseExt
+ensions(u);return}}})}
+extractHostAndApiKey()
+{let t={clientVersion:
+this.clientVersion},r=
+Object.keys(this.inlin
+eDatasources)[0],n=Nt(
+{inlineDatasources:thi
+s.inlineDatasources,ov
+errideDatasources:this
+.config.overrideDataso
+urces,clientVersion:th
+is.clientVersion,env:t
+his.env}),i;try{i=new 
+URL(n)}catch{throw 
+new at(`Error 
+validating datasource 
+\`${r}\`: the URL 
+must start with the 
+protocol \`prisma://\`
+`,t)}let{protocol:o,ho
+st:s,searchParams:a}=i
+;if(o!=="prisma:"&&o!=
+="prisma+postgres:")th
+row new at(`Error 
+validating datasource 
+\`${r}\`: the URL 
+must start with the 
+protocol 
+\`prisma://\``,t);let 
+l=a.get("api_key");if(
+l===null||l.length<1)t
+hrow new at(`Error 
+validating datasource 
+\`${r}\`: the URL 
+must contain a valid 
+API key`,t);return[s,l
+]}metrics(){throw new 
+lt("Metrics are not 
+yet supported for Acce
+lerate",{clientVersion
+:this.clientVersion})}
+async 
+withRetry(t){for(let 
+r=0;;r++){let n=i=>{th
+is.logEmitter.emit("in
+fo",{message:`Calling 
+${i} (n=${r})`,timesta
+mp:new Date,target:""}
+)};try{return await t.
+callback({logHttpCall:
+n})}catch(i){if(!(i 
+instanceof se)||!i.isR
+etryable)throw 
+i;if(r>=cl)throw i 
+instanceof Mt?i.cause:
+i;this.logEmitter.emit
+("warn",{message:`Atte
+mpt ${r+1}/${cl} 
+failed for 
+${t.actionGerund}: ${i
+.message??"(unknown)"}
+`,timestamp:new 
+Date,target:""});let 
+o=await nl(r);this.log
+Emitter.emit("warn",{m
+essage:`Retrying 
+after 
+${o}ms`,timestamp:new 
+Date,target:""})}}}asy
+nc 
+handleError(t){if(t 
+instanceof ut)throw 
+await this.uploadSchem
+a(),new Mt({clientVers
+ion:this.clientVersion
+,cause:t});if(t)throw 
+t}applyPendingMigratio
+ns(){throw new 
+Error("Method not impl
+emented.")}};function 
+pl(e){if(e?.kind==="it
+x")return 
+e.options.id}var so=k(
+require("os")),dl=k(re
+quire("path"));var oo=
+Symbol("PrismaLibraryE
+ngineCache");function 
+pm(){let 
+e=globalThis;return 
+e[oo]===void 0&&(e[oo]
+={}),e[oo]}function 
+dm(e){let 
+t=pm();if(t[e]!==void 
+0)return t[e];let r=dl
+.default.toNamespacedP
+ath(e),n={exports:{}},
+i=0;return process.pla
+tform!=="win32"&&(i=so
+.default.constants.dlo
+pen.RTLD_LAZY|so.defau
+lt.constants.dlopen.RT
+LD_DEEPBIND),process.d
+lopen(n,r,i),t[e]=n.ex
+ports,n.exports}var 
+ml={async 
+loadLibrary(e){let 
+t=await Yn(),r=await z
+a("library",e);try{ret
+urn e.tracingHelper.ru
+nInChildSpan({name:"lo
+adLibrary",internal:!0
+},()=>dm(r))}catch(n){
+let i=ui({e:n,platform
+Info:t,id:r});throw 
+new R(i,e.clientVersio
+n)}}};var 
+ao,fl={async loadLibra
+ry(e){let{clientVersio
+n:t,adapter:r,engineWa
+sm:n}=e;if(r===void 
+0)throw new R(`The 
+\`adapter\` option 
+for \`PrismaClient\` 
+is required in this 
+context (${In().pretty
+Name})`,t);if(n===void
+ 0)throw new R("WASM 
+engine was 
+unexpectedly `undefine
+d`",t);ao===void 
+0&&(ao=(async()=>{let 
+o=n.getRuntime(),s=awa
+it n.getQueryEngineWas
+mModule();if(s==null)t
+hrow new R("The 
+loaded wasm module 
+was unexpectedly 
+`undefined` or `null` 
+once loaded",t);let a=
+{"./query_engine_bg.js
+":o},l=new WebAssembly
+.Instance(s,a);return 
+o.__wbg_set_wasm(l.exp
+orts),o.QueryEngine})(
+));let i=await ao;retu
+rn{debugPanic(){return
+ Promise.reject("{}")}
+,dmmf(){return Promise
+.resolve("{}")},versio
+n(){return{commit:"unk
+nown",version:"unknown
+"}},QueryEngine:i}}};v
+ar mm="P2036",Ae=L("pr
+isma:client:libraryEng
+ine");function 
+fm(e){return e.item_ty
+pe==="query"&&"query"i
+n e}function 
+gm(e){return"level"in 
+e?e.level==="error"&&e
+.message==="PANIC":!1}
+var gl=[...Jn,"native"
+],_r=class{constructor
+(t,r){this.name="Libra
+ryEngine";this.library
+Loader=r??ml,t.engineW
+asm!==void 0&&(this.li
+braryLoader=r??fl),thi
+s.config=t,this.librar
+yStarted=!1,this.logQu
+eries=t.logQueries??!1
+,this.logLevel=t.logLe
+vel??"error",this.logE
+mitter=t.logEmitter,th
+is.datamodel=t.inlineS
+chema,t.enableDebugLog
+s&&(this.logLevel="deb
+ug");let n=Object.keys
+(t.overrideDatasources
+)[0],i=t.overrideDatas
+ources[n]?.url;n!==voi
+d 0&&i!==void 0&&(this
+.datasourceOverrides={
+[n]:i}),this.libraryIn
+stantiationPromise=thi
+s.instantiateLibrary()
+}async applyPendingMig
+rations(){throw new 
+Error("Cannot call 
+this method from this 
+type of engine 
+instance")}async trans
+action(t,r,n){await 
+this.start();let i=JSO
+N.stringify(r),o;if(t=
+=="start"){let a=JSON.
+stringify({max_wait:n.
+maxWait,timeout:n.time
+out,isolation_level:n.
+isolationLevel});o=awa
+it this.engine?.startT
+ransaction(a,i)}else 
+t==="commit"?o=await t
+his.engine?.commitTran
+saction(n.id,i):t==="r
+ollback"&&(o=await thi
+s.engine?.rollbackTran
+saction(n.id,i));let s
+=this.parseEngineRespo
+nse(o);if(hm(s)){let a
+=this.getExternalAdapt
+erError(s);throw 
+a?a.error:new V(s.mess
+age,{code:s.error_code
+,clientVersion:this.co
+nfig.clientVersion,met
+a:s.meta})}return 
+s}async instantiateLib
+rary(){if(Ae("internal
+Setup"),this.libraryIn
+stantiationPromise)ret
+urn this.libraryInstan
+tiationPromise;Qn(),th
+is.binaryTarget=await 
+this.getCurrentBinaryT
+arget(),await this.loa
+dEngine(),this.version
+()}async getCurrentBin
+aryTarget(){{if(this.b
+inaryTarget)return 
+this.binaryTarget;let 
+t=await nt();if(!gl.in
+cludes(t))throw new 
+R(`Unknown ${ce("PRISM
+A_QUERY_ENGINE_LIBRARY
+")} ${ce(H(t))}. 
+Possible 
+binaryTargets: 
+${qe(gl.join(", "))} 
+or a path to the 
+query engine library.
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+        
+
+PrismaClientInitializa
+tionError: Unable to r
+equire(`/app/node_modu
+les/.prisma/client/lib
+query_engine-linux-mus
+l.so.node`).
+The Prisma engines do 
+not seem to be 
+compatible with your 
+system. Please refer 
+to the documentation 
+about Prisma's system 
+requirements: https://
+pris.ly/d/system-requi
+rements
+
+Details: Error 
+loading shared 
+library 
+libssl.so.1.1: No 
+such file or 
+directory (needed by /
+app/node_modules/.pris
+ma/client/libquery_eng
+ine-linux-musl.so.node
+)
+    at 
+Object.loadLibrary (/a
+pp/node_modules/@prism
+a/client/runtime/libra
+ry.js:111:10243)
+    at async 
+_r.loadEngine (/app/no
+de_modules/@prisma/cli
+ent/runtime/library.js
+:112:448)
+    at async 
+_r.instantiateLibrary 
+(/app/node_modules/@pr
+isma/client/runtime/li
+brary.js:111:12599) {
+  clientVersion: 
+'5.22.0',
+  errorCode: undefined
+}
+
+Node.js v18.20.8
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+
+> cosmoquant-backend-node@1.0.0 dev
+> nodemon index.js
+
+[33m[nodemon] 3.1.11[39m
+[33m[nodemon] to restart at any time, enter `rs`[39m
+[33m[nodemon] watching path(s): *.*[39m
+[33m[nodemon] watching extensions: js,mjs,cjs,json[39m
+[32m[nodemon] starting `node index.js`[39m
+Node.js Microservice running on port 3001
+prisma:warn Prisma 
+failed to detect the 
+libssl/openssl 
+version to use, and 
+may not work as 
+expected. Defaulting 
+to "openssl-1.1.x".
+Please manually 
+install OpenSSL and 
+try installing Prisma 
+again.
+/app/node_modules/@pri
+sma/client/runtime/lib
+rary.js:111
+${r}`,A(n,!0));this.na
+me="RequestError";this
+.code="P5010"}};w(kr,"
+RequestError");async 
+function 
+ct(e,t,r=n=>n){let n=t
+.clientVersion;try{ret
+urn typeof fetch=="fun
+ction"?await 
+r(fetch)(e,t):await r(
+to)(e,t)}catch(i){let 
+o=i.message??"Unknown 
+error";throw new kr(o,
+{clientVersion:n})}}fu
+nction im(e){return{..
+.e.headers,"Content-Ty
+pe":"application/json"
+}}function om(e){retur
+n{method:e.method,head
+ers:im(e)}}function sm
+(e,t){return{text:()=>
+Promise.resolve(Buffer
+.concat(e).toString())
+,json:()=>Promise.reso
+lve().then(()=>JSON.pa
+rse(Buffer.concat(e).t
+oString())),ok:t.statu
+sCode>=200&&t.statusCo
+de<=299,status:t.statu
+sCode,url:t.url,header
+s:new 
+ro(t.headers)}}async 
+function 
+to(e,t={}){let r=am("h
+ttps"),n=om(t),i=[],{o
+rigin:o}=new 
+URL(e);return new 
+Promise((s,a)=>{let l=
+r.request(e,n,u=>{let{
+statusCode:c,headers:{
+location:p}}=u;c>=301&
+&c<=399&&p&&(p.startsW
+ith("http")===!1?s(to(
+`${o}${p}`,t)):s(to(p,
+t))),u.on("data",d=>i.
+push(d)),u.on("end",()
+=>s(sm(i,u))),u.on("er
+ror",a)});l.on("error"
+,a),l.end(t.body??"")}
+)}var am=typeof requir
+e<"u"?require:()=>{},r
+o=class{constructor(t=
+{}){this.headers=new 
+Map;for(let[r,n]of Obj
+ect.entries(t))if(type
+of n=="string")this.he
+aders.set(r,n);else if
+(Array.isArray(n))for(
+let i of n)this.header
+s.set(r,i)}append(t,r)
+{this.headers.set(t,r)
+}delete(t){this.header
+s.delete(t)}get(t){ret
+urn this.headers.get(t
+)??null}has(t){return 
+this.headers.has(t)}se
+t(t,r){this.headers.se
+t(t,r)}forEach(t,r){fo
+r(let[n,i]of this.head
+ers)t.call(r,i,n,this)
+}};var lm=/^[1-9][0-9]
+*\.[0-9]+\.[0-9]+$/,ll
+=L("prisma:client:data
+proxyEngine");async 
+function um(e,t){let r
+=al["@prisma/engines-v
+ersion"],n=t.clientVer
+sion??"unknown";if(pro
+cess.env.PRISMA_CLIENT
+_DATA_PROXY_CLIENT_VER
+SION)return process.en
+v.PRISMA_CLIENT_DATA_P
+ROXY_CLIENT_VERSION;if
+(e.includes("accelerat
+e")&&n!=="0.0.0"&&n!==
+"in-memory")return n;l
+et[i,o]=n?.split("-")?
+?[];if(o===void 
+0&&lm.test(i))return 
+i;if(o!==void 0||n==="
+0.0.0"||n==="in-memory
+"){if(e.startsWith("lo
+calhost")||e.startsWit
+h("127.0.0.1"))return"
+0.0.0";let[s]=r.split(
+"-")??[],[a,l,u]=s.spl
+it("."),c=cm(`<=${a}.$
+{l}.${u}`),p=await ct(
+c,{clientVersion:n});i
+f(!p.ok)throw new 
+Error(`Failed to 
+fetch stable Prisma 
+version, unpkg.com 
+status ${p.status} 
+${p.statusText}, 
+response body: 
+${await 
+p.text()||"<empty 
+body>"}`);let d=await 
+p.text();ll("length 
+of body fetched from u
+npkg.com",d.length);le
+t f;try{f=JSON.parse(d
+)}catch(g){throw conso
+le.error("JSON.parse 
+error: body fetched 
+from unpkg.com: 
+",d),g}return 
+f.version}throw new 
+lt("Only 
+`major.minor.patch` 
+versions are 
+supported by Accelerat
+e.",{clientVersion:n})
+}async function 
+ul(e,t){let r=await 
+um(e,t);return ll("ver
+sion",r),r}function 
+cm(e){return encodeURI
+(`https://unpkg.com/pr
+isma@${e}/package.json
+`)}var cl=3,no=L("pris
+ma:client:dataproxyEng
+ine"),io=class{constru
+ctor({apiKey:t,tracing
+Helper:r,logLevel:n,lo
+gQueries:i,engineHash:
+o}){this.apiKey=t,this
+.tracingHelper=r,this.
+logLevel=n,this.logQue
+ries=i,this.engineHash
+=o}build({traceparent:
+t,interactiveTransacti
+on:r}={}){let n={Autho
+rization:`Bearer ${thi
+s.apiKey}`,"Prisma-Eng
+ine-Hash":this.engineH
+ash};this.tracingHelpe
+r.isEnabled()&&(n.trac
+eparent=t??this.tracin
+gHelper.getTraceParent
+()),r&&(n["X-transacti
+on-id"]=r.id);let i=th
+is.buildCaptureSetting
+s();return i.length>0&
+&(n["X-capture-telemet
+ry"]=i.join(", ")),n}b
+uildCaptureSettings(){
+let t=[];return this.t
+racingHelper.isEnabled
+()&&t.push("tracing"),
+this.logLevel&&t.push(
+this.logLevel),this.lo
+gQueries&&t.push("quer
+y"),t}},Dr=class{const
+ructor(t){this.name="D
+ataProxyEngine";ol(t),
+this.config=t,this.env
+={...t.env,...typeof p
+rocess<"u"?process.env
+:{}},this.inlineSchema
+=il(t.inlineSchema),th
+is.inlineDatasources=t
+.inlineDatasources,thi
+s.inlineSchemaHash=t.i
+nlineSchemaHash,this.c
+lientVersion=t.clientV
+ersion,this.engineHash
+=t.engineVersion,this.
+logEmitter=t.logEmitte
+r,this.tracingHelper=t
+.tracingHelper}apiKey(
+){return this.headerBu
+ilder.apiKey}version()
+{return 
+this.engineHash}async 
+start(){this.startProm
+ise!==void 0&&await th
+is.startPromise,this.s
+tartPromise=(async()=>
+{let[t,r]=this.extract
+HostAndApiKey();this.h
+ost=t,this.headerBuild
+er=new io({apiKey:r,tr
+acingHelper:this.traci
+ngHelper,logLevel:this
+.config.logLevel,logQu
+eries:this.config.logQ
+ueries,engineHash:this
+.engineHash}),this.rem
+oteClientVersion=await
+ ul(t,this.config),no(
+"host",this.host)})(),
+await this.startPromis
+e}async stop(){}propag
+ateResponseExtensions(
+t){t?.logs?.length&&t.
+logs.forEach(r=>{switc
+h(r.level){case"debug"
+:case"error":case"trac
+e":case"warn":case"inf
+o":break;case"query":{
+let n=typeof r.attribu
+tes.query=="string"?r.
+attributes.query:"";if
+(!this.tracingHelper.i
+sEnabled()){let[i]=n.s
+plit("/* traceparent")
+;n=i}this.logEmitter.e
+mit("query",{query:n,t
+imestamp:sl(r.timestam
+p),duration:Number(r.a
+ttributes.duration_ms)
+,params:r.attributes.p
+arams,target:r.attribu
+tes.target})}}}),t?.tr
+aces?.length&&this.tra
+cingHelper.createEngin
+eSpan({span:!0,spans:t
+.traces})}onBeforeExit
+(){throw new 
+Error('"beforeExit" 
+hook is not 
+applicable to the 
+remote query 
+engine')}async 
+url(t){return await th
+is.start(),`https://${
+this.host}/${this.remo
+teClientVersion}/${thi
+s.inlineSchemaHash}/${
+t}`}async 
+uploadSchema(){let t={
+name:"schemaUpload",in
+ternal:!0};return this
+.tracingHelper.runInCh
+ildSpan(t,async()=>{le
+t r=await ct(await thi
+s.url("schema"),{metho
+d:"PUT",headers:this.h
+eaderBuilder.build(),b
+ody:this.inlineSchema,
+clientVersion:this.cli
+entVersion});r.ok||no(
+"schema response 
+status",r.status);let 
+n=await Or(r,this.clie
+ntVersion);if(n)throw 
+this.logEmitter.emit("
+warn",{message:`Error 
+while uploading 
+schema: ${n.message}`,
+timestamp:new Date,tar
+get:""}),n;this.logEmi
+tter.emit("info",{mess
+age:`Schema 
+(re)uploaded (hash: ${
+this.inlineSchemaHash}
+)`,timestamp:new Date,
+target:""})})}request(
+t,{traceparent:r,inter
+activeTransaction:n,cu
+stomDataProxyFetch:i})
+{return this.requestIn
+ternal({body:t,tracepa
+rent:r,interactiveTran
+saction:n,customDataPr
+oxyFetch:i})}async req
+uestBatch(t,{tracepare
+nt:r,transaction:n,cus
+tomDataProxyFetch:i}){
+let o=n?.kind==="itx"?
+n.options:void 0,s=Ft(
+t,n),{batchResult:a,el
+apsed:l}=await this.re
+questInternal({body:s,
+customDataProxyFetch:i
+,interactiveTransactio
+n:o,traceparent:r});re
+turn 
+a.map(u=>"errors"in u&
+&u.errors.length>0?st(
+u.errors[0],this.clien
+tVersion,this.config.a
+ctiveProvider):{data:u
+,elapsed:l})}requestIn
+ternal({body:t,tracepa
+rent:r,customDataProxy
+Fetch:n,interactiveTra
+nsaction:i}){return th
+is.withRetry({actionGe
+rund:"querying",callba
+ck:async({logHttpCall:
+o})=>{let s=i?`${i.pay
+load.endpoint}/graphql
+`:await this.url("grap
+hql");o(s);let 
+a=await ct(s,{method:"
+POST",headers:this.hea
+derBuilder.build({trac
+eparent:r,interactiveT
+ransaction:i}),body:JS
+ON.stringify(t),client
+Version:this.clientVer
+sion},n);a.ok||no("gra
+phql response status",
+a.status),await this.h
+andleError(await Or(a,
+this.clientVersion));l
+et l=await a.json(),u=
+l.extensions;if(u&&thi
+s.propagateResponseExt
+ensions(u),l.errors)th
+row l.errors.length===
+1?st(l.errors[0],this.
+config.clientVersion,t
+his.config.activeProvi
+der):new B(l.errors,{c
+lientVersion:this.conf
+ig.clientVersion});ret
+urn l}})}async transac
+tion(t,r,n){let i={sta
+rt:"starting",commit:"
+committing",rollback:"
+rolling back"};return 
+this.withRetry({action
+Gerund:`${i[t]} transa
+ction`,callback:async(
+{logHttpCall:o})=>{if(
+t==="start"){let s=JSO
+N.stringify({max_wait:
+n.maxWait,timeout:n.ti
+meout,isolation_level:
+n.isolationLevel}),a=a
+wait this.url("transac
+tion/start");o(a);let 
+l=await ct(a,{method:"
+POST",headers:this.hea
+derBuilder.build({trac
+eparent:r.traceparent}
+),body:s,clientVersion
+:this.clientVersion});
+await this.handleError
+(await Or(l,this.clien
+tVersion));let 
+u=await l.json(),c=u.e
+xtensions;c&&this.prop
+agateResponseExtension
+s(c);let p=u.id,d=u["d
+ata-proxy"].endpoint;r
+eturn{id:p,payload:{en
+dpoint:d}}}else{let s=
+`${n.payload.endpoint}
+/${t}`;o(s);let 
+a=await ct(s,{method:"
+POST",headers:this.hea
+derBuilder.build({trac
+eparent:r.traceparent}
+),clientVersion:this.c
+lientVersion});await t
+his.handleError(await 
+Or(a,this.clientVersio
+n));let u=(await a.jso
+n()).extensions;u&&thi
+s.propagateResponseExt
+ensions(u);return}}})}
+extractHostAndApiKey()
+{let t={clientVersion:
+this.clientVersion},r=
+Object.keys(this.inlin
+eDatasources)[0],n=Nt(
+{inlineDatasources:thi
+s.inlineDatasources,ov
+errideDatasources:this
+.config.overrideDataso
+urces,clientVersion:th
+is.clientVersion,env:t
+his.env}),i;try{i=new 
+URL(n)}catch{throw 
+new at(`Error 
+validating datasource 
+\`${r}\`: the URL 
+must start with the 
+protocol \`prisma://\`
+`,t)}let{protocol:o,ho
+st:s,searchParams:a}=i
+;if(o!=="prisma:"&&o!=
+="prisma+postgres:")th
+row new at(`Error 
+validating datasource 
+\`${r}\`: the URL 
+must start with the 
+protocol 
+\`prisma://\``,t);let 
+l=a.get("api_key");if(
+l===null||l.length<1)t
+hrow new at(`Error 
+validating datasource 
+\`${r}\`: the URL 
+must contain a valid 
+API key`,t);return[s,l
+]}metrics(){throw new 
+lt("Metrics are not 
+yet supported for Acce
+lerate",{clientVersion
+:this.clientVersion})}
+async 
+withRetry(t){for(let 
+r=0;;r++){let n=i=>{th
+is.logEmitter.emit("in
+fo",{message:`Calling 
+${i} (n=${r})`,timesta
+mp:new Date,target:""}
+)};try{return await t.
+callback({logHttpCall:
+n})}catch(i){if(!(i 
+instanceof se)||!i.isR
+etryable)throw 
+i;if(r>=cl)throw i 
+instanceof Mt?i.cause:
+i;this.logEmitter.emit
+("warn",{message:`Atte
+mpt ${r+1}/${cl} 
+failed for 
+${t.actionGerund}: ${i
+.message??"(unknown)"}
+`,timestamp:new 
+Date,target:""});let 
+o=await nl(r);this.log
+Emitter.emit("warn",{m
+essage:`Retrying 
+after 
+${o}ms`,timestamp:new 
+Date,target:""})}}}asy
+nc 
+handleError(t){if(t 
+instanceof ut)throw 
+await this.uploadSchem
+a(),new Mt({clientVers
+ion:this.clientVersion
+,cause:t});if(t)throw 
+t}applyPendingMigratio
+ns(){throw new 
+Error("Method not impl
+emented.")}};function 
+pl(e){if(e?.kind==="it
+x")return 
+e.options.id}var so=k(
+require("os")),dl=k(re
+quire("path"));var oo=
+Symbol("PrismaLibraryE
+ngineCache");function 
+pm(){let 
+e=globalThis;return 
+e[oo]===void 0&&(e[oo]
+={}),e[oo]}function 
+dm(e){let 
+t=pm();if(t[e]!==void 
+0)return t[e];let r=dl
+.default.toNamespacedP
+ath(e),n={exports:{}},
+i=0;return process.pla
+tform!=="win32"&&(i=so
+.default.constants.dlo
+pen.RTLD_LAZY|so.defau
+lt.constants.dlopen.RT
+LD_DEEPBIND),process.d
+lopen(n,r,i),t[e]=n.ex
+ports,n.exports}var 
+ml={async 
+loadLibrary(e){let 
+t=await Yn(),r=await z
+a("library",e);try{ret
+urn e.tracingHelper.ru
+nInChildSpan({name:"lo
+adLibrary",internal:!0
+},()=>dm(r))}catch(n){
+let i=ui({e:n,platform
+Info:t,id:r});throw 
+new R(i,e.clientVersio
+n)}}};var 
+ao,fl={async loadLibra
+ry(e){let{clientVersio
+n:t,adapter:r,engineWa
+sm:n}=e;if(r===void 
+0)throw new R(`The 
+\`adapter\` option 
+for \`PrismaClient\` 
+is required in this 
+context (${In().pretty
+Name})`,t);if(n===void
+ 0)throw new R("WASM 
+engine was 
+unexpectedly `undefine
+d`",t);ao===void 
+0&&(ao=(async()=>{let 
+o=n.getRuntime(),s=awa
+it n.getQueryEngineWas
+mModule();if(s==null)t
+hrow new R("The 
+loaded wasm module 
+was unexpectedly 
+`undefined` or `null` 
+once loaded",t);let a=
+{"./query_engine_bg.js
+":o},l=new WebAssembly
+.Instance(s,a);return 
+o.__wbg_set_wasm(l.exp
+orts),o.QueryEngine})(
+));let i=await ao;retu
+rn{debugPanic(){return
+ Promise.reject("{}")}
+,dmmf(){return Promise
+.resolve("{}")},versio
+n(){return{commit:"unk
+nown",version:"unknown
+"}},QueryEngine:i}}};v
+ar mm="P2036",Ae=L("pr
+isma:client:libraryEng
+ine");function 
+fm(e){return e.item_ty
+pe==="query"&&"query"i
+n e}function 
+gm(e){return"level"in 
+e?e.level==="error"&&e
+.message==="PANIC":!1}
+var gl=[...Jn,"native"
+],_r=class{constructor
+(t,r){this.name="Libra
+ryEngine";this.library
+Loader=r??ml,t.engineW
+asm!==void 0&&(this.li
+braryLoader=r??fl),thi
+s.config=t,this.librar
+yStarted=!1,this.logQu
+eries=t.logQueries??!1
+,this.logLevel=t.logLe
+vel??"error",this.logE
+mitter=t.logEmitter,th
+is.datamodel=t.inlineS
+chema,t.enableDebugLog
+s&&(this.logLevel="deb
+ug");let n=Object.keys
+(t.overrideDatasources
+)[0],i=t.overrideDatas
+ources[n]?.url;n!==voi
+d 0&&i!==void 0&&(this
+.datasourceOverrides={
+[n]:i}),this.libraryIn
+stantiationPromise=thi
+s.instantiateLibrary()
+}async applyPendingMig
+rations(){throw new 
+Error("Cannot call 
+this method from this 
+type of engine 
+instance")}async trans
+action(t,r,n){await 
+this.start();let i=JSO
+N.stringify(r),o;if(t=
+=="start"){let a=JSON.
+stringify({max_wait:n.
+maxWait,timeout:n.time
+out,isolation_level:n.
+isolationLevel});o=awa
+it this.engine?.startT
+ransaction(a,i)}else 
+t==="commit"?o=await t
+his.engine?.commitTran
+saction(n.id,i):t==="r
+ollback"&&(o=await thi
+s.engine?.rollbackTran
+saction(n.id,i));let s
+=this.parseEngineRespo
+nse(o);if(hm(s)){let a
+=this.getExternalAdapt
+erError(s);throw 
+a?a.error:new V(s.mess
+age,{code:s.error_code
+,clientVersion:this.co
+nfig.clientVersion,met
+a:s.meta})}return 
+s}async instantiateLib
+rary(){if(Ae("internal
+Setup"),this.libraryIn
+stantiationPromise)ret
+urn this.libraryInstan
+tiationPromise;Qn(),th
+is.binaryTarget=await 
+this.getCurrentBinaryT
+arget(),await this.loa
+dEngine(),this.version
+()}async getCurrentBin
+aryTarget(){{if(this.b
+inaryTarget)return 
+this.binaryTarget;let 
+t=await nt();if(!gl.in
+cludes(t))throw new 
+R(`Unknown ${ce("PRISM
+A_QUERY_ENGINE_LIBRARY
+")} ${ce(H(t))}. 
+Possible 
+binaryTargets: 
+${qe(gl.join(", "))} 
+or a path to the 
+query engine library.
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+                      
+        
+
+PrismaClientInitializa
+tionError: Unable to r
+equire(`/app/node_modu
+les/.prisma/client/lib
+query_engine-linux-mus
+l.so.node`).
+The Prisma engines do 
+not seem to be 
+compatible with your 
+system. Please refer 
+to the documentation 
+about Prisma's system 
+requirements: https://
+pris.ly/d/system-requi
+rements
+
+Details: Error 
+loading shared 
+library 
+libssl.so.1.1: No 
+such file or 
+directory (needed by /
+app/node_modules/.pris
+ma/client/libquery_eng
+ine-linux-musl.so.node
+)
+    at 
+Object.loadLibrary (/a
+pp/node_modules/@prism
+a/client/runtime/libra
+ry.js:111:10243)
+    at async 
+_r.loadEngine (/app/no
+de_modules/@prisma/cli
+ent/runtime/library.js
+:112:448)
+[31m[nodemon] app crashed - waiting for file changes before starting...[39m
+    at async 
+_r.instantiateLibrary 
+(/app/node_modules/@pr
+isma/client/runtime/li
+brary.js:111:12599) {
+  clientVersion: 
+'5.22.0',
+  errorCode: undefined
+}
+
+Node.js v18.20.8

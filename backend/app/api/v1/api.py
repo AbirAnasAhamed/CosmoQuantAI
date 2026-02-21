@@ -48,3 +48,6 @@ api_router.include_router(token_unlocks.router, prefix="/token-unlocks", tags=["
 from app.api.v1.endpoints import institutional
 api_router.include_router(institutional.router, prefix="/institutional", tags=["institutional"])
 
+from app.api.v1.endpoints import analyst
+api_router.include_router(analyst.router, prefix="/analyst", tags=["analyst"])
+
