@@ -49,8 +49,7 @@ def upgrade() -> None:
     )
     op.create_index(op.f('ix_research_reports_id'), 'research_reports', ['id'], unique=False)
     op.create_index(op.f('ix_research_reports_ticker'), 'research_reports', ['ticker'], unique=False)
-    op.drop_index(op.f('AnalystRating_symbol_key'), table_name='AnalystRating')
-    op.drop_table('AnalystRating')
+    pass
     # ### end Alembic commands ###
 
 

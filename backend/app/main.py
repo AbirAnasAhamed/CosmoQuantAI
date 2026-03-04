@@ -156,7 +156,7 @@ async def fetch_market_data_background():
     print("🚀 Background Market Data Task Started")
     
     try:
-        local_exchange_client = ccxt.binance({'enableRateLimit': True})
+        local_exchange_client = ccxt.binance({'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},})
         await local_exchange_client.load_markets()
     except Exception as e:
         print(f"⚠️ Failed to initialize exchange client: {e}")
@@ -175,7 +175,7 @@ async def fetch_market_data_background():
             # Ensure we have a client
             if not local_exchange_client:
                  try:
-                    local_exchange_client = ccxt.binance({'enableRateLimit': True})
+                    local_exchange_client = ccxt.binance({'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},})
                     await local_exchange_client.load_markets()
                  except Exception as e:
                     print(f"⚠️ Re-init client failed: {e}")

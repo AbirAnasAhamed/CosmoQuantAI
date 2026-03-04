@@ -13,7 +13,7 @@ class UnusualOptionsScanner:
     def __init__(self):
         # Initialize Deribit exchange for options data
         self.exchange = ccxt.deribit({
-            'enableRateLimit': True,
+            'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},
             'options': {'defaultType': 'option'}
         })
         self.target_symbols = ['BTC', 'ETH']

@@ -56,20 +56,20 @@ class ArbitrageBotInstance:
 
         # Paper Trading হলে API Key ছাড়াই লোড হবে (Public Data Only)
         if self.is_paper_trading:
-            self.exchange_a = ex_class_a({'enableRateLimit': True})
-            self.exchange_b = ex_class_b({'enableRateLimit': True})
+            self.exchange_a = ex_class_a({'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},})
+            self.exchange_b = ex_class_b({'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},})
             await self._log(f"🧪 Paper Trading Mode Active. Using Public Data for {ex_a_name} & {ex_b_name}.", "warning")
         else:
             # Real Trading (API Keys required)
             self.exchange_a = ex_class_a({
                 'apiKey': self.config.get("apiKeyA_public"),
                 'secret': self.config.get("apiKeyA_secret"),
-                'enableRateLimit': True,
+                'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},
             })
             self.exchange_b = ex_class_b({
                 'apiKey': self.config.get("apiKeyB_public"),
                 'secret': self.config.get("apiKeyB_secret"),
-                'enableRateLimit': True,
+                'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},
             })
 
     async def _perform_initial_balancing(self):

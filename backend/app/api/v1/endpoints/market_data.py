@@ -21,7 +21,9 @@ os.makedirs(DATA_FEED_DIR, exist_ok=True)
 @router.get("/exchanges", response_model=List[str])
 def get_exchanges():
     try:
-        return ccxt.exchanges
+        # ccxt.exchanges contains 130+ exchanges, many require auth or are broken (like 'alp').
+        # Using a curated list of popular reliable exchanges.
+        return ['binance', 'alpaca', 'kucoin', 'bybit', 'okx', 'kraken', 'gateio', 'mexc', 'huobi']
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

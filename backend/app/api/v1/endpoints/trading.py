@@ -54,7 +54,7 @@ async def test_exchange_connection(request: ConnectionTestRequest):
         exchange = exchange_class({
             'apiKey': request.api_key,
             'secret': request.api_secret,
-            'enableRateLimit': True
+            'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},
         })
         
         # Try to fetch balance as a test
@@ -97,7 +97,7 @@ async def place_order(
         exchange = exchange_class({
             'apiKey': api_key_record.api_key,
             'secret': decrypted_secret,
-            'enableRateLimit': True,
+            'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},
         })
 
         # ৩. অর্ডার প্লেস করা

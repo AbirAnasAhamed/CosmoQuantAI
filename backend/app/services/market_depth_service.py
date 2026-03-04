@@ -60,7 +60,7 @@ class MarketDepthService:
         if not exchange_class:
             raise ValueError(f"Exchange '{exchange_id}' not supported.")
 
-        exchange = exchange_class({'enableRateLimit': True})
+        exchange = exchange_class({'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},})
         
         try:
             # Load markets to verify symbol support (optional but good for validation)
@@ -168,7 +168,7 @@ class MarketDepthService:
         if not exchange_class:
             raise ValueError(f"Exchange '{exchange_id}' not supported.")
         
-        exchange = exchange_class({'enableRateLimit': True})
+        exchange = exchange_class({'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},})
         try:
             markets = await exchange.load_markets()
             symbols = list(markets.keys())
@@ -195,7 +195,7 @@ class MarketDepthService:
         if not exchange_class:
             raise ValueError(f"Exchange '{exchange_id}' not supported.")
 
-        exchange = exchange_class({'enableRateLimit': True})
+        exchange = exchange_class({'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},})
         try:
             # CCXT returns list of [timestamp, open, high, low, close, volume]
             ohlcv = await exchange.fetch_ohlcv(symbol, timeframe, limit=limit)

@@ -88,7 +88,7 @@ class MarketService:
     async def fetch_and_store_candles(self, db: Session, symbol: str, timeframe: str, start_date: str = None, end_date: str = None, limit: int = 1000):
         # 1. Exchange Setup
         exchange_config = {
-            'enableRateLimit': True,
+            'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},
             'userAgent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
         
@@ -210,7 +210,7 @@ class MarketService:
     async def get_real_time_sentiment_metrics(self, symbol: str) -> dict:
         exchange = ccxt.binance({
             'timeout': 10000, # 10 seconds
-            'enableRateLimit': True,
+            'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},
             'userAgent': 'CosmoQuant/1.0'
         })
         try:
@@ -433,8 +433,9 @@ class MarketService:
                 
                 # ১. বেসিক কনফিগারেশন
                 config = {
-                    'enableRateLimit': True,
+                    'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},
                     'userAgent': 'CosmoQuant/1.0',  # User Agent সরল করা হলো
+                    'options': {'adjustForTimeDifference': True}, # ✅ Fix for Timestamp recvWindow errors
                 }
 
                 # ২. .env থেকে API Key চেক করা (Via Settings for known keys, fallback to env for others if needed)

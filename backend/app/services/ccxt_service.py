@@ -80,7 +80,7 @@ class CcxtService:
         try:
             # Instantiate exchange class dynamically
             exchange_class = getattr(ccxt, exchange_id)
-            api = exchange_class({'enableRateLimit': True})
+            api = exchange_class({'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},})
             
             # Load markets
             markets = await api.load_markets()

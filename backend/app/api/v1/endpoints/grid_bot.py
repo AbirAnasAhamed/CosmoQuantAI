@@ -327,7 +327,7 @@ async def panic_sell_grid_bot(
     if not bot.is_paper_trading and bot.api_key_id:
         key, secret = get_real_api_credentials_by_id(db, current_user.id, bot.api_key_id)
         if key:
-            config = {'apiKey': key, 'secret': secret, 'enableRateLimit': True}
+            config = {'apiKey': key, 'secret': secret, 'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},}
     
     ex_name = bot.exchange.lower() if bot.exchange else 'binance'
     exchange = getattr(ccxt, ex_name)(config)

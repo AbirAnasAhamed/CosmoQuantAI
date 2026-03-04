@@ -495,7 +495,7 @@ def download_candles_task(self, exchange_id, symbol, timeframe, start_date, end_
             
         exchange_class = getattr(ccxt, exchange_id)
         exchange = exchange_class({
-            'enableRateLimit': True,
+            'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},
             'userAgent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
             'timeout': 10000,
         })
@@ -599,7 +599,7 @@ def download_trades_task(self, exchange_id, symbol, start_date, end_date=None):
         
         exchange_class = getattr(ccxt, exchange_id)
         exchange = exchange_class({
-            'enableRateLimit': True,
+            'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},
             'userAgent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
             'timeout': 10000,
         })
@@ -846,7 +846,7 @@ def execute_sor_child_order(user_id: int, exchange_id: str, symbol: str, side: s
         exchange = exchange_class({
             'apiKey': api_key_record.api_key,
             'secret': decrypted_secret,
-            'enableRateLimit': True,
+            'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},
         })
         
         # 3. Execute Order

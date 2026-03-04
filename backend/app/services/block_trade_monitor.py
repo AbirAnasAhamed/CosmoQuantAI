@@ -57,7 +57,7 @@ class BlockTradeMonitor:
                     exchange_class = getattr(ccxt, exchange_id)
                     # Enable rate limiting and async mode
                     options = {
-                        'enableRateLimit': True,
+                        'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},
                         'userAgent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
                     }
                     if exchange_id == 'okx':

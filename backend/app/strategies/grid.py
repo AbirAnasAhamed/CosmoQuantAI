@@ -48,7 +48,7 @@ class GridTradingBot:
         ex_class = getattr(ccxt, ex_name)
         
         exchange_config = {
-            'enableRateLimit': True,
+            'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},
             'options': {'defaultType': 'spot'}
         }
 
