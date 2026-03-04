@@ -92,9 +92,10 @@ class MarketService:
             'userAgent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
         }
         
-        if settings.BINANCE_API_KEY:
-            exchange_config['apiKey'] = settings.BINANCE_API_KEY
-            exchange_config['secret'] = settings.BINANCE_SECRET_KEY
+        # Force public endpoint for Binance to avoid strict Timestamp sync issues in Docker/WSL
+        # if settings.BINANCE_API_KEY:
+        #     exchange_config['apiKey'] = settings.BINANCE_API_KEY
+        #     exchange_config['secret'] = settings.BINANCE_SECRET_KEY
             
         exchange = ccxt.binance(exchange_config)
         
@@ -450,7 +451,8 @@ class MarketService:
                     env_api_key = os.getenv(f"{exchange_id.upper()}_API_KEY")
                     env_secret = os.getenv(f"{exchange_id.upper()}_SECRET")
                 
-                if env_api_key and env_secret:
+                # Skip API keys for fetching public markets (Binance recvWindow fix)
+                if env_api_key and env_secret and exchange_id != 'binance':
                     config['apiKey'] = env_api_key
                     config['secret'] = env_secret
 
