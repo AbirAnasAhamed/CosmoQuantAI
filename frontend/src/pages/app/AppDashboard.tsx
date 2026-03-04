@@ -41,6 +41,7 @@ import Backtester from './Backtester';
 import BotLab from './BotLab';
 import ArbitrageBot from './ArbitrageBot';
 import GridBot from './GridBot';
+import LeadLagBot from './LeadLagBot';
 import MarketDepthWidget from './MarketDepth/MarketDepthWidget';
 import EventDrivenSimulator from './EventDrivenSimulator';
 import PanicButton from '@/components/common/PanicButton';
@@ -141,6 +142,7 @@ const Sidebar: React.FC<{
                 { view: AppView.EVENT_DRIVEN, icon: <Activity />, label: 'Live Simulation' },
                 { view: AppView.ARBITRAGE_BOT, icon: <Bot />, label: 'Arbitrage Bot' },
                 { view: AppView.GRID_BOT, icon: <Layers />, label: 'Grid Bot' },
+                { view: AppView.LEAD_LAG_BOT, icon: <LineChart />, label: 'Lead-Lag Bot' },
                 { view: AppView.BOT_LAB, icon: <BotLabIcon />, label: 'Bot Laboratory' },
                 { view: AppView.AI_FOUNDRY, icon: <AIFoundryIcon />, label: 'AI Foundry' },
             ]
@@ -324,6 +326,7 @@ const AppDashboard: React.FC<AppDashboardProps> = ({ currentView, onNavigate, on
             case AppView.EVENT_DRIVEN: return <EventDrivenSimulator />;
             case AppView.ARBITRAGE_BOT: return <ArbitrageBot />;
             case AppView.GRID_BOT: return <GridBot />;
+            case AppView.LEAD_LAG_BOT: return <LeadLagBot />;
             case AppView.BOT_LAB: return <BotLab />;
             case AppView.AI_FOUNDRY: return <AIFoundry />;
             case AppView.MARKET: return <Market />;

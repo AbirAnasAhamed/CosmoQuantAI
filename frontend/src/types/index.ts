@@ -613,6 +613,7 @@ export enum AppView {
   BACKTESTER = 'Backtesting Engine',
   ARBITRAGE_BOT = 'Arbitrage Bot',
   GRID_BOT = 'Grid Bot',
+  LEAD_LAG_BOT = 'Lead-Lag Bot',
   BOT_LAB = 'Bot Lab',
   AI_FOUNDRY = 'AI Foundry',
   MARKET = 'Market',

@@ -23,6 +23,8 @@ api_router.include_router(arbitrage.router, prefix="/arbitrage", tags=["arbitrag
 api_router.include_router(system.router, prefix="/system", tags=["system"])
 api_router.include_router(notifications.router, prefix="/notifications", tags=["notifications"])
 api_router.include_router(grid_bot.router, prefix="/grid-bot", tags=["grid-bot"])
+from app.api.v1.endpoints import lead_lag
+api_router.include_router(lead_lag.router, prefix="/lead-lag-bot", tags=["lead-lag-bot"])
 api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
 from app.api.v1.endpoints import market_regime
 api_router.include_router(market_regime.router, prefix="/analytics", tags=["analytics"])

@@ -40,6 +40,7 @@ class User(Base):
     # 👇 এই লাইনটি মিসিং ছিল, এটি যোগ করা হয়েছে:
     education_progress = relationship("UserEducationProgress", back_populates="user")
     grid_bots = relationship("GridBot", back_populates="owner")
+    lead_lag_bots = relationship("LeadLagBot", back_populates="owner")
 
 # 2. API Keys Model
 class ApiKey(Base):
@@ -106,3 +107,4 @@ from .sentiment import SentimentPoll
 from .options_activity import OptionTrade, OptionSentiment
 from .analyst_rating import AnalystRating
 from .research_report import ResearchReport
+from .lead_lag import LeadLagBot, LeadLagTradeLog
