@@ -39,6 +39,7 @@ import TaskManager from './TaskManager';
 import NeuralArchitecture from './NeuralArchitecture';
 import Backtester from './Backtester';
 import BotLab from './BotLab';
+import OrderFlowHeatmap from './OrderFlowHeatmap';
 import ArbitrageBot from './ArbitrageBot';
 import GridBot from './GridBot';
 import LeadLagBot from './LeadLagBot';
@@ -144,6 +145,7 @@ const Sidebar: React.FC<{
                 { view: AppView.GRID_BOT, icon: <Layers />, label: 'Grid Bot' },
                 { view: AppView.LEAD_LAG_BOT, icon: <LineChart />, label: 'Lead-Lag Bot' },
                 { view: AppView.BOT_LAB, icon: <BotLabIcon />, label: 'Bot Laboratory' },
+                { view: AppView.ORDER_FLOW_HEATMAP, icon: <Activity />, label: 'Order Flow Heatmap' },
                 { view: AppView.AI_FOUNDRY, icon: <AIFoundryIcon />, label: 'AI Foundry' },
             ]
         },
@@ -328,6 +330,7 @@ const AppDashboard: React.FC<AppDashboardProps> = ({ currentView, onNavigate, on
             case AppView.GRID_BOT: return <GridBot />;
             case AppView.LEAD_LAG_BOT: return <LeadLagBot />;
             case AppView.BOT_LAB: return <BotLab />;
+            case AppView.ORDER_FLOW_HEATMAP: return <OrderFlowHeatmap />;
             case AppView.AI_FOUNDRY: return <AIFoundry />;
             case AppView.MARKET: return <Market />;
             case AppView.SENTIMENT_ENGINE: return <SentimentEngine />;

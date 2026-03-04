@@ -654,6 +654,7 @@ export enum AppView {
 
   // ✅ New Market Depth View
   MARKET_DEPTH = 'Market Depth',
+  ORDER_FLOW_HEATMAP = 'Order Flow Heatmap',
 
 }
 
