@@ -4,6 +4,7 @@ import { useLevel2MarketData } from '@/hooks/useLevel2MarketData';
 import api from '../../services/api';
 import { HeatmapSymbolSelector } from '../../components/features/market/HeatmapSymbolSelector';
 import { TimeframeSelector } from '../../components/features/market/TimeframeSelector';
+import { LiquidityHeatmapRenderer, HeatmapDataPoint } from '../../components/features/market/LiquidityHeatmapRenderer';
 
 // Chart Component
 const OrderFlowChart: React.FC<{ symbol: string; interval: string; walls: { price: number, type: 'buy' | 'sell' }[] }> = ({ symbol, interval, walls }) => {
@@ -11,6 +12,7 @@ const OrderFlowChart: React.FC<{ symbol: string; interval: string; walls: { pric
     const chartRef = useRef<any>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
     const wallLinesRef = useRef<any[]>([]);
+    const [heatmapData, setHeatmapData] = useState<HeatmapDataPoint[]>([]);
 
     useEffect(() => {
         if (!chartContainerRef.current) return;
@@ -59,6 +61,8 @@ const OrderFlowChart: React.FC<{ symbol: string; interval: string; walls: { pric
                 }));
                 if (candlestickSeriesRef.current) {
                     candlestickSeriesRef.current.setData(candles);
+                    // TODO: Provide real historical depth data here 
+                    setHeatmapData([]);
                     chart.timeScale().fitContent();
                 }
             } catch (err) {
@@ -104,7 +108,14 @@ const OrderFlowChart: React.FC<{ symbol: string; interval: string; walls: { pric
         });
     }, [walls]);
 
-    return <div ref={chartContainerRef} className="w-full h-full absolute inset-0" />;
+    return (
+        <div className="w-full h-full absolute inset-0">
+            <div ref={chartContainerRef} className="w-full h-full absolute inset-0 z-0" />
+            <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden" style={{ right: 60, bottom: 26 }}>
+                <LiquidityHeatmapRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={heatmapData} />
+            </div>
+        </div>
+    );
 };
 
 // Order Book Component
