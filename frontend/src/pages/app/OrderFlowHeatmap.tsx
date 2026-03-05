@@ -5,15 +5,21 @@ import api from '../../services/api';
 import { HeatmapSymbolSelector } from '../../components/features/market/HeatmapSymbolSelector';
 import { TimeframeSelector } from '../../components/features/market/TimeframeSelector';
 import { LiquidityHeatmapRenderer, HeatmapDataPoint } from '../../components/features/market/LiquidityHeatmapRenderer';
+import { VolumeProfileWidget, VPVRData } from '../../components/features/market/VolumeProfileWidget';
+import { CVDChart, CVDDataPoint } from '../../components/features/market/CVDChart';
+import { FootprintRenderer, FootprintCandleData, FootprintDataTick } from '../../components/features/market/FootprintRenderer';
 
 // Chart Component
-const OrderFlowChart: React.FC<{ symbol: string; interval: string; walls: { price: number, type: 'buy' | 'sell' }[]; currentPrice: number }> = ({ symbol, interval, walls, currentPrice }) => {
+const OrderFlowChart: React.FC<{ symbol: string; interval: string; walls: { price: number, type: 'buy' | 'sell' }[]; currentPrice: number; showFootprint: boolean }> = ({ symbol, interval, walls, currentPrice, showFootprint }) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<any>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
     const wallLinesRef = useRef<any[]>([]);
     const lastCandleRef = useRef<CandlestickData | null>(null);
     const [heatmapData, setHeatmapData] = useState<HeatmapDataPoint[]>([]);
+    const [vpvrData, setVpvrData] = useState<VPVRData[]>([]);
+    const [cvdData, setCvdData] = useState<CVDDataPoint[]>([]);
+    const [footprintData, setFootprintData] = useState<FootprintCandleData[]>([]);
 
     useEffect(() => {
         if (!chartContainerRef.current) return;
@@ -70,6 +76,7 @@ const OrderFlowChart: React.FC<{ symbol: string; interval: string; walls: { pric
                     high: parseFloat(k[2]),
                     low: parseFloat(k[3]),
                     close: parseFloat(k[4]),
+                    volume: parseFloat(k[5] || 100),
                 }));
                 if (candlestickSeriesRef.current) {
                     candlestickSeriesRef.current.setData(candles);
@@ -78,6 +85,71 @@ const OrderFlowChart: React.FC<{ symbol: string; interval: string; walls: { pric
                     }
                     // TODO: Provide real historical depth data here 
                     setHeatmapData([]);
+
+                    // Generate Mock VPVR Data based on candles min/max
+                    const minPrice = Math.min(...candles.map(c => c.low));
+                    const maxPrice = Math.max(...candles.map(c => c.high));
+                    const step = (maxPrice - minPrice) / 60;
+                    const vpvr: VPVRData[] = [];
+                    for (let p = minPrice; p <= maxPrice; p += step) {
+                        const vol = Math.random() * 1000;
+                        const buyRatio = 0.3 + Math.random() * 0.4; // 30-70% buy
+                        vpvr.push({
+                            price: p,
+                            volume: vol,
+                            buyVolume: vol * buyRatio,
+                            sellVolume: vol * (1 - buyRatio)
+                        });
+                    }
+                    setVpvrData(vpvr);
+
+                    // Generate Mock CVD Data
+                    let currentCvd = 0;
+                    const cvd: CVDDataPoint[] = [];
+                    const fprintData: FootprintCandleData[] = [];
+
+                    candles.forEach(c => {
+                        const closeDiff = c.close - c.open;
+                        const direction = closeDiff >= 0 ? 1 : -1;
+                        const delta = (c.volume) * direction * (Math.random() * 0.8 + 0.2);
+                        currentCvd += delta;
+                        cvd.push({
+                            time: c.time,
+                            value: currentCvd
+                        });
+
+                        // Generate mock footprint per candle
+                        const candleFootprint: FootprintCandleData = {
+                            time: c.time,
+                            high: c.high,
+                            low: c.low,
+                            ticks: []
+                        };
+
+                        const candleRange = c.high - c.low;
+                        // Avoid too many ticks if range is huge, just create 3-5 ticks
+                        const numTicks = Math.max(2, Math.min(5, Math.floor(candleRange / 0.5)));
+                        const tickStep = candleRange / numTicks;
+
+                        if (candleRange > 0 && tickStep > 0) {
+                            for (let p = c.low; p <= c.high; p += tickStep) {
+                                const bidVol = Math.random() * c.volume * 0.4;
+                                const askVol = Math.random() * c.volume * 0.4;
+                                const isImbalance = Math.max(bidVol, askVol) > Math.min(bidVol, askVol) * 2 && (bidVol > 50 || askVol > 50);
+                                candleFootprint.ticks.push({
+                                    price: p,
+                                    bidVolume: bidVol,
+                                    askVolume: askVol,
+                                    isImbalance
+                                });
+                            }
+                        }
+                        fprintData.push(candleFootprint);
+                    });
+
+                    setCvdData(cvd);
+                    setFootprintData(fprintData);
+
                     chart.timeScale().fitContent();
                 }
             } catch (err) {
@@ -144,10 +216,17 @@ const OrderFlowChart: React.FC<{ symbol: string; interval: string; walls: { pric
     }, [walls]);
 
     return (
-        <div className="w-full h-full absolute inset-0">
-            <div ref={chartContainerRef} className="w-full h-full absolute inset-0 z-0" />
-            <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden" style={{ right: 60, bottom: 26 }}>
-                <LiquidityHeatmapRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={heatmapData} />
+        <div className="w-full h-full flex flex-col absolute inset-0">
+            <div className="flex-1 relative">
+                <div ref={chartContainerRef} className="w-full h-full absolute inset-0 z-0" />
+                <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden" style={{ right: 60, bottom: 26 }}>
+                    <LiquidityHeatmapRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={heatmapData} />
+                    {showFootprint && <FootprintRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={footprintData} visible={showFootprint} />}
+                </div>
+                <VolumeProfileWidget chart={chartRef.current} series={candlestickSeriesRef.current} data={vpvrData} />
+            </div>
+            <div className="h-[25%] border-t border-gray-200 dark:border-white/5 relative z-0">
+                <CVDChart mainChart={chartRef.current} data={cvdData} />
             </div>
         </div>
     );
@@ -229,6 +308,7 @@ const formatDisplayPrice = (price: number) => {
 const OrderFlowHeatmap: React.FC = () => {
     const [symbol, setSymbol] = useState('DOGE/USDT');
     const [interval, setInterval] = useState('1m');
+    const [showFootprint, setShowFootprint] = useState(false);
     const { bids, asks, walls, currentPrice } = useLevel2MarketData(symbol);
 
     const maxTotal = useMemo(() => {
@@ -253,6 +333,14 @@ const OrderFlowHeatmap: React.FC = () => {
                         <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
                         Live Data Socket
                     </span>
+                    <button
+                        onClick={() => setShowFootprint(!showFootprint)}
+                        className={`text-xs font-semibold px-4 py-2 rounded-lg border transition-all ${showFootprint
+                            ? 'bg-brand-primary text-white border-brand-primary shadow-[0_0_15px_rgba(59,130,246,0.3)]'
+                            : 'bg-white dark:bg-black/20 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5'}`}
+                    >
+                        {showFootprint ? 'Hide Footprint' : 'Show Footprint'}
+                    </button>
                 </div>
             </header>
             <div className="flex-1 p-4 overflow-hidden bg-gray-50 dark:bg-[#050B14]">
@@ -262,7 +350,7 @@ const OrderFlowHeatmap: React.FC = () => {
                             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Order Flow Chart</h3>
                         </div>
                         <div className="flex-1 relative">
-                            <OrderFlowChart symbol={symbol} interval={interval} walls={walls} currentPrice={currentPrice} />
+                            <OrderFlowChart symbol={symbol} interval={interval} walls={walls} currentPrice={currentPrice} showFootprint={showFootprint} />
                         </div>
                     </div>
                     <div className="w-[30%] bg-white dark:bg-[#0B1120] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
