@@ -23,9 +23,8 @@ export const useLevel2MarketData = (symbol: string, exchange: string = 'binance'
 
         const connectToBackend = () => {
             // Use relative URL or env var for production, fallback to localhost for dev
-            const baseUrl = window.location.protocol === 'https:'
-                ? `wss://${window.location.host}`
-                : 'ws://localhost:8000';
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const baseUrl = `${protocol}//${window.location.host}`;
 
             // Pass the exchange and the exact symbol (e.g. BTC/USDT) since backend uses {symbol:path}
             const encodedSymbol = encodeURIComponent(symbol).replace('%2F', '/'); // Ensure slash is kept raw if needed or just pass as is.

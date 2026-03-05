@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { createChart, ISeriesApi, CandlestickData, CandlestickSeries } from 'lightweight-charts';
 import { useLevel2MarketData } from '@/hooks/useLevel2MarketData';
+import { useOrderFlowData } from '../../hooks/useOrderFlowData';
 import api from '../../services/api';
 import { HeatmapSymbolSelector } from '../../components/features/market/HeatmapSymbolSelector';
 import { TimeframeSelector } from '../../components/features/market/TimeframeSelector';
@@ -16,10 +17,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
     const wallLinesRef = useRef<any[]>([]);
     const lastCandleRef = useRef<CandlestickData | null>(null);
-    const [heatmapData, setHeatmapData] = useState<HeatmapDataPoint[]>([]);
-    const [vpvrData, setVpvrData] = useState<VPVRData[]>([]);
-    const [cvdData, setCvdData] = useState<CVDDataPoint[]>([]);
-    const [footprintData, setFootprintData] = useState<FootprintCandleData[]>([]);
+    const { heatmapData, vpvrData, cvdData, footprintData } = useOrderFlowData(symbol, exchange, interval);
 
     useEffect(() => {
         if (!chartContainerRef.current) return;
@@ -82,72 +80,6 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                     if (candles.length > 0) {
                         lastCandleRef.current = { ...candles[candles.length - 1] };
                     }
-                    // TODO: Provide real historical depth data here 
-                    setHeatmapData([]);
-
-                    // Generate Mock VPVR Data based on candles min/max
-                    const minPrice = Math.min(...candles.map(c => c.low));
-                    const maxPrice = Math.max(...candles.map(c => c.high));
-                    const step = (maxPrice - minPrice) / 60;
-                    const vpvr: VPVRData[] = [];
-                    for (let p = minPrice; p <= maxPrice; p += step) {
-                        const vol = Math.random() * 1000;
-                        const buyRatio = 0.3 + Math.random() * 0.4; // 30-70% buy
-                        vpvr.push({
-                            price: p,
-                            volume: vol,
-                            buyVolume: vol * buyRatio,
-                            sellVolume: vol * (1 - buyRatio)
-                        });
-                    }
-                    setVpvrData(vpvr);
-
-                    // Generate Mock CVD Data
-                    let currentCvd = 0;
-                    const cvd: CVDDataPoint[] = [];
-                    const fprintData: FootprintCandleData[] = [];
-
-                    candles.forEach(c => {
-                        const closeDiff = c.close - c.open;
-                        const direction = closeDiff >= 0 ? 1 : -1;
-                        const delta = (c.volume) * direction * (Math.random() * 0.8 + 0.2);
-                        currentCvd += delta;
-                        cvd.push({
-                            time: c.time,
-                            value: currentCvd
-                        });
-
-                        // Generate mock footprint per candle
-                        const candleFootprint: FootprintCandleData = {
-                            time: c.time,
-                            high: c.high,
-                            low: c.low,
-                            ticks: []
-                        };
-
-                        const candleRange = c.high - c.low;
-                        // Avoid too many ticks if range is huge, just create 3-5 ticks
-                        const numTicks = Math.max(2, Math.min(5, Math.floor(candleRange / 0.5)));
-                        const tickStep = candleRange / numTicks;
-
-                        if (candleRange > 0 && tickStep > 0) {
-                            for (let p = c.low; p <= c.high; p += tickStep) {
-                                const bidVol = Math.random() * c.volume * 0.4;
-                                const askVol = Math.random() * c.volume * 0.4;
-                                const isImbalance = Math.max(bidVol, askVol) > Math.min(bidVol, askVol) * 2 && (bidVol > 50 || askVol > 50);
-                                candleFootprint.ticks.push({
-                                    price: p,
-                                    bidVolume: bidVol,
-                                    askVolume: askVol,
-                                    isImbalance
-                                });
-                            }
-                        }
-                        fprintData.push(candleFootprint);
-                    });
-
-                    setCvdData(cvd);
-                    setFootprintData(fprintData);
 
                     chart.timeScale().fitContent();
                 }
