@@ -7,11 +7,12 @@ import { TimeframeSelector } from '../../components/features/market/TimeframeSel
 import { LiquidityHeatmapRenderer, HeatmapDataPoint } from '../../components/features/market/LiquidityHeatmapRenderer';
 
 // Chart Component
-const OrderFlowChart: React.FC<{ symbol: string; interval: string; walls: { price: number, type: 'buy' | 'sell' }[] }> = ({ symbol, interval, walls }) => {
+const OrderFlowChart: React.FC<{ symbol: string; interval: string; walls: { price: number, type: 'buy' | 'sell' }[]; currentPrice: number }> = ({ symbol, interval, walls, currentPrice }) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<any>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
     const wallLinesRef = useRef<any[]>([]);
+    const lastCandleRef = useRef<CandlestickData | null>(null);
     const [heatmapData, setHeatmapData] = useState<HeatmapDataPoint[]>([]);
 
     useEffect(() => {
@@ -61,6 +62,9 @@ const OrderFlowChart: React.FC<{ symbol: string; interval: string; walls: { pric
                 }));
                 if (candlestickSeriesRef.current) {
                     candlestickSeriesRef.current.setData(candles);
+                    if (candles.length > 0) {
+                        lastCandleRef.current = { ...candles[candles.length - 1] };
+                    }
                     // TODO: Provide real historical depth data here 
                     setHeatmapData([]);
                     chart.timeScale().fitContent();
@@ -85,6 +89,26 @@ const OrderFlowChart: React.FC<{ symbol: string; interval: string; walls: { pric
             chart.remove();
         };
     }, [symbol, interval]);
+
+    // Real-time candle update
+    useEffect(() => {
+        if (!candlestickSeriesRef.current || !lastCandleRef.current || !currentPrice) return;
+
+        const lastCandle = lastCandleRef.current;
+        const updatedCandle: CandlestickData = {
+            ...lastCandle,
+            close: currentPrice,
+            high: Math.max(lastCandle.high, currentPrice),
+            low: Math.min(lastCandle.low, currentPrice),
+        };
+
+        try {
+            candlestickSeriesRef.current.update(updatedCandle);
+            lastCandleRef.current = updatedCandle;
+        } catch (e) {
+            console.error("Failed to update realtime candle", e);
+        }
+    }, [currentPrice]);
 
     // Update horizontal price lines for walls
     useEffect(() => {
@@ -212,7 +236,7 @@ const OrderFlowHeatmap: React.FC = () => {
                             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Order Flow Chart</h3>
                         </div>
                         <div className="flex-1 relative">
-                            <OrderFlowChart symbol={symbol} interval={interval} walls={walls} />
+                            <OrderFlowChart symbol={symbol} interval={interval} walls={walls} currentPrice={currentPrice} />
                         </div>
                     </div>
                     <div className="w-[30%] bg-white dark:bg-[#0B1120] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
