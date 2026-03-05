@@ -1,6 +1,7 @@
-import React, { useEffect, useRef, useMemo } from 'react';
+import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { createChart, ISeriesApi, CandlestickData, CandlestickSeries } from 'lightweight-charts';
 import { useLevel2MarketData } from '@/hooks/useLevel2MarketData';
+import api from '../../services/api';
 
 // Chart Component
 const OrderFlowChart: React.FC<{ symbol: string; walls: { price: number, type: 'buy' | 'sell' }[] }> = ({ symbol, walls }) => {
@@ -37,29 +38,33 @@ const OrderFlowChart: React.FC<{ symbol: string; walls: { price: number, type: '
             wickDownColor: '#ef4444',
         });
 
-        // Mock historical data
-        const data: CandlestickData[] = [];
-        let price = symbol.includes('DOGE') ? 0.15 : 65000;
-        let time = Math.floor(new Date().getTime() / 1000) - 86400 * 5; // 5 days ago
-        for (let i = 0; i < 100; i++) {
-            const open = price;
-            const close = price + (Math.random() - 0.5) * price * 0.02;
-            const high = Math.max(open, close) + Math.random() * price * 0.01;
-            const low = Math.min(open, close) - Math.random() * price * 0.01;
-            data.push({
-                time: (time + i * 3600) as any,
-                open,
-                high,
-                low,
-                close
-            });
-            price = close;
-        }
-        candlestickSeries.setData(data);
-        chart.timeScale().fitContent();
-
         chartRef.current = chart;
         candlestickSeriesRef.current = candlestickSeries;
+
+        // Fetch real historical data
+        const fetchKlines = async () => {
+            try {
+                const cleanSymbol = symbol.replace('/', '').replace('-', '').toUpperCase();
+                const res = await api.get('/market-data/klines', {
+                    params: { symbol: cleanSymbol, interval: '1m', limit: 200, exchange: 'binance' }
+                });
+                const candles = res.data.map((k: any) => ({
+                    time: (k[0] / 1000) as any,
+                    open: parseFloat(k[1]),
+                    high: parseFloat(k[2]),
+                    low: parseFloat(k[3]),
+                    close: parseFloat(k[4]),
+                }));
+                if (candlestickSeriesRef.current) {
+                    candlestickSeriesRef.current.setData(candles);
+                    chart.timeScale().fitContent();
+                }
+            } catch (err) {
+                console.error("Failed to fetch klines for heatmap:", err);
+            }
+        };
+
+        fetchKlines();
 
         const handleResize = () => {
             if (chartContainerRef.current) {
@@ -183,7 +188,7 @@ const OrderFlowHeatmap: React.FC = () => {
                 <div className="flex gap-2">
                     <span className="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg bg-green-500/10 text-green-500 border border-green-500/20">
                         <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                        Mock Live Data
+                        Live Data Socket
                     </span>
                 </div>
             </header>
