@@ -19,6 +19,7 @@ export const useLevel2MarketData = (symbol: string) => {
     useEffect(() => {
         let ws: WebSocket | null = null;
         let isSubscribed = true;
+        let worker: Worker | null = null;
 
         // Parse symbol, replacing slashes or dashes
         const cleanSymbol = symbol.replace('/', '').replace('-', '').toLowerCase();
@@ -33,6 +34,20 @@ export const useLevel2MarketData = (symbol: string) => {
             const backendWsUrl = `${baseUrl}/api/v1/market-depth/ws/${cleanSymbol}`;
 
             try {
+                // Initialize Web Worker
+                worker = new Worker(new URL('../workers/marketDataWorker.ts', import.meta.url), { type: 'module' });
+
+                worker.onmessage = (e) => {
+                    if (!isSubscribed) return;
+                    if (e.data.type === 'DATA_READY') {
+                        setData(e.data.data);
+                    }
+                };
+
+                worker.onerror = (err) => {
+                    console.error("Worker encountered an error:", err);
+                };
+
                 ws = new WebSocket(backendWsUrl);
 
                 ws.onopen = () => {
@@ -40,15 +55,9 @@ export const useLevel2MarketData = (symbol: string) => {
                 };
 
                 ws.onmessage = (event) => {
-                    if (!isSubscribed) return;
-                    try {
-                        const payloadStr = event.data;
-                        const payload = JSON.parse(payloadStr);
-                        // Expected payload: { bids: [...], asks: [...], walls: [...], currentPrice: number }
-                        setData(payload);
-                    } catch (err) {
-                        console.error("Error parsing market depth WS payload:", err);
-                    }
+                    if (!isSubscribed || !worker) return;
+                    // Offload processing to worker
+                    worker.postMessage({ type: 'PROCESS_MESSAGE', payload: event.data });
                 };
 
                 ws.onerror = (err) => {
@@ -62,7 +71,7 @@ export const useLevel2MarketData = (symbol: string) => {
                     }
                 };
             } catch (error) {
-                console.error("Error creating WebSocket:", error);
+                console.error("Error creating WebSocket or Worker:", error);
                 if (isSubscribed) {
                     setTimeout(connectToBackend, 5000);
                 }
@@ -75,6 +84,9 @@ export const useLevel2MarketData = (symbol: string) => {
             isSubscribed = false;
             if (ws) {
                 ws.close();
+            }
+            if (worker) {
+                worker.terminate();
             }
         };
     }, [symbol]);
