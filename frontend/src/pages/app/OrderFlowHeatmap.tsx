@@ -10,7 +10,7 @@ import { CVDChart, CVDDataPoint } from '../../components/features/market/CVDChar
 import { FootprintRenderer, FootprintCandleData, FootprintDataTick } from '../../components/features/market/FootprintRenderer';
 
 // Chart Component
-const OrderFlowChart: React.FC<{ symbol: string; interval: string; walls: { price: number, type: 'buy' | 'sell' }[]; currentPrice: number; showFootprint: boolean }> = ({ symbol, interval, walls, currentPrice, showFootprint }) => {
+const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: string; walls: { price: number, type: 'buy' | 'sell' }[]; currentPrice: number; showFootprint: boolean }> = ({ exchange, symbol, interval, walls, currentPrice, showFootprint }) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<any>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -66,9 +66,8 @@ const OrderFlowChart: React.FC<{ symbol: string; interval: string; walls: { pric
         // Fetch real historical data
         const fetchKlines = async () => {
             try {
-                const cleanSymbol = symbol.replace('/', '').replace('-', '').toUpperCase();
                 const res = await api.get('/market-data/klines', {
-                    params: { symbol: cleanSymbol, interval: interval, limit: 200, exchange: 'binance' }
+                    params: { symbol: symbol.toUpperCase(), interval: interval, limit: 200, exchange: exchange }
                 });
                 const candles = res.data.map((k: any) => ({
                     time: (k[0] / 1000) as any,
@@ -171,7 +170,7 @@ const OrderFlowChart: React.FC<{ symbol: string; interval: string; walls: { pric
             window.removeEventListener('resize', handleResize);
             chart.remove();
         };
-    }, [symbol, interval]);
+    }, [symbol, interval, exchange]);
 
     // Real-time candle update
     useEffect(() => {
@@ -306,10 +305,11 @@ const formatDisplayPrice = (price: number) => {
 
 // Main Page Component
 const OrderFlowHeatmap: React.FC = () => {
-    const [symbol, setSymbol] = useState('DOGE/USDT');
+    const [exchange, setExchange] = useState('binance');
+    const [symbol, setSymbol] = useState('BTC/USDT');
     const [interval, setInterval] = useState('1m');
     const [showFootprint, setShowFootprint] = useState(false);
-    const { bids, asks, walls, currentPrice } = useLevel2MarketData(symbol);
+    const { bids, asks, walls, currentPrice } = useLevel2MarketData(symbol, exchange);
 
     const maxTotal = useMemo(() => {
         const maxBid = bids.length > 0 ? bids[bids.length - 1].total : 0;
@@ -322,7 +322,7 @@ const OrderFlowHeatmap: React.FC = () => {
             <header className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-white/10 flex justify-between items-center bg-white dark:bg-[#0B1120]">
                 <div className="flex items-center gap-4">
                     <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brand-primary to-purple-500">Order Flow Heatmap</h2>
-                    <HeatmapSymbolSelector symbol={symbol} onSymbolChange={setSymbol} />
+                    <HeatmapSymbolSelector symbol={symbol} exchange={exchange} onSymbolChange={setSymbol} onExchangeChange={setExchange} />
                     <TimeframeSelector interval={interval} onIntervalChange={setInterval} />
                     <span className="text-lg font-mono font-bold text-gray-800 dark:text-white">
                         {formatDisplayPrice(currentPrice)}
@@ -350,7 +350,7 @@ const OrderFlowHeatmap: React.FC = () => {
                             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Order Flow Chart</h3>
                         </div>
                         <div className="flex-1 relative">
-                            <OrderFlowChart symbol={symbol} interval={interval} walls={walls} currentPrice={currentPrice} showFootprint={showFootprint} />
+                            <OrderFlowChart exchange={exchange} symbol={symbol} interval={interval} walls={walls} currentPrice={currentPrice} showFootprint={showFootprint} />
                         </div>
                     </div>
                     <div className="w-[30%] bg-white dark:bg-[#0B1120] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">

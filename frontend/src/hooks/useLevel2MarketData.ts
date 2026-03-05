@@ -13,7 +13,7 @@ export interface MarketDepthData {
     currentPrice: number;
 }
 
-export const useLevel2MarketData = (symbol: string) => {
+export const useLevel2MarketData = (symbol: string, exchange: string = 'binance') => {
     const [data, setData] = useState<MarketDepthData>({ bids: [], asks: [], walls: [], currentPrice: 0 });
 
     useEffect(() => {
@@ -21,17 +21,15 @@ export const useLevel2MarketData = (symbol: string) => {
         let isSubscribed = true;
         let worker: Worker | null = null;
 
-        // Parse symbol, replacing slashes or dashes
-        const cleanSymbol = symbol.replace('/', '').replace('-', '').toLowerCase();
-
         const connectToBackend = () => {
             // Use relative URL or env var for production, fallback to localhost for dev
             const baseUrl = window.location.protocol === 'https:'
                 ? `wss://${window.location.host}`
                 : 'ws://localhost:8000';
 
-            // Assuming API router prefix is /api/v1 and market_depth router prefix is /market-depth
-            const backendWsUrl = `${baseUrl}/api/v1/market-depth/ws/${cleanSymbol}`;
+            // Pass the exchange and the exact symbol (e.g. BTC/USDT) since backend uses {symbol:path}
+            const encodedSymbol = encodeURIComponent(symbol).replace('%2F', '/'); // Ensure slash is kept raw if needed or just pass as is.
+            const backendWsUrl = `${baseUrl}/api/v1/market-depth/ws/${exchange}/${symbol}`;
 
             try {
                 // Initialize Web Worker
@@ -51,7 +49,7 @@ export const useLevel2MarketData = (symbol: string) => {
                 ws = new WebSocket(backendWsUrl);
 
                 ws.onopen = () => {
-                    console.log(`Connected to Level 2 Market Data Stream for ${symbol}`);
+                    console.log(`Connected to Level 2 Market Data Stream for ${symbol} on ${exchange}`);
                 };
 
                 ws.onmessage = (event) => {
@@ -78,7 +76,9 @@ export const useLevel2MarketData = (symbol: string) => {
             }
         };
 
-        connectToBackend();
+        if (symbol && exchange) {
+            connectToBackend();
+        }
 
         return () => {
             isSubscribed = false;
@@ -89,7 +89,7 @@ export const useLevel2MarketData = (symbol: string) => {
                 worker.terminate();
             }
         };
-    }, [symbol]);
+    }, [symbol, exchange]);
 
     return data;
 };

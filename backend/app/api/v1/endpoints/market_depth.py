@@ -56,32 +56,39 @@ async def get_ohlcv(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@router.websocket("/ws/{symbol}")
-async def websocket_market_depth(websocket: WebSocket, symbol: str):
+import ccxt.pro as ccxtpro
+import asyncio
+
+@router.websocket("/ws/{exchange_id}/{symbol:path}")
+async def websocket_market_depth(websocket: WebSocket, exchange_id: str, symbol: str):
     await websocket.accept()
     
-    clean_symbol = symbol.replace("/", "").replace("-", "").lower()
-    binance_ws_url = f"wss://stream.binance.com:9443/ws/{clean_symbol}@depth20@100ms"
+    exchange_class = getattr(ccxtpro, exchange_id.lower(), None)
+    if not exchange_class:
+        await websocket.close(code=1008, reason="Exchange not supported")
+        return
+        
+    exchange = exchange_class({'enableRateLimit': True})
     
     try:
-        async with websockets.connect(binance_ws_url) as ws:
-            while True:
-                data = await ws.recv()
-                parsed_data = json.loads(data)
+        while True:
+            try:
+                # CCXT watch_order_book handles the WS connection gracefully behind the scenes
+                orderbook = await exchange.watch_order_book(symbol.upper(), limit=50)
                 
                 bids = []
                 bid_total = 0
-                for price_str, size_str in parsed_data.get('bids', []):
-                    price = float(price_str)
-                    size = float(size_str)
+                for bid in orderbook.get('bids', []):
+                    price = float(bid[0])
+                    size = float(bid[1])
                     bid_total += size
                     bids.append({"price": price, "size": size, "total": bid_total})
                     
                 asks = []
                 ask_total = 0
-                for price_str, size_str in parsed_data.get('asks', []):
-                    price = float(price_str)
-                    size = float(size_str)
+                for ask in orderbook.get('asks', []):
+                    price = float(ask[0])
+                    size = float(ask[1])
                     ask_total += size
                     asks.append({"price": price, "size": size, "total": ask_total})
                 
@@ -108,10 +115,35 @@ async def websocket_market_depth(websocket: WebSocket, symbol: str):
                 
                 await websocket.send_json(payload)
                 
+            except WebSocketDisconnect:
+                print(f"Client disconnected from market depth stream for {symbol}")
+                break
+            except RuntimeError as e:
+                if "Cannot call" in str(e) and "send" in str(e):
+                    print(f"Websocket already closed for {symbol}")
+                    break
+                print(f"RuntimeError on market depth stream for {symbol}: {e}")
+                break
+            except Exception as e:
+                # Need to handle ccxt exceptions gracefully so it doesn't just crash on heartbeat or disconnect
+                print(f"Error watching orderbook {symbol} on {exchange_id}: {e}")
+                if "does not have market symbol" in str(e) or "bad symbol" in str(e).lower():
+                    try:
+                        await websocket.close(code=1008, reason="Invalid symbol")
+                    except Exception:
+                        pass
+                    break
+                await asyncio.sleep(1) # Backoff
+                
     except WebSocketDisconnect:
         print(f"Client disconnected from market depth stream for {symbol}")
     except Exception as e:
-        print(f"Error in market depth websocket: {e}")
+        print(f"Error in market depth websocket setup: {e}")
+    finally:
+        try:
+            await exchange.close()
+        except:
+            pass
         try:
             await websocket.close()
         except:

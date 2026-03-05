@@ -159,11 +159,10 @@ async def get_klines(
             ohlcv = await ex.fetch_ohlcv(symbol, interval, limit=limit)
             return ohlcv
         except Exception as e:
-            # Log the specific error for debugging but raise HTTP 500
-            # If it's a "Bad Symbol" error, maybe return 400?
-            if 'BadSymbol' in str(e) or 'does not exist' in str(e):
-                 raise HTTPException(status_code=400, detail=f"Symbol {symbol} not found")
-            raise e
+            error_str = str(e).lower()
+            if 'badsymbol' in error_str or 'does not exist' in error_str or 'does not have market symbol' in error_str or 'bad symbol' in error_str:
+                 raise HTTPException(status_code=400, detail=f"Symbol {symbol} not found or invalid.")
+            raise HTTPException(status_code=500, detail=f"Error fetching klines: {str(e)}")
         finally:
             await ex.close()
 
