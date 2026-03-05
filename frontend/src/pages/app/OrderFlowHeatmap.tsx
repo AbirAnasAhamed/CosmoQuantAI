@@ -41,6 +41,17 @@ const OrderFlowChart: React.FC<{ symbol: string; interval: string; walls: { pric
             borderVisible: false,
             wickUpColor: '#22c55e',
             wickDownColor: '#ef4444',
+            priceFormat: {
+                type: 'custom',
+                minMove: 0.00000001,
+                formatter: (price: number) => {
+                    if (price < 0.00001) return price.toFixed(8);
+                    if (price < 0.001) return price.toFixed(6);
+                    if (price < 1) return price.toFixed(5);
+                    if (price < 10) return price.toFixed(4);
+                    return price.toFixed(2);
+                }
+            }
         });
 
         chartRef.current = chart;
@@ -146,7 +157,13 @@ const OrderFlowChart: React.FC<{ symbol: string; interval: string; walls: { pric
 const OrderBook: React.FC<{ bids: any[], asks: any[], maxTotal: number }> = ({ bids, asks, maxTotal }) => {
     if (bids.length === 0 && asks.length === 0) return <div className="text-gray-500 p-4">Loading...</div>;
 
-    const formatPrice = (p: number) => p.toFixed(5);
+    const formatPrice = (price: number) => {
+        if (price < 0.00001) return price.toFixed(8);
+        if (price < 0.001) return price.toFixed(6);
+        if (price < 1) return price.toFixed(5);
+        if (price < 10) return price.toFixed(4);
+        return price.toFixed(2);
+    };
     const formatSize = (s: number) => s.toFixed(2);
 
     return (
@@ -199,6 +216,15 @@ const OrderBook: React.FC<{ bids: any[], asks: any[], maxTotal: number }> = ({ b
     );
 };
 
+// Helper to format prices dynamically
+const formatDisplayPrice = (price: number) => {
+    if (price < 0.00001) return price.toFixed(8);
+    if (price < 0.001) return price.toFixed(6);
+    if (price < 1) return price.toFixed(5);
+    if (price < 10) return price.toFixed(4);
+    return price.toFixed(2);
+};
+
 // Main Page Component
 const OrderFlowHeatmap: React.FC = () => {
     const [symbol, setSymbol] = useState('DOGE/USDT');
@@ -219,7 +245,7 @@ const OrderFlowHeatmap: React.FC = () => {
                     <HeatmapSymbolSelector symbol={symbol} onSymbolChange={setSymbol} />
                     <TimeframeSelector interval={interval} onIntervalChange={setInterval} />
                     <span className="text-lg font-mono font-bold text-gray-800 dark:text-white">
-                        {currentPrice.toFixed(5)}
+                        {formatDisplayPrice(currentPrice)}
                     </span>
                 </div>
                 <div className="flex gap-2">
