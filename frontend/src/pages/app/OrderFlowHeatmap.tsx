@@ -2,9 +2,11 @@ import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { createChart, ISeriesApi, CandlestickData, CandlestickSeries } from 'lightweight-charts';
 import { useLevel2MarketData } from '@/hooks/useLevel2MarketData';
 import api from '../../services/api';
+import { HeatmapSymbolSelector } from '../../components/features/market/HeatmapSymbolSelector';
+import { TimeframeSelector } from '../../components/features/market/TimeframeSelector';
 
 // Chart Component
-const OrderFlowChart: React.FC<{ symbol: string; walls: { price: number, type: 'buy' | 'sell' }[] }> = ({ symbol, walls }) => {
+const OrderFlowChart: React.FC<{ symbol: string; interval: string; walls: { price: number, type: 'buy' | 'sell' }[] }> = ({ symbol, interval, walls }) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<any>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -46,7 +48,7 @@ const OrderFlowChart: React.FC<{ symbol: string; walls: { price: number, type: '
             try {
                 const cleanSymbol = symbol.replace('/', '').replace('-', '').toUpperCase();
                 const res = await api.get('/market-data/klines', {
-                    params: { symbol: cleanSymbol, interval: '1m', limit: 200, exchange: 'binance' }
+                    params: { symbol: cleanSymbol, interval: interval, limit: 200, exchange: 'binance' }
                 });
                 const candles = res.data.map((k: any) => ({
                     time: (k[0] / 1000) as any,
@@ -78,7 +80,7 @@ const OrderFlowChart: React.FC<{ symbol: string; walls: { price: number, type: '
             window.removeEventListener('resize', handleResize);
             chart.remove();
         };
-    }, [symbol]);
+    }, [symbol, interval]);
 
     // Update horizontal price lines for walls
     useEffect(() => {
@@ -164,7 +166,8 @@ const OrderBook: React.FC<{ bids: any[], asks: any[], maxTotal: number }> = ({ b
 
 // Main Page Component
 const OrderFlowHeatmap: React.FC = () => {
-    const symbol = 'DOGE/USDT';
+    const [symbol, setSymbol] = useState('DOGE/USDT');
+    const [interval, setInterval] = useState('1m');
     const { bids, asks, walls, currentPrice } = useLevel2MarketData(symbol);
 
     const maxTotal = useMemo(() => {
@@ -178,9 +181,8 @@ const OrderFlowHeatmap: React.FC = () => {
             <header className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-white/10 flex justify-between items-center bg-white dark:bg-[#0B1120]">
                 <div className="flex items-center gap-4">
                     <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brand-primary to-purple-500">Order Flow Heatmap</h2>
-                    <span className="text-sm font-mono bg-gray-100 dark:bg-white/5 px-2 py-1 rounded border border-gray-200 dark:border-white/10">
-                        {symbol}
-                    </span>
+                    <HeatmapSymbolSelector symbol={symbol} onSymbolChange={setSymbol} />
+                    <TimeframeSelector interval={interval} onIntervalChange={setInterval} />
                     <span className="text-lg font-mono font-bold text-gray-800 dark:text-white">
                         {currentPrice.toFixed(5)}
                     </span>
@@ -199,7 +201,7 @@ const OrderFlowHeatmap: React.FC = () => {
                             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Order Flow Chart</h3>
                         </div>
                         <div className="flex-1 relative">
-                            <OrderFlowChart symbol={symbol} walls={walls} />
+                            <OrderFlowChart symbol={symbol} interval={interval} walls={walls} />
                         </div>
                     </div>
                     <div className="w-[30%] bg-white dark:bg-[#0B1120] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">

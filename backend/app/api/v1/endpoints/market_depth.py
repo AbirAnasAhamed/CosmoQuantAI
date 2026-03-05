@@ -4,6 +4,7 @@ import json
 import asyncio
 import websockets
 from app.services.market_depth_service import market_depth_service
+from app.helpers.orderbook_math import calculate_dynamic_wall_threshold
 
 router = APIRouter()
 
@@ -84,8 +85,7 @@ async def websocket_market_depth(websocket: WebSocket, symbol: str):
                     ask_total += size
                     asks.append({"price": price, "size": size, "total": ask_total})
                 
-                is_doge = "doge" in clean_symbol
-                wall_threshold = 200000 if is_doge else 3.0
+                wall_threshold = calculate_dynamic_wall_threshold(bids, asks)
                 
                 walls = []
                 for ask in asks:
