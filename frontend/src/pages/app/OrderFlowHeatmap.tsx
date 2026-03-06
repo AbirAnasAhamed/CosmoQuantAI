@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
-import { createChart, ISeriesApi, CandlestickData, CandlestickSeries } from 'lightweight-charts';
+import { createChart, ISeriesApi, CandlestickData, CandlestickSeries, LineSeries } from 'lightweight-charts';
 import { useLevel2MarketData } from '@/hooks/useLevel2MarketData';
 import { useOrderFlowData } from '../../hooks/useOrderFlowData';
 import { useHeatmapData } from '../../hooks/useHeatmapData';
@@ -12,14 +12,22 @@ import { LiquidityHeatmapRenderer, HeatmapDataPoint } from '../../components/fea
 import { VolumeProfileWidget, VPVRData } from '../../components/features/market/VolumeProfileWidget';
 import { CVDChart, CVDDataPoint } from '../../components/features/market/CVDChart';
 import { FootprintRenderer, FootprintCandleData, FootprintDataTick } from '../../components/features/market/FootprintRenderer';
+import { IndicatorSelector, IndicatorSettings } from '../../components/features/market/IndicatorSelector';
+import { calculateEMA, calculateBollingerBands, calculateRSI } from '../../utils/indicators';
 
 // Chart Component
-const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: string; walls: { price: number, type: 'buy' | 'sell' }[]; currentPrice: number; showFootprint: boolean }> = ({ exchange, symbol, interval, walls, currentPrice, showFootprint }) => {
+const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: string; walls: { price: number, type: 'buy' | 'sell' }[]; currentPrice: number; showFootprint: boolean; indicatorSettings: IndicatorSettings }> = ({ exchange, symbol, interval, walls, currentPrice, showFootprint, indicatorSettings }) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<any>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+    const emaSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+    const bbUpperSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+    const bbMiddleSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+    const bbLowerSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+    const rsiSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
     const wallLinesRef = useRef<any[]>([]);
     const lastCandleRef = useRef<CandlestickData | null>(null);
+    const allCandlesRef = useRef<any[]>([]);
     const { vpvrData, cvdData, footprintData } = useOrderFlowData(symbol, exchange, interval);
     const { heatmapData: realHeatmapData } = useHeatmapData(symbol, exchange);
 
@@ -40,6 +48,12 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             },
             rightPriceScale: {
                 borderColor: 'rgba(255, 255, 255, 0.1)',
+                scaleMargins: { top: 0.1, bottom: 0.2 }, // Leave bottom 20% for RSI
+            },
+            leftPriceScale: {
+                visible: true,
+                borderColor: 'rgba(255, 255, 255, 0.1)',
+                scaleMargins: { top: 0.8, bottom: 0 }, // RSI takes bottom 20%
             },
         });
 
@@ -62,8 +76,19 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             }
         });
 
+        const emaSeries = chart.addSeries(LineSeries, { color: '#f59e0b', lineWidth: 2, crosshairMarkerVisible: false, lastValueVisible: false });
+        const bbUpperSeries = chart.addSeries(LineSeries, { color: 'rgba(56, 189, 248, 0.5)', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false });
+        const bbMiddleSeries = chart.addSeries(LineSeries, { color: 'rgba(56, 189, 248, 0.8)', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false });
+        const bbLowerSeries = chart.addSeries(LineSeries, { color: 'rgba(56, 189, 248, 0.5)', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false });
+        const rsiSeries = chart.addSeries(LineSeries, { color: '#db2777', lineWidth: 2, priceScaleId: 'left', crosshairMarkerVisible: false, lastValueVisible: false });
+
         chartRef.current = chart;
         candlestickSeriesRef.current = candlestickSeries;
+        emaSeriesRef.current = emaSeries;
+        bbUpperSeriesRef.current = bbUpperSeries;
+        bbMiddleSeriesRef.current = bbMiddleSeries;
+        bbLowerSeriesRef.current = bbLowerSeries;
+        rsiSeriesRef.current = rsiSeries;
 
         // Fetch real historical data
         const fetchKlines = async () => {
@@ -81,6 +106,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                 }));
                 if (candlestickSeriesRef.current) {
                     candlestickSeriesRef.current.setData(candles);
+                    allCandlesRef.current = candles;
                     if (candles.length > 0) {
                         lastCandleRef.current = { ...candles[candles.length - 1] };
                     }
@@ -108,6 +134,39 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         };
     }, [symbol, interval, exchange]);
 
+    // Update Indicators
+    useEffect(() => {
+        if (!emaSeriesRef.current || !bbUpperSeriesRef.current || !bbMiddleSeriesRef.current || !bbLowerSeriesRef.current || !rsiSeriesRef.current) return;
+
+        const data = allCandlesRef.current;
+        if (data.length === 0) return;
+
+        emaSeriesRef.current.applyOptions({ visible: indicatorSettings.showEMA });
+        if (indicatorSettings.showEMA) {
+            emaSeriesRef.current.setData(calculateEMA(data, indicatorSettings.emaPeriod) as any);
+        }
+
+        const showBB = indicatorSettings.showBB;
+        bbUpperSeriesRef.current.applyOptions({ visible: showBB });
+        bbMiddleSeriesRef.current.applyOptions({ visible: showBB });
+        bbLowerSeriesRef.current.applyOptions({ visible: showBB });
+        if (showBB) {
+            const bbData = calculateBollingerBands(data, indicatorSettings.bbPeriod, indicatorSettings.bbStdDev);
+            bbUpperSeriesRef.current.setData(bbData.map(d => ({ time: d.time, value: d.upper })) as any);
+            bbMiddleSeriesRef.current.setData(bbData.map(d => ({ time: d.time, value: d.middle })) as any);
+            bbLowerSeriesRef.current.setData(bbData.map(d => ({ time: d.time, value: d.lower })) as any);
+        }
+
+        rsiSeriesRef.current.applyOptions({ visible: indicatorSettings.showRSI });
+        if (chartRef.current) {
+            chartRef.current.priceScale('left').applyOptions({ visible: indicatorSettings.showRSI });
+        }
+        if (indicatorSettings.showRSI) {
+            rsiSeriesRef.current.setData(calculateRSI(data, indicatorSettings.rsiPeriod) as any);
+        }
+
+    }, [indicatorSettings, allCandlesRef.current]);
+
     // Real-time candle update
     useEffect(() => {
         if (!candlestickSeriesRef.current || !lastCandleRef.current || !currentPrice) return;
@@ -123,6 +182,20 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         try {
             candlestickSeriesRef.current.update(updatedCandle);
             lastCandleRef.current = updatedCandle;
+
+            // Update allCandles array so indicators can respond if needed
+            const len = allCandlesRef.current.length;
+            if (len > 0 && allCandlesRef.current[len - 1].time === updatedCandle.time) {
+                allCandlesRef.current[len - 1] = updatedCandle;
+            } else {
+                allCandlesRef.current.push(updatedCandle);
+            }
+
+            // We could re-calculate the last indicator value here for performance, 
+            // but for simplicity we rely on the indicator recalculation effect if we trigger it,
+            // or we just let it update on the next full fetch/interval tick.
+            // A fully accurate realtime indicator requires incrementally calculating the last point.
+
         } catch (e) {
             console.error("Failed to update realtime candle", e);
         }
@@ -245,6 +318,15 @@ const OrderFlowHeatmap: React.FC = () => {
     const [symbol, setSymbol] = useState('BTC/USDT');
     const [interval, setInterval] = useState('1m');
     const [showFootprint, setShowFootprint] = useState(false);
+    const [indicatorSettings, setIndicatorSettings] = useState<IndicatorSettings>({
+        showEMA: false,
+        showBB: false,
+        showRSI: false,
+        emaPeriod: 20,
+        bbPeriod: 20,
+        bbStdDev: 2,
+        rsiPeriod: 14,
+    });
     const { bids, asks, walls, currentPrice } = useLevel2MarketData(symbol, exchange);
     const { volumeThreshold, setVolumeThreshold } = useVolumeFilter(1000);
 
@@ -278,6 +360,7 @@ const OrderFlowHeatmap: React.FC = () => {
                     <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brand-primary to-purple-500">Order Flow Heatmap</h2>
                     <HeatmapSymbolSelector symbol={symbol} exchange={exchange} onSymbolChange={setSymbol} onExchangeChange={setExchange} />
                     <TimeframeSelector interval={interval} onIntervalChange={setInterval} />
+                    <IndicatorSelector settings={indicatorSettings} onSettingsChange={setIndicatorSettings} />
                     <VolumeFilterControl threshold={volumeThreshold} onThresholdChange={setVolumeThreshold} />
                     <span className="text-lg font-mono font-bold text-gray-800 dark:text-white">
                         {formatDisplayPrice(currentPrice)}
@@ -305,7 +388,7 @@ const OrderFlowHeatmap: React.FC = () => {
                             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Order Flow Chart</h3>
                         </div>
                         <div className="flex-1 relative">
-                            <OrderFlowChart exchange={exchange} symbol={symbol} interval={interval} walls={filteredWalls} currentPrice={currentPrice} showFootprint={showFootprint} />
+                            <OrderFlowChart exchange={exchange} symbol={symbol} interval={interval} walls={filteredWalls} currentPrice={currentPrice} showFootprint={showFootprint} indicatorSettings={indicatorSettings} />
                         </div>
                     </div>
                     <div className="w-[30%] bg-white dark:bg-[#0B1120] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
