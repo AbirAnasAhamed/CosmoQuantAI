@@ -40,7 +40,7 @@ class OrderbookSnapshotService:
         # Filter out general/logs/backtest channels
         symbols_to_record = set()
         for s in active_symbols:
-            if s not in ["general", "backtest", "block_trades"] and not s.startswith("logs_") and not s.startswith("status_"):
+            if s not in ["general", "backtest", "block_trades", "dashboard", "options_live", "correlation_feed"] and not s.startswith("logs_") and not s.startswith("status_"):
                 symbols_to_record.add(s)
 
         if not symbols_to_record:

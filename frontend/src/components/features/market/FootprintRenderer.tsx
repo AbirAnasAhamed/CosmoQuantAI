@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { IChartApi, ISeriesApi } from 'lightweight-charts';
 import { formatFootprintVolume } from '../../../utils/volumeFormatter';
 
@@ -24,92 +24,124 @@ interface FootprintRendererProps {
 }
 
 export const FootprintRenderer: React.FC<FootprintRendererProps> = ({ chart, series, data, visible }) => {
-    const containerRef = useRef<HTMLDivElement>(null);
-    const [renderData, setRenderData] = useState<{ x: number; y: number; price: number; bid: number; ask: number; isImbalance: boolean }[]>([]);
+    const canvasRef = useRef<HTMLCanvasElement>(null);
 
     useEffect(() => {
-        if (!chart || !series || !visible || data.length === 0) {
-            setRenderData([]);
-            return;
-        }
+        if (!visible || !chart || !series || !canvasRef.current || data.length === 0) return;
 
-        const updatePositions = () => {
-            if (!chart || !series || !containerRef.current) return;
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
 
+        let animationFrameId: number;
+
+        const drawFootprint = () => {
             const timeScale = chart.timeScale();
+            const timeWidth = timeScale.width();
+
+            // Sync canvas size to fit its own bounding box mapped to the inner pane space
+            if (canvas.width !== canvas.clientWidth) canvas.width = canvas.clientWidth;
+            if (canvas.height !== canvas.clientHeight) canvas.height = canvas.clientHeight;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
             const logicalRange = timeScale.getVisibleLogicalRange();
             if (!logicalRange) return;
 
-            const newRenderData: { x: number; y: number; price: number; bid: number; ask: number; isImbalance: boolean }[] = [];
+            const fromIdx = Math.max(0, Math.floor(logicalRange.from || 0) - 5);
+            const toIdx = Math.min(data.length - 1, Math.ceil(logicalRange.to || data.length - 1) + 5);
 
-            // Only process data within the visible logical range to save performance
-            const startIndex = Math.max(0, Math.floor(logicalRange.from) - 5);
-            const endIndex = Math.min(data.length - 1, Math.ceil(logicalRange.to) + 5);
+            ctx.font = 'bold 9px monospace';
+            ctx.textBaseline = 'middle';
 
-            for (let i = startIndex; i <= endIndex; i++) {
+            // Optimization: Measure rough monospace char width once instead of thousands of times
+            const charWidth = ctx.measureText("0").width;
+
+            for (let i = fromIdx; i <= toIdx; i++) {
+                if (!data[i]) continue;
                 const candle = data[i];
-                if (!candle) continue;
 
                 const x = timeScale.timeToCoordinate(candle.time as any);
                 if (x === null) continue;
 
-                candle.ticks.forEach(tick => {
+                // Optimization: Don't draw if clearly outside horizontal canvas area
+                if (x < -100 || x > canvas.width + 100) continue;
+
+                for (let j = 0; j < candle.ticks.length; j++) {
+                    const tick = candle.ticks[j];
                     const y = series.priceToCoordinate(tick.price);
-                    if (y === null) return;
+                    if (y === null) continue;
 
-                    newRenderData.push({
-                        x,
-                        y,
-                        price: tick.price,
-                        bid: tick.bidVolume,
-                        ask: tick.askVolume,
-                        isImbalance: !!tick.isImbalance
-                    });
-                });
+                    // Optimization: Don't draw if outside vertical canvas area
+                    if (y < -20 || y > canvas.height + 20) continue;
+
+                    const bidStr = formatFootprintVolume(tick.bidVolume);
+                    const askStr = formatFootprintVolume(tick.askVolume);
+                    const sepStr = ' x ';
+
+                    const totalStrLength = bidStr.length + sepStr.length + askStr.length;
+                    const textWidth = totalStrLength * charWidth;
+                    const boxWidth = textWidth + 8; // 4px padding on each side
+                    const boxHeight = 14;
+                    const boxX = x - boxWidth / 2;
+                    const boxY = y - boxHeight / 2;
+
+                    // Draw Background
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+                    ctx.beginPath();
+                    if (ctx.roundRect) {
+                        ctx.roundRect(boxX, boxY, boxWidth, boxHeight, 2);
+                    } else {
+                        ctx.rect(boxX, boxY, boxWidth, boxHeight);
+                    }
+                    ctx.fill();
+
+                    // Draw Imbalance Highlight
+                    if (tick.isImbalance) {
+                        ctx.strokeStyle = 'rgba(251, 191, 36, 0.5)';
+                        ctx.lineWidth = 1;
+                        ctx.stroke();
+                    }
+
+                    // Draw Texts manually spaced out
+                    let currentX = boxX + 4; // Add left padding origin
+                    ctx.textAlign = 'left';
+
+                    // Bid Volume (Red)
+                    ctx.fillStyle = '#f87171';
+                    ctx.fillText(bidStr, currentX, y);
+                    currentX += bidStr.length * charWidth;
+
+                    // Divider (Gray)
+                    ctx.fillStyle = '#9ca3af';
+                    ctx.fillText(sepStr, currentX, y);
+                    currentX += sepStr.length * charWidth;
+
+                    // Ask Volume (Green)
+                    ctx.fillStyle = '#4ade80';
+                    ctx.fillText(askStr, currentX, y);
+                }
             }
-
-            setRenderData(newRenderData);
         };
 
-        updatePositions();
-
-        chart.timeScale().subscribeVisibleTimeRangeChange(updatePositions);
-        chart.timeScale().subscribeVisibleLogicalRangeChange(updatePositions);
-
-        // Also need to subscribe to price scale changes if user drags vertically
-        const interval = setInterval(updatePositions, 100);
+        const renderLoop = () => {
+            drawFootprint();
+            animationFrameId = requestAnimationFrame(renderLoop);
+        };
+        renderLoop();
 
         return () => {
-            chart.timeScale().unsubscribeVisibleTimeRangeChange(updatePositions);
-            chart.timeScale().unsubscribeVisibleLogicalRangeChange(updatePositions);
-            clearInterval(interval);
+            cancelAnimationFrame(animationFrameId);
         };
     }, [chart, series, data, visible]);
 
-    if (!visible || !chart || !series) return null;
+    if (!visible) return null;
 
     return (
-        <div
-            ref={containerRef}
-            className="absolute inset-0 pointer-events-none z-20 overflow-hidden"
+        <canvas
+            ref={canvasRef}
+            className="absolute inset-0 pointer-events-none z-20"
             style={{ right: 60, bottom: 26 }} // Account for scales
-        >
-            {renderData.map((d, i) => (
-                <div
-                    key={i}
-                    className="absolute flex items-center justify-center font-mono text-[9px] font-bold leading-none transform -translate-x-1/2 -translate-y-1/2 bg-black/40 px-1 rounded backdrop-blur-sm whitespace-nowrap"
-                    style={{
-                        left: `${d.x}px`,
-                        top: `${d.y}px`,
-                        color: d.isImbalance ? '#fbbf24' : '#e2e8f0', // yellow-400 for imbalance, slate-200 normal
-                        border: d.isImbalance ? '1px solid rgba(251, 191, 36, 0.5)' : 'none',
-                    }}
-                >
-                    <span className="text-red-400">{formatFootprintVolume(d.bid)}</span>
-                    <span className="mx-[2px] text-gray-400">x</span>
-                    <span className="text-green-400">{formatFootprintVolume(d.ask)}</span>
-                </div>
-            ))}
-        </div>
+        />
     );
 };
