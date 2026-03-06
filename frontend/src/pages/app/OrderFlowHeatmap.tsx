@@ -15,6 +15,19 @@ import { FootprintRenderer, FootprintCandleData, FootprintDataTick } from '../..
 import { IndicatorSelector, IndicatorSettings } from '../../components/features/market/IndicatorSelector';
 import { calculateEMA, calculateBollingerBands, calculateRSI } from '../../utils/indicators';
 
+// Helper to convert interval string to ms
+const parseIntervalToMs = (interval: string): number => {
+    const value = parseInt(interval) || 1;
+    const unit = interval.replace(/[0-9]/g, '').toLowerCase() || 'm';
+    switch (unit) {
+        case 'm': return value * 60 * 1000;
+        case 'h': return value * 60 * 60 * 1000;
+        case 'd': return value * 24 * 60 * 60 * 1000;
+        case 'w': return value * 7 * 24 * 60 * 60 * 1000;
+        default: return value * 60 * 1000; // default to minutes
+    }
+};
+
 // Chart Component
 const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: string; walls: { price: number, type: 'buy' | 'sell' }[]; currentPrice: number; showFootprint: boolean; indicatorSettings: IndicatorSettings; tradeEvent: any }> = ({ exchange, symbol, interval, walls, currentPrice, showFootprint, indicatorSettings, tradeEvent }) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -30,6 +43,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
     const allCandlesRef = useRef<any[]>([]);
     const lastTradeEventRef = useRef<any>(null);
     const lastProcessedPriceRef = useRef<number>(0);
+    const [countdownFormatted, setCountdownFormatted] = useState<string>('');
     const { vpvrData, cvdData, footprintData } = useOrderFlowData(symbol, exchange, interval);
     const { heatmapData: realHeatmapData } = useHeatmapData(symbol, exchange);
 
@@ -177,11 +191,13 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         if (!candlestickSeriesRef.current || !lastCandleRef.current) return;
 
         let needsUpdate = false;
+        let isNewCandle = false;
         const lastCandle = lastCandleRef.current as any;
         let newClose = lastCandle.close;
         let newHigh = lastCandle.high;
         let newLow = lastCandle.low;
         let newVolume = lastCandle.volume || 0;
+        let eventTimestamp = Date.now();
 
         // Update from exact trades (gives us volume and exact price)
         if (tradeEvent && tradeEvent !== lastTradeEventRef.current) {
@@ -189,6 +205,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             newHigh = Math.max(newHigh, tradeEvent.price);
             newLow = Math.min(newLow, tradeEvent.price);
             newVolume += tradeEvent.volume;
+            eventTimestamp = tradeEvent.timestamp || Date.now();
             lastTradeEventRef.current = tradeEvent;
             needsUpdate = true;
         }
@@ -203,13 +220,37 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         }
 
         if (needsUpdate) {
-            const updatedCandle: any = {
-                ...lastCandle,
-                close: newClose,
-                high: newHigh,
-                low: newLow,
-                volume: newVolume,
-            };
+            const intervalMs = parseIntervalToMs(interval);
+            let candleTimeMs = lastCandle.time as number;
+            const isSeconds = candleTimeMs < 10000000000;
+            if (isSeconds) {
+                candleTimeMs *= 1000;
+            }
+
+            let updatedCandle: any;
+
+            if (eventTimestamp >= candleTimeMs + intervalMs) {
+                // Crosses the timeframe boundary, create a new candle
+                const nextCandleTimeMs = Math.floor(eventTimestamp / intervalMs) * intervalMs;
+                updatedCandle = {
+                    time: isSeconds ? Math.floor(nextCandleTimeMs / 1000) : nextCandleTimeMs,
+                    open: lastCandle.close,
+                    high: tradeEvent ? tradeEvent.price : currentPrice,
+                    low: tradeEvent ? tradeEvent.price : currentPrice,
+                    close: tradeEvent ? tradeEvent.price : currentPrice,
+                    volume: tradeEvent ? tradeEvent.volume : 0,
+                };
+                isNewCandle = true;
+            } else {
+                // Update existing candle
+                updatedCandle = {
+                    ...lastCandle,
+                    close: newClose,
+                    high: newHigh,
+                    low: newLow,
+                    volume: newVolume,
+                };
+            }
 
             try {
                 candlestickSeriesRef.current.update(updatedCandle);
@@ -217,16 +258,16 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
 
                 // Update allCandles array so indicators can respond if needed
                 const len = allCandlesRef.current.length;
-                if (len > 0 && allCandlesRef.current[len - 1].time === updatedCandle.time) {
-                    allCandlesRef.current[len - 1] = updatedCandle;
-                } else {
+                if (isNewCandle) {
                     allCandlesRef.current.push(updatedCandle);
+                } else if (len > 0 && allCandlesRef.current[len - 1].time === updatedCandle.time) {
+                    allCandlesRef.current[len - 1] = updatedCandle;
                 }
             } catch (e) {
                 console.error("Failed to update realtime candle", e);
             }
         }
-    }, [currentPrice, tradeEvent]);
+    }, [currentPrice, tradeEvent, interval]);
 
     // Update horizontal price lines for walls
     useEffect(() => {
@@ -250,6 +291,45 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         });
     }, [walls]);
 
+    // Countdown Timer logic
+    useEffect(() => {
+        const intervalMs = parseIntervalToMs(interval);
+
+        const tick = () => {
+            const now = Date.now();
+            let remaining = 0;
+
+            if (lastCandleRef.current && lastCandleRef.current.time) {
+                let candleTimeMs = lastCandleRef.current.time as number;
+                // If the timestamp is in seconds, convert to ms
+                if (candleTimeMs < 10000000000) {
+                    candleTimeMs = candleTimeMs * 1000;
+                }
+                const nextCandleTimeMs = candleTimeMs + intervalMs;
+                remaining = nextCandleTimeMs - now;
+            } else {
+                const nextBoundary = Math.ceil(now / intervalMs) * intervalMs;
+                remaining = nextBoundary - now;
+            }
+
+            if (remaining < 0) remaining = 0;
+
+            const h = Math.floor(remaining / (1000 * 60 * 60));
+            const m = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+            const s = Math.floor((remaining % (1000 * 60)) / 1000);
+
+            if (h > 0) {
+                setCountdownFormatted(`${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+            } else {
+                setCountdownFormatted(`${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`);
+            }
+        };
+
+        tick();
+        const timerId = setInterval(tick, 1000);
+        return () => clearInterval(timerId);
+    }, [interval]);
+
     return (
         <div className="w-full h-full flex flex-col absolute inset-0">
             <div className="flex-1 relative">
@@ -259,6 +339,11 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                     {showFootprint && <FootprintRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={footprintData} visible={showFootprint} />}
                 </div>
                 <VolumeProfileWidget chart={chartRef.current} series={candlestickSeriesRef.current} data={vpvrData} />
+                {countdownFormatted && (
+                    <div className="absolute bottom-[40px] right-[75px] z-20 pointer-events-none bg-black/60 dark:bg-black/60 border border-white/10 text-[#d1d5db] text-[20px] font-mono font-bold px-3 py-1.5 rounded shadow-lg backdrop-blur-md">
+                        {countdownFormatted}
+                    </div>
+                )}
             </div>
             <div className="h-[25%] border-t border-gray-200 dark:border-white/5 relative z-0">
                 <CVDChart mainChart={chartRef.current} data={cvdData} />
