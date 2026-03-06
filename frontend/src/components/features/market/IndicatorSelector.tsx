@@ -36,13 +36,22 @@ export const IndicatorSelector: React.FC<IndicatorSelectorProps> = ({ settings, 
         });
     };
 
+    const updateSetting = (key: keyof IndicatorSettings, value: number) => {
+        if (!isNaN(value)) {
+            onSettingsChange({
+                ...settings,
+                [key]: value
+            });
+        }
+    };
+
     return (
         <div className="relative" ref={dropdownRef}>
             <button
                 onClick={() => setIsOpen(!isOpen)}
                 className={`flex items-center gap-2 px-3 py-1.5 rounded-lg border text-sm font-medium transition-all ${isOpen
-                        ? 'bg-brand-primary/10 border-brand-primary text-brand-primary dark:text-brand-primary'
-                        : 'bg-white dark:bg-black/20 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5'
+                    ? 'bg-brand-primary/10 border-brand-primary text-brand-primary dark:text-brand-primary'
+                    : 'bg-white dark:bg-black/20 text-gray-700 dark:text-gray-300 border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5'
                     }`}
             >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -60,44 +69,83 @@ export const IndicatorSelector: React.FC<IndicatorSelectorProps> = ({ settings, 
                         <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Technical Indicators</h3>
                     </div>
                     <div className="p-2 flex flex-col gap-1">
-                        <label className="flex items-center p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg cursor-pointer transition-colors group">
-                            <input
-                                type="checkbox"
-                                checked={settings.showEMA}
-                                onChange={() => toggleIndicator('showEMA')}
-                                className="w-4 h-4 text-brand-primary bg-gray-100 border-gray-300 rounded focus:ring-brand-primary dark:focus:ring-brand-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                            />
-                            <div className="ml-3 flex-1 flex justify-between items-center">
-                                <span className="text-sm font-medium text-gray-900 dark:text-gray-200 group-hover:text-brand-primary transition-colors">EMA</span>
-                                <span className="text-xs text-gray-500 bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded">{settings.emaPeriod}</span>
+                        <div className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-colors group">
+                            <label className="flex items-center cursor-pointer flex-1">
+                                <input
+                                    type="checkbox"
+                                    checked={settings.showEMA}
+                                    onChange={() => toggleIndicator('showEMA')}
+                                    className="w-4 h-4 text-brand-primary bg-gray-100 border-gray-300 rounded focus:ring-brand-primary dark:focus:ring-brand-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                />
+                                <span className="ml-3 text-sm font-medium text-gray-900 dark:text-gray-200 group-hover:text-brand-primary transition-colors">EMA</span>
+                            </label>
+                            <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded">
+                                <span className="text-xs text-gray-500">P:</span>
+                                <input
+                                    type="number"
+                                    value={settings.emaPeriod}
+                                    onChange={(e) => updateSetting('emaPeriod', Number(e.target.value))}
+                                    className="w-10 text-xs bg-transparent text-gray-700 dark:text-gray-300 focus:outline-none focus:text-brand-primary"
+                                    min={1} max={500}
+                                />
                             </div>
-                        </label>
+                        </div>
 
-                        <label className="flex items-center p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg cursor-pointer transition-colors group">
-                            <input
-                                type="checkbox"
-                                checked={settings.showBB}
-                                onChange={() => toggleIndicator('showBB')}
-                                className="w-4 h-4 text-brand-primary bg-gray-100 border-gray-300 rounded focus:ring-brand-primary dark:focus:ring-brand-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                            />
-                            <div className="ml-3 flex-1 flex justify-between items-center">
-                                <span className="text-sm font-medium text-gray-900 dark:text-gray-200 group-hover:text-brand-primary transition-colors">Bollinger Bands</span>
-                                <span className="text-xs text-gray-500 bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded">{settings.bbPeriod}, {settings.bbStdDev}</span>
+                        <div className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-colors group">
+                            <label className="flex items-center cursor-pointer flex-1">
+                                <input
+                                    type="checkbox"
+                                    checked={settings.showBB}
+                                    onChange={() => toggleIndicator('showBB')}
+                                    className="w-4 h-4 text-brand-primary bg-gray-100 border-gray-300 rounded focus:ring-brand-primary dark:focus:ring-brand-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                />
+                                <span className="ml-3 text-sm font-medium text-gray-900 dark:text-gray-200 group-hover:text-brand-primary transition-colors">Bollinger</span>
+                            </label>
+                            <div className="flex items-center gap-2 bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded">
+                                <div className="flex items-center">
+                                    <span className="text-xs text-gray-500">P:</span>
+                                    <input
+                                        type="number"
+                                        value={settings.bbPeriod}
+                                        onChange={(e) => updateSetting('bbPeriod', Number(e.target.value))}
+                                        className="w-8 text-xs bg-transparent text-gray-700 dark:text-gray-300 focus:outline-none focus:text-brand-primary"
+                                        min={1} max={500}
+                                    />
+                                </div>
+                                <div className="flex items-center border-l dark:border-white/10 pl-2">
+                                    <span className="text-xs text-gray-500">D:</span>
+                                    <input
+                                        type="number"
+                                        value={settings.bbStdDev}
+                                        onChange={(e) => updateSetting('bbStdDev', parseFloat(e.target.value))}
+                                        className="w-8 text-xs bg-transparent text-gray-700 dark:text-gray-300 focus:outline-none focus:text-brand-primary"
+                                        min={0.1} max={10} step={0.1}
+                                    />
+                                </div>
                             </div>
-                        </label>
+                        </div>
 
-                        <label className="flex items-center p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg cursor-pointer transition-colors group">
-                            <input
-                                type="checkbox"
-                                checked={settings.showRSI}
-                                onChange={() => toggleIndicator('showRSI')}
-                                className="w-4 h-4 text-brand-primary bg-gray-100 border-gray-300 rounded focus:ring-brand-primary dark:focus:ring-brand-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
-                            />
-                            <div className="ml-3 flex-1 flex justify-between items-center">
-                                <span className="text-sm font-medium text-gray-900 dark:text-gray-200 group-hover:text-brand-primary transition-colors">RSI</span>
-                                <span className="text-xs text-gray-500 bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded">{settings.rsiPeriod}</span>
+                        <div className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-colors group">
+                            <label className="flex items-center cursor-pointer flex-1">
+                                <input
+                                    type="checkbox"
+                                    checked={settings.showRSI}
+                                    onChange={() => toggleIndicator('showRSI')}
+                                    className="w-4 h-4 text-brand-primary bg-gray-100 border-gray-300 rounded focus:ring-brand-primary dark:focus:ring-brand-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                />
+                                <span className="ml-3 text-sm font-medium text-gray-900 dark:text-gray-200 group-hover:text-brand-primary transition-colors">RSI</span>
+                            </label>
+                            <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded">
+                                <span className="text-xs text-gray-500">P:</span>
+                                <input
+                                    type="number"
+                                    value={settings.rsiPeriod}
+                                    onChange={(e) => updateSetting('rsiPeriod', Number(e.target.value))}
+                                    className="w-10 text-xs bg-transparent text-gray-700 dark:text-gray-300 focus:outline-none focus:text-brand-primary"
+                                    min={1} max={500}
+                                />
                             </div>
-                        </label>
+                        </div>
                     </div>
                 </div>
             )}
