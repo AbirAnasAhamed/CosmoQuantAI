@@ -4,6 +4,7 @@ export interface IndicatorSettings {
     showEMA: boolean;
     showBB: boolean;
     showRSI: boolean;
+    showVolume: boolean;
     emaPeriod: number;
     bbPeriod: number;
     bbStdDev: number;
@@ -145,6 +146,18 @@ export const IndicatorSelector: React.FC<IndicatorSelectorProps> = ({ settings, 
                                     min={1} max={500}
                                 />
                             </div>
+                        </div>
+
+                        <div className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-colors group">
+                            <label className="flex items-center cursor-pointer flex-1">
+                                <input
+                                    type="checkbox"
+                                    checked={settings.showVolume}
+                                    onChange={() => toggleIndicator('showVolume')}
+                                    className="w-4 h-4 text-brand-primary bg-gray-100 border-gray-300 rounded focus:ring-brand-primary dark:focus:ring-brand-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                />
+                                <span className="ml-3 text-sm font-medium text-gray-900 dark:text-gray-200 group-hover:text-brand-primary transition-colors">Volume</span>
+                            </label>
                         </div>
                     </div>
                 </div>

@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
-import { createChart, ISeriesApi, CandlestickData, CandlestickSeries, LineSeries } from 'lightweight-charts';
+import { createChart, ISeriesApi, CandlestickData, CandlestickSeries, LineSeries, HistogramSeries, HistogramData } from 'lightweight-charts';
 import { useLevel2MarketData } from '@/hooks/useLevel2MarketData';
 import { useOrderFlowData } from '../../hooks/useOrderFlowData';
 import { useHeatmapData } from '../../hooks/useHeatmapData';
@@ -38,6 +38,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
     const bbMiddleSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
     const bbLowerSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
     const rsiSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
+    const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
     const wallLinesRef = useRef<any[]>([]);
     const lastCandleRef = useRef<CandlestickData | null>(null);
     const allCandlesRef = useRef<any[]>([]);
@@ -97,6 +98,22 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         const bbMiddleSeries = chart.addSeries(LineSeries, { color: 'rgba(56, 189, 248, 0.8)', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false });
         const bbLowerSeries = chart.addSeries(LineSeries, { color: 'rgba(56, 189, 248, 0.5)', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false });
         const rsiSeries = chart.addSeries(LineSeries, { color: '#db2777', lineWidth: 2, priceScaleId: 'left', crosshairMarkerVisible: false, lastValueVisible: false });
+        const volumeSeries = chart.addSeries(HistogramSeries, {
+            color: '#26a69a',
+            priceFormat: {
+                type: 'volume',
+            },
+            priceScaleId: 'volume', // Give it a separate scale
+        });
+
+        // Configure the volume price scale
+        chart.priceScale('volume').applyOptions({
+            scaleMargins: {
+                top: 0.8, // dock to bottom 20%
+                bottom: 0,
+            },
+            visible: false, // Don't show volume numbers on the axis to reduce clutter
+        });
 
         chartRef.current = chart;
         candlestickSeriesRef.current = candlestickSeries;
@@ -105,6 +122,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         bbMiddleSeriesRef.current = bbMiddleSeries;
         bbLowerSeriesRef.current = bbLowerSeries;
         rsiSeriesRef.current = rsiSeries;
+        volumeSeriesRef.current = volumeSeries;
 
         // Fetch real historical data
         const fetchKlines = async () => {
@@ -128,6 +146,16 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                     allCandlesRef.current = candles;
                     if (candles.length > 0) {
                         lastCandleRef.current = { ...candles[candles.length - 1] };
+                    }
+
+                    // Format and set volume data
+                    if (volumeSeriesRef.current) {
+                        const volumeData = candles.map((k: any) => ({
+                            time: k.time,
+                            value: k.volume,
+                            color: k.close >= k.open ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)'
+                        }));
+                        volumeSeriesRef.current.setData(volumeData);
                     }
 
                     chart.timeScale().fitContent();
@@ -182,6 +210,10 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         }
         if (indicatorSettings.showRSI) {
             rsiSeriesRef.current.setData(calculateRSI(data, indicatorSettings.rsiPeriod) as any);
+        }
+
+        if (volumeSeriesRef.current) {
+            volumeSeriesRef.current.applyOptions({ visible: indicatorSettings.showVolume });
         }
 
     }, [indicatorSettings, allCandlesRef.current]);
@@ -255,6 +287,15 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             try {
                 candlestickSeriesRef.current.update(updatedCandle);
                 lastCandleRef.current = updatedCandle;
+
+                // Update real-time volume
+                if (volumeSeriesRef.current) {
+                    volumeSeriesRef.current.update({
+                        time: updatedCandle.time,
+                        value: updatedCandle.volume,
+                        color: updatedCandle.close >= updatedCandle.open ? 'rgba(34, 197, 94, 0.5)' : 'rgba(239, 68, 68, 0.5)'
+                    });
+                }
 
                 // Update allCandles array so indicators can respond if needed
                 const len = allCandlesRef.current.length;
@@ -434,6 +475,7 @@ const OrderFlowHeatmap: React.FC = () => {
         showEMA: false,
         showBB: false,
         showRSI: false,
+        showVolume: true,
         emaPeriod: 20,
         bbPeriod: 20,
         bbStdDev: 2,

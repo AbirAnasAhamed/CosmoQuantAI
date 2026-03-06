@@ -7,6 +7,7 @@ export interface TimeframeSelectorProps {
 
 const INTERVAL_LIST = [
     '1m',
+    '3m',
     '5m',
     '15m',
     '1h',
