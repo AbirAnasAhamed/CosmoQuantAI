@@ -3,9 +3,11 @@ import { createChart, ISeriesApi, CandlestickData, CandlestickSeries } from 'lig
 import { useLevel2MarketData } from '@/hooks/useLevel2MarketData';
 import { useOrderFlowData } from '../../hooks/useOrderFlowData';
 import { useHeatmapData } from '../../hooks/useHeatmapData';
+import { useVolumeFilter } from '../../hooks/useVolumeFilter';
 import api from '../../services/api';
 import { HeatmapSymbolSelector } from '../../components/features/market/HeatmapSymbolSelector';
 import { TimeframeSelector } from '../../components/features/market/TimeframeSelector';
+import { VolumeFilterControl } from '../../components/features/market/VolumeFilterControl';
 import { LiquidityHeatmapRenderer, HeatmapDataPoint } from '../../components/features/market/LiquidityHeatmapRenderer';
 import { VolumeProfileWidget, VPVRData } from '../../components/features/market/VolumeProfileWidget';
 import { CVDChart, CVDDataPoint } from '../../components/features/market/CVDChart';
@@ -244,6 +246,24 @@ const OrderFlowHeatmap: React.FC = () => {
     const [interval, setInterval] = useState('1m');
     const [showFootprint, setShowFootprint] = useState(false);
     const { bids, asks, walls, currentPrice } = useLevel2MarketData(symbol, exchange);
+    const { volumeThreshold, setVolumeThreshold } = useVolumeFilter(1000);
+
+    const filteredWalls = useMemo(() => {
+        if (volumeThreshold <= 0) return walls;
+
+        const newWalls: { price: number; type: 'buy' | 'sell'; size: number }[] = [];
+        asks.forEach(ask => {
+            if (ask.size >= volumeThreshold) {
+                newWalls.push({ price: ask.price, type: 'sell', size: ask.size });
+            }
+        });
+        bids.forEach(bid => {
+            if (bid.size >= volumeThreshold) {
+                newWalls.push({ price: bid.price, type: 'buy', size: bid.size });
+            }
+        });
+        return newWalls;
+    }, [walls, bids, asks, volumeThreshold]);
 
     const maxTotal = useMemo(() => {
         const maxBid = bids.length > 0 ? bids[bids.length - 1].total : 0;
@@ -258,6 +278,7 @@ const OrderFlowHeatmap: React.FC = () => {
                     <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brand-primary to-purple-500">Order Flow Heatmap</h2>
                     <HeatmapSymbolSelector symbol={symbol} exchange={exchange} onSymbolChange={setSymbol} onExchangeChange={setExchange} />
                     <TimeframeSelector interval={interval} onIntervalChange={setInterval} />
+                    <VolumeFilterControl threshold={volumeThreshold} onThresholdChange={setVolumeThreshold} />
                     <span className="text-lg font-mono font-bold text-gray-800 dark:text-white">
                         {formatDisplayPrice(currentPrice)}
                     </span>
@@ -284,7 +305,7 @@ const OrderFlowHeatmap: React.FC = () => {
                             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Order Flow Chart</h3>
                         </div>
                         <div className="flex-1 relative">
-                            <OrderFlowChart exchange={exchange} symbol={symbol} interval={interval} walls={walls} currentPrice={currentPrice} showFootprint={showFootprint} />
+                            <OrderFlowChart exchange={exchange} symbol={symbol} interval={interval} walls={filteredWalls} currentPrice={currentPrice} showFootprint={showFootprint} />
                         </div>
                     </div>
                     <div className="w-[30%] bg-white dark:bg-[#0B1120] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
