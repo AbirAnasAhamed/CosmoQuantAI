@@ -1,0 +1,15 @@
+import apiClient from './client';
+
+export const marketDepthService = {
+    getOHLCV: async (symbol: string, exchange: string, timeframe: string, limit: number = 200) => {
+        const response = await apiClient.get('/market-depth/ohlcv', {
+            params: {
+                symbol,
+                exchange,
+                timeframe,
+                limit
+            }
+        });
+        return response.data;
+    }
+};

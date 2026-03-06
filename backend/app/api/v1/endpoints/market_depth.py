@@ -56,95 +56,63 @@ async def get_ohlcv(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-import ccxt.pro as ccxtpro
+from app.core.redis import redis_manager
+from app.services.market_data_streamer import market_data_streamer
 import asyncio
 
 @router.websocket("/ws/{exchange_id}/{symbol:path}")
 async def websocket_market_depth(websocket: WebSocket, exchange_id: str, symbol: str):
     await websocket.accept()
     
-    exchange_class = getattr(ccxtpro, exchange_id.lower(), None)
-    if not exchange_class:
-        await websocket.close(code=1008, reason="Exchange not supported")
+    # Ensure background CCXT stream is running and publishing to Redis
+    await market_data_streamer.start_streaming(exchange_id, symbol)
+    
+    redis = redis_manager.get_redis()
+    if not redis:
+        await websocket.close(code=1011, reason="Redis connection failed")
         return
         
-    exchange = exchange_class({'enableRateLimit': True})
+    channel_name = f"market_depth_stream:{exchange_id}:{symbol}"
+    pubsub = redis.pubsub()
+    await pubsub.subscribe(channel_name)
     
+    async def redis_listener():
+        try:
+            async for message in pubsub.listen():
+                if message["type"] == "message":
+                    data = message["data"]
+                    payload = json.loads(data)
+                    if "error" in payload:
+                        await websocket.close(code=1008, reason=payload["error"])
+                        return
+                    await websocket.send_text(data)
+        except Exception:
+            pass
+
+    async def client_listener():
+        try:
+            while True:
+                await websocket.receive_text()
+        except Exception:
+            pass
+
+    redis_task = asyncio.create_task(redis_listener())
+    client_task = asyncio.create_task(client_listener())
+    
+    done, pending = await asyncio.wait(
+        [redis_task, client_task],
+        return_when=asyncio.FIRST_COMPLETED
+    )
+    
+    for task in pending:
+        task.cancel()
+        
     try:
-        while True:
-            try:
-                # CCXT watch_order_book handles the WS connection gracefully behind the scenes
-                orderbook = await exchange.watch_order_book(symbol.upper(), limit=50)
-                
-                bids = []
-                bid_total = 0
-                for bid in orderbook.get('bids', []):
-                    price = float(bid[0])
-                    size = float(bid[1])
-                    bid_total += size
-                    bids.append({"price": price, "size": size, "total": bid_total})
-                    
-                asks = []
-                ask_total = 0
-                for ask in orderbook.get('asks', []):
-                    price = float(ask[0])
-                    size = float(ask[1])
-                    ask_total += size
-                    asks.append({"price": price, "size": size, "total": ask_total})
-                
-                wall_threshold = calculate_dynamic_wall_threshold(bids, asks)
-                
-                walls = []
-                for ask in asks:
-                    if ask["size"] >= wall_threshold:
-                        walls.append({"price": ask["price"], "type": "sell", "size": ask["size"]})
-                for bid in bids:
-                    if bid["size"] >= wall_threshold:
-                        walls.append({"price": bid["price"], "type": "buy", "size": bid["size"]})
-                        
-                current_price = 0
-                if asks and bids:
-                    current_price = (asks[0]["price"] + bids[0]["price"]) / 2
-                
-                payload = {
-                    "bids": bids,
-                    "asks": asks,
-                    "walls": walls,
-                    "currentPrice": current_price
-                }
-                
-                await websocket.send_json(payload)
-                
-            except WebSocketDisconnect:
-                print(f"Client disconnected from market depth stream for {symbol}")
-                break
-            except RuntimeError as e:
-                if "Cannot call" in str(e) and "send" in str(e):
-                    print(f"Websocket already closed for {symbol}")
-                    break
-                print(f"RuntimeError on market depth stream for {symbol}: {e}")
-                break
-            except Exception as e:
-                # Need to handle ccxt exceptions gracefully so it doesn't just crash on heartbeat or disconnect
-                print(f"Error watching orderbook {symbol} on {exchange_id}: {e}")
-                if "does not have market symbol" in str(e) or "bad symbol" in str(e).lower():
-                    try:
-                        await websocket.close(code=1008, reason="Invalid symbol")
-                    except Exception:
-                        pass
-                    break
-                await asyncio.sleep(1) # Backoff
-                
-    except WebSocketDisconnect:
-        print(f"Client disconnected from market depth stream for {symbol}")
-    except Exception as e:
-        print(f"Error in market depth websocket setup: {e}")
-    finally:
-        try:
-            await exchange.close()
-        except:
-            pass
-        try:
-            await websocket.close()
-        except:
-            pass
+        await pubsub.unsubscribe(channel_name)
+        await pubsub.close()
+    except Exception:
+        pass
+    try:
+        await websocket.close()
+    except Exception:
+        pass

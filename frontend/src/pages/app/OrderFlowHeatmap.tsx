@@ -4,7 +4,7 @@ import { useLevel2MarketData } from '@/hooks/useLevel2MarketData';
 import { useOrderFlowData } from '../../hooks/useOrderFlowData';
 import { useHeatmapData } from '../../hooks/useHeatmapData';
 import { useVolumeFilter } from '../../hooks/useVolumeFilter';
-import api from '../../services/api';
+import { marketDepthService } from '../../services/marketDepthService';
 import { HeatmapSymbolSelector } from '../../components/features/market/HeatmapSymbolSelector';
 import { TimeframeSelector } from '../../components/features/market/TimeframeSelector';
 import { VolumeFilterControl } from '../../components/features/market/VolumeFilterControl';
@@ -93,16 +93,19 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         // Fetch real historical data
         const fetchKlines = async () => {
             try {
-                const res = await api.get('/market-data/klines', {
-                    params: { symbol: symbol.toUpperCase(), interval: interval, limit: 200, exchange: exchange }
-                });
-                const candles = res.data.map((k: any) => ({
-                    time: (k[0] / 1000) as any,
-                    open: parseFloat(k[1]),
-                    high: parseFloat(k[2]),
-                    low: parseFloat(k[3]),
-                    close: parseFloat(k[4]),
-                    volume: parseFloat(k[5] || 100),
+                const data = await marketDepthService.getOHLCV(
+                    symbol.toUpperCase(),
+                    exchange,
+                    interval,
+                    200
+                );
+                const candles = data.map((k: any) => ({
+                    time: k.time as any,
+                    open: parseFloat(k.open),
+                    high: parseFloat(k.high),
+                    low: parseFloat(k.low),
+                    close: parseFloat(k.close),
+                    volume: parseFloat(k.volume || 100),
                 }));
                 if (candlestickSeriesRef.current) {
                     candlestickSeriesRef.current.setData(candles);

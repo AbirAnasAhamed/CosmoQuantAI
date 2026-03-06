@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { IChartApi, ISeriesApi } from 'lightweight-charts';
+import { formatFootprintVolume } from '../../../utils/volumeFormatter';
 
 export interface FootprintDataTick {
     price: number;
@@ -104,9 +105,9 @@ export const FootprintRenderer: React.FC<FootprintRendererProps> = ({ chart, ser
                         border: d.isImbalance ? '1px solid rgba(251, 191, 36, 0.5)' : 'none',
                     }}
                 >
-                    <span className="text-red-400">{d.bid.toFixed(0)}</span>
+                    <span className="text-red-400">{formatFootprintVolume(d.bid)}</span>
                     <span className="mx-[2px] text-gray-400">x</span>
-                    <span className="text-green-400">{d.ask.toFixed(0)}</span>
+                    <span className="text-green-400">{formatFootprintVolume(d.ask)}</span>
                 </div>
             ))}
         </div>

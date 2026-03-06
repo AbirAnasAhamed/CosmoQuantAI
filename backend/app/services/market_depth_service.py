@@ -114,14 +114,9 @@ class MarketDepthService:
         
         for price, amount in orders:
             if bucket_size > 0:
-                if is_bid:
-                    # For bids, we want to group e.g. 99.9 -> 95 (if bucket is 5)
-                    # Floor division
-                    bucket_price = math.floor(price / bucket_size) * bucket_size
-                else:
-                    # For asks, we want to group e.g. 100.1 -> 105
-                    # Ceiling division
-                    bucket_price = math.ceil(price / bucket_size) * bucket_size
+                # Group both bids and asks into uniform buckets to avoid artificial spreads
+                # Floor division ensures everything snaps to the same grid
+                bucket_price = math.floor(price / bucket_size) * bucket_size
             else:
                 bucket_price = price
                 
