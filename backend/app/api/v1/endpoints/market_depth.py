@@ -4,7 +4,9 @@ import json
 import asyncio
 import websockets
 from app.services.market_depth_service import market_depth_service
+from app.services.orderbook_snapshot_service import orderbook_snapshot_service
 from app.helpers.orderbook_math import calculate_dynamic_wall_threshold
+from datetime import datetime
 
 router = APIRouter()
 
@@ -26,6 +28,34 @@ async def get_order_book_heatmap(
             bucket_size=bucket_size
         )
         return data
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/heatmap/historical", response_model=Any)
+async def get_historical_order_book_heatmap(
+    symbol: str = Query(..., description="Trading pair, e.g., 'BTC/USDT'"),
+    exchange: str = Query("binance", description="Exchange name, e.g., 'binance'"),
+    start_time: str = Query(..., description="ISO formated start time string"),
+    end_time: str = Query(..., description="ISO formated end time string"),
+    interval: str = Query("1m", description="Interval granularity")
+) -> Any:
+    """
+    Get historically recorded aggregated order book data.
+    """
+    try:
+        start_dt = datetime.fromisoformat(start_time.replace('Z', '+00:00'))
+        end_dt = datetime.fromisoformat(end_time.replace('Z', '+00:00'))
+        
+        data = await orderbook_snapshot_service.get_historical_snapshots(
+            symbol=symbol,
+            exchange=exchange,
+            start_time=start_dt,
+            end_time=end_dt,
+            interval=interval
+        )
+        return {"snapshots": data}
+    except ValueError as val_e:
+        raise HTTPException(status_code=400, detail=f"Invalid date format: {val_e}")
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 @router.get("/exchanges", response_model=list[str])

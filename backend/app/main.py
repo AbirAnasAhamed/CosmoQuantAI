@@ -14,6 +14,7 @@ from app.core.redis import redis_manager # ✅ Import RedisManager
 from app.core.redis import redis_manager # ✅ Import RedisManager
 from app.services.liquidation_service import liquidation_service # ✅ Import Liquidation Service
 from app.services.block_trade_worker import block_trade_worker # ✅ Import Block Trade Worker
+from app.services.orderbook_snapshot_service import orderbook_snapshot_service # ✅ Import Orderbook Snapshot Service
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
@@ -360,6 +361,11 @@ async def startup_event():
     running_tasks.add(block_trade_task)
     block_trade_task.add_done_callback(running_tasks.discard)
 
+    # Task G: Historical Orderbook Snapshot Loop
+    snapshot_task = asyncio.create_task(orderbook_snapshot_service.start_recording_loop())
+    running_tasks.add(snapshot_task)
+    snapshot_task.add_done_callback(running_tasks.discard)
+
     # Task D: Active Bot PnL Broadcast
     async def broadcast_active_bot_pnl():
         print("💰 Starting Active Bot PnL Broadcast...")
@@ -449,6 +455,9 @@ async def shutdown_event():
     # Stop Block Trade Worker
     await block_trade_worker.stop()
     await block_trade_monitor.close_exchanges()
+
+    # Stop Orderbook Snapshot Service
+    await orderbook_snapshot_service.stop_recording_loop()
 
     print("✅ All background tasks stopped.")
 

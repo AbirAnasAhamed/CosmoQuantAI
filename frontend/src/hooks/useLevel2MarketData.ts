@@ -11,10 +11,11 @@ export interface MarketDepthData {
     asks: OrderBookLevel[];
     walls: { price: number; type: 'buy' | 'sell'; size: number }[];
     currentPrice: number;
+    tradeEvent: { price: number; volume: number; timestamp: number } | null;
 }
 
 export const useLevel2MarketData = (symbol: string, exchange: string = 'binance') => {
-    const [data, setData] = useState<MarketDepthData>({ bids: [], asks: [], walls: [], currentPrice: 0 });
+    const [data, setData] = useState<MarketDepthData>({ bids: [], asks: [], walls: [], currentPrice: 0, tradeEvent: null });
 
     useEffect(() => {
         let ws: WebSocket | null = null;
@@ -37,7 +38,16 @@ export const useLevel2MarketData = (symbol: string, exchange: string = 'binance'
                 worker.onmessage = (e) => {
                     if (!isSubscribed) return;
                     if (e.data.type === 'DATA_READY') {
-                        setData(e.data.data);
+                        setData(prev => ({
+                            ...e.data.data,
+                            tradeEvent: prev.tradeEvent // preserve recent trade events
+                        }));
+                    } else if (e.data.type === 'TRADE_READY') {
+                        setData(prev => ({
+                            ...prev,
+                            currentPrice: e.data.data.price,
+                            tradeEvent: e.data.data
+                        }));
                     }
                 };
 

@@ -38,9 +38,10 @@ class MarketDataStreamer:
 
         self._active_streams.add(stream_key)
         
-        # Start the background task
-        task = asyncio.create_task(self._stream_order_book(exchange_id, symbol, stream_key))
-        self._tasks[stream_key] = task
+        # Start the background tasks
+        task_ob = asyncio.create_task(self._stream_order_book(exchange_id, symbol, stream_key))
+        task_trades = asyncio.create_task(self._stream_trades(exchange_id, symbol, stream_key))
+        self._tasks[stream_key] = [task_ob, task_trades]
 
     async def _get_exchange_instance(self, exchange_id: str) -> ccxtpro.Exchange:
         if exchange_id not in self._exchange_instances:
@@ -100,6 +101,7 @@ class MarketDataStreamer:
                     current_price = (asks[0]["price"] + bids[0]["price"]) / 2
                 
                 payload = {
+                    "type": "orderbook",
                     "bids": bids,
                     "asks": asks,
                     "walls": walls,
@@ -124,13 +126,46 @@ class MarketDataStreamer:
         self._active_streams.discard(stream_key)
         logger.info(f"🛑 Stopped background CCXT stream for {stream_key}")
 
+    async def _stream_trades(self, exchange_id: str, symbol: str, stream_key: str):
+        logger.info(f"🚀 Starting background CCXT trades stream for {stream_key}")
+        redis = redis_manager.get_redis()
+        channel = f"market_depth_stream:{exchange_id}:{symbol}"
+        
+        try:
+            exchange = await self._get_exchange_instance(exchange_id)
+        except Exception as e:
+            logger.error(f"Failed to initialize exchange {exchange_id} for {symbol} trades: {e}")
+            return
+
+        while stream_key in self._active_streams:
+            try:
+                trades = await exchange.watch_trades(symbol.upper())
+                
+                if trades:
+                    recent_volume = sum([float(t.get('amount', 0)) for t in trades])
+                    last_price = float(trades[-1].get('price', 0))
+                    
+                    payload = {
+                        "type": "trade",
+                        "currentPrice": last_price,
+                        "recentVolume": recent_volume
+                    }
+                    
+                    if redis:
+                        await redis.publish(channel, json.dumps(payload))
+            except Exception as e:
+                logger.error(f"Error watching trades {symbol} on {exchange_id}: {e}")
+                await asyncio.sleep(5)
+
+
     async def stop_all(self):
         """Stops all running streams and closes exchange instances."""
         self._active_streams.clear()
         
         # Cancel all tasks
-        for task in self._tasks.values():
-            task.cancel()
+        for task_list in self._tasks.values():
+            for task in task_list:
+                task.cancel()
             
         # Close all exchange instances
         for exchange in self._exchange_instances.values():

@@ -108,3 +108,4 @@ from .options_activity import OptionTrade, OptionSentiment
 from .analyst_rating import AnalystRating
 from .research_report import ResearchReport
 from .lead_lag import LeadLagBot, LeadLagTradeLog
+from .orderbook_snapshot import OrderBookSnapshot

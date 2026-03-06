@@ -16,7 +16,7 @@ import { IndicatorSelector, IndicatorSettings } from '../../components/features/
 import { calculateEMA, calculateBollingerBands, calculateRSI } from '../../utils/indicators';
 
 // Chart Component
-const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: string; walls: { price: number, type: 'buy' | 'sell' }[]; currentPrice: number; showFootprint: boolean; indicatorSettings: IndicatorSettings }> = ({ exchange, symbol, interval, walls, currentPrice, showFootprint, indicatorSettings }) => {
+const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: string; walls: { price: number, type: 'buy' | 'sell' }[]; currentPrice: number; showFootprint: boolean; indicatorSettings: IndicatorSettings; tradeEvent: any }> = ({ exchange, symbol, interval, walls, currentPrice, showFootprint, indicatorSettings, tradeEvent }) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<any>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -28,6 +28,8 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
     const wallLinesRef = useRef<any[]>([]);
     const lastCandleRef = useRef<CandlestickData | null>(null);
     const allCandlesRef = useRef<any[]>([]);
+    const lastTradeEventRef = useRef<any>(null);
+    const lastProcessedPriceRef = useRef<number>(0);
     const { vpvrData, cvdData, footprintData } = useOrderFlowData(symbol, exchange, interval);
     const { heatmapData: realHeatmapData } = useHeatmapData(symbol, exchange);
 
@@ -172,37 +174,59 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
 
     // Real-time candle update
     useEffect(() => {
-        if (!candlestickSeriesRef.current || !lastCandleRef.current || !currentPrice) return;
+        if (!candlestickSeriesRef.current || !lastCandleRef.current) return;
 
-        const lastCandle = lastCandleRef.current;
-        const updatedCandle: CandlestickData = {
-            ...lastCandle,
-            close: currentPrice,
-            high: Math.max(lastCandle.high, currentPrice),
-            low: Math.min(lastCandle.low, currentPrice),
-        };
+        let needsUpdate = false;
+        const lastCandle = lastCandleRef.current as any;
+        let newClose = lastCandle.close;
+        let newHigh = lastCandle.high;
+        let newLow = lastCandle.low;
+        let newVolume = lastCandle.volume || 0;
 
-        try {
-            candlestickSeriesRef.current.update(updatedCandle);
-            lastCandleRef.current = updatedCandle;
-
-            // Update allCandles array so indicators can respond if needed
-            const len = allCandlesRef.current.length;
-            if (len > 0 && allCandlesRef.current[len - 1].time === updatedCandle.time) {
-                allCandlesRef.current[len - 1] = updatedCandle;
-            } else {
-                allCandlesRef.current.push(updatedCandle);
-            }
-
-            // We could re-calculate the last indicator value here for performance, 
-            // but for simplicity we rely on the indicator recalculation effect if we trigger it,
-            // or we just let it update on the next full fetch/interval tick.
-            // A fully accurate realtime indicator requires incrementally calculating the last point.
-
-        } catch (e) {
-            console.error("Failed to update realtime candle", e);
+        // Update from exact trades (gives us volume and exact price)
+        if (tradeEvent && tradeEvent !== lastTradeEventRef.current) {
+            newClose = tradeEvent.price;
+            newHigh = Math.max(newHigh, tradeEvent.price);
+            newLow = Math.min(newLow, tradeEvent.price);
+            newVolume += tradeEvent.volume;
+            lastTradeEventRef.current = tradeEvent;
+            needsUpdate = true;
         }
-    }, [currentPrice]);
+
+        // Update from order book tick (mid-price update)
+        if (currentPrice && currentPrice !== lastProcessedPriceRef.current) {
+            newClose = currentPrice;
+            newHigh = Math.max(newHigh, currentPrice);
+            newLow = Math.min(newLow, currentPrice);
+            lastProcessedPriceRef.current = currentPrice;
+            needsUpdate = true;
+        }
+
+        if (needsUpdate) {
+            const updatedCandle: any = {
+                ...lastCandle,
+                close: newClose,
+                high: newHigh,
+                low: newLow,
+                volume: newVolume,
+            };
+
+            try {
+                candlestickSeriesRef.current.update(updatedCandle);
+                lastCandleRef.current = updatedCandle;
+
+                // Update allCandles array so indicators can respond if needed
+                const len = allCandlesRef.current.length;
+                if (len > 0 && allCandlesRef.current[len - 1].time === updatedCandle.time) {
+                    allCandlesRef.current[len - 1] = updatedCandle;
+                } else {
+                    allCandlesRef.current.push(updatedCandle);
+                }
+            } catch (e) {
+                console.error("Failed to update realtime candle", e);
+            }
+        }
+    }, [currentPrice, tradeEvent]);
 
     // Update horizontal price lines for walls
     useEffect(() => {
@@ -330,7 +354,7 @@ const OrderFlowHeatmap: React.FC = () => {
         bbStdDev: 2,
         rsiPeriod: 14,
     });
-    const { bids, asks, walls, currentPrice } = useLevel2MarketData(symbol, exchange);
+    const { bids, asks, walls, currentPrice, tradeEvent } = useLevel2MarketData(symbol, exchange);
     const { volumeThreshold, setVolumeThreshold } = useVolumeFilter(1000);
 
     const filteredWalls = useMemo(() => {
@@ -391,7 +415,7 @@ const OrderFlowHeatmap: React.FC = () => {
                             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Order Flow Chart</h3>
                         </div>
                         <div className="flex-1 relative">
-                            <OrderFlowChart exchange={exchange} symbol={symbol} interval={interval} walls={filteredWalls} currentPrice={currentPrice} showFootprint={showFootprint} indicatorSettings={indicatorSettings} />
+                            <OrderFlowChart exchange={exchange} symbol={symbol} interval={interval} walls={filteredWalls} currentPrice={currentPrice} showFootprint={showFootprint} indicatorSettings={indicatorSettings} tradeEvent={tradeEvent} />
                         </div>
                     </div>
                     <div className="w-[30%] bg-white dark:bg-[#0B1120] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">

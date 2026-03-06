@@ -22,6 +22,18 @@ self.onmessage = (event: MessageEvent) => {
         if (type === 'PROCESS_MESSAGE') {
             const parsed = JSON.parse(payload);
 
+            if (parsed.type === 'trade') {
+                self.postMessage({
+                    type: 'TRADE_READY',
+                    data: {
+                        price: parsed.currentPrice,
+                        volume: parsed.recentVolume,
+                        timestamp: Date.now()
+                    }
+                });
+                return;
+            }
+
             // In a real scenario, you might do heavy sorting or aggregation here.
             // For now, we assume backend sends bids/asks. We just parse and send back.
             // Example of offloaded work: calculating totals, sorting by price.
