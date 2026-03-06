@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useMemo, useState } from 'react';
 import { createChart, ISeriesApi, CandlestickData, CandlestickSeries } from 'lightweight-charts';
 import { useLevel2MarketData } from '@/hooks/useLevel2MarketData';
 import { useOrderFlowData } from '../../hooks/useOrderFlowData';
+import { useHeatmapData } from '../../hooks/useHeatmapData';
 import api from '../../services/api';
 import { HeatmapSymbolSelector } from '../../components/features/market/HeatmapSymbolSelector';
 import { TimeframeSelector } from '../../components/features/market/TimeframeSelector';
@@ -17,7 +18,8 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
     const wallLinesRef = useRef<any[]>([]);
     const lastCandleRef = useRef<CandlestickData | null>(null);
-    const { heatmapData, vpvrData, cvdData, footprintData } = useOrderFlowData(symbol, exchange, interval);
+    const { vpvrData, cvdData, footprintData } = useOrderFlowData(symbol, exchange, interval);
+    const { heatmapData: realHeatmapData } = useHeatmapData(symbol, exchange);
 
     useEffect(() => {
         if (!chartContainerRef.current) return;
@@ -151,7 +153,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             <div className="flex-1 relative">
                 <div ref={chartContainerRef} className="w-full h-full absolute inset-0 z-0" />
                 <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden" style={{ right: 60, bottom: 26 }}>
-                    <LiquidityHeatmapRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={heatmapData} />
+                    <LiquidityHeatmapRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={realHeatmapData} />
                     {showFootprint && <FootprintRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={footprintData} visible={showFootprint} />}
                 </div>
                 <VolumeProfileWidget chart={chartRef.current} series={candlestickSeriesRef.current} data={vpvrData} />
