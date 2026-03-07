@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { fetchApiKeys } from '../../../services/settings';
+import { botService } from '../../../services/botService';
 
-export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; symbol: string; bids?: any[]; asks?: any[] }> = ({ isOpen, onClose, symbol, bids = [], asks = [] }) => {
+export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; symbol: string; bids?: any[]; asks?: any[]; onDeploySuccess?: (botId: number) => void }> = ({ isOpen, onClose, symbol, bids = [], asks = [], onDeploySuccess }) => {
     const [savedKeys, setSavedKeys] = useState<any[]>([]);
+    const [isLoading, setIsLoading] = useState(false);
+    const [errorMsg, setErrorMsg] = useState('');
     const [form, setForm] = useState({
         symbol: symbol,
         exchange: 'binance',
@@ -64,6 +67,52 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
             vol: optimalVol,
             spread: optimalSpread
         }));
+    };
+
+    const handleDeploy = async () => {
+        if (!form.isPaper && !form.apiKeyId) {
+            setErrorMsg("Please select an API Key for Live Trading.");
+            return;
+        }
+
+        setErrorMsg('');
+        setIsLoading(true);
+
+        try {
+            const payload = {
+                name: `L2 Hunter: ${form.symbol}`,
+                description: "Orderbook Volume Scalping Hunter",
+                exchange: form.exchange,
+                market: form.symbol,
+                strategy: "wall_hunter",
+                timeframe: "1m",
+                trade_value: 100,
+                trade_unit: "QUOTE",
+                api_key_id: form.isPaper ? null : form.apiKeyId,
+                is_paper_trading: form.isPaper,
+                config: {
+                    amount_per_trade: 100,
+                    target_spread: form.spread,
+                    trailing_stop: form.tsl,
+                    vol_threshold: form.vol,
+                    risk_pct: form.risk
+                }
+            };
+
+            const createdBot = await botService.createBot(payload);
+            await botService.controlBot(createdBot.id, 'start');
+
+            // Wait a moment for success feel, then close
+            setTimeout(() => {
+                setIsLoading(false);
+                if (onDeploySuccess) onDeploySuccess(Number(createdBot.id));
+                else onClose();
+            }, 1000);
+        } catch (err: any) {
+            console.error(err);
+            setErrorMsg(err.response?.data?.detail || err.message || "Failed to deploy bot.");
+            setIsLoading(false);
+        }
     };
 
     return (
@@ -181,10 +230,16 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                     </div>
                 </div>
 
-                <button className="w-full bg-gradient-to-r from-yellow-400 to-orange-600 h-14 rounded-2xl mt-8 font-black text-white text-lg hover:scale-[1.02] active:scale-95 transition-all shadow-[0_0_20px_rgba(245,158,11,0.2)]">
-                    ACTIVATE HUNTER
+                {errorMsg && <p className="text-red-500 text-xs font-bold mt-4 animate-pulse text-center bg-red-500/10 py-2 rounded-lg">{errorMsg}</p>}
+
+                <button
+                    onClick={handleDeploy}
+                    disabled={isLoading}
+                    className={`w-full h-14 rounded-2xl mt-8 font-black text-white text-lg transition-all shadow-[0_0_20px_rgba(245,158,11,0.2)] ${isLoading ? 'bg-gray-600 cursor-not-allowed opacity-70' : 'bg-gradient-to-r from-yellow-400 to-orange-600 hover:scale-[1.02] active:scale-95'}`}
+                >
+                    {isLoading ? 'DEPLOYING...' : 'ACTIVATE HUNTER'}
                 </button>
-                <button onClick={onClose} className="w-full text-gray-500 mt-4 text-sm font-bold hover:text-white transition-colors">ABORT MISSION</button>
+                <button onClick={onClose} disabled={isLoading} className="w-full text-gray-500 mt-4 text-sm font-bold hover:text-white transition-colors">ABORT MISSION</button>
             </div>
         </div>
     );

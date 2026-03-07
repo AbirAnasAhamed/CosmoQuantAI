@@ -32,6 +32,7 @@ class WallHunterBot:
         self.active_pos = None
         self.highest_price = 0.0
         self.running = False
+        self._heartbeat_task = None
 
     async def start(self, api_key_record=None):
         self.running = True
@@ -48,6 +49,13 @@ class WallHunterBot:
             
         self.exchange = exchange_class(exchange_params)
         asyncio.create_task(self._run_loop())
+        self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
+
+    async def _heartbeat_loop(self):
+        """Prints a friendly heartbeat to the terminal every 5 seconds"""
+        while self.running:
+            logger.info(f"💓 [WallHunter {self.bot_id}] active and monitoring Level 2 data on {self.symbol}...")
+            await asyncio.sleep(5)
 
     async def _run_loop(self):
         while self.running:
@@ -104,3 +112,9 @@ class WallHunterBot:
             await self.engine.execute_trade("sell", self.config.get('trade_amount', 100), current_price)
             self.active_pos = None
             logger.info("Exit: Take Profit Hit")
+
+    async def stop(self):
+        self.running = False
+        if self._heartbeat_task:
+            self._heartbeat_task.cancel()
+        logger.info(f"Bot {self.bot_id} (WallHunter) stopped.")

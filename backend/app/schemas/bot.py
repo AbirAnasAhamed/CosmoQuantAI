@@ -11,6 +11,8 @@ class StrategyConfig(BaseModel):
     leverage: Optional[int] = 1
     timeframe: str = "1h"
     amount_per_trade: float
+    vol_threshold: Optional[float] = None
+    risk_pct: Optional[float] = None
 
     @validator('stop_loss')
     def validate_stop_loss(cls, v):

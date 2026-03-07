@@ -61,27 +61,49 @@ class BotManager:
             if not bot:
                 return {"status": "error", "message": "Bot not found"}
 
-            # 1. Create Instance
-            bot_instance = AsyncBotInstance(bot, local_db)
-            
-            # 2. Get/Create Shared Stream
-            stream_key = f"{bot.exchange}_{bot.market}_{bot.timeframe}"
-            if stream_key not in self.streams:
-                self.streams[stream_key] = SharedMarketStream(
-                    bot.exchange or 'binance', 
-                    bot.market, 
-                    bot.timeframe
-                )
-            
-            stream = self.streams[stream_key]
-            
-            # 3. Link Bot to Stream
-            await stream.subscribe(bot_instance)
-            
-            # 4. Start Bot Internal Tasks (User Stream, etc.)
-            await bot_instance.start()
-            
-            self.active_bots[bot_id] = bot_instance
+            if bot.strategy == "wall_hunter":
+                from app.strategies.wall_hunter_bot import WallHunterBot
+                from app.models import ApiKey
+                
+                config = {
+                    "exchange": bot.exchange or "binance",
+                    "symbol": bot.market,
+                    "is_paper_trading": bot.is_paper_trading,
+                }
+                if bot.config:
+                    config.update(bot.config)
+                    
+                bot_instance = WallHunterBot(bot.id, config, local_db)
+                bot_instance.bot = bot # keep reference
+                
+                api_key_record = None
+                if not bot.is_paper_trading and bot.api_key_id:
+                    api_key_record = local_db.query(ApiKey).filter_by(id=bot.api_key_id).first()
+                    
+                await bot_instance.start(api_key_record)
+                self.active_bots[bot_id] = bot_instance
+            else:
+                # 1. Create Instance
+                bot_instance = AsyncBotInstance(bot, local_db)
+                
+                # 2. Get/Create Shared Stream
+                stream_key = f"{bot.exchange}_{bot.market}_{bot.timeframe}"
+                if stream_key not in self.streams:
+                    self.streams[stream_key] = SharedMarketStream(
+                        bot.exchange or 'binance', 
+                        bot.market, 
+                        bot.timeframe
+                    )
+                
+                stream = self.streams[stream_key]
+                
+                # 3. Link Bot to Stream
+                await stream.subscribe(bot_instance)
+                
+                # 4. Start Bot Internal Tasks (User Stream, etc.)
+                await bot_instance.start()
+                
+                self.active_bots[bot_id] = bot_instance
             
             # Update DB Status
             bot.status = "active"
@@ -89,8 +111,14 @@ class BotManager:
             
             logger.info("="*50)
             logger.info(f"🚀 BOT ACTIVATED: ID {bot_id} | {bot.market} on {bot.exchange}")
-            logger.info(f"📈 Strategy: {bot.strategy} | Timeframe: {bot.timeframe}")
-            logger.info(f"💰 Trade Value: {bot.trade_value}")
+            if bot.strategy == "wall_hunter":
+                logger.info(f"📈 Strategy: WallHunter Level 2 Sniper")
+                logger.info(f"🎯 Target Spread: {bot.config.get('target_spread', 0)}")
+                logger.info(f"🧱 Vol Threshold: {bot.config.get('vol_threshold', 0)}")
+                logger.info(f"⚖️ Risk Pct: {bot.config.get('risk_pct', 0)}% | TSL: {bot.config.get('trailing_stop', 0)}%")
+            else:
+                logger.info(f"📈 Strategy: {bot.strategy} | Timeframe: {bot.timeframe}")
+                logger.info(f"💰 Trade Value: {bot.trade_value}")
             logger.info("="*50)
             
             return {"status": "success", "message": f"Bot {bot_id} started"}
@@ -112,16 +140,17 @@ class BotManager:
                 logger.info(f"🛑 Stopping Bot {bot_id}...")
                 bot_instance = self.active_bots[bot_id]
                 
-                # Unsubscribe from Stream
-                stream_key = f"{bot_instance.bot.exchange}_{bot_instance.symbol}_{bot_instance.timeframe}"
-                if stream_key in self.streams:
-                    stream = self.streams[stream_key]
-                    await stream.unsubscribe(bot_instance)
-                    
-                    # Cleanup unused streams
-                    if not stream.subscribers:
-                        await stream.stop()
-                        del self.streams[stream_key]
+                if isinstance(bot_instance, AsyncBotInstance):
+                    # Unsubscribe from Stream
+                    stream_key = f"{bot_instance.bot.exchange}_{bot_instance.symbol}_{bot_instance.timeframe}"
+                    if stream_key in self.streams:
+                        stream = self.streams[stream_key]
+                        await stream.unsubscribe(bot_instance)
+                        
+                        # Cleanup unused streams
+                        if not stream.subscribers:
+                            await stream.stop()
+                            del self.streams[stream_key]
 
                 # Stop Bot Internals
                 await bot_instance.stop()
