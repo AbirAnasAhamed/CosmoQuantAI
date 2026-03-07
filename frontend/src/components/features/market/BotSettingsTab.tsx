@@ -16,8 +16,14 @@ export const BotSettingsTab: React.FC = () => {
     const [isRealTrading, setIsRealTrading] = useState(false);
     const [tradeSize, setTradeSize] = useState('0.1');
     const [strategy, setStrategy] = useState('imbalance_breakout');
+    const [botTimeframe, setBotTimeframe] = useState('1m'); // Added timeframe state
     const [selectedApiKey, setSelectedApiKey] = useState('');
     const [selectedTradeUnit, setSelectedTradeUnit] = useState<'BASE' | 'QUOTE'>('BASE');
+
+    // Risk Management States
+    const [stopLoss, setStopLoss] = useState('2.5');
+    const [takeProfit, setTakeProfit] = useState('5.0');
+    const [trailingStop, setTrailingStop] = useState(''); // Empty string means no trailing stop
 
     // New states for API integration
     const [currentBotId, setCurrentBotId] = useState<number | null>(null);
@@ -38,17 +44,18 @@ export const BotSettingsTab: React.FC = () => {
                 strategy: strategy,
                 market: selectedPair,
                 exchange: selectedExchange,
-                timeframe: '1m',
+                timeframe: botTimeframe,
                 trade_value: parseFloat(tradeSize),
                 trade_unit: selectedTradeUnit,
                 risk_level: isRealTrading ? 'high' : 'low',
                 is_paper_trading: !isRealTrading,
                 config: {
                     amount_per_trade: parseFloat(tradeSize),
-                    timeframe: '1m',
+                    timeframe: botTimeframe,
                     leverage: 1,
-                    stop_loss: 2.5,
-                    take_profit: 5.0
+                    stop_loss: parseFloat(stopLoss) || undefined,
+                    take_profit: parseFloat(takeProfit) || undefined,
+                    trailing_stop: trailingStop ? parseFloat(trailingStop) : undefined
                 }
             };
 
@@ -85,17 +92,18 @@ export const BotSettingsTab: React.FC = () => {
                     strategy: strategy,
                     market: selectedPair,
                     exchange: selectedExchange,
-                    timeframe: '1m',
+                    timeframe: botTimeframe,
                     trade_value: parseFloat(tradeSize),
                     trade_unit: selectedTradeUnit,
                     risk_level: isRealTrading ? 'high' : 'low',
                     is_paper_trading: !isRealTrading,
                     config: {
                         amount_per_trade: parseFloat(tradeSize),
-                        timeframe: '1m',
+                        timeframe: botTimeframe,
                         leverage: 1,
-                        stop_loss: 2.5,
-                        take_profit: 5.0
+                        stop_loss: parseFloat(stopLoss) || undefined,
+                        take_profit: parseFloat(takeProfit) || undefined,
+                        trailing_stop: trailingStop ? parseFloat(trailingStop) : undefined
                     }
                 };
                 const newBot = await botService.createBot(botData);
@@ -267,18 +275,39 @@ export const BotSettingsTab: React.FC = () => {
                     </div>
                     {/* --------------------------------- */}
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Algorithm Strategy</label>
-                        <select
-                            value={strategy}
-                            onChange={(e) => setStrategy(e.target.value)}
-                            className="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-primary"
-                        >
-                            <option value="imbalance_breakout">Order Imbalance Breakout</option>
-                            <option value="liquidity_sniping">Liquidity Wall Sniping</option>
-                            <option value="cvd_divergence">CVD Divergence Trading</option>
-                        </select>
-                        <p className="mt-2 text-xs text-gray-500">Select the logic the bot will use to interpret the incoming Order Flow heatmap data.</p>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Algorithm Strategy</label>
+                            <select
+                                value={strategy}
+                                onChange={(e) => setStrategy(e.target.value)}
+                                className="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-primary"
+                            >
+                                <option value="imbalance_breakout">Order Imbalance Breakout</option>
+                                <option value="liquidity_sniping">Liquidity Wall Sniping</option>
+                                <option value="cvd_divergence">CVD Divergence Trading</option>
+                            </select>
+                            <p className="mt-2 text-xs text-gray-500">Select the logic the bot will use to interpret the incoming Order Flow heatmap data.</p>
+                        </div>
+
+                        <div>
+                            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Timeframe</label>
+                            <select
+                                value={botTimeframe}
+                                onChange={(e) => setBotTimeframe(e.target.value)}
+                                className="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-primary"
+                            >
+                                <option value="1s">1 Second</option>
+                                <option value="1m">1 Minute</option>
+                                <option value="3m">3 Minutes</option>
+                                <option value="5m">5 Minutes</option>
+                                <option value="15m">15 Minutes</option>
+                                <option value="1h">1 Hour</option>
+                                <option value="4h">4 Hours</option>
+                                <option value="1d">1 Day</option>
+                            </select>
+                            <p className="mt-2 text-xs text-gray-500">The candle timeframe the bot will use for signal generation.</p>
+                        </div>
                     </div>
 
                     <div>
@@ -308,14 +337,37 @@ export const BotSettingsTab: React.FC = () => {
 
                     <div>
                         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Risk Parameters</label>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-3 gap-4">
                             <div>
                                 <span className="text-xs text-gray-500 mb-1 block">Stop Loss (%)</span>
-                                <input type="number" defaultValue="2.5" className="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none" />
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    value={stopLoss}
+                                    onChange={(e) => setStopLoss(e.target.value)}
+                                    className="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-brand-primary"
+                                />
                             </div>
                             <div>
                                 <span className="text-xs text-gray-500 mb-1 block">Take Profit (%)</span>
-                                <input type="number" defaultValue="5.0" className="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none" />
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    value={takeProfit}
+                                    onChange={(e) => setTakeProfit(e.target.value)}
+                                    className="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-brand-primary"
+                                />
+                            </div>
+                            <div>
+                                <span className="text-xs text-gray-500 mb-1 block">Trailing Stop (%)</span>
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    placeholder="Optional"
+                                    value={trailingStop}
+                                    onChange={(e) => setTrailingStop(e.target.value)}
+                                    className="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-brand-primary placeholder:text-gray-400 dark:placeholder:text-gray-600"
+                                />
                             </div>
                         </div>
                     </div>
