@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Search, ChevronDown, Check } from 'lucide-react';
 import { useSettings } from '../../../context/SettingsContext';
 import { useCCXTMarkets } from '../../../hooks/useCCXTMarkets';
 import { botService } from '../../../services/botService';
@@ -24,6 +25,28 @@ export const BotSettingsTab: React.FC = () => {
     const [stopLoss, setStopLoss] = useState('2.5');
     const [takeProfit, setTakeProfit] = useState('5.0');
     const [trailingStop, setTrailingStop] = useState(''); // Empty string means no trailing stop
+    const [targetSpread, setTargetSpread] = useState(''); // Optional target spread for profit booking
+    const [targetSpreadUnit, setTargetSpreadUnit] = useState<'BASE' | 'QUOTE'>('BASE');
+
+    // Custom Dropdown States
+    const [isPairDropdownOpen, setIsPairDropdownOpen] = useState(false);
+    const [pairSearchQuery, setPairSearchQuery] = useState('');
+    const pairDropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (pairDropdownRef.current && !pairDropdownRef.current.contains(event.target as Node)) {
+                setIsPairDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    const filteredPairs = useMemo(() => {
+        if (!pairSearchQuery) return availablePairs;
+        return availablePairs.filter(p => p.symbol.toLowerCase().includes(pairSearchQuery.toLowerCase()));
+    }, [availablePairs, pairSearchQuery]);
 
     // New states for API integration
     const [currentBotId, setCurrentBotId] = useState<number | null>(null);
@@ -55,7 +78,8 @@ export const BotSettingsTab: React.FC = () => {
                     leverage: 1,
                     stop_loss: parseFloat(stopLoss) || undefined,
                     take_profit: parseFloat(takeProfit) || undefined,
-                    trailing_stop: trailingStop ? parseFloat(trailingStop) : undefined
+                    trailing_stop: trailingStop ? parseFloat(trailingStop) : undefined,
+                    target_spread: targetSpread ? parseFloat(targetSpread) : undefined
                 }
             };
 
@@ -103,7 +127,8 @@ export const BotSettingsTab: React.FC = () => {
                         leverage: 1,
                         stop_loss: parseFloat(stopLoss) || undefined,
                         take_profit: parseFloat(takeProfit) || undefined,
-                        trailing_stop: trailingStop ? parseFloat(trailingStop) : undefined
+                        trailing_stop: trailingStop ? parseFloat(trailingStop) : undefined,
+                        target_spread: targetSpread ? parseFloat(targetSpread) : undefined
                     }
                 };
                 const newBot = await botService.createBot(botData);
@@ -256,20 +281,60 @@ export const BotSettingsTab: React.FC = () => {
                         </div>
 
                         {/* Pair Box */}
-                        <div>
+                        <div className="relative" ref={pairDropdownRef}>
                             <label className="block text-xs font-medium text-gray-500 dark:text-gray-400 mb-1">
                                 Asset Pair {isLoading && <span className="text-[10px] text-brand-primary animate-pulse ml-2">Loading...</span>}
                             </label>
-                            <select
-                                value={selectedPair}
-                                onChange={(e) => setSelectedPair(e.target.value)}
-                                disabled={isLoading || availablePairs.length === 0}
-                                className="w-full bg-white dark:bg-[#0B1120] border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white rounded-lg px-3 py-2 outline-none focus:ring-1 focus:ring-brand-primary disabled:opacity-50"
+
+                            <div
+                                onClick={() => !isLoading && availablePairs.length > 0 && setIsPairDropdownOpen(!isPairDropdownOpen)}
+                                className={`flex items-center justify-between w-full bg-white dark:bg-[#0B1120] border ${isPairDropdownOpen ? 'border-brand-primary ring-1 ring-brand-primary' : 'border-gray-300 dark:border-gray-700'} text-gray-900 dark:text-white rounded-lg px-3 py-2 cursor-pointer transition-all ${isLoading || availablePairs.length === 0 ? 'opacity-50 cursor-not-allowed' : ''}`}
                             >
-                                {availablePairs.map(p => (
-                                    <option key={p.symbol} value={p.symbol}>{p.symbol}</option>
-                                ))}
-                            </select>
+                                <span className="font-medium text-sm">{selectedPair || 'Select Pair'}</span>
+                                <ChevronDown size={16} className={`text-gray-500 transition-transform ${isPairDropdownOpen ? 'rotate-180' : ''}`} />
+                            </div>
+
+                            {/* Dropdown Menu */}
+                            {isPairDropdownOpen && (
+                                <div className="absolute z-50 w-full mt-1 bg-white dark:bg-[#0B1120] border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
+                                    <div className="p-2 border-b border-gray-100 dark:border-gray-800">
+                                        <div className="flex items-center px-2 py-1.5 bg-gray-50 dark:bg-black/30 rounded-lg border border-gray-200 dark:border-gray-700 focus-within:border-brand-primary/50 focus-within:ring-1 focus-within:ring-brand-primary/50 transition-all">
+                                            <Search size={14} className="text-gray-400 mr-2" />
+                                            <input
+                                                type="text"
+                                                autoFocus
+                                                value={pairSearchQuery}
+                                                onChange={(e) => setPairSearchQuery(e.target.value)}
+                                                placeholder="Search pairs..."
+                                                className="w-full bg-transparent text-sm text-gray-900 dark:text-white outline-none placeholder:text-gray-400"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="max-h-60 overflow-y-auto custom-scrollbar p-1">
+                                        {filteredPairs.length > 0 ? (
+                                            filteredPairs.map(p => (
+                                                <div
+                                                    key={p.symbol}
+                                                    onClick={() => {
+                                                        setSelectedPair(p.symbol);
+                                                        setIsPairDropdownOpen(false);
+                                                        setPairSearchQuery('');
+                                                    }}
+                                                    className={`flex items-center justify-between px-3 py-2 text-sm rounded-lg cursor-pointer transition-colors ${selectedPair === p.symbol ? 'bg-brand-primary/10 text-brand-primary font-bold' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5'}`}
+                                                >
+                                                    {p.symbol}
+                                                    {selectedPair === p.symbol && <Check size={14} className="text-brand-primary" />}
+                                                </div>
+                                            ))
+                                        ) : (
+                                            <div className="px-3 py-4 text-center text-sm text-gray-500 dark:text-gray-400">
+                                                No pairs found
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
+
                             {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
                         </div>
                     </div>
@@ -326,6 +391,32 @@ export const BotSettingsTab: React.FC = () => {
                                 <select
                                     value={selectedTradeUnit}
                                     onChange={(e) => setSelectedTradeUnit(e.target.value as 'BASE' | 'QUOTE')}
+                                    className="h-full bg-transparent text-gray-700 dark:text-gray-300 px-3 py-2.5 outline-none cursor-pointer font-bold"
+                                >
+                                    <option value="BASE">{selectedPair.split('/')[0] || 'BASE'}</option>
+                                    <option value="QUOTE">{selectedPair.split('/')[1] || 'QUOTE'}</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Target Spread ({targetSpreadUnit === 'BASE' ? selectedPair.split('/')[0] : selectedPair.split('/')[1] || 'Currency'})
+                        </label>
+                        <div className="flex bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-brand-primary">
+                            <input
+                                type="number"
+                                step="0.01"
+                                placeholder="Optional target spread"
+                                value={targetSpread}
+                                onChange={(e) => setTargetSpread(e.target.value)}
+                                className="w-full bg-transparent text-gray-900 dark:text-white px-4 py-2.5 outline-none placeholder:text-gray-400 dark:placeholder:text-gray-600"
+                            />
+                            <div className="border-l border-gray-300 dark:border-gray-600">
+                                <select
+                                    value={targetSpreadUnit}
+                                    onChange={(e) => setTargetSpreadUnit(e.target.value as 'BASE' | 'QUOTE')}
                                     className="h-full bg-transparent text-gray-700 dark:text-gray-300 px-3 py-2.5 outline-none cursor-pointer font-bold"
                                 >
                                     <option value="BASE">{selectedPair.split('/')[0] || 'BASE'}</option>

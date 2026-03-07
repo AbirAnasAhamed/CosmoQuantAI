@@ -7,6 +7,7 @@ class StrategyConfig(BaseModel):
     stop_loss: Optional[float] = None
     take_profit: Optional[float] = None
     trailing_stop: Optional[float] = None
+    target_spread: Optional[float] = None
     leverage: Optional[int] = 1
     timeframe: str = "1h"
     amount_per_trade: float
