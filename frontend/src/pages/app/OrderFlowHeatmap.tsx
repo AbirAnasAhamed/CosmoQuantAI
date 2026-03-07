@@ -17,6 +17,7 @@ import { calculateEMA, calculateBollingerBands, calculateRSI } from '../../utils
 import { HeatmapSubNav } from '../../components/features/market/HeatmapSubNav';
 import { BotSettingsTab } from '../../components/features/market/BotSettingsTab';
 import { BotLogsTab } from '../../components/features/market/BotLogsTab';
+import { WallHunterModal } from '../../components/features/market/WallHunterModal';
 
 // Helper to convert interval string to ms
 const parseIntervalToMs = (interval: string): number => {
@@ -471,6 +472,7 @@ const formatDisplayPrice = (price: number) => {
 // Main Page Component
 const OrderFlowHeatmap: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'heatmap' | 'bot_settings' | 'bot_logs'>('heatmap');
+    const [isWallHunterOpen, setIsWallHunterOpen] = useState(false);
     const [exchange, setExchange] = useState('binance');
     const [symbol, setSymbol] = useState('BTC/USDT');
     const [interval, setInterval] = useState('1m');
@@ -603,6 +605,21 @@ const OrderFlowHeatmap: React.FC = () => {
                     </div>
                 )}
             </div>
+
+            {/* WALLHUNTER FLOATING ACTION BUTTON */}
+            <button
+                onClick={() => setIsWallHunterOpen(true)}
+                className="fixed bottom-8 right-8 z-[100] group"
+            >
+                <div className="absolute inset-0 bg-yellow-500 rounded-full blur-xl opacity-40 group-hover:opacity-100 transition-opacity animate-pulse" />
+                <div className="relative w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-600 rounded-full flex items-center justify-center border-4 border-white/20 shadow-2xl group-hover:scale-110 transition-transform cursor-pointer">
+                    <svg className="w-8 h-8 text-white group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                </div>
+            </button>
+
+            <WallHunterModal isOpen={isWallHunterOpen} onClose={() => setIsWallHunterOpen(false)} symbol={symbol} />
         </div>
     );
 };
