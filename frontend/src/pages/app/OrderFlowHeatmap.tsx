@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useMemo, useState } from 'react';
-import { createChart, ISeriesApi, CandlestickData, CandlestickSeries, LineSeries, HistogramSeries, HistogramData } from 'lightweight-charts';
+import { createChart, ISeriesApi, CandlestickData, CandlestickSeries, LineSeries, HistogramSeries, HistogramData, createSeriesMarkers } from 'lightweight-charts';
 import { useLevel2MarketData } from '@/hooks/useLevel2MarketData';
 import { useOrderFlowData } from '../../hooks/useOrderFlowData';
 import { useHeatmapData } from '../../hooks/useHeatmapData';
@@ -19,6 +19,7 @@ import { BotSettingsTab } from '../../components/features/market/BotSettingsTab'
 import { BotLogsTab } from '../../components/features/market/BotLogsTab';
 import { WallHunterModal } from '../../components/features/market/WallHunterModal';
 import { botService } from '../../services/botService';
+import { useWallHunterStatus } from '@/hooks/useWallHunterStatus';
 
 // Helper to convert interval string to ms
 const parseIntervalToMs = (interval: string): number => {
@@ -34,7 +35,7 @@ const parseIntervalToMs = (interval: string): number => {
 };
 
 // Chart Component
-const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: string; walls: { price: number, type: 'buy' | 'sell' }[]; currentPrice: number; showFootprint: boolean; indicatorSettings: IndicatorSettings; tradeEvent: any }> = ({ exchange, symbol, interval, walls, currentPrice, showFootprint, indicatorSettings, tradeEvent }) => {
+const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: string; walls: { price: number, type: 'buy' | 'sell' }[]; currentPrice: number; showFootprint: boolean; indicatorSettings: IndicatorSettings; tradeEvent: any; botStatus: any }> = ({ exchange, symbol, interval, walls, currentPrice, showFootprint, indicatorSettings, tradeEvent, botStatus }) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<any>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -49,6 +50,9 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
     const allCandlesRef = useRef<any[]>([]);
     const lastTradeEventRef = useRef<any>(null);
     const lastProcessedPriceRef = useRef<number>(0);
+    const prevPositionRef = useRef<boolean>(false);
+    const markersRef = useRef<any[]>([]);
+    const markersPluginRef = useRef<any>(null);
     const [countdownFormatted, setCountdownFormatted] = useState<string>('');
     const { vpvrData, cvdData, footprintData } = useOrderFlowData(symbol, exchange, interval);
     const { heatmapData: realHeatmapData } = useHeatmapData(symbol, exchange);
@@ -122,6 +126,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
 
         chartRef.current = chart;
         candlestickSeriesRef.current = candlestickSeries;
+        markersPluginRef.current = createSeriesMarkers(candlestickSeries, []);
         emaSeriesRef.current = emaSeries;
         bbUpperSeriesRef.current = bbUpperSeries;
         bbMiddleSeriesRef.current = bbMiddleSeries;
@@ -323,7 +328,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         wallLinesRef.current.forEach(line => candlestickSeriesRef.current?.removePriceLine(line));
         wallLinesRef.current = [];
 
-        // Add new lines
+        // Add Wall Lines
         walls.forEach(wall => {
             const priceLine = candlestickSeriesRef.current?.createPriceLine({
                 price: wall.price,
@@ -335,7 +340,77 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             });
             if (priceLine) wallLinesRef.current.push(priceLine);
         });
-    }, [walls]);
+
+        // Add Active Bot Lines
+        if (botStatus && botStatus.position) {
+            if (botStatus.entry_price) {
+                const epLine = candlestickSeriesRef.current?.createPriceLine({
+                    price: botStatus.entry_price,
+                    color: '#f59e0b', // Golden
+                    lineWidth: 2,
+                    lineStyle: 2, // Dashed
+                    axisLabelVisible: true,
+                    title: 'BOT ENTRY',
+                });
+                if (epLine) wallLinesRef.current.push(epLine);
+            }
+            if (botStatus.tp_price) {
+                const tpLine = candlestickSeriesRef.current?.createPriceLine({
+                    price: botStatus.tp_price,
+                    color: '#22c55e', // Green
+                    lineWidth: 2,
+                    lineStyle: 1, // Dotted
+                    axisLabelVisible: true,
+                    title: 'BOT TP',
+                });
+                if (tpLine) wallLinesRef.current.push(tpLine);
+            }
+            if (botStatus.sl_price) {
+                const slLine = candlestickSeriesRef.current?.createPriceLine({
+                    price: botStatus.sl_price,
+                    color: '#ef4444', // Red
+                    lineWidth: 2,
+                    lineStyle: 1, // Dotted
+                    axisLabelVisible: true,
+                    title: 'BOT TSL',
+                });
+                if (slLine) wallLinesRef.current.push(slLine);
+            }
+        }
+    }, [walls, botStatus]);
+
+    // Update Trade Markers
+    useEffect(() => {
+        if (!botStatus || !candlestickSeriesRef.current || !lastCandleRef.current) return;
+
+        const isPositionOpen = botStatus.position;
+        const wasPositionOpen = prevPositionRef.current;
+
+        if (isPositionOpen && !wasPositionOpen) {
+            markersRef.current.push({
+                time: lastCandleRef.current.time,
+                position: 'belowBar',
+                color: '#22c55e',
+                shape: 'arrowUp',
+                text: 'BUY',
+            });
+            // Sort markers by time as required by lightweight-charts
+            markersRef.current.sort((a, b) => a.time - b.time);
+            markersPluginRef.current?.setMarkers(markersRef.current);
+        } else if (!isPositionOpen && wasPositionOpen) {
+            markersRef.current.push({
+                time: lastCandleRef.current.time,
+                position: 'aboveBar',
+                color: '#ef4444',
+                shape: 'arrowDown',
+                text: 'SELL',
+            });
+            markersRef.current.sort((a, b) => a.time - b.time);
+            markersPluginRef.current?.setMarkers(markersRef.current);
+        }
+
+        prevPositionRef.current = isPositionOpen;
+    }, [botStatus]);
 
     // Countdown Timer logic
     useEffect(() => {
@@ -491,6 +566,7 @@ const OrderFlowHeatmap: React.FC = () => {
     });
     const { bids, asks, walls, currentPrice, tradeEvent } = useLevel2MarketData(symbol, exchange);
     const { volumeThreshold, setVolumeThreshold } = useVolumeFilter(1000);
+    const { statusData: botStatus, isConnected: botWsConnected } = useWallHunterStatus(activeWallHunterId);
 
     const filteredWalls = useMemo(() => {
         if (volumeThreshold <= 0) return walls;
@@ -529,9 +605,9 @@ const OrderFlowHeatmap: React.FC = () => {
                     </span>
                 </div>
                 <div className="flex gap-2">
-                    <span className="flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg bg-green-500/10 text-green-500 border border-green-500/20">
-                        <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-                        Live Data Socket
+                    <span className={`flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-colors ${botWsConnected ? 'bg-indigo-500/10 text-indigo-500 border-indigo-500/20' : 'bg-green-500/10 text-green-500 border-green-500/20'}`}>
+                        <span className={`w-2 h-2 rounded-full animate-pulse ${botWsConnected ? 'bg-indigo-500' : 'bg-green-500'}`}></span>
+                        {botWsConnected ? `Bot ${activeWallHunterId} Connected` : 'Live Data Socket'}
                     </span>
                     <button
                         onClick={() => setShowFootprint(!showFootprint)}
@@ -554,7 +630,7 @@ const OrderFlowHeatmap: React.FC = () => {
                             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Order Flow Chart</h3>
                         </div>
                         <div className="flex-1 relative">
-                            <OrderFlowChart exchange={exchange} symbol={symbol} interval={interval} walls={filteredWalls} currentPrice={currentPrice} showFootprint={showFootprint} indicatorSettings={indicatorSettings} tradeEvent={tradeEvent} />
+                            <OrderFlowChart exchange={exchange} symbol={symbol} interval={interval} walls={filteredWalls} currentPrice={currentPrice} showFootprint={showFootprint} indicatorSettings={indicatorSettings} tradeEvent={tradeEvent} botStatus={botStatus} />
                         </div>
                     </div>
                     <div className="w-[30%] bg-white dark:bg-[#0B1120] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
@@ -566,6 +642,38 @@ const OrderFlowHeatmap: React.FC = () => {
                         </div>
                     </div>
                 </div>
+
+                {/* ACTIVE BOT STATUS HUD */}
+                {activeWallHunterId && botStatus && (
+                    <div className="absolute top-6 right-6 z-50 pointer-events-none">
+                        <div className="bg-white/10 dark:bg-black/40 backdrop-blur-xl border border-white/20 dark:border-white/10 p-4 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.3)] w-64">
+                            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-2">
+                                <span className={`w-2 h-2 rounded-full ${botStatus.position ? 'bg-yellow-400 animate-pulse' : 'bg-indigo-500 animate-pulse'}`}></span>
+                                {botStatus.position ? 'In Trade' : 'Monitoring L2 Wall'}
+                            </h4>
+                            <div className="flex flex-col gap-2">
+                                <div className="flex justify-between items-center bg-black/20 p-2 rounded-lg border border-white/5">
+                                    <span className="text-gray-400 font-mono text-xs">Unrealized PnL:</span>
+                                    <span className={`font-mono font-bold text-lg ${botStatus.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
+                                        ${botStatus.pnl.toFixed(2)} ({botStatus.pnl_percent > 0 ? '+' : ''}{botStatus.pnl_percent.toFixed(2)}%)
+                                    </span>
+                                </div>
+                                {botStatus.position && (
+                                    <>
+                                        <div className="flex justify-between text-xs font-mono">
+                                            <span className="text-gray-500">Target TP:</span>
+                                            <span className="text-green-400 font-bold">{formatDisplayPrice(botStatus.tp_price)}</span>
+                                        </div>
+                                        <div className="flex justify-between text-xs font-mono">
+                                            <span className="text-gray-500">Trailing SL:</span>
+                                            <span className="text-red-400 font-bold">{formatDisplayPrice(botStatus.sl_price)}</span>
+                                        </div>
+                                    </>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* BOT SETTINGS MODAL */}
                 {activeTab === 'bot_settings' && (

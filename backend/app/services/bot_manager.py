@@ -73,7 +73,7 @@ class BotManager:
                 if bot.config:
                     config.update(bot.config)
                     
-                bot_instance = WallHunterBot(bot.id, config, local_db)
+                bot_instance = WallHunterBot(bot.id, config, local_db, owner_id=bot.owner_id)
                 bot_instance.bot = bot # keep reference
                 
                 api_key_record = None
