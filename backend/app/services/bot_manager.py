@@ -87,6 +87,12 @@ class BotManager:
             bot.status = "active"
             local_db.commit()
             
+            logger.info("="*50)
+            logger.info(f"🚀 BOT ACTIVATED: ID {bot_id} | {bot.market} on {bot.exchange}")
+            logger.info(f"📈 Strategy: {bot.strategy} | Timeframe: {bot.timeframe}")
+            logger.info(f"💰 Trade Value: {bot.trade_value}")
+            logger.info("="*50)
+            
             return {"status": "success", "message": f"Bot {bot_id} started"}
 
         except Exception as e:

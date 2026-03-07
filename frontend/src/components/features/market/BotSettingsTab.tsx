@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useSettings } from '../../../context/SettingsContext';
 import { useCCXTMarkets } from '../../../hooks/useCCXTMarkets';
+import { botService } from '../../../services/botService';
 
 export const BotSettingsTab: React.FC = () => {
     const { apiKeys } = useSettings();
@@ -16,12 +17,108 @@ export const BotSettingsTab: React.FC = () => {
     const [tradeSize, setTradeSize] = useState('0.1');
     const [strategy, setStrategy] = useState('imbalance_breakout');
     const [selectedApiKey, setSelectedApiKey] = useState('');
+    const [selectedTradeUnit, setSelectedTradeUnit] = useState<'BASE' | 'QUOTE'>('BASE');
+
+    // New states for API integration
+    const [currentBotId, setCurrentBotId] = useState<number | null>(null);
+    const [isProcessing, setIsProcessing] = useState(false);
 
     useEffect(() => {
         if (apiKeys.length > 0 && !selectedApiKey) {
             setSelectedApiKey(apiKeys[0].id?.toString() || '');
         }
     }, [apiKeys, selectedApiKey]);
+
+    const handleSaveConfiguration = async () => {
+        if (isProcessing) return;
+        setIsProcessing(true);
+        try {
+            const botData = {
+                name: `OrderFlow Bot - ${selectedPair}`,
+                strategy: strategy,
+                market: selectedPair,
+                exchange: selectedExchange,
+                timeframe: '1m',
+                trade_value: parseFloat(tradeSize),
+                trade_unit: selectedTradeUnit,
+                risk_level: isRealTrading ? 'high' : 'low',
+                is_paper_trading: !isRealTrading,
+                config: {
+                    amount_per_trade: parseFloat(tradeSize),
+                    timeframe: '1m',
+                    leverage: 1,
+                    stop_loss: 2.5,
+                    take_profit: 5.0
+                }
+            };
+
+            if (currentBotId) {
+                // Update
+                await botService.updateBot(currentBotId, botData);
+                console.log("Bot configuration updated.");
+            } else {
+                // Create
+                const newBot = await botService.createBot(botData);
+                setCurrentBotId(Number(newBot.id));
+                console.log("New Bot created:", newBot);
+            }
+        } catch (err) {
+            console.error("Failed to save configuration:", err);
+            alert("Failed to save bot configuration.");
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleToggleActive = async () => {
+        if (isProcessing) return;
+        setIsProcessing(true);
+        try {
+            const newState = !isEnabled;
+
+            let targetBotId = currentBotId;
+
+            // If activating but no bot exists yet, create one first.
+            if (newState && !targetBotId) {
+                const botData = {
+                    name: `OrderFlow Bot - ${selectedPair}`,
+                    strategy: strategy,
+                    market: selectedPair,
+                    exchange: selectedExchange,
+                    timeframe: '1m',
+                    trade_value: parseFloat(tradeSize),
+                    trade_unit: selectedTradeUnit,
+                    risk_level: isRealTrading ? 'high' : 'low',
+                    is_paper_trading: !isRealTrading,
+                    config: {
+                        amount_per_trade: parseFloat(tradeSize),
+                        timeframe: '1m',
+                        leverage: 1,
+                        stop_loss: 2.5,
+                        take_profit: 5.0
+                    }
+                };
+                const newBot = await botService.createBot(botData);
+                setCurrentBotId(Number(newBot.id));
+                targetBotId = Number(newBot.id);
+            }
+
+            if (targetBotId) {
+                if (newState) {
+                    await botService.controlBot(targetBotId, 'start');
+                } else {
+                    await botService.controlBot(targetBotId, 'stop');
+                }
+                setIsEnabled(newState);
+            }
+
+        } catch (err) {
+            console.error("Failed to toggle bot:", err);
+            alert("Failed to change bot status. Check logs.");
+        } finally {
+            setIsProcessing(false);
+        }
+    };
 
     return (
         <div className="w-full h-full p-6 flex flex-col items-center justify-start overflow-y-auto">
@@ -33,8 +130,9 @@ export const BotSettingsTab: React.FC = () => {
                             {isEnabled ? 'ACTIVE' : 'INACTIVE'}
                         </span>
                         <button
-                            onClick={() => setIsEnabled(!isEnabled)}
-                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isEnabled ? 'bg-green-500' : 'bg-gray-400 dark:bg-gray-600'}`}
+                            disabled={isProcessing}
+                            onClick={handleToggleActive}
+                            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${isEnabled ? 'bg-green-500' : 'bg-gray-400 dark:bg-gray-600'} ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}
                         >
                             <span className={`${isEnabled ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out`} />
                         </button>
@@ -63,8 +161,8 @@ export const BotSettingsTab: React.FC = () => {
                         <button
                             onClick={() => setIsRealTrading(false)}
                             className={`relative px-4 py-2 text-sm font-semibold rounded-md transition-all z-10 ${!isRealTrading
-                                    ? 'text-white shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                                ? 'text-white shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                                 }`}
                         >
                             Paper Trading
@@ -75,8 +173,8 @@ export const BotSettingsTab: React.FC = () => {
                         <button
                             onClick={() => setIsRealTrading(true)}
                             className={`relative px-4 py-2 text-sm font-semibold rounded-md transition-all z-10 ${isRealTrading
-                                    ? 'text-white shadow-sm'
-                                    : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
+                                ? 'text-white shadow-sm'
+                                : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
                                 }`}
                         >
                             Real Trading
@@ -184,14 +282,28 @@ export const BotSettingsTab: React.FC = () => {
                     </div>
 
                     <div>
-                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Trade Size (BTC)</label>
-                        <input
-                            type="number"
-                            step="0.01"
-                            value={tradeSize}
-                            onChange={(e) => setTradeSize(e.target.value)}
-                            className="w-full bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-4 py-2.5 outline-none focus:ring-2 focus:ring-brand-primary"
-                        />
+                        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                            Trade Size ({selectedTradeUnit === 'BASE' ? selectedPair.split('/')[0] : selectedPair.split('/')[1] || 'Currency'})
+                        </label>
+                        <div className="flex bg-gray-50 dark:bg-black/20 border border-gray-300 dark:border-gray-600 rounded-lg overflow-hidden focus-within:ring-2 focus-within:ring-brand-primary">
+                            <input
+                                type="number"
+                                step="0.01"
+                                value={tradeSize}
+                                onChange={(e) => setTradeSize(e.target.value)}
+                                className="w-full bg-transparent text-gray-900 dark:text-white px-4 py-2.5 outline-none"
+                            />
+                            <div className="border-l border-gray-300 dark:border-gray-600">
+                                <select
+                                    value={selectedTradeUnit}
+                                    onChange={(e) => setSelectedTradeUnit(e.target.value as 'BASE' | 'QUOTE')}
+                                    className="h-full bg-transparent text-gray-700 dark:text-gray-300 px-3 py-2.5 outline-none cursor-pointer font-bold"
+                                >
+                                    <option value="BASE">{selectedPair.split('/')[0] || 'BASE'}</option>
+                                    <option value="QUOTE">{selectedPair.split('/')[1] || 'QUOTE'}</option>
+                                </select>
+                            </div>
+                        </div>
                     </div>
 
                     <div>
@@ -209,10 +321,13 @@ export const BotSettingsTab: React.FC = () => {
                     </div>
 
                     <div className="pt-4 border-t border-gray-200 dark:border-white/10">
-                        <button className={`w-full text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all ${isRealTrading
+                        <button
+                            disabled={isProcessing}
+                            onClick={handleSaveConfiguration}
+                            className={`w-full text-white font-bold py-3 px-4 rounded-lg shadow-md transition-all ${isRealTrading
                                 ? 'bg-red-600 hover:bg-red-700 shadow-[0_4px_15px_rgba(220,38,38,0.4)]'
                                 : 'bg-brand-primary hover:bg-blue-600'
-                            }`}>
+                                } ${isProcessing ? 'opacity-50 cursor-not-allowed' : ''}`}>
                             {isRealTrading ? 'Save REAL Trading Configuration' : 'Save Bot Configuration'}
                         </button>
                     </div>
