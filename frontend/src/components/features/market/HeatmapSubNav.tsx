@@ -13,8 +13,8 @@ export const HeatmapSubNav: React.FC<HeatmapSubNavProps> = ({ activeTab, onChang
                 <button
                     onClick={() => onChange('heatmap')}
                     className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'heatmap'
-                            ? 'bg-blue-600/10 text-brand-primary border border-blue-500/20 shadow-sm'
-                            : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/10'
+                        ? 'bg-blue-600/10 text-brand-primary border border-blue-500/20 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/10'
                         }`}
                 >
                     <Activity size={16} />
@@ -23,18 +23,18 @@ export const HeatmapSubNav: React.FC<HeatmapSubNavProps> = ({ activeTab, onChang
                 <button
                     onClick={() => onChange('bot_settings')}
                     className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'bot_settings'
-                            ? 'bg-green-600/10 text-green-500 border border-green-500/20 shadow-sm'
-                            : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/10'
+                        ? 'bg-green-600/10 text-green-500 border border-green-500/20 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/10'
                         }`}
                 >
                     <Settings size={16} />
-                    <span>Bot Options</span>
+                    <span>OrderBlockBot</span>
                 </button>
                 <button
                     onClick={() => onChange('bot_logs')}
                     className={`flex items-center space-x-2 px-4 py-2 text-sm font-medium rounded-md transition-all ${activeTab === 'bot_logs'
-                            ? 'bg-purple-600/10 text-purple-400 border border-purple-500/20 shadow-sm'
-                            : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/10'
+                        ? 'bg-purple-600/10 text-purple-400 border border-purple-500/20 shadow-sm'
+                        : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/10'
                         }`}
                 >
                     <AlignLeft size={16} />

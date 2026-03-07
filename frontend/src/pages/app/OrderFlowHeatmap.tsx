@@ -513,7 +513,7 @@ const OrderFlowHeatmap: React.FC = () => {
 
     return (
         <div className="flex flex-col h-full bg-brand-light dark:bg-brand-darkest text-slate-900 dark:text-white overflow-hidden rounded-xl border border-gray-200 dark:border-white/10">
-            <header className="flex-shrink-0 p-4 border-b border-gray-200 dark:border-white/10 flex justify-between items-center bg-white dark:bg-[#0B1120]">
+            <header className="relative z-40 flex-shrink-0 p-4 border-b border-gray-200 dark:border-white/10 flex justify-between items-center bg-white dark:bg-[#0B1120]">
                 <div className="flex items-center gap-4">
                     <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brand-primary to-purple-500">Order Flow Heatmap</h2>
                     <HeatmapSymbolSelector symbol={symbol} exchange={exchange} onSymbolChange={setSymbol} onExchangeChange={setExchange} />
@@ -542,34 +542,65 @@ const OrderFlowHeatmap: React.FC = () => {
 
             <HeatmapSubNav activeTab={activeTab} onChange={setActiveTab} />
 
-            <div className="flex-1 p-4 overflow-hidden bg-gray-50 dark:bg-[#050B14]">
-                {activeTab === 'heatmap' && (
-                    <div className="flex flex-row h-full gap-4">
-                        <div className="w-[70%] bg-white dark:bg-[#0B1120] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
-                            <div className="p-3 border-b border-gray-200 dark:border-white/5 flex justify-between items-center">
-                                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Order Flow Chart</h3>
-                            </div>
-                            <div className="flex-1 relative">
-                                <OrderFlowChart exchange={exchange} symbol={symbol} interval={interval} walls={filteredWalls} currentPrice={currentPrice} showFootprint={showFootprint} indicatorSettings={indicatorSettings} tradeEvent={tradeEvent} />
-                            </div>
+            <div className="flex-1 p-4 overflow-hidden relative bg-gray-50 dark:bg-[#050B14]">
+                {/* ALWAYS RENDER HEATMAP */}
+                <div className="flex flex-row h-full gap-4">
+                    <div className="w-[70%] bg-white dark:bg-[#0B1120] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
+                        <div className="p-3 border-b border-gray-200 dark:border-white/5 flex justify-between items-center">
+                            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Order Flow Chart</h3>
                         </div>
-                        <div className="w-[30%] bg-white dark:bg-[#0B1120] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
-                            <div className="p-3 border-b border-gray-200 dark:border-white/5 flex justify-between items-center">
-                                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Level 2 Order Book</h3>
+                        <div className="flex-1 relative">
+                            <OrderFlowChart exchange={exchange} symbol={symbol} interval={interval} walls={filteredWalls} currentPrice={currentPrice} showFootprint={showFootprint} indicatorSettings={indicatorSettings} tradeEvent={tradeEvent} />
+                        </div>
+                    </div>
+                    <div className="w-[30%] bg-white dark:bg-[#0B1120] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
+                        <div className="p-3 border-b border-gray-200 dark:border-white/5 flex justify-between items-center">
+                            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Level 2 Order Book</h3>
+                        </div>
+                        <div className="flex-1 overflow-hidden p-2">
+                            <OrderBook bids={bids} asks={asks} maxTotal={maxTotal} />
+                        </div>
+                    </div>
+                </div>
+
+                {/* BOT SETTINGS MODAL */}
+                {activeTab === 'bot_settings' && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="relative w-[90%] md:w-[70%] lg:w-[60%] max-w-4xl max-h-[90vh] bg-white dark:bg-[#0B1120] rounded-xl shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden flex flex-col transform transition-all scale-100">
+                            <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-white/10 shrink-0">
+                                <h2 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-brand-primary to-purple-500">OrderBlockBot Configuration</h2>
+                                <button
+                                    onClick={() => setActiveTab('heatmap')}
+                                    className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                </button>
                             </div>
-                            <div className="flex-1 overflow-hidden p-2">
-                                <OrderBook bids={bids} asks={asks} maxTotal={maxTotal} />
+                            <div className="flex-1 overflow-y-auto custom-scrollbar relative">
+                                <BotSettingsTab />
                             </div>
                         </div>
                     </div>
                 )}
 
-                {activeTab === 'bot_settings' && (
-                    <BotSettingsTab />
-                )}
-
+                {/* BOT LOGS MODAL */}
                 {activeTab === 'bot_logs' && (
-                    <BotLogsTab />
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                        <div className="relative w-[90%] md:w-[70%] lg:w-[60%] max-w-4xl max-h-[90vh] bg-white dark:bg-[#0B1120] rounded-xl shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden flex flex-col transform transition-all scale-100">
+                            <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-white/10 shrink-0">
+                                <h2 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-brand-primary to-purple-500">OrderBlockBot Terminal Logs</h2>
+                                <button
+                                    onClick={() => setActiveTab('heatmap')}
+                                    className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                                >
+                                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                                </button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto custom-scrollbar relative">
+                                <BotLogsTab />
+                            </div>
+                        </div>
+                    </div>
                 )}
             </div>
         </div>
