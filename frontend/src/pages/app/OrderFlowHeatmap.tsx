@@ -619,7 +619,7 @@ const OrderFlowHeatmap: React.FC = () => {
                 </div>
             </button>
 
-            <WallHunterModal isOpen={isWallHunterOpen} onClose={() => setIsWallHunterOpen(false)} symbol={symbol} />
+            <WallHunterModal isOpen={isWallHunterOpen} onClose={() => setIsWallHunterOpen(false)} symbol={symbol} bids={bids} asks={asks} />
         </div>
     );
 };

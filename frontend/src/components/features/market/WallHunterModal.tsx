@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { fetchApiKeys } from '../../../services/settings';
 
-export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; symbol: string }> = ({ isOpen, onClose, symbol }) => {
+export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; symbol: string; bids?: any[]; asks?: any[] }> = ({ isOpen, onClose, symbol, bids = [], asks = [] }) => {
     const [savedKeys, setSavedKeys] = useState<any[]>([]);
     const [form, setForm] = useState({
         symbol: symbol,
@@ -30,11 +30,55 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
 
     if (!isOpen) return null;
 
+    const handleAutoDetect = () => {
+        let optimalVol = form.vol;
+        let optimalSpread = form.spread;
+
+        if (bids.length > 0 && asks.length > 0) {
+            // 1. Calculate Optimal Spread
+            const bestBid = bids[0].price;
+            const bestAsk = asks[0].price;
+            const currentSpread = bestAsk - bestBid;
+            // Target slightly larger than current spread for profit (e.g., current spread + 0.1%)
+            optimalSpread = currentSpread + (bestAsk * 0.001);
+            // Clamp spread to reasonable values based on input step
+            optimalSpread = parseFloat(Math.max(0.0001, Math.min(0.0100, optimalSpread)).toFixed(4));
+
+            // 2. Calculate Optimal Volume Threshold
+            // Look at top 10 levels on both sides to find average "normal" volume
+            const topBids = bids.slice(0, 10);
+            const topAsks = asks.slice(0, 10);
+            const allSizes = [...topBids.map(b => b.size), ...topAsks.map(a => a.size)];
+
+            if (allSizes.length > 0) {
+                const avgSize = allSizes.reduce((sum, size) => sum + size, 0) / allSizes.length;
+                // A "Wall" is typically 5x to 10x the average size
+                optimalVol = Math.round((avgSize * 5) / 1000) * 1000; // Round to nearest 1000
+                // Clamp volume
+                optimalVol = Math.max(1000, Math.min(1000000, optimalVol));
+            }
+        }
+
+        setForm(prev => ({
+            ...prev,
+            vol: optimalVol,
+            spread: optimalSpread
+        }));
+    };
+
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
             <div className="w-[450px] bg-[#0B1120] border-2 border-yellow-500/30 rounded-[2rem] p-8 shadow-[0_0_50px_rgba(59,130,246,0.2)]">
                 <div className="flex justify-between items-center mb-6">
                     <h2 className="text-2xl font-black italic text-white tracking-tighter">SNIPER DEPLOYMENT</h2>
+                    <button
+                        onClick={handleAutoDetect}
+                        className="flex items-center gap-1 bg-brand-primary/20 hover:bg-brand-primary/30 border border-brand-primary/50 text-brand-primary px-3 py-1.5 rounded-full text-xs font-bold transition-colors shadow-[0_0_10px_rgba(59,130,246,0.2)]"
+                        title="Auto-detect optimal Volume Wall Threshold and Target Spread from real-time Order Book"
+                    >
+                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                        AUTO DETECT
+                    </button>
                 </div>
 
                 {/* Asset & Exchange Selection */}
@@ -46,11 +90,12 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                     <div className="space-y-1">
                         <label className="text-[10px] text-gray-500 font-bold uppercase">Exchange</label>
                         <select className="w-full bg-white/5 p-3 rounded-xl text-white outline-none" value={form.exchange} onChange={(e) => setForm({ ...form, exchange: e.target.value })}>
-                            <option value="binance">Binance</option>
-                            <option value="bybit">Bybit</option>
-                            <option value="okx">OKX</option>
-                            <option value="kucoin">KuCoin</option>
-                            <option value="gateio">Gate.io</option>
+                            <option className="bg-[#0B1120] text-white" value="binance">Binance</option>
+                            <option className="bg-[#0B1120] text-white" value="bybit">Bybit</option>
+                            <option className="bg-[#0B1120] text-white" value="okx">OKX</option>
+                            <option className="bg-[#0B1120] text-white" value="kucoin">KuCoin</option>
+                            <option className="bg-[#0B1120] text-white" value="gateio">Gate.io</option>
+                            <option className="bg-[#0B1120] text-white" value="mexc">MEXC</option>
                         </select>
                     </div>
                 </div>
@@ -71,17 +116,65 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                     <div className="mb-4">
                         <label className="text-[10px] text-gray-500 font-bold uppercase">Select API Config</label>
                         <select className="w-full bg-yellow-500/10 border border-yellow-500/20 p-3 rounded-xl text-white outline-none" value={form.apiKeyId} onChange={(e) => setForm({ ...form, apiKeyId: e.target.value })}>
-                            <option value="">-- Choose Saved Key --</option>
+                            <option className="bg-[#0B1120] text-white" value="">-- Choose Saved Key --</option>
                             {savedKeys.filter(k => k.exchange === form.exchange).map(k => (
-                                <option key={k.id} value={k.id}>{k.name}</option>
+                                <option className="bg-[#0B1120] text-white" key={k.id} value={k.id}>{k.name}</option>
                             ))}
                         </select>
                     </div>
                 )}
 
                 <div className="space-y-4">
-                    <InputField label="Volume Wall Threshold" value={form.vol} onChange={(v: number) => setForm({ ...form, vol: v })} />
-                    <InputField label="Target Spread" value={form.spread} step={0.0001} onChange={(v: number) => setForm({ ...form, spread: v })} />
+                    {/* Volume Slider Input */}
+                    <div>
+                        <div className="flex justify-between items-end mb-1">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase">Volume Wall Threshold ({form.symbol ? form.symbol.split('/')[0] : 'Asset'})</label>
+                            <span className="text-xs font-mono font-bold text-brand-primary">{form.vol.toLocaleString()}</span>
+                        </div>
+                        <div className="flex gap-3 items-center">
+                            <input
+                                type="range"
+                                min="0"
+                                max="1000000"
+                                step="1000"
+                                className="flex-1 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-brand-primary"
+                                value={form.vol}
+                                onChange={(e) => setForm({ ...form, vol: parseFloat(e.target.value) })}
+                            />
+                            <input
+                                type="number"
+                                className="w-24 bg-white/5 border border-white/10 rounded-xl p-2 text-white text-sm outline-none focus:border-brand-primary font-mono text-center"
+                                value={form.vol}
+                                onChange={(e) => setForm({ ...form, vol: parseFloat(e.target.value) })}
+                            />
+                        </div>
+                    </div>
+
+                    {/* Target Spread Slider Input */}
+                    <div>
+                        <div className="flex justify-between items-end mb-1">
+                            <label className="text-[10px] font-bold text-gray-500 uppercase">Target Spread Profit</label>
+                            <span className="text-xs font-mono font-bold text-brand-primary">{form.spread.toFixed(4)}</span>
+                        </div>
+                        <div className="flex gap-3 items-center">
+                            <input
+                                type="range"
+                                min="0"
+                                max="0.0100"
+                                step="0.0001"
+                                className="flex-1 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-brand-primary"
+                                value={form.spread}
+                                onChange={(e) => setForm({ ...form, spread: parseFloat(e.target.value) })}
+                            />
+                            <input
+                                type="number"
+                                step="0.0001"
+                                className="w-24 bg-white/5 border border-white/10 rounded-xl p-2 text-white text-sm outline-none focus:border-brand-primary font-mono text-center"
+                                value={form.spread}
+                                onChange={(e) => setForm({ ...form, spread: parseFloat(e.target.value) })}
+                            />
+                        </div>
+                    </div>
                     <div className="grid grid-cols-2 gap-4">
                         <InputField label="Initial Risk %" value={form.risk} onChange={(v: number) => setForm({ ...form, risk: v })} />
                         <InputField label="Trailing SL %" value={form.tsl} onChange={(v: number) => setForm({ ...form, tsl: v })} />
