@@ -14,6 +14,9 @@ import { CVDChart, CVDDataPoint } from '../../components/features/market/CVDChar
 import { FootprintRenderer, FootprintCandleData, FootprintDataTick } from '../../components/features/market/FootprintRenderer';
 import { IndicatorSelector, IndicatorSettings } from '../../components/features/market/IndicatorSelector';
 import { calculateEMA, calculateBollingerBands, calculateRSI } from '../../utils/indicators';
+import { HeatmapSubNav } from '../../components/features/market/HeatmapSubNav';
+import { BotSettingsTab } from '../../components/features/market/BotSettingsTab';
+import { BotLogsTab } from '../../components/features/market/BotLogsTab';
 
 // Helper to convert interval string to ms
 const parseIntervalToMs = (interval: string): number => {
@@ -467,6 +470,7 @@ const formatDisplayPrice = (price: number) => {
 
 // Main Page Component
 const OrderFlowHeatmap: React.FC = () => {
+    const [activeTab, setActiveTab] = useState<'heatmap' | 'bot_settings' | 'bot_logs'>('heatmap');
     const [exchange, setExchange] = useState('binance');
     const [symbol, setSymbol] = useState('BTC/USDT');
     const [interval, setInterval] = useState('1m');
@@ -535,25 +539,38 @@ const OrderFlowHeatmap: React.FC = () => {
                     </button>
                 </div>
             </header>
+
+            <HeatmapSubNav activeTab={activeTab} onChange={setActiveTab} />
+
             <div className="flex-1 p-4 overflow-hidden bg-gray-50 dark:bg-[#050B14]">
-                <div className="flex flex-row h-full gap-4">
-                    <div className="w-[70%] bg-white dark:bg-[#0B1120] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
-                        <div className="p-3 border-b border-gray-200 dark:border-white/5 flex justify-between items-center">
-                            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Order Flow Chart</h3>
+                {activeTab === 'heatmap' && (
+                    <div className="flex flex-row h-full gap-4">
+                        <div className="w-[70%] bg-white dark:bg-[#0B1120] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
+                            <div className="p-3 border-b border-gray-200 dark:border-white/5 flex justify-between items-center">
+                                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Order Flow Chart</h3>
+                            </div>
+                            <div className="flex-1 relative">
+                                <OrderFlowChart exchange={exchange} symbol={symbol} interval={interval} walls={filteredWalls} currentPrice={currentPrice} showFootprint={showFootprint} indicatorSettings={indicatorSettings} tradeEvent={tradeEvent} />
+                            </div>
                         </div>
-                        <div className="flex-1 relative">
-                            <OrderFlowChart exchange={exchange} symbol={symbol} interval={interval} walls={filteredWalls} currentPrice={currentPrice} showFootprint={showFootprint} indicatorSettings={indicatorSettings} tradeEvent={tradeEvent} />
+                        <div className="w-[30%] bg-white dark:bg-[#0B1120] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
+                            <div className="p-3 border-b border-gray-200 dark:border-white/5 flex justify-between items-center">
+                                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Level 2 Order Book</h3>
+                            </div>
+                            <div className="flex-1 overflow-hidden p-2">
+                                <OrderBook bids={bids} asks={asks} maxTotal={maxTotal} />
+                            </div>
                         </div>
                     </div>
-                    <div className="w-[30%] bg-white dark:bg-[#0B1120] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
-                        <div className="p-3 border-b border-gray-200 dark:border-white/5 flex justify-between items-center">
-                            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Level 2 Order Book</h3>
-                        </div>
-                        <div className="flex-1 overflow-hidden p-2">
-                            <OrderBook bids={bids} asks={asks} maxTotal={maxTotal} />
-                        </div>
-                    </div>
-                </div>
+                )}
+
+                {activeTab === 'bot_settings' && (
+                    <BotSettingsTab />
+                )}
+
+                {activeTab === 'bot_logs' && (
+                    <BotLogsTab />
+                )}
             </div>
         </div>
     );

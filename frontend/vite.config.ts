@@ -1,6 +1,7 @@
 import path from 'path';
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import { nodePolyfills } from 'vite-plugin-node-polyfills';
 import { fileURLToPath } from 'url';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -39,6 +40,7 @@ export default defineConfig(({ mode }) => {
           target: backendUrl,
           changeOrigin: true,
           secure: false,
+          ws: true,
         },
         '/static': {
           target: backendUrl,
@@ -47,7 +49,14 @@ export default defineConfig(({ mode }) => {
         },
       },
     },
-    plugins: [react()],
+    plugins: [
+      react(),
+      nodePolyfills({
+        // Whether to polyfill `node:` protocol imports.
+        protocolImports: true,
+        exclude: ['net'],
+      }),
+    ],
     define: {
       'process.env.API_KEY': JSON.stringify(env.GEMINI_API_KEY),
       'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY)
@@ -55,6 +64,13 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: {
         "@": path.resolve(__dirname, "./src"),
+        "http-proxy-agent": path.resolve(__dirname, "./src/utils/empty.ts"),
+        "https-proxy-agent": path.resolve(__dirname, "./src/utils/empty.ts"),
+        "socks-proxy-agent": path.resolve(__dirname, "./src/utils/empty.ts"),
+        "protobufjs/minimal": path.resolve(__dirname, "./src/utils/empty.ts"),
+        "protobufjs/minimal.js": path.resolve(__dirname, "./src/utils/empty.ts"),
+        "ws": path.resolve(__dirname, "./src/utils/empty.ts"),
+        "node:net": path.resolve(__dirname, "./src/utils/mockNet.ts"),
       },
     },
     root: ".",
