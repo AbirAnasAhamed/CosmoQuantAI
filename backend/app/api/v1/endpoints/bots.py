@@ -149,8 +149,9 @@ def create_bot(
     return bot
 
 @router.put("/{bot_id}", response_model=schemas.Bot)
-def update_bot(
+async def update_bot(
     *,
+    request: Request,
     db: Session = Depends(deps.get_db),
     bot_id: int,
     bot_in: schemas.BotUpdate,
@@ -170,6 +171,12 @@ def update_bot(
     db.add(bot)
     db.commit()
     db.refresh(bot)
+    
+    # NEW: If bot is active, try to apply config live
+    if bot.status == "active" and hasattr(request.app.state, "bot_manager"):
+        if "config" in update_data and update_data["config"]:
+            await request.app.state.bot_manager.update_live_bot(bot_id, update_data["config"])
+            
     return bot
 
 @router.delete("/{bot_id}", response_model=schemas.Bot)

@@ -175,3 +175,21 @@ class BotManager:
             return {"status": "error", "message": str(e)}
         finally:
             if not db: local_db.close()
+
+    async def update_live_bot(self, bot_id: int, new_config: dict):
+        """Update a running bot's configuration without stopping it."""
+        if bot_id not in self.active_bots:
+            return {"status": "error", "message": "Bot is not currently active in memory"}
+            
+        bot_instance = self.active_bots[bot_id]
+        
+        # Check if the active bot supports dynamic config updates (e.g. WallHunterBot)
+        if hasattr(bot_instance, "update_config") and callable(bot_instance.update_config):
+            try:
+                bot_instance.update_config(new_config)
+                return {"status": "success", "message": f"Successfully updated live configuration for bot {bot_id}"}
+            except Exception as e:
+                logger.error(f"Error updating live bot {bot_id}: {e}")
+                return {"status": "error", "message": f"Failed to apply live update: {str(e)}"}
+        else:
+            return {"status": "error", "message": f"Bot strategy does not support live updates"}

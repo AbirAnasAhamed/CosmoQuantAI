@@ -20,6 +20,8 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
         spoofTime: 3.0 // NEW: Spoofing Detection Time Default 3 Seconds
     });
 
+    const [existingBot, setExistingBot] = useState<any>(null);
+
     useEffect(() => {
         setForm(prev => ({ ...prev, symbol }));
     }, [symbol]);
@@ -30,9 +32,35 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                 if (typeof fetchApiKeys === 'function') {
                     fetchApiKeys().then((keys: any) => setSavedKeys(keys || [])).catch(() => { });
                 }
+
+                // Fetch active bot for this symbol
+                botService.getAllBots().then((bots: any) => {
+                    console.log("🔥 [WallHunterModal] Fetched bots:", bots);
+                    const activeWallHunter = bots.find((b: any) => b.market === symbol && b.strategy === 'wall_hunter' && b.status === 'active');
+                    console.log("🔥 [WallHunterModal] Active match for", symbol, ":", activeWallHunter);
+                    if (activeWallHunter) {
+                        setExistingBot(activeWallHunter);
+                        const c = activeWallHunter.config || {};
+                        setForm(prev => ({
+                            ...prev,
+                            exchange: activeWallHunter.exchange,
+                            isPaper: activeWallHunter.is_paper_trading,
+                            apiKeyId: activeWallHunter.api_key_id || '',
+                            vol: c.vol_threshold || 500000,
+                            spread: c.target_spread || 0.0002,
+                            risk: c.risk_pct || 0.5,
+                            tsl: c.trailing_stop || 0.2,
+                            amount: c.amount_per_trade || 100,
+                            sellOrderType: c.sell_order_type || 'market',
+                            spoofTime: c.min_wall_lifetime !== undefined ? c.min_wall_lifetime : 3.0
+                        }));
+                    } else {
+                        setExistingBot(null);
+                    }
+                }).catch(() => { });
             } catch (e) { }
         }
-    }, [isOpen]);
+    }, [isOpen, symbol]);
 
     if (!isOpen) return null;
 
@@ -117,14 +145,25 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                 }
             };
 
-            const createdBot = await botService.createBot(payload);
-            await botService.controlBot(createdBot.id, 'start');
+            if (existingBot) {
+                // Update existing bot
+                await botService.updateBot(existingBot.id, payload);
+                setTimeout(() => {
+                    setIsLoading(false);
+                    setErrorMsg("⚡ Live Config Updated Successfully!");
+                    setTimeout(() => setErrorMsg(''), 3000);
+                }, 1000);
+            } else {
+                // Create new bot
+                const createdBot = await botService.createBot(payload);
+                await botService.controlBot(createdBot.id, 'start');
 
-            setTimeout(() => {
-                setIsLoading(false);
-                if (onDeploySuccess) onDeploySuccess(Number(createdBot.id));
-                else onClose();
-            }, 1000);
+                setTimeout(() => {
+                    setIsLoading(false);
+                    if (onDeploySuccess) onDeploySuccess(Number(createdBot.id));
+                    else onClose();
+                }, 1000);
+            }
         } catch (err: any) {
             console.error(err);
             setErrorMsg(err.response?.data?.detail || err.message || "Failed to deploy bot.");
@@ -269,16 +308,22 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                     </div>
                 </div>
 
-                {errorMsg && <p className="text-red-500 text-xs font-bold mt-4 animate-pulse text-center bg-red-500/10 py-2 rounded-lg">{errorMsg}</p>}
+                {errorMsg && (
+                    <p className={`text-xs font-bold mt-4 animate-pulse text-center py-2 rounded-lg ${errorMsg.includes('Success') ? 'text-green-400 bg-green-500/10' : 'text-red-500 bg-red-500/10'}`}>
+                        {errorMsg}
+                    </p>
+                )}
 
                 <button
                     onClick={handleDeploy}
                     disabled={isLoading}
-                    className={`w-full h-14 rounded-2xl mt-8 font-black text-white text-lg transition-all shadow-[0_0_20px_rgba(245,158,11,0.2)] ${isLoading ? 'bg-gray-600 cursor-not-allowed opacity-70' : 'bg-gradient-to-r from-yellow-400 to-orange-600 hover:scale-[1.02] active:scale-95'}`}
+                    className={`w-full h-14 rounded-2xl mt-8 font-black text-white text-lg transition-all shadow-[0_0_20px_rgba(245,158,11,0.2)] ${isLoading ? 'bg-gray-600 cursor-not-allowed opacity-70' : existingBot ? 'bg-gradient-to-r from-blue-500 to-indigo-600 hover:shadow-[0_0_30px_rgba(99,102,241,0.5)] shadow-[0_0_20px_rgba(99,102,241,0.3)] hover:scale-[1.02] active:scale-95' : 'bg-gradient-to-r from-yellow-400 to-orange-600 hover:scale-[1.02] active:scale-95'}`}
                 >
-                    {isLoading ? 'DEPLOYING...' : 'ACTIVATE HUNTER'}
+                    {isLoading ? 'PROCESSING...' : existingBot ? '⚙️ UPDATE LIVE CONFIG' : 'ACTIVATE HUNTER'}
                 </button>
-                <button onClick={onClose} disabled={isLoading} className="w-full text-gray-500 mt-4 text-sm font-bold hover:text-white transition-colors">ABORT MISSION</button>
+                <button onClick={onClose} disabled={isLoading} className="w-full text-gray-500 mt-4 text-sm font-bold hover:text-white transition-colors">
+                    {existingBot ? 'CLOSE PANEL' : 'ABORT MISSION'}
+                </button>
             </div>
         </div>
     );

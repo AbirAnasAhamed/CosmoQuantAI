@@ -3,7 +3,7 @@ import { ActiveBot } from '@/types';
 
 export const botService = {
     // ✅ ফিক্স: '/bots/' এর বদলে '/v1/bots/' ব্যবহার করা হয়েছে
-    getAllBots: async (skip: number = 0, limit: number = 20): Promise<ActiveBot[]> => {
+    getAllBots: async (skip: number = 0, limit: number = 100): Promise<ActiveBot[]> => {
         const response = await apiClient.get('/bots/', {
             params: { skip, limit }
         });

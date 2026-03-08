@@ -46,6 +46,50 @@ class WallHunterBot:
         self._heartbeat_task = None
         self.redis = get_redis_client()
 
+    def update_config(self, new_config: dict):
+        """Update strategy parameters dynamically without stopping the bot."""
+        logger.info(f"🔄 [WallHunter {self.bot_id}] Live config update requested: {new_config}")
+        
+        # Keep track of old values for logging
+        updates = []
+        
+        if "vol_threshold" in new_config and new_config["vol_threshold"] != self.vol_threshold:
+            updates.append(f"Volume Threshold: {self.vol_threshold} -> {new_config['vol_threshold']}")
+            self.vol_threshold = new_config.get("vol_threshold")
+            
+        if "target_spread" in new_config and new_config["target_spread"] != self.target_spread:
+            updates.append(f"Target Spread: {self.target_spread} -> {new_config['target_spread']}")
+            self.target_spread = new_config.get("target_spread")
+            
+        if "trailing_stop" in new_config and new_config["trailing_stop"] != self.tsl_pct:
+            updates.append(f"Trailing SL: {self.tsl_pct}% -> {new_config['trailing_stop']}%")
+            self.tsl_pct = new_config.get("trailing_stop")
+            
+        if "risk_pct" in new_config and new_config["risk_pct"] != self.initial_risk_pct:
+            updates.append(f"Risk Pct: {self.initial_risk_pct}% -> {new_config['risk_pct']}%")
+            self.initial_risk_pct = new_config.get("risk_pct")
+            
+        if "amount_per_trade" in new_config and self.engine and hasattr(self.engine, 'config'):
+            old_amount = self.engine.config.get("amount_per_trade")
+            if new_config["amount_per_trade"] != old_amount:
+                updates.append(f"Trade Amount: {old_amount} -> {new_config['amount_per_trade']}")
+                self.engine.config["amount_per_trade"] = new_config["amount_per_trade"]
+                
+        if "min_wall_lifetime" in new_config and new_config["min_wall_lifetime"] != self.min_wall_lifetime:
+            updates.append(f"Spoof Detect (s): {self.min_wall_lifetime} -> {new_config['min_wall_lifetime']}")
+            self.min_wall_lifetime = new_config.get("min_wall_lifetime")
+            
+        # Update internal config dictionary
+        self.config.update(new_config)
+        
+        if updates:
+            msg = f"⚡ [WallHunter {self.bot_id}] Live Configuration Updated:\n" + "\n".join([f"- {u}" for u in updates])
+            logger.info(msg)
+            # Fire and forget telegram notification
+            asyncio.create_task(self._send_telegram(f"⚙️ *Live Config Update*\n{self.symbol} Bot #{self.bot_id}\n\n" + "\n".join([f"• {u}" for u in updates])))
+        else:
+            logger.info(f"⚡ [WallHunter {self.bot_id}] Config update received, but no changes detected.")
+
     async def _send_telegram(self, msg: str):
         if not self.owner_id:
             return
