@@ -324,59 +324,71 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
     useEffect(() => {
         if (!candlestickSeriesRef.current || !chartRef.current) return;
 
-        // Remove old lines
-        wallLinesRef.current.forEach(line => candlestickSeriesRef.current?.removePriceLine(line));
-        wallLinesRef.current = [];
-
-        // Add Wall Lines
-        walls.forEach(wall => {
-            const priceLine = candlestickSeriesRef.current?.createPriceLine({
-                price: wall.price,
-                color: wall.type === 'buy' ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)',
-                lineWidth: 4,
-                lineStyle: 0,
-                axisLabelVisible: true,
-                title: `${wall.type.toUpperCase()} WALL`,
+        // Helper to draw lines
+        const drawLines = () => {
+            // Remove old lines
+            wallLinesRef.current.forEach(line => {
+                try { candlestickSeriesRef.current?.removePriceLine(line); } catch (e) { }
             });
-            if (priceLine) wallLinesRef.current.push(priceLine);
-        });
+            wallLinesRef.current = [];
 
-        // Add Active Bot Lines
-        if (botStatus && botStatus.position) {
-            if (botStatus.entry_price && botStatus.entry_price > 0) {
-                const epLine = candlestickSeriesRef.current?.createPriceLine({
-                    price: botStatus.entry_price,
-                    color: '#f59e0b', // Golden
-                    lineWidth: 2,
-                    lineStyle: 2, // Dashed
+            // Add Wall Lines
+            walls.forEach(wall => {
+                const priceLine = candlestickSeriesRef.current?.createPriceLine({
+                    price: wall.price,
+                    color: wall.type === 'buy' ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)',
+                    lineWidth: 4,
+                    lineStyle: 0,
                     axisLabelVisible: true,
-                    title: 'BOT ENTRY',
+                    title: `${wall.type.toUpperCase()} WALL`,
                 });
-                if (epLine) wallLinesRef.current.push(epLine);
+                if (priceLine) wallLinesRef.current.push(priceLine);
+            });
+
+            // Add Active Bot Lines
+            if (botStatus && botStatus.position) {
+                if (botStatus.entry_price && botStatus.entry_price > 0) {
+                    const epLine = candlestickSeriesRef.current?.createPriceLine({
+                        price: botStatus.entry_price,
+                        color: '#f59e0b', // Golden
+                        lineWidth: 2,
+                        lineStyle: 2, // Dashed
+                        axisLabelVisible: true,
+                        title: 'BOT ENTRY',
+                    });
+                    if (epLine) wallLinesRef.current.push(epLine);
+                }
+                if (botStatus.tp_price && botStatus.tp_price > 0) {
+                    const tpLine = candlestickSeriesRef.current?.createPriceLine({
+                        price: botStatus.tp_price,
+                        color: '#22c55e', // Green
+                        lineWidth: 2,
+                        lineStyle: 1, // Dotted
+                        axisLabelVisible: true,
+                        title: 'BOT TP',
+                    });
+                    if (tpLine) wallLinesRef.current.push(tpLine);
+                }
+                if (botStatus.sl_price && botStatus.sl_price > 0) {
+                    const slLine = candlestickSeriesRef.current?.createPriceLine({
+                        price: botStatus.sl_price,
+                        color: '#ef4444', // Red
+                        lineWidth: 2,
+                        lineStyle: 1, // Dotted
+                        axisLabelVisible: true,
+                        title: 'BOT TSL',
+                    });
+                    if (slLine) wallLinesRef.current.push(slLine);
+                }
             }
-            if (botStatus.tp_price && botStatus.tp_price > 0) {
-                const tpLine = candlestickSeriesRef.current?.createPriceLine({
-                    price: botStatus.tp_price,
-                    color: '#22c55e', // Green
-                    lineWidth: 2,
-                    lineStyle: 1, // Dotted
-                    axisLabelVisible: true,
-                    title: 'BOT TP',
-                });
-                if (tpLine) wallLinesRef.current.push(tpLine);
-            }
-            if (botStatus.sl_price && botStatus.sl_price > 0) {
-                const slLine = candlestickSeriesRef.current?.createPriceLine({
-                    price: botStatus.sl_price,
-                    color: '#ef4444', // Red
-                    lineWidth: 2,
-                    lineStyle: 1, // Dotted
-                    axisLabelVisible: true,
-                    title: 'BOT TSL',
-                });
-                if (slLine) wallLinesRef.current.push(slLine);
-            }
-        }
+        };
+
+        drawLines();
+
+        // Redraw periodically to ensure they aren't wiped out by lightweight-charts internal redraws
+        const drawInterval = setInterval(drawLines, 2000);
+        return () => clearInterval(drawInterval);
+
     }, [walls, botStatus]);
 
     // Update Trade Markers

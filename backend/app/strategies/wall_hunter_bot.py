@@ -229,7 +229,7 @@ class WallHunterBot:
             if self.sell_order_type == 'market':
                 await self.engine.execute_trade("sell", sell_amount, current_price)
             else:
-                logger.info(f"Target Profit {self.active_pos['tp']} reached. Assuming Limit Order {self.active_pos.get('limit_order_id')} is filled.")
+                logger.info(f"Target Profit {self.active_pos['tp']} reached. Assuming Limit Order {self.active_pos.get('limit_order_id', 'Unknown')} is filled.")
             
             # Calculate PnL
             pnl_val = (current_price - self.active_pos['entry']) * sell_amount
