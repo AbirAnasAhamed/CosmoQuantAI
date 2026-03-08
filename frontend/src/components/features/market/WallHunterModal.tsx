@@ -15,7 +15,8 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
         spread: 0.0002,
         risk: 0.5,
         tsl: 0.2,
-        amount: 100
+        amount: 100,
+        sellOrderType: 'market'
     });
 
     useEffect(() => {
@@ -102,7 +103,8 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                     target_spread: form.spread,
                     trailing_stop: form.tsl,
                     vol_threshold: form.vol,
-                    risk_pct: form.risk
+                    risk_pct: form.risk,
+                    sell_order_type: form.sellOrderType, // explicitly pass the new type
                 }
             };
 
@@ -120,6 +122,10 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
             setErrorMsg(err.response?.data?.detail || err.message || "Failed to deploy bot.");
             setIsLoading(false);
         }
+    };
+
+    const handleFormChange = (field: string, value: any) => {
+        setForm(prev => ({ ...prev, [field]: value }));
     };
 
     return (
@@ -231,8 +237,19 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                             />
                         </div>
                     </div>
-                    <div className="mb-4">
+                    <div className="grid grid-cols-2 gap-4 mb-4">
                         <InputField label={`Trading Amount (${form.symbol ? form.symbol.split('/')[1] || 'Quote Asset' : 'Quote Asset'})`} value={form.amount} onChange={(v: number) => setForm({ ...form, amount: v })} step={10} />
+                        <div>
+                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Sell Order Type (TP)</label>
+                            <select
+                                className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-brand-primary"
+                                value={form.sellOrderType}
+                                onChange={(e) => handleFormChange('sellOrderType', e.target.value as 'market' | 'limit')}
+                            >
+                                <option className="bg-[#0B1120] text-white" value="market">Market (Instant)</option>
+                                <option className="bg-[#0B1120] text-white" value="limit">Limit (Zero Slippage)</option>
+                            </select>
+                        </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <InputField label="Initial Risk %" value={form.risk} onChange={(v: number) => setForm({ ...form, risk: v })} />

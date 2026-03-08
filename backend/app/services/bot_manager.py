@@ -117,6 +117,7 @@ class BotManager:
                 logger.info(f"🧱 Vol Threshold: {bot.config.get('vol_threshold', 0)}")
                 logger.info(f"⚖️ Risk Pct: {bot.config.get('risk_pct', 0)}% | TSL: {bot.config.get('trailing_stop', 0)}%")
                 logger.info(f"💰 Trade Amount: {bot.config.get('amount_per_trade', 0)} (Quote Asset)")
+                logger.info(f"📋 Sell Order Type: {bot.config.get('sell_order_type', 'market').upper()}")
             else:
                 logger.info(f"📈 Strategy: {bot.strategy} | Timeframe: {bot.timeframe}")
                 logger.info(f"💰 Trade Value: {bot.trade_value}")

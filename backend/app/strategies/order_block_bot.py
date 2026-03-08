@@ -61,16 +61,16 @@ class OrderBlockExecutionEngine:
         self.paper_balance_base = 0.0
         self.active_position = None # Simplification: only 1 active position for the bot
 
-    async def execute_trade(self, side: str, amount: float, price: float) -> Optional[Dict[str, Any]]:
+    async def execute_trade(self, side: str, amount: float, price: float, order_type: str = "market") -> Optional[Dict[str, Any]]:
         """
         Executes a trade, routing to either Paper or Real logic.
         """
         if self.is_paper_trading:
-            return await self._execute_paper(side, amount, price)
+            return await self._execute_paper(side, amount, price, order_type)
         else:
-            return await self._execute_real(side, amount, price)
+            return await self._execute_real(side, amount, price, order_type)
 
-    async def _execute_paper(self, side: str, amount: float, price: float) -> Optional[Dict[str, Any]]:
+    async def _execute_paper(self, side: str, amount: float, price: float, order_type: str = "market") -> Optional[Dict[str, Any]]:
         trade_id = f"paper_{uuid.uuid4().hex[:8]}"
         timestamp = time.time()
         
@@ -104,20 +104,41 @@ class OrderBlockExecutionEngine:
             "status": "closed"
         }
 
-    async def _execute_real(self, side: str, amount: float, price: float) -> Optional[Dict[str, Any]]:
+    async def _execute_real(self, side: str, amount: float, price: float, order_type: str = "market") -> Optional[Dict[str, Any]]:
         if not self.exchange:
             logger.error("[REAL] Missing exchange instance with API credentials.")
             return None
             
         try:
-            # We use market order for immediate execution upon block detection for simplicity here
-            # In production, Limit orders near the block might be preferred.
-            logger.info(f"[REAL] Executing {side} order on {self.exchange_id} for {amount} {self.pair}")
-            order = await self.exchange.create_market_order(self.pair, side, amount)
+            logger.info(f"[REAL] Executing {order_type.upper()} {side} order on {self.exchange_id} for {amount} {self.pair} at {price if order_type == 'limit' else 'Market'}")
+            order = await self.exchange.create_order(
+                symbol=self.pair,
+                type=order_type.lower(),
+                side=side.lower(),
+                amount=amount,
+                price=price if order_type.lower() == 'limit' else None
+            )
             return order
         except Exception as e:
             logger.error(f"[REAL] Order execution failed: {e}")
             return None
+
+    async def cancel_order(self, order_id: str) -> bool:
+        """Cancels an existing limit order"""
+        if self.is_paper_trading:
+            logger.info(f"[PAPER] Cancelled order {order_id}")
+            return True
+            
+        if not self.exchange:
+            return False
+            
+        try:
+            await self.exchange.cancel_order(order_id, self.pair)
+            logger.info(f"[REAL] Cancelled order {order_id} on {self.exchange_id}")
+            return True
+        except Exception as e:
+            logger.error(f"[REAL] Failed to cancel order {order_id}: {e}")
+            return False
 
 class OrderBlockBotTask:
     """
