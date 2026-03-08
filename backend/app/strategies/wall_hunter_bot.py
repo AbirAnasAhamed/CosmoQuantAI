@@ -145,7 +145,7 @@ class WallHunterBot:
                     # Scan for Walls in Bids
                     for price, vol in orderbook['bids']:
                         if vol >= self.vol_threshold:
-                            await self.execute_snipe(price, "buy")
+                            await self.execute_snipe(price, "buy", mid_price)
                             break
                 else:
                     # Trailing Stop-Loss Engine
@@ -157,7 +157,7 @@ class WallHunterBot:
                 logger.error(f"Hunter Loop Error: {e}")
                 await asyncio.sleep(1)
 
-    async def execute_snipe(self, wall_price: float, side: str):
+    async def execute_snipe(self, wall_price: float, side: str, current_mid_price: float):
         entry_price = wall_price + 0.00001
         
         # Calculate base asset amount from quote currency amount
@@ -166,9 +166,17 @@ class WallHunterBot:
         
         res = await self.engine.execute_trade(side, base_amount, entry_price)
         if res:
-            # Use actual filled price from exchange if available (to account for slippage)
-            actual_entry = res.get('average') or res.get('price') or entry_price
+            # Safely extract average fill price. Fallback to requested entry_price if not provided or 0
+            avg_price = res.get('average')
+            fill_price = res.get('price')
+            actual_entry = avg_price if avg_price and avg_price > 0 else (fill_price if fill_price and fill_price > 0 else entry_price)
             actual_entry = float(actual_entry)
+            
+            # Sanity Check to prevent instant SL logic if CCXT returns an outdated or widely inaccurate fill price
+            slippage_pct = abs(actual_entry - current_mid_price) / current_mid_price
+            if slippage_pct > 0.02: # If the executed price differs from the mid price by more than 2%
+                logger.warning(f"Suspicious fill price from CCXT: {actual_entry}. Overriding with mid_price: {current_mid_price}")
+                actual_entry = current_mid_price
             
             self.active_pos = {
                 "entry": actual_entry,
@@ -199,6 +207,7 @@ class WallHunterBot:
             self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
 
         if current_price <= self.active_pos['sl']:
+            logger.info(f"⚠️ Triggering SL: Current Price ({current_price:.6f}) <= SL ({self.active_pos['sl']:.6f})")
             sell_amount = self.active_pos.get('amount') or (self.config.get("amount_per_trade", 10.0) / self.active_pos['entry'])
             
             # Cancel open limit order if TSL hits
@@ -214,6 +223,7 @@ class WallHunterBot:
             logger.info("Exit: Stop Loss / TSL Hit")
             
         elif current_price >= self.active_pos['tp']:
+            logger.info(f"✅ Triggering TP: Current Price ({current_price:.6f}) >= TP ({self.active_pos['tp']:.6f})")
             sell_amount = self.active_pos.get('amount') or (self.config.get("amount_per_trade", 10.0) / self.active_pos['entry'])
             
             if self.sell_order_type == 'market':

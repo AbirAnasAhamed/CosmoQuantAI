@@ -343,7 +343,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
 
         // Add Active Bot Lines
         if (botStatus && botStatus.position) {
-            if (botStatus.entry_price) {
+            if (botStatus.entry_price && botStatus.entry_price > 0) {
                 const epLine = candlestickSeriesRef.current?.createPriceLine({
                     price: botStatus.entry_price,
                     color: '#f59e0b', // Golden
@@ -354,7 +354,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                 });
                 if (epLine) wallLinesRef.current.push(epLine);
             }
-            if (botStatus.tp_price) {
+            if (botStatus.tp_price && botStatus.tp_price > 0) {
                 const tpLine = candlestickSeriesRef.current?.createPriceLine({
                     price: botStatus.tp_price,
                     color: '#22c55e', // Green
@@ -365,7 +365,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                 });
                 if (tpLine) wallLinesRef.current.push(tpLine);
             }
-            if (botStatus.sl_price) {
+            if (botStatus.sl_price && botStatus.sl_price > 0) {
                 const slLine = candlestickSeriesRef.current?.createPriceLine({
                     price: botStatus.sl_price,
                     color: '#ef4444', // Red
