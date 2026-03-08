@@ -50,12 +50,11 @@ class OrderBlockExecutionEngine:
     """
     Handles trading execution securely. Segregates Real (CCXT) and Paper trading.
     """
-    def __init__(self, config: Dict[str, Any]):
+    def __init__(self, config: Dict[str, Any], exchange=None):
         self.is_paper_trading = config.get("is_paper_trading", True)
         self.exchange_id = config.get("exchange", "binance").lower()
-        self.pair = config.get("pair")
-        self.api_key = config.get("apiKey")
-        self.api_secret = config.get("apiSecret")
+        self.pair = config.get("pair") or config.get("symbol")
+        self.exchange = exchange
         
         # Paper trading state
         self.paper_balance_quote = config.get("paper_balance_initial", 10000.0)
@@ -106,29 +105,19 @@ class OrderBlockExecutionEngine:
         }
 
     async def _execute_real(self, side: str, amount: float, price: float) -> Optional[Dict[str, Any]]:
-        if not self.api_key or not self.api_secret:
-            logger.error("[REAL] Missing API credentials.")
+        if not self.exchange:
+            logger.error("[REAL] Missing exchange instance with API credentials.")
             return None
             
-        exchange_class = getattr(ccxt, self.exchange_id)
-        exchange = exchange_class({
-            'apiKey': self.api_key,
-            'secret': self.api_secret,
-            'enableRateLimit': True,
-            'options': {'adjustForTimeDifference': True}
-        })
-        
         try:
             # We use market order for immediate execution upon block detection for simplicity here
             # In production, Limit orders near the block might be preferred.
             logger.info(f"[REAL] Executing {side} order on {self.exchange_id} for {amount} {self.pair}")
-            order = await exchange.create_market_order(self.pair, side, amount)
+            order = await self.exchange.create_market_order(self.pair, side, amount)
             return order
         except Exception as e:
             logger.error(f"[REAL] Order execution failed: {e}")
             return None
-        finally:
-            await exchange.close()
 
 class OrderBlockBotTask:
     """

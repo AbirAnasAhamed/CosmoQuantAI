@@ -14,7 +14,8 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
         vol: 500000,
         spread: 0.0002,
         risk: 0.5,
-        tsl: 0.2
+        tsl: 0.2,
+        amount: 100
     });
 
     useEffect(() => {
@@ -36,6 +37,7 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
     const handleAutoDetect = () => {
         let optimalVol = form.vol;
         let optimalSpread = form.spread;
+        let optimalAmount = form.amount;
 
         if (bids.length > 0 && asks.length > 0) {
             // 1. Calculate Optimal Spread
@@ -58,14 +60,19 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                 // A "Wall" is typically 5x to 10x the average size
                 optimalVol = Math.round((avgSize * 5) / 1000) * 1000; // Round to nearest 1000
                 // Clamp volume
-                optimalVol = Math.max(1000, Math.min(1000000, optimalVol));
+                optimalVol = Math.max(10, Math.min(1000000, optimalVol));
+
+                // 3. Calculate Optimal Trade Amount (10% of average order value in quote currency)
+                const avgQuoteSize = avgSize * bestBid;
+                optimalAmount = parseFloat(Math.max(10, avgQuoteSize * 0.1).toFixed(2));
             }
         }
 
         setForm(prev => ({
             ...prev,
             vol: optimalVol,
-            spread: optimalSpread
+            spread: optimalSpread,
+            amount: optimalAmount
         }));
     };
 
@@ -86,12 +93,12 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                 market: form.symbol,
                 strategy: "wall_hunter",
                 timeframe: "1m",
-                trade_value: 100,
+                trade_value: form.amount,
                 trade_unit: "QUOTE",
                 api_key_id: form.isPaper ? null : form.apiKeyId,
                 is_paper_trading: form.isPaper,
                 config: {
-                    amount_per_trade: 100,
+                    amount_per_trade: form.amount,
                     target_spread: form.spread,
                     trailing_stop: form.tsl,
                     vol_threshold: form.vol,
@@ -223,6 +230,9 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                                 onChange={(e) => setForm({ ...form, spread: parseFloat(e.target.value) })}
                             />
                         </div>
+                    </div>
+                    <div className="mb-4">
+                        <InputField label={`Trading Amount (${form.symbol ? form.symbol.split('/')[1] || 'Quote Asset' : 'Quote Asset'})`} value={form.amount} onChange={(v: number) => setForm({ ...form, amount: v })} step={10} />
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                         <InputField label="Initial Risk %" value={form.risk} onChange={(v: number) => setForm({ ...form, risk: v })} />

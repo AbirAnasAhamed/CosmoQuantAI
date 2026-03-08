@@ -65,7 +65,7 @@ class WallHunterBot:
                 sl_price = self.active_pos.get('sl', 0)
                 tp_price = self.active_pos.get('tp', 0)
                 
-                amount = self.config.get("trade_amount", 100) / entry_price if entry_price > 0 else 0
+                amount = self.config.get("amount_per_trade", 10.0) / entry_price if entry_price > 0 else 0
                 pnl_val = (current_price - entry_price) * amount
                 if entry_price > 0:
                     pnl_pct = ((current_price - entry_price) / entry_price) * 100
@@ -91,16 +91,34 @@ class WallHunterBot:
         self.running = True
         # Dynamic Exchange Initialization
         exchange_class = getattr(ccxt, self.exchange_id)
-        exchange_params = {'enableRateLimit': True}
+        exchange_params = {
+            'enableRateLimit': True,
+            'options': {
+                'adjustForTimeDifference': True,
+                'recvWindow': 60000
+            }
+        }
         
         # Live Mode-e API select kora
         if not self.is_paper_trading and api_key_record:
             exchange_params.update({
-                'apiKey': api_key_record.api_key,
+                'apiKey': decrypt_key(api_key_record.api_key),
                 'secret': decrypt_key(api_key_record.secret_key)
             })
             
+            # Optional Passphrase for KuCoin/OKX/MEXC
+            if hasattr(api_key_record, 'passphrase') and api_key_record.passphrase:
+                try:
+                    exchange_params['password'] = decrypt_key(api_key_record.passphrase)
+                except Exception:
+                     # Fallback if not encrypted or error
+                    exchange_params['password'] = api_key_record.passphrase
+            
         self.exchange = exchange_class(exchange_params)
+        
+        # Initialize execution engine with the correct exchange instance
+        self.engine = OrderBlockExecutionEngine(self.config, exchange=self.exchange)
+        
         asyncio.create_task(self._run_loop())
         self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
         
@@ -140,18 +158,22 @@ class WallHunterBot:
 
     async def execute_snipe(self, wall_price: float, side: str):
         entry_price = wall_price + 0.00001
-        amount = self.config.get("trade_amount", 100)
         
-        res = await self.engine.execute_trade(side, amount, entry_price)
+        # Calculate base asset amount from quote currency amount
+        quote_amount = self.config.get("amount_per_trade", 10.0)
+        base_amount = float(f"{quote_amount / entry_price:.6f}")
+        
+        res = await self.engine.execute_trade(side, base_amount, entry_price)
         if res:
             self.active_pos = {
                 "entry": entry_price,
+                "amount": base_amount,
                 "sl": entry_price * (1 - (self.initial_risk_pct / 100)),
                 "tp": entry_price + self.target_spread
             }
             self.highest_price = entry_price
             logger.info(f"Entered Trade at {entry_price}. SL: {self.active_pos['sl']}")
-            await self._send_telegram(f"⚡ WallHunter Bot {side.upper()} order filled on Volume Wall!\nPair: {self.symbol}\nEntry Price: {entry_price:.6f}\nTarget TP: {self.active_pos['tp']:.6f}\nTrailing SL: {self.active_pos['sl']:.6f}\nTrade Amount: ${amount}")
+            await self._send_telegram(f"⚡ WallHunter Bot {side.upper()} order filled on Volume Wall!\nPair: {self.symbol}\nEntry Price: {entry_price:.6f}\nTarget TP: {self.active_pos['tp']:.6f}\nTrailing SL: {self.active_pos['sl']:.6f}\nTrade Amount: ${quote_amount}")
 
     async def manage_risk(self, current_price: float):
         if not self.active_pos: return
@@ -163,19 +185,19 @@ class WallHunterBot:
             self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
 
         if current_price <= self.active_pos['sl']:
-            await self.engine.execute_trade("sell", self.config.get('trade_amount', 100), current_price)
+            sell_amount = self.active_pos.get('amount') or (self.config.get("amount_per_trade", 10.0) / self.active_pos['entry'])
+            await self.engine.execute_trade("sell", sell_amount, current_price)
             # Calculate PnL
-            amount = self.config.get("trade_amount", 100) / self.active_pos['entry'] if self.active_pos['entry'] > 0 else 0
-            pnl_val = (current_price - self.active_pos['entry']) * amount
+            pnl_val = (current_price - self.active_pos['entry']) * sell_amount
             await self._send_telegram(f"🛑 WallHunter EXIT - Stopped Out!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nPnL: ${pnl_val:.2f}")
             self.active_pos = None
             logger.info("Exit: Stop Loss / TSL Hit")
             
         elif current_price >= self.active_pos['tp']:
-            await self.engine.execute_trade("sell", self.config.get('trade_amount', 100), current_price)
+            sell_amount = self.active_pos.get('amount') or (self.config.get("amount_per_trade", 10.0) / self.active_pos['entry'])
+            await self.engine.execute_trade("sell", sell_amount, current_price)
             # Calculate PnL
-            amount = self.config.get("trade_amount", 100) / self.active_pos['entry'] if self.active_pos['entry'] > 0 else 0
-            pnl_val = (current_price - self.active_pos['entry']) * amount
+            pnl_val = (current_price - self.active_pos['entry']) * sell_amount
             await self._send_telegram(f"🎯 WallHunter EXIT - Take Profit Hit!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nPnL: ${pnl_val:.2f}")
             self.active_pos = None
             logger.info("Exit: Take Profit Hit")
