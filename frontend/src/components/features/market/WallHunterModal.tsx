@@ -16,7 +16,8 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
         risk: 0.5,
         tsl: 0.2,
         amount: 100,
-        sellOrderType: 'market'
+        sellOrderType: 'market',
+        spoofTime: 3.0 // NEW: Spoofing Detection Time Default 3 Seconds
     });
 
     useEffect(() => {
@@ -45,25 +46,32 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
             const bestBid = bids[0].price;
             const bestAsk = asks[0].price;
             const currentSpread = bestAsk - bestBid;
-            // Target slightly larger than current spread for profit (e.g., current spread + 0.1%)
             optimalSpread = currentSpread + (bestAsk * 0.001);
-            // Clamp spread to reasonable values based on input step
             optimalSpread = parseFloat(Math.max(0.0001, Math.min(0.0100, optimalSpread)).toFixed(4));
 
             // 2. Calculate Optimal Volume Threshold
-            // Look at top 10 levels on both sides to find average "normal" volume
-            const topBids = bids.slice(0, 10);
-            const topAsks = asks.slice(0, 10);
-            const allSizes = [...topBids.map(b => b.size), ...topAsks.map(a => a.size)];
+            const allSizes = [...bids.map(b => b.size), ...asks.map(a => a.size)];
 
             if (allSizes.length > 0) {
+                const maxSize = Math.max(...allSizes);
                 const avgSize = allSizes.reduce((sum, size) => sum + size, 0) / allSizes.length;
-                // A "Wall" is typically 5x to 10x the average size
-                optimalVol = Math.round((avgSize * 5) / 1000) * 1000; // Round to nearest 1000
-                // Clamp volume
-                optimalVol = Math.max(10, Math.min(1000000, optimalVol));
 
-                // 3. Calculate Optimal Trade Amount (10% of average order value in quote currency)
+                // We define a wall as 3x the average size of the orderbook
+                let calculatedVol = avgSize * 3;
+
+                // Ensure the threshold is achievable: it shouldn't be higher than 80% of the CURRENT max wall
+                if (calculatedVol > maxSize * 0.9) {
+                    calculatedVol = maxSize * 0.8;
+                }
+
+                if (calculatedVol > 10000) {
+                    optimalVol = Math.round(calculatedVol / 1000) * 1000;
+                } else {
+                    optimalVol = Math.round(calculatedVol / 100) * 100;
+                }
+                optimalVol = Math.max(10, optimalVol);
+
+                // 3. Calculate Optimal Trade Amount
                 const avgQuoteSize = avgSize * bestBid;
                 optimalAmount = parseFloat(Math.max(10, avgQuoteSize * 0.1).toFixed(2));
             }
@@ -104,14 +112,14 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                     trailing_stop: form.tsl,
                     vol_threshold: form.vol,
                     risk_pct: form.risk,
-                    sell_order_type: form.sellOrderType, // explicitly pass the new type
+                    sell_order_type: form.sellOrderType,
+                    min_wall_lifetime: form.spoofTime // NEW: Sending value to backend
                 }
             };
 
             const createdBot = await botService.createBot(payload);
             await botService.controlBot(createdBot.id, 'start');
 
-            // Wait a moment for success feel, then close
             setTimeout(() => {
                 setIsLoading(false);
                 if (onDeploySuccess) onDeploySuccess(Number(createdBot.id));
@@ -197,7 +205,7 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                             <input
                                 type="range"
                                 min="0"
-                                max="1000000"
+                                max="10000000"
                                 step="1000"
                                 className="flex-1 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-brand-primary"
                                 value={form.vol}
@@ -237,6 +245,7 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                             />
                         </div>
                     </div>
+
                     <div className="grid grid-cols-2 gap-4 mb-4">
                         <InputField label={`Trading Amount (${form.symbol ? form.symbol.split('/')[1] || 'Quote Asset' : 'Quote Asset'})`} value={form.amount} onChange={(v: number) => setForm({ ...form, amount: v })} step={10} />
                         <div>
@@ -251,9 +260,12 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                             </select>
                         </div>
                     </div>
-                    <div className="grid grid-cols-2 gap-4">
-                        <InputField label="Initial Risk %" value={form.risk} onChange={(v: number) => setForm({ ...form, risk: v })} />
-                        <InputField label="Trailing SL %" value={form.tsl} onChange={(v: number) => setForm({ ...form, tsl: v })} />
+
+                    {/* NEW: Updated grid to include Spoof Detection Time */}
+                    <div className="grid grid-cols-3 gap-3">
+                        <InputField label="Initial Risk %" value={form.risk} onChange={(v: number) => setForm({ ...form, risk: v })} step={0.1} />
+                        <InputField label="Trailing SL %" value={form.tsl} onChange={(v: number) => setForm({ ...form, tsl: v })} step={0.1} />
+                        <InputField label="Spoof Detect (s)" value={form.spoofTime} onChange={(v: number) => setForm({ ...form, spoofTime: v })} step={0.5} />
                     </div>
                 </div>
 

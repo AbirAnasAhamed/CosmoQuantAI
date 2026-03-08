@@ -28,11 +28,16 @@ class WallHunterBot:
         self.is_paper_trading = config.get("is_paper_trading", True)
         
         # Strategy Params
-        self.vol_threshold = config.get("volume_threshold", 500000)
-        self.target_spread = config.get("spread", 0.0002)
+        self.vol_threshold = config.get("vol_threshold", 500000)
+        self.target_spread = config.get("target_spread", 0.0002)
         self.initial_risk_pct = config.get("risk_pct", 0.5)
-        self.tsl_pct = config.get("trailing_sl_pct", 0.2)
+        self.tsl_pct = config.get("trailing_stop", 0.2)
         self.sell_order_type = config.get("sell_order_type", "market")
+        
+        # --- NEW FEATURES: Spoofing Detection ---
+        self.min_wall_lifetime = config.get("min_wall_lifetime", 3.0) # ওয়ালকে অন্তত কত সেকেন্ড টিকে থাকতে হবে
+        self.tracked_walls = {} # ওয়ালগুলোকে ট্র্যাক করার জন্য ডিকশনারি
+        # ----------------------------------------
         
         self.engine = OrderBlockExecutionEngine(config)
         self.active_pos = None
@@ -137,22 +142,76 @@ class WallHunterBot:
             try:
                 # Real-time L2 Data Fetching
                 orderbook = await self.exchange.fetch_order_book(self.symbol, limit=20)
+                if not orderbook['bids'] or not orderbook['asks']:
+                    await asyncio.sleep(1)
+                    continue
+
                 best_bid = orderbook['bids'][0][0]
                 best_ask = orderbook['asks'][0][0]
                 mid_price = (best_bid + best_ask) / 2
+                current_time = time.time()
 
                 if not self.active_pos:
-                    # Scan for Walls in Bids
+                    # 1. বর্তমান অর্ডার বুকের ওয়ালগুলো ফিল্টার করা
+                    current_walls = {}
+                    max_vol = 0
                     for price, vol in orderbook['bids']:
+                        if vol > max_vol:
+                            max_vol = vol
                         if vol >= self.vol_threshold:
+                            current_walls[price] = vol
+                    
+                    if current_time % 5 < 0.05: # Print approx every 5 seconds
+                        logger.info(f"🔍 [Debug] Max Bid Vol: {max_vol}, Threshold: {self.vol_threshold}, Walls Configured: {len(current_walls)}, Tracked: {len(self.tracked_walls)}")
+                    
+                    # 2. ওয়াল অ্যানালাইসিস এবং স্পুফিং ডিটেকশন
+                    for price, vol in current_walls.items():
+                        if self.min_wall_lifetime <= 0:
+                            # 0-সেকেন্ড হলে সাথে সাথেই কিনে ফেলবে (পুরোনো লজিকের মতো)
+                            logger.info(f"🟢 Instant Snipe at {price} (Spoof Detect is 0s). Executing!")
                             await self.execute_snipe(price, "buy", mid_price)
+                            self.tracked_walls.clear()
+                            current_walls.clear() # Prevent further processing
                             break
+
+                        if price in self.tracked_walls:
+                            # ওয়ালটি এখনও আছে, তাই লাস্ট আপডেট টাইম চেঞ্জ করছি
+                            self.tracked_walls[price]['last_seen'] = current_time
+                            self.tracked_walls[price]['vol'] = vol
+                            
+                            # চেক করছি ওয়ালটি পর্যাপ্ত সময় ধরে টিকে আছে কিনা
+                            time_alive = current_time - self.tracked_walls[price]['first_seen']
+                            if time_alive >= self.min_wall_lifetime:
+                                logger.info(f"🟢 Genuine Wall detected at {price} (Alive for {time_alive:.1f}s). Executing Snipe!")
+                                await self.execute_snipe(price, "buy", mid_price)
+                                self.tracked_walls.clear() # এন্ট্রি নেওয়ার পর ট্র্যাকিং ক্লিয়ার
+                                break
+                        else:
+                            # নতুন একটি বড় ওয়াল পাওয়া গেছে, ট্র্যাকিং শুরু
+                            self.tracked_walls[price] = {
+                                "vol": vol,
+                                "first_seen": current_time,
+                                "last_seen": current_time
+                            }
+                    
+                    # 3. ফেইক বা স্পুফ করা ওয়ালগুলো রিমুভ করা
+                    spoofed_prices = []
+                    for price, data in self.tracked_walls.items():
+                        if price not in current_walls:
+                            spoofed_prices.append(price)
+                    
+                    for p in spoofed_prices:
+                        time_alive = current_time - self.tracked_walls[p]['first_seen']
+                        logger.info(f"⚠️ Spoofing Detected: Wall at {p} disappeared after {time_alive:.1f}s. Ignoring.")
+                        del self.tracked_walls[p]
+
                 else:
                     # Trailing Stop-Loss Engine
                     await self.manage_risk(mid_price)
 
                 self._publish_status(mid_price)
                 await asyncio.sleep(0.05) # 50ms latency for L2 scan
+            
             except Exception as e:
                 logger.error(f"Hunter Loop Error: {e}")
                 await asyncio.sleep(1)
