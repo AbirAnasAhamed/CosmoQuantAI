@@ -76,6 +76,17 @@ class OrderBlockExecutionEngine:
         
         cost = amount * price
         
+        if order_type.lower() == "limit":
+            logger.debug(f"[PAPER] Placed LIMIT {side.upper()} order for {amount} {self.pair} at {price}.")
+            return {
+                "id": trade_id,
+                "side": side,
+                "amount": amount,
+                "price": price,
+                "timestamp": timestamp,
+                "status": "open"
+            }
+        
         if side == "buy":
             if self.paper_balance_quote >= cost:
                 self.paper_balance_quote -= cost

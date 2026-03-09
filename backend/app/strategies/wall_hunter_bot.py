@@ -307,7 +307,11 @@ class WallHunterBot:
         quote_amount = self.config.get("amount_per_trade", 10.0)
         base_amount = float(f"{quote_amount / entry_price:.6f}")
         
-        res = await self.engine.execute_trade(side, base_amount, entry_price)
+        # In Paper Trading, simulating a market buy exactly at the bid wall gives an artificial instant PnL advantage (Bid-Ask spread). 
+        # Using mid_price prevents instant fake TP triggers.
+        execution_price = current_mid_price if self.is_paper_trading else entry_price
+        
+        res = await self.engine.execute_trade(side, base_amount, execution_price)
         if res:
             # Safely extract average fill price. Fallback to requested entry_price if not provided or 0
             avg_price = res.get('average')
@@ -326,7 +330,7 @@ class WallHunterBot:
                 except Exception as e:
                     logger.warning(f"Failed to fetch updated order info for {res.get('id')}: {e}")
 
-            actual_entry = avg_price if avg_price and avg_price > 0 else (fill_price if fill_price and fill_price > 0 else entry_price)
+            actual_entry = avg_price if avg_price and avg_price > 0 else (fill_price if fill_price and fill_price > 0 else execution_price)
             actual_entry = float(actual_entry)
             
             # Sanity Check to prevent instant SL logic if CCXT returns an outdated or widely inaccurate fill price
@@ -393,6 +397,9 @@ class WallHunterBot:
             if self.sell_order_type == 'limit':
                 await self.engine.execute_trade("sell", sell_amount, self.active_pos['tp1'], order_type="limit")
                 logger.info(f"Placed Limit Order for Partial TP at {self.active_pos['tp1']}")
+                if self.is_paper_trading:
+                    # Instantly filled in simulation: Finalize paper balance
+                    await self.engine.execute_trade("sell", sell_amount, self.active_pos['tp1'])
             else:
                 await self.engine.execute_trade("sell", sell_amount, current_price)
                 logger.info(f"Executed Market Order for Partial TP at {current_price}")
@@ -447,6 +454,9 @@ class WallHunterBot:
                 await self.engine.execute_trade("sell", sell_amount, current_price)
             else:
                 logger.info(f"Target Profit {self.active_pos['tp']} reached. Assuming Limit Order {self.active_pos.get('limit_order_id', 'Unknown')} is filled.")
+                if self.is_paper_trading:
+                    # Finalize the initial limit order mock by executing a market sell at the TP price
+                    await self.engine.execute_trade("sell", sell_amount, self.active_pos['tp'])
             
             # Calculate PnL
             pnl_val = (current_price - self.active_pos['entry']) * sell_amount
