@@ -37,6 +37,11 @@ class WallHunterBot:
         # --- NEW FEATURES: Partial TP & Break-Even SL ---
         self.partial_tp_pct = config.get("partial_tp_pct", 50.0) # TP1 এ কত পার্সেন্ট সেল করবে
         
+        # --- NEW FEATURES: VPVR Confirmation ---
+        self.vpvr_enabled = config.get("vpvr_enabled", False)
+        self.vpvr_tolerance = config.get("vpvr_tolerance", 0.2)
+        self.top_hvns = []
+        
         # --- NEW FEATURES: Spoofing Detection ---
         self.min_wall_lifetime = config.get("min_wall_lifetime", 3.0) # ওয়ালকে অন্তত কত সেকেন্ড টিকে থাকতে হবে
         self.tracked_walls = {} # ওয়ালগুলোকে ট্র্যাক করার জন্য ডিকশনারি
@@ -85,6 +90,15 @@ class WallHunterBot:
         if "partial_tp_pct" in new_config and new_config["partial_tp_pct"] != self.partial_tp_pct:
             updates.append(f"Partial TP: {self.partial_tp_pct}% -> {new_config['partial_tp_pct']}%")
             self.partial_tp_pct = new_config.get("partial_tp_pct")
+            
+        if "vpvr_enabled" in new_config and new_config["vpvr_enabled"] != self.vpvr_enabled:
+            status = "Enabled" if new_config["vpvr_enabled"] else "Disabled"
+            updates.append(f"VPVR Confirmation: {status}")
+            self.vpvr_enabled = new_config.get("vpvr_enabled")
+            
+        if "vpvr_tolerance" in new_config and new_config["vpvr_tolerance"] != self.vpvr_tolerance:
+            updates.append(f"VPVR Tolerance: {self.vpvr_tolerance}% -> {new_config['vpvr_tolerance']}%")
+            self.vpvr_tolerance = new_config.get("vpvr_tolerance")
             
         # Update internal config dictionary
         self.config.update(new_config)
@@ -178,6 +192,7 @@ class WallHunterBot:
         
         asyncio.create_task(self._run_loop())
         self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
+        self._vpvr_task = asyncio.create_task(self._vpvr_updater_loop())
         
         mode = "Live Trading" if not self.is_paper_trading else "Paper Trading"
         await self._send_telegram(f"🟢 WallHunter Bot [ID: {self.bot_id}] Started!\nPair: {self.symbol}\nMode: {mode}\nVolume Threshold: {self.vol_threshold}")
@@ -219,7 +234,15 @@ class WallHunterBot:
                     for price, vol in current_walls.items():
                         if self.min_wall_lifetime <= 0:
                             # 0-সেকেন্ড হলে সাথে সাথেই কিনে ফেলবে (পুরোনো লজিকের মতো)
-                            logger.info(f"🟢 Instant Snipe at {price} (Spoof Detect is 0s). Executing!")
+                            if self.vpvr_enabled and self.top_hvns:
+                                is_hvn_aligned = any(abs(price - hvn) / hvn <= (self.vpvr_tolerance / 100.0) for hvn in self.top_hvns)
+                                if not is_hvn_aligned:
+                                    if price not in self.tracked_walls or not self.tracked_walls[price].get('hvn_rejected'):
+                                        logger.info(f"🚫 Instant Snipe at {price} rejected: Not near any HVN.")
+                                        self.tracked_walls[price] = {"hvn_rejected": True, "first_seen": current_time, "last_seen": current_time}
+                                    continue
+
+                            logger.info(f"🟢 Instant Snipe at {price} (Spoof Detect is 0s) {'[HVN Confirmed]' if self.vpvr_enabled else ''}. Executing!")
                             await self.execute_snipe(price, "buy", mid_price)
                             self.tracked_walls.clear()
                             current_walls.clear() # Prevent further processing
@@ -233,7 +256,17 @@ class WallHunterBot:
                             # চেক করছি ওয়ালটি পর্যাপ্ত সময় ধরে টিকে আছে কিনা
                             time_alive = current_time - self.tracked_walls[price]['first_seen']
                             if time_alive >= self.min_wall_lifetime:
-                                logger.info(f"🟢 Genuine Wall detected at {price} (Alive for {time_alive:.1f}s). Executing Snipe!")
+                                if self.tracked_walls[price].get('hvn_rejected'):
+                                    continue
+
+                                if self.vpvr_enabled and self.top_hvns:
+                                    is_hvn_aligned = any(abs(price - hvn) / hvn <= (self.vpvr_tolerance / 100.0) for hvn in self.top_hvns)
+                                    if not is_hvn_aligned:
+                                        logger.info(f"🚫 Wall at {price} rejected: Not near any HVN (Tolerance: {self.vpvr_tolerance}%).")
+                                        self.tracked_walls[price]['hvn_rejected'] = True
+                                        continue
+
+                                logger.info(f"🟢 Genuine Wall detected at {price} (Alive for {time_alive:.1f}s) {'[HVN Confirmed]' if self.vpvr_enabled else ''}. Executing Snipe!")
                                 await self.execute_snipe(price, "buy", mid_price)
                                 self.tracked_walls.clear() # এন্ট্রি নেওয়ার পর ট্র্যাকিং ক্লিয়ার
                                 break
@@ -425,5 +458,57 @@ class WallHunterBot:
         self.running = False
         if self._heartbeat_task:
             self._heartbeat_task.cancel()
+        if hasattr(self, '_vpvr_task') and self._vpvr_task:
+            self._vpvr_task.cancel()
         logger.info(f"Bot {self.bot_id} (WallHunter) stopped.")
         await self._send_telegram(f"🔴 WallHunter Bot [ID: {self.bot_id}] Stopped.")
+
+    async def _vpvr_updater_loop(self):
+        """Background task to update High Volume Nodes every 5 minutes."""
+        while self.running:
+            if not self.vpvr_enabled:
+                await asyncio.sleep(60) # Check again in 1 min if disabled
+                continue
+                
+            try:
+                # Fetch last 100 5m candles
+                ohlcv = await self.exchange.fetch_ohlcv(self.symbol, timeframe='5m', limit=100)
+                if not ohlcv:
+                    await asyncio.sleep(60)
+                    continue
+                    
+                # Simple Volume Profile calculation (50 bins)
+                low_prices = [candle[3] for candle in ohlcv]
+                high_prices = [candle[2] for candle in ohlcv]
+                volumes = [candle[5] for candle in ohlcv]
+                
+                min_price = min(low_prices)
+                max_price = max(high_prices)
+                
+                if max_price == min_price:
+                    await asyncio.sleep(300)
+                    continue
+                    
+                bin_count = 50
+                bin_size = (max_price - min_price) / bin_count
+                bins = [0.0] * bin_count
+                
+                for candle in ohlcv:
+                    c_low, c_high, c_vol = candle[3], candle[2], candle[5]
+                    # Distribute volume mostly evenly or to the center for simplicity
+                    c_mid = (c_low + c_high) / 2
+                    bin_idx = int((c_mid - min_price) / bin_size)
+                    if bin_idx >= bin_count: bin_idx = bin_count - 1
+                    bins[bin_idx] += c_vol
+                    
+                # Find top 3 bins
+                sorted_bins = sorted([(vol, idx) for idx, vol in enumerate(bins)], reverse=True)
+                top_3 = sorted_bins[:3]
+                
+                self.top_hvns = [min_price + (idx * bin_size) + (bin_size / 2) for vol, idx in top_3]
+                logger.info(f"📊 [WallHunter {self.bot_id}] VPVR Updated. Top 3 HVNs: {[f'{h:.6f}' for h in self.top_hvns]}")
+                
+            except Exception as e:
+                logger.error(f"VPVR Update Error: {e}")
+                
+            await asyncio.sleep(300) # Every 5 minutes
