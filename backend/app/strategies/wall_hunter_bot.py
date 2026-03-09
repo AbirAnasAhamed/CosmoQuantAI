@@ -42,6 +42,12 @@ class WallHunterBot:
         self.vpvr_tolerance = config.get("vpvr_tolerance", 0.2)
         self.top_hvns = []
         
+        # --- NEW FEATURES: Dynamic ATR Stop-Loss ---
+        self.atr_sl_enabled = config.get("atr_sl_enabled", False)
+        self.atr_period = config.get("atr_period", 14)
+        self.atr_multiplier = config.get("atr_multiplier", 2.0)
+        self.current_atr = 0.0
+
         # --- NEW FEATURES: Spoofing Detection ---
         self.min_wall_lifetime = config.get("min_wall_lifetime", 3.0) # ওয়ালকে অন্তত কত সেকেন্ড টিকে থাকতে হবে
         self.tracked_walls = {} # ওয়ালগুলোকে ট্র্যাক করার জন্য ডিকশনারি
@@ -99,6 +105,19 @@ class WallHunterBot:
         if "vpvr_tolerance" in new_config and new_config["vpvr_tolerance"] != self.vpvr_tolerance:
             updates.append(f"VPVR Tolerance: {self.vpvr_tolerance}% -> {new_config['vpvr_tolerance']}%")
             self.vpvr_tolerance = new_config.get("vpvr_tolerance")
+
+        if "atr_sl_enabled" in new_config and new_config["atr_sl_enabled"] != self.atr_sl_enabled:
+            status = "Enabled" if new_config["atr_sl_enabled"] else "Disabled"
+            updates.append(f"ATR Dynamic SL: {status}")
+            self.atr_sl_enabled = new_config.get("atr_sl_enabled")
+            
+        if "atr_period" in new_config and new_config["atr_period"] != self.atr_period:
+            updates.append(f"ATR Period: {self.atr_period} -> {new_config['atr_period']}")
+            self.atr_period = new_config.get("atr_period")
+            
+        if "atr_multiplier" in new_config and new_config["atr_multiplier"] != self.atr_multiplier:
+            updates.append(f"ATR Multiplier: {self.atr_multiplier} -> {new_config['atr_multiplier']}")
+            self.atr_multiplier = new_config.get("atr_multiplier")
             
         # Update internal config dictionary
         self.config.update(new_config)
@@ -193,6 +212,7 @@ class WallHunterBot:
         asyncio.create_task(self._run_loop())
         self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
         self._vpvr_task = asyncio.create_task(self._vpvr_updater_loop())
+        self._atr_task = asyncio.create_task(self._atr_updater_loop())
         
         mode = "Live Trading" if not self.is_paper_trading else "Paper Trading"
         await self._send_telegram(f"🟢 WallHunter Bot [ID: {self.bot_id}] Started!\nPair: {self.symbol}\nMode: {mode}\nVolume Threshold: {self.vol_threshold}")
@@ -384,7 +404,10 @@ class WallHunterBot:
         if current_price > self.highest_price:
             self.highest_price = current_price
             # Update Trailing SL
-            new_sl = self.highest_price * (1 - (self.tsl_pct / 100))
+            if self.atr_sl_enabled and self.current_atr > 0:
+                new_sl = self.highest_price - (self.current_atr * self.atr_multiplier)
+            else:
+                new_sl = self.highest_price * (1 - (self.tsl_pct / 100))
             self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
 
         # --- NEW: Partial TP & Break-Even SL Logic ---
@@ -466,10 +489,12 @@ class WallHunterBot:
 
     async def stop(self):
         self.running = False
-        if self._heartbeat_task:
+        if getattr(self, '_heartbeat_task', None):
             self._heartbeat_task.cancel()
-        if hasattr(self, '_vpvr_task') and self._vpvr_task:
+        if getattr(self, '_vpvr_task', None):
             self._vpvr_task.cancel()
+        if getattr(self, '_atr_task', None):
+            self._atr_task.cancel()
         logger.info(f"Bot {self.bot_id} (WallHunter) stopped.")
         await self._send_telegram(f"🔴 WallHunter Bot [ID: {self.bot_id}] Stopped.")
 
@@ -522,3 +547,38 @@ class WallHunterBot:
                 logger.error(f"VPVR Update Error: {e}")
                 
             await asyncio.sleep(300) # Every 5 minutes
+
+    async def _atr_updater_loop(self):
+        """Background task to calculate ATR every 1 minute."""
+        while self.running:
+            if not self.atr_sl_enabled:
+                await asyncio.sleep(60)
+                continue
+                
+            try:
+                # Fetch last N candles
+                limit = self.atr_period + 1
+                ohlcv = await self.exchange.fetch_ohlcv(self.symbol, timeframe='1m', limit=limit)
+                
+                if ohlcv and len(ohlcv) >= 2:
+                    tr_list = []
+                    for i in range(1, len(ohlcv)):
+                        high = ohlcv[i][2]
+                        low = ohlcv[i][3]
+                        prev_close = ohlcv[i-1][4]
+                        
+                        tr1 = high - low
+                        tr2 = abs(high - prev_close)
+                        tr3 = abs(low - prev_close)
+                        tr = max(tr1, tr2, tr3)
+                        tr_list.append(tr)
+                        
+                    # Calculate simple moving average of True Range
+                    if len(tr_list) >= self.atr_period:
+                        recent_trs = tr_list[-self.atr_period:]
+                        self.current_atr = sum(recent_trs) / self.atr_period
+                        logger.info(f"📈 [WallHunter {self.bot_id}] ATR Updated: {self.current_atr:.6f} (Period: {self.atr_period})")
+            except Exception as e:
+                logger.error(f"ATR Update Error: {e}")
+                
+            await asyncio.sleep(60) # Update every minute

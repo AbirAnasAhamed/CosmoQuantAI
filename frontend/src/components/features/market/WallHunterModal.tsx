@@ -22,7 +22,10 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
         enablePartialTp: true, // NEW: Toggle state
         partialTp: 50.0, // NEW: Default sell 50% at TP1
         vpvrEnabled: false,
-        vpvrTolerance: 0.2
+        vpvrTolerance: 0.2,
+        atrEnabled: false,
+        atrPeriod: 14,
+        atrMultiplier: 2.0
     });
 
     const [existingBot, setExistingBot] = useState<any>(null);
@@ -61,7 +64,10 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                             enablePartialTp: c.partial_tp_pct !== undefined ? c.partial_tp_pct > 0 : true,
                             partialTp: c.partial_tp_pct !== undefined && c.partial_tp_pct > 0 ? c.partial_tp_pct : 50.0,
                             vpvrEnabled: c.vpvr_enabled !== undefined ? c.vpvr_enabled : false,
-                            vpvrTolerance: c.vpvr_tolerance !== undefined ? c.vpvr_tolerance : 0.2
+                            vpvrTolerance: c.vpvr_tolerance !== undefined ? c.vpvr_tolerance : 0.2,
+                            atrEnabled: c.atr_sl_enabled !== undefined ? c.atr_sl_enabled : false,
+                            atrPeriod: c.atr_period !== undefined ? c.atr_period : 14,
+                            atrMultiplier: c.atr_multiplier !== undefined ? c.atr_multiplier : 2.0
                         }));
                     } else {
                         setExistingBot(null);
@@ -153,7 +159,10 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                     min_wall_lifetime: form.spoofTime, // NEW: Sending value to backend
                     partial_tp_pct: form.enablePartialTp ? form.partialTp : 0.0, // NEW: Sending Scale-Out ratio to backend. Send 0.0 to disable.
                     vpvr_enabled: form.vpvrEnabled,
-                    vpvr_tolerance: form.vpvrTolerance
+                    vpvr_tolerance: form.vpvrTolerance,
+                    atr_sl_enabled: form.atrEnabled,
+                    atr_period: form.atrPeriod,
+                    atr_multiplier: form.atrMultiplier
                 }
             };
 
@@ -367,6 +376,38 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                                         <div className="flex-1 text-center bg-blue-500/10 border border-blue-500/30 rounded-xl p-3 flex flex-col justify-center h-[72px]">
                                             <span className="text-[10px] text-blue-400 font-bold uppercase tracking-wider mb-1">Background Worker</span>
                                             <span className="text-xs text-white font-black">TOP 3 NODES / 5M</span>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* --- NEW: Dynamic ATR Stop-Loss --- */}
+                            <div className="bg-white/5 border border-white/10 rounded-xl p-4 mt-2 hover:border-green-500/30 transition-colors">
+                                <div className="flex items-center justify-between mb-4 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleFormChange('atrEnabled', !form.atrEnabled); }}>
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-12 h-6 rounded-full p-1 transition-colors duration-200 ease-in-out flex items-center ${form.atrEnabled ? 'bg-green-500' : 'bg-gray-700'}`}>
+                                            <div className={`w-4 h-4 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${form.atrEnabled ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                                        </div>
+                                        <div>
+                                            <span className="text-xs font-black text-white uppercase tracking-wider flex items-center gap-1.5">
+                                                Dynamic ATR Stop-Loss
+                                                <span className="text-[8px] bg-green-500 text-black px-1.5 py-0.5 rounded-sm font-black animate-pulse">PRO</span>
+                                            </span>
+                                            <span className="text-[10px] text-gray-400">Adaptive SL based on market volatility</span>
+                                        </div>
+                                    </div>
+                                    <span className={`text-[10px] font-black px-2 py-1 rounded-md ${form.atrEnabled ? 'bg-green-500/20 text-green-400 border border-green-500/30' : 'bg-white/5 text-gray-500'}`}>{form.atrEnabled ? 'ACTIVE' : 'INACTIVE'}</span>
+                                </div>
+
+                                {form.atrEnabled && (
+                                    <div className="flex gap-4 items-center animate-fadeIn p-3 bg-black/20 rounded-xl border border-white/5">
+                                        <div className="flex-1">
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">ATR Period (1m)</label>
+                                            <input type="number" step="1" className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white outline-none focus:border-green-500/50 transition-colors text-center font-mono text-lg" value={form.atrPeriod} onChange={(e) => handleFormChange('atrPeriod', parseInt(e.target.value))} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">ATR Multiplier</label>
+                                            <input type="number" step="0.1" className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white outline-none focus:border-green-500/50 transition-colors text-center font-mono text-lg" value={form.atrMultiplier} onChange={(e) => handleFormChange('atrMultiplier', parseFloat(e.target.value))} />
                                         </div>
                                     </div>
                                 )}
