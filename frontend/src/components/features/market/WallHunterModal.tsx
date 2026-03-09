@@ -17,7 +17,9 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
         tsl: 0.2,
         amount: 100,
         sellOrderType: 'market',
-        spoofTime: 3.0 // NEW: Spoofing Detection Time Default 3 Seconds
+        spoofTime: 3.0, // NEW: Spoofing Detection Time Default 3 Seconds
+        enablePartialTp: true, // NEW: Toggle state
+        partialTp: 50.0 // NEW: Default sell 50% at TP1
     });
 
     const [existingBot, setExistingBot] = useState<any>(null);
@@ -52,7 +54,9 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                             tsl: c.trailing_stop || 0.2,
                             amount: c.amount_per_trade || 100,
                             sellOrderType: c.sell_order_type || 'market',
-                            spoofTime: c.min_wall_lifetime !== undefined ? c.min_wall_lifetime : 3.0
+                            spoofTime: c.min_wall_lifetime !== undefined ? c.min_wall_lifetime : 3.0,
+                            enablePartialTp: c.partial_tp_pct !== undefined ? c.partial_tp_pct > 0 : true,
+                            partialTp: c.partial_tp_pct !== undefined && c.partial_tp_pct > 0 ? c.partial_tp_pct : 50.0
                         }));
                     } else {
                         setExistingBot(null);
@@ -141,7 +145,8 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                     vol_threshold: form.vol,
                     risk_pct: form.risk,
                     sell_order_type: form.sellOrderType,
-                    min_wall_lifetime: form.spoofTime // NEW: Sending value to backend
+                    min_wall_lifetime: form.spoofTime, // NEW: Sending value to backend
+                    partial_tp_pct: form.enablePartialTp ? form.partialTp : 0.0 // NEW: Sending Scale-Out ratio to backend. Send 0.0 to disable.
                 }
             };
 
@@ -305,6 +310,32 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                         <InputField label="Initial Risk %" value={form.risk} onChange={(v: number) => setForm({ ...form, risk: v })} step={0.1} />
                         <InputField label="Trailing SL %" value={form.tsl} onChange={(v: number) => setForm({ ...form, tsl: v })} step={0.1} />
                         <InputField label="Spoof Detect (s)" value={form.spoofTime} onChange={(v: number) => setForm({ ...form, spoofTime: v })} step={0.5} />
+                    </div>
+
+                    {/* --- NEW: Scale Out & Risk Free Section --- */}
+                    <div className="bg-white/5 border border-white/10 rounded-xl p-3 mt-2">
+                        <div className="flex items-center justify-between mb-3 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleFormChange('enablePartialTp', !form.enablePartialTp); }}>
+                            <div className="flex items-center gap-2">
+                                <div className={`w-10 h-5 rounded-full p-1 transition-colors duration-200 ease-in-out flex items-center ${form.enablePartialTp ? 'bg-brand-primary' : 'bg-gray-700'}`}>
+                                    <div className={`w-3.5 h-3.5 bg-white rounded-full shadow-md transform transition-transform duration-200 ease-in-out ${form.enablePartialTp ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                                </div>
+                                <span className="text-[10px] font-bold text-white uppercase tracking-wider">Enable Scale-Out & Auto Break-Even</span>
+                            </div>
+                            <span className={`text-[10px] font-bold ${form.enablePartialTp ? 'text-green-400' : 'text-gray-500'}`}>{form.enablePartialTp ? 'ON' : 'OFF'}</span>
+                        </div>
+
+                        {form.enablePartialTp && (
+                            <div className="flex gap-3 items-center animate-fadeIn">
+                                <div className="flex-1">
+                                    <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Sell at TP1 (%)</label>
+                                    <input type="number" step="10" className="w-full bg-black/30 border border-white/10 rounded-lg p-2 text-white outline-none focus:border-brand-primary transition-colors text-center font-mono" value={form.partialTp} onChange={(e) => handleFormChange('partialTp', parseFloat(e.target.value))} />
+                                </div>
+                                <div className="flex-1 text-center bg-green-500/10 border border-green-500/30 rounded-lg p-2 flex flex-col justify-center h-[54px]">
+                                    <span className="text-[10px] text-green-500 font-bold uppercase tracking-wider">Auto SL Check</span>
+                                    <span className="text-xs text-white font-black">BREAK-EVEN</span>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 

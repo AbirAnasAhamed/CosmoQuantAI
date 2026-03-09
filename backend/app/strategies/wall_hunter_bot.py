@@ -34,6 +34,9 @@ class WallHunterBot:
         self.tsl_pct = config.get("trailing_stop", 0.2)
         self.sell_order_type = config.get("sell_order_type", "market")
         
+        # --- NEW FEATURES: Partial TP & Break-Even SL ---
+        self.partial_tp_pct = config.get("partial_tp_pct", 50.0) # TP1 এ কত পার্সেন্ট সেল করবে
+        
         # --- NEW FEATURES: Spoofing Detection ---
         self.min_wall_lifetime = config.get("min_wall_lifetime", 3.0) # ওয়ালকে অন্তত কত সেকেন্ড টিকে থাকতে হবে
         self.tracked_walls = {} # ওয়ালগুলোকে ট্র্যাক করার জন্য ডিকশনারি
@@ -79,6 +82,10 @@ class WallHunterBot:
             updates.append(f"Spoof Detect (s): {self.min_wall_lifetime} -> {new_config['min_wall_lifetime']}")
             self.min_wall_lifetime = new_config.get("min_wall_lifetime")
             
+        if "partial_tp_pct" in new_config and new_config["partial_tp_pct"] != self.partial_tp_pct:
+            updates.append(f"Partial TP: {self.partial_tp_pct}% -> {new_config['partial_tp_pct']}%")
+            self.partial_tp_pct = new_config.get("partial_tp_pct")
+            
         # Update internal config dictionary
         self.config.update(new_config)
         
@@ -115,7 +122,7 @@ class WallHunterBot:
                 sl_price = self.active_pos.get('sl', 0)
                 tp_price = self.active_pos.get('tp', 0)
                 
-                amount = self.config.get("amount_per_trade", 10.0) / entry_price if entry_price > 0 else 0
+                amount = self.active_pos.get('amount', 0)
                 pnl_val = (current_price - entry_price) * amount
                 if entry_price > 0:
                     pnl_pct = ((current_price - entry_price) / entry_price) * 100
@@ -295,11 +302,14 @@ class WallHunterBot:
                 logger.warning(f"Suspicious fill price from CCXT: {actual_entry}. Overriding with mid_price: {current_mid_price}")
                 actual_entry = current_mid_price
             
+            # --- UPDATED: Position tracking for TP1 and TP2 ---
             self.active_pos = {
                 "entry": actual_entry,
                 "amount": base_amount,
                 "sl": actual_entry * (1 - (self.initial_risk_pct / 100)),
-                "tp": actual_entry + self.target_spread,
+                "tp1": actual_entry + (self.target_spread * 0.5), # TP1 at 50% target
+                "tp": actual_entry + self.target_spread,          # Final TP
+                "tp1_hit": False,
                 "limit_order_id": None
             }
             self.highest_price = actual_entry
@@ -312,10 +322,27 @@ class WallHunterBot:
                     logger.info(f"Placed Limit TP Order {limit_res['id']} at {self.active_pos['tp']}")
             
             logger.info(f"Entered Trade at {actual_entry}. SL: {self.active_pos['sl']}")
-            await self._send_telegram(f"⚡ WallHunter Bot {side.upper()} order filled!\nPair: {self.symbol}\nExpected Entry: {entry_price:.6f}\nActual Fill: {actual_entry:.6f}\nTarget TP: {self.active_pos['tp']:.6f}\nTrailing SL: {self.active_pos['sl']:.6f}\nTrade Amount: ${quote_amount}")
+            await self._send_telegram(f"⚡ WallHunter Entered!\nPair: {self.symbol}\nEntry: {actual_entry:.6f}\nTP1 (Scale Out): {self.active_pos['tp1']:.6f}\nFinal TP: {self.active_pos['tp']:.6f}\nSL: {self.active_pos['sl']:.6f}")
 
     async def manage_risk(self, current_price: float):
         if not self.active_pos: return
+
+        # 1. Check if the limit TP order has already been filled by the exchange
+        if self.sell_order_type == 'limit' and self.active_pos.get('limit_order_id') and not self.is_paper_trading:
+            try:
+                order_status = await self.engine.exchange.fetch_order(self.active_pos['limit_order_id'], self.symbol)
+                if order_status and order_status.get('status') == 'closed':
+                    # The limit order was filled!
+                    filled_price = order_status.get('average') or order_status.get('price') or self.active_pos['tp']
+                    sell_amount = order_status.get('filled') or self.active_pos.get('amount')
+                    
+                    pnl_val = (filled_price - self.active_pos['entry']) * sell_amount
+                    await self._send_telegram(f"🎯 WallHunter EXIT - Limit TP Filled!\nPair: {self.symbol}\nExit Price: {filled_price:.6f}\nPnL: ${pnl_val:.2f}")
+                    logger.info(f"✅ Limit TP Order {self.active_pos['limit_order_id']} was filled by exchange at {filled_price}")
+                    self.active_pos = None
+                    return
+            except Exception as e:
+                logger.warning(f"Error checking limit order status: {e}")
 
         if current_price > self.highest_price:
             self.highest_price = current_price
@@ -323,9 +350,43 @@ class WallHunterBot:
             new_sl = self.highest_price * (1 - (self.tsl_pct / 100))
             self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
 
-        if current_price <= self.active_pos['sl']:
+        # --- NEW: Partial TP & Break-Even SL Logic ---
+        # Only execute TP1 logic if partial_tp_pct > 0
+        if self.partial_tp_pct > 0 and not self.active_pos.get('tp1_hit') and current_price >= self.active_pos['tp1']:
+            logger.info("🟢 TP1 Hit! Executing Partial Close & Moving SL to Break-Even.")
+            sell_amount = self.active_pos['amount'] * (self.partial_tp_pct / 100)
+            
+            # Use limit order if configured for selling to prevent slippage on TP1
+            if self.sell_order_type == 'limit':
+                await self.engine.execute_trade("sell", sell_amount, self.active_pos['tp1'], order_type="limit")
+                logger.info(f"Placed Limit Order for Partial TP at {self.active_pos['tp1']}")
+            else:
+                await self.engine.execute_trade("sell", sell_amount, current_price)
+                logger.info(f"Executed Market Order for Partial TP at {current_price}")
+            
+            # Update Limit order to prevent over-selling
+            if self.sell_order_type == 'limit' and self.active_pos.get('limit_order_id'):
+                try:
+                    await self.engine.cancel_order(self.active_pos['limit_order_id'])
+                    limit_res = await self.engine.execute_trade("sell", self.active_pos['amount'] - sell_amount, self.active_pos['tp'], order_type="limit")
+                    if limit_res and 'id' in limit_res:
+                        self.active_pos['limit_order_id'] = limit_res['id']
+                except Exception as e:
+                    logger.error(f"Failed to update limit order after TP1: {e}")
+            
+            self.active_pos['amount'] -= sell_amount
+            # Move SL to Entry + a small fraction of the target spread to ensure it's profitable but below TP1
+            # We use 10% of the target spread as the profitable break-even distance
+            profitable_be = self.active_pos['entry'] + (self.target_spread * 0.1)
+            self.active_pos['sl'] = max(self.active_pos['sl'], profitable_be)
+            self.active_pos['tp1_hit'] = True
+            
+            pnl_val = (self.active_pos['tp1'] if self.sell_order_type == 'limit' else current_price - self.active_pos['entry']) * sell_amount
+            await self._send_telegram(f"🔓 Partial TP Hit!\nPair: {self.symbol}\nLocked Profit: ${pnl_val:.2f}\n✅ Stop-Loss is now Risk-Free at Entry + {(self.target_spread * 0.1):.6f}!")
+
+        elif current_price <= self.active_pos['sl']:
             logger.info(f"⚠️ Triggering SL: Current Price ({current_price:.6f}) <= SL ({self.active_pos['sl']:.6f})")
-            sell_amount = self.active_pos.get('amount') or (self.config.get("amount_per_trade", 10.0) / self.active_pos['entry'])
+            sell_amount = self.active_pos['amount']
             
             # Cancel open limit order if TSL hits
             if self.sell_order_type == 'limit' and self.active_pos.get('limit_order_id'):
@@ -333,15 +394,21 @@ class WallHunterBot:
                 logger.info("Cancelled Limit TP Order due to Stop Loss hit")
                 
             await self.engine.execute_trade("sell", sell_amount, current_price)
-            # Calculate PnL
-            pnl_val = (current_price - self.active_pos['entry']) * sell_amount
-            await self._send_telegram(f"🛑 WallHunter EXIT - Stopped Out!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nPnL: ${pnl_val:.2f}")
+            
+            if self.active_pos.get('tp1_hit') and current_price >= self.active_pos['entry']:
+                 # Calculate the small guaranteed PnL from the profitable break-even
+                 pnl_val = (current_price - self.active_pos['entry']) * sell_amount
+                 await self._send_telegram(f"🛡️ WallHunter EXIT - Stopped out at Profitable Break-even!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nSecured PnL: ${pnl_val:.2f}")
+            else:
+                 # Calculate PnL
+                 pnl_val = (current_price - self.active_pos['entry']) * sell_amount
+                 await self._send_telegram(f"🛑 WallHunter EXIT - Stopped Out!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nPnL: ${pnl_val:.2f}")
             self.active_pos = None
             logger.info("Exit: Stop Loss / TSL Hit")
             
         elif current_price >= self.active_pos['tp']:
-            logger.info(f"✅ Triggering TP: Current Price ({current_price:.6f}) >= TP ({self.active_pos['tp']:.6f})")
-            sell_amount = self.active_pos.get('amount') or (self.config.get("amount_per_trade", 10.0) / self.active_pos['entry'])
+            logger.info(f"✅ Triggering Final TP: Current Price ({current_price:.6f}) >= TP ({self.active_pos['tp']:.6f})")
+            sell_amount = self.active_pos['amount']
             
             if self.sell_order_type == 'market':
                 await self.engine.execute_trade("sell", sell_amount, current_price)
@@ -350,7 +417,7 @@ class WallHunterBot:
             
             # Calculate PnL
             pnl_val = (current_price - self.active_pos['entry']) * sell_amount
-            await self._send_telegram(f"🎯 WallHunter EXIT - Take Profit Hit!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nPnL: ${pnl_val:.2f}")
+            await self._send_telegram(f"🎯 WallHunter EXIT - Final Take Profit Hit!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nPnL: ${pnl_val:.2f}")
             self.active_pos = None
             logger.info("Exit: Take Profit Hit")
 
