@@ -14,6 +14,7 @@ class StrategyConfig(BaseModel):
     vol_threshold: Optional[float] = None
     risk_pct: Optional[float] = None
     sell_order_type: Optional[str] = "market"
+    min_wall_lifetime: Optional[float] = 3.0
 
     @validator('stop_loss')
     def validate_stop_loss(cls, v):

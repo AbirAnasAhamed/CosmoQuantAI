@@ -563,7 +563,7 @@ const OrderFlowHeatmap: React.FC = () => {
     const [isWallHunterOpen, setIsWallHunterOpen] = useState(false);
     const [activeWallHunterId, setActiveWallHunterId] = useState<number | null>(null);
     const [exchange, setExchange] = useState('binance');
-    const [symbol, setSymbol] = useState('BTC/USDT');
+    const [symbol, setSymbol] = useState('DOGE/USDT');
     const [interval, setInterval] = useState('1m');
     const [showFootprint, setShowFootprint] = useState(false);
     const [indicatorSettings, setIndicatorSettings] = useState<IndicatorSettings>({

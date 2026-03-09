@@ -272,6 +272,20 @@ class WallHunterBot:
             # Safely extract average fill price. Fallback to requested entry_price if not provided or 0
             avg_price = res.get('average')
             fill_price = res.get('price')
+            
+            # If CCXT did not return average price initially, fetch the order from the exchange
+            if not self.is_paper_trading and res.get('id') and self.engine.exchange and not (avg_price and avg_price > 0):
+                try:
+                    logger.info(f"Fetching order {res.get('id')} to get accurate execution price...")
+                    await asyncio.sleep(0.5) # Wait for exchange to process market order
+                    fetched_order = await self.engine.exchange.fetch_order(res['id'], self.symbol)
+                    if fetched_order:
+                        res = fetched_order
+                        avg_price = res.get('average')
+                        fill_price = res.get('price')
+                except Exception as e:
+                    logger.warning(f"Failed to fetch updated order info for {res.get('id')}: {e}")
+
             actual_entry = avg_price if avg_price and avg_price > 0 else (fill_price if fill_price and fill_price > 0 else entry_price)
             actual_entry = float(actual_entry)
             
