@@ -92,8 +92,8 @@ export const HeatmapSymbolSelector: React.FC<HeatmapSymbolSelectorProps> = ({ sy
                     setSearchQuery('');
                 }}
                 className={`flex items-center gap-3 px-4 py-2 rounded-xl border transition-all duration-300 ${isDropdownOpen
-                        ? 'bg-white dark:bg-[#0B1120] border-brand-primary/60 shadow-[0_0_20px_rgba(59,130,246,0.3)]'
-                        : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 hover:border-brand-primary/40 dark:hover:border-brand-primary/30 hover:shadow-lg dark:hover:bg-white/10'
+                    ? 'bg-white dark:bg-[#0B1120] border-brand-primary/60 shadow-[0_0_20px_rgba(59,130,246,0.3)]'
+                    : 'bg-white dark:bg-white/5 border-gray-200 dark:border-white/10 hover:border-brand-primary/40 dark:hover:border-brand-primary/30 hover:shadow-lg dark:hover:bg-white/10'
                     }`}
             >
                 <div className="flex items-center gap-3">
@@ -111,8 +111,8 @@ export const HeatmapSymbolSelector: React.FC<HeatmapSymbolSelectorProps> = ({ sy
             {/* The Dropdown Menu (Positioned Below) */}
             <div
                 className={`absolute top-[calc(100%+0.75rem)] lg:right-0 mt-0 w-[420px] max-w-[90vw] bg-white/95 dark:bg-[#080D17]/95 backdrop-blur-2xl border border-gray-200 dark:border-white/10 rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)] dark:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.6)] z-[100] overflow-hidden origin-top transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${isDropdownOpen
-                        ? 'opacity-100 scale-100 pointer-events-auto translate-y-0'
-                        : 'opacity-0 scale-95 pointer-events-none -translate-y-4'
+                    ? 'opacity-100 scale-100 pointer-events-auto translate-y-0'
+                    : 'opacity-0 scale-95 pointer-events-none -translate-y-4'
                     }`}
             >
                 {/* Header Search Bar */}
@@ -144,7 +144,7 @@ export const HeatmapSymbolSelector: React.FC<HeatmapSymbolSelectorProps> = ({ sy
                 {/* Dropdown Body */}
                 <div className="flex h-[360px]">
                     {/* Left Panel: Exchange Selector */}
-                    <div className="w-[120px] bg-gray-50/80 dark:bg-black/40 border-r border-gray-100 dark:border-white/5 p-2 flex flex-col gap-1 overflow-y-auto custom-scrollbar">
+                    <div className="w-[160px] bg-gray-50/80 dark:bg-black/40 border-r border-gray-100 dark:border-white/5 p-2 flex flex-col gap-1 overflow-y-auto custom-scrollbar">
                         <div className="text-[10px] text-gray-400/70 font-black uppercase tracking-[0.15em] px-2 py-2 mt-1">Exchanges</div>
                         <div className="space-y-1">
                             {exchanges.map(ex => (
@@ -152,8 +152,8 @@ export const HeatmapSymbolSelector: React.FC<HeatmapSymbolSelectorProps> = ({ sy
                                     key={ex}
                                     onClick={() => onExchangeChange(ex)}
                                     className={`w-full text-left px-3 py-2.5 rounded-xl text-xs font-bold capitalize transition-all relative overflow-hidden group ${exchange === ex
-                                            ? 'text-brand-primary bg-brand-primary/10 shadow-sm'
-                                            : 'text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
+                                        ? 'text-brand-primary bg-brand-primary/10 shadow-sm'
+                                        : 'text-gray-600 dark:text-gray-400 hover:bg-white dark:hover:bg-white/5 hover:text-slate-900 dark:hover:text-white'
                                         }`}
                                 >
                                     {exchange === ex && <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-1/2 bg-brand-primary rounded-r-full shadow-[0_0_10px_rgba(59,130,246,0.8)]"></div>}
@@ -194,8 +194,8 @@ export const HeatmapSymbolSelector: React.FC<HeatmapSymbolSelectorProps> = ({ sy
                                                 setIsDropdownOpen(false);
                                             }}
                                             className={`flex justify-between items-center px-4 py-3 rounded-xl text-sm font-mono transition-all duration-200 group ${isSelected
-                                                    ? 'bg-gradient-to-r from-brand-primary to-purple-600 text-white shadow-md shadow-brand-primary/20 scale-[0.98]'
-                                                    : 'text-slate-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 hover:scale-[0.99]'
+                                                ? 'bg-gradient-to-r from-brand-primary to-purple-600 text-white shadow-md shadow-brand-primary/20 scale-[0.98]'
+                                                : 'text-slate-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-white/5 hover:scale-[0.99]'
                                                 }`}
                                         >
                                             <div className="flex items-center gap-3">

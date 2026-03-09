@@ -45,7 +45,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
     const bbLowerSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
     const rsiSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
     const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
-    const wallLinesRef = useRef<any[]>([]);
+    const wallLinesRef = useRef<Map<string, any>>(new Map());
     const lastCandleRef = useRef<CandlestickData | null>(null);
     const allCandlesRef = useRef<any[]>([]);
     const lastTradeEventRef = useRef<any>(null);
@@ -320,34 +320,39 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         }
     }, [currentPrice, tradeEvent, interval]);
 
-    // Update horizontal price lines for walls
+    // Update horizontal price lines for walls intelligently without blindly clearing
     useEffect(() => {
         if (!candlestickSeriesRef.current || !chartRef.current) return;
 
-        // Helper to draw lines
-        const drawLines = () => {
-            // Remove old lines
-            wallLinesRef.current.forEach(line => {
-                try { candlestickSeriesRef.current?.removePriceLine(line); } catch (e) { }
-            });
-            wallLinesRef.current = [];
+        const currentLineKeys = new Set<string>();
 
-            // Add Wall Lines
-            walls.forEach(wall => {
+        // 1. Process Order Book Walls
+        walls.forEach(wall => {
+            const key = `wall-${wall.type}-${wall.price}`;
+            currentLineKeys.add(key);
+
+            if (!wallLinesRef.current.has(key)) {
+                // Determine styling based on type
+                const isBuy = wall.type === 'buy';
+                // Only create if it doesn't exist
                 const priceLine = candlestickSeriesRef.current?.createPriceLine({
                     price: wall.price,
-                    color: wall.type === 'buy' ? 'rgba(34, 197, 94, 0.6)' : 'rgba(239, 68, 68, 0.6)',
-                    lineWidth: 4,
+                    color: isBuy ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)',
+                    lineWidth: 2,
                     lineStyle: 0,
                     axisLabelVisible: true,
                     title: `${wall.type.toUpperCase()} WALL`,
                 });
-                if (priceLine) wallLinesRef.current.push(priceLine);
-            });
+                if (priceLine) wallLinesRef.current.set(key, priceLine);
+            }
+        });
 
-            // Add Active Bot Lines
-            if (botStatus && botStatus.position) {
-                if (botStatus.entry_price && botStatus.entry_price > 0) {
+        // 2. Process Bot Status Lines
+        if (botStatus && botStatus.position) {
+            if (botStatus.entry_price && botStatus.entry_price > 0) {
+                const epKey = 'bot-entry';
+                currentLineKeys.add(epKey);
+                if (!wallLinesRef.current.has(epKey)) {
                     const epLine = candlestickSeriesRef.current?.createPriceLine({
                         price: botStatus.entry_price,
                         color: '#f59e0b', // Golden
@@ -356,9 +361,18 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                         axisLabelVisible: true,
                         title: 'BOT ENTRY',
                     });
-                    if (epLine) wallLinesRef.current.push(epLine);
+                    if (epLine) wallLinesRef.current.set(epKey, epLine);
+                } else {
+                    // Update price if trailing/changed
+                    const line = wallLinesRef.current.get(epKey);
+                    line.applyOptions({ price: botStatus.entry_price });
                 }
-                if (botStatus.tp_price && botStatus.tp_price > 0) {
+            }
+
+            if (botStatus.tp_price && botStatus.tp_price > 0) {
+                const tpKey = 'bot-tp';
+                currentLineKeys.add(tpKey);
+                if (!wallLinesRef.current.has(tpKey)) {
                     const tpLine = candlestickSeriesRef.current?.createPriceLine({
                         price: botStatus.tp_price,
                         color: '#22c55e', // Green
@@ -367,9 +381,17 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                         axisLabelVisible: true,
                         title: 'BOT TP',
                     });
-                    if (tpLine) wallLinesRef.current.push(tpLine);
+                    if (tpLine) wallLinesRef.current.set(tpKey, tpLine);
+                } else {
+                    const line = wallLinesRef.current.get(tpKey);
+                    line.applyOptions({ price: botStatus.tp_price });
                 }
-                if (botStatus.sl_price && botStatus.sl_price > 0) {
+            }
+
+            if (botStatus.sl_price && botStatus.sl_price > 0) {
+                const slKey = 'bot-sl';
+                currentLineKeys.add(slKey);
+                if (!wallLinesRef.current.has(slKey)) {
                     const slLine = candlestickSeriesRef.current?.createPriceLine({
                         price: botStatus.sl_price,
                         color: '#ef4444', // Red
@@ -378,16 +400,25 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                         axisLabelVisible: true,
                         title: 'BOT TSL',
                     });
-                    if (slLine) wallLinesRef.current.push(slLine);
+                    if (slLine) wallLinesRef.current.set(slKey, slLine);
+                } else {
+                    const line = wallLinesRef.current.get(slKey);
+                    line.applyOptions({ price: botStatus.sl_price });
                 }
             }
-        };
+        }
 
-        drawLines();
-
-        // Redraw periodically to ensure they aren't wiped out by lightweight-charts internal redraws
-        const drawInterval = setInterval(drawLines, 2000);
-        return () => clearInterval(drawInterval);
+        // 3. Cleanup Stale Lines (Lines that exist in Map but aren't in currentLineKeys)
+        for (const [key, line] of wallLinesRef.current.entries()) {
+            if (!currentLineKeys.has(key)) {
+                try {
+                    candlestickSeriesRef.current?.removePriceLine(line);
+                } catch (e) {
+                    // Ignore errors if line was already removed internally
+                }
+                wallLinesRef.current.delete(key);
+            }
+        }
 
     }, [walls, botStatus]);
 
