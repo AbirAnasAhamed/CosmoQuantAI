@@ -212,11 +212,11 @@ class WallHunterBot:
                 "status": "active" if self.running else "inactive",
                 "pnl": float(f"{pnl_val:.2f}"),
                 "pnl_percent": float(f"{pnl_pct:.2f}"),
-                "price": float(f"{current_price:.6f}"),
+                "price": float(f"{current_price:.10f}"),
                 "position": position,
-                "entry_price": float(f"{entry_price:.6f}"),
-                "sl_price": float(f"{sl_price:.6f}"),
-                "tp_price": float(f"{tp_price:.6f}"),
+                "entry_price": float(f"{entry_price:.10f}"),
+                "sl_price": float(f"{sl_price:.10f}"),
+                "tp_price": float(f"{tp_price:.10f}"),
                 "target_spread": self.target_spread,
                 "vol_threshold": self.vol_threshold
             }
