@@ -117,8 +117,14 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
             const bestBid = bids[0].price;
             const bestAsk = asks[0].price;
             const currentSpread = bestAsk - bestBid;
+
+            const currentPrice = bestBid;
+            const magnitude = Math.floor(Math.log10(currentPrice > 0 ? currentPrice : 1));
+            const dynamicStep = Math.pow(10, magnitude - 4);
+            const displayDigits = Math.max(0, -(magnitude - 4));
+
             optimalSpread = currentSpread + (bestAsk * 0.001);
-            optimalSpread = parseFloat(Math.max(0.0001, Math.min(0.0100, optimalSpread)).toFixed(4));
+            optimalSpread = parseFloat(Math.max(dynamicStep, Math.min(dynamicStep * 100, optimalSpread)).toFixed(displayDigits));
 
             const allSizes = [...bids.map(b => b.size), ...asks.map(a => a.size)];
 
@@ -233,6 +239,13 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
         setForm(prev => ({ ...prev, [field]: value }));
     };
 
+    // --- Dynamic Target Spread Calculation based on asset price magnitude ---
+    const currentPrice = bids.length > 0 ? bids[0].price : (asks.length > 0 ? asks[0].price : 1);
+    const magnitude = Math.floor(Math.log10(currentPrice > 0 ? currentPrice : 1));
+    const dynamicStep = Math.pow(10, magnitude - 4);
+    const dynamicMax = dynamicStep * 500; // Allows up to 500 ticks spread
+    const displayDigits = Math.max(0, -(magnitude - 4));
+
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
             <div className="w-[600px] bg-[#0B1120] border-2 border-yellow-500/30 rounded-[2rem] p-6 shadow-[0_0_50px_rgba(59,130,246,0.2)] max-h-[90vh] flex flex-col">
@@ -312,10 +325,11 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                             <div>
                                 <div className="flex justify-between items-end mb-1">
                                     <label className="text-[10px] font-bold text-gray-500 uppercase">Target Spread Profit</label>
-                                    <span className="text-xs font-mono font-bold text-brand-primary">{form.spread.toFixed(4)}</span>
+                                    <span className="text-xs font-mono font-bold text-brand-primary">{form.spread.toFixed(displayDigits)}</span>
                                 </div>
                                 <div className="flex gap-3 items-center">
-                                    <input type="range" min="0" max="0.0100" step="0.0001" className="flex-1 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-brand-primary" value={form.spread} onChange={(e) => setForm({ ...form, spread: parseFloat(e.target.value) })} />
+                                    <input type="range" min="0" max={dynamicMax} step={dynamicStep} className="flex-1 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-brand-primary" value={form.spread} onChange={(e) => setForm({ ...form, spread: parseFloat(e.target.value) })} />
+                                    <input type="number" min="0" step={dynamicStep} className="w-24 bg-black/40 border border-white/10 rounded-xl p-1.5 text-white outline-none focus:border-brand-primary text-center font-mono text-sm" value={form.spread} onChange={(e) => setForm({ ...form, spread: parseFloat(e.target.value) })} />
                                 </div>
                             </div>
 

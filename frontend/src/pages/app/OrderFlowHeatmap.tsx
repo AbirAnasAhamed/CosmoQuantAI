@@ -46,6 +46,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
     const rsiSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
     const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
     const wallLinesRef = useRef<Map<string, any>>(new Map());
+    const currentPriceLineRef = useRef<any>(null);
     const lastCandleRef = useRef<CandlestickData | null>(null);
     const allCandlesRef = useRef<any[]>([]);
     const lastTradeEventRef = useRef<any>(null);
@@ -73,11 +74,12 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                 borderColor: 'rgba(255, 255, 255, 0.1)',
             },
             rightPriceScale: {
+                visible: true,
                 borderColor: 'rgba(255, 255, 255, 0.1)',
                 scaleMargins: { top: 0.1, bottom: 0.2 }, // Leave bottom 20% for RSI
             },
             leftPriceScale: {
-                visible: true,
+                visible: false,
                 borderColor: 'rgba(255, 255, 255, 0.1)',
                 scaleMargins: { top: 0.8, bottom: 0 }, // RSI takes bottom 20%
             },
@@ -89,11 +91,16 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             borderVisible: false,
             wickUpColor: '#22c55e',
             wickDownColor: '#ef4444',
+            priceScaleId: 'right',
+            lastValueVisible: false,
+            priceLineVisible: false,
             priceFormat: {
                 type: 'custom',
-                minMove: 0.00000001,
+                minMove: 0.0000000001,
                 formatter: (price: number) => {
-                    if (price < 0.00001) return price.toFixed(8);
+                    if (price < 0.000001) return price.toFixed(12);
+                    if (price < 0.00001) return price.toFixed(10);
+                    if (price < 0.0001) return price.toFixed(8);
                     if (price < 0.001) return price.toFixed(6);
                     if (price < 1) return price.toFixed(5);
                     if (price < 10) return price.toFixed(4);
@@ -102,10 +109,10 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             }
         });
 
-        const emaSeries = chart.addSeries(LineSeries, { color: '#f59e0b', lineWidth: 2, crosshairMarkerVisible: false, lastValueVisible: false });
-        const bbUpperSeries = chart.addSeries(LineSeries, { color: 'rgba(56, 189, 248, 0.5)', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false });
-        const bbMiddleSeries = chart.addSeries(LineSeries, { color: 'rgba(56, 189, 248, 0.8)', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false });
-        const bbLowerSeries = chart.addSeries(LineSeries, { color: 'rgba(56, 189, 248, 0.5)', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false });
+        const emaSeries = chart.addSeries(LineSeries, { color: '#f59e0b', lineWidth: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceScaleId: 'right' });
+        const bbUpperSeries = chart.addSeries(LineSeries, { color: 'rgba(56, 189, 248, 0.5)', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceScaleId: 'right' });
+        const bbMiddleSeries = chart.addSeries(LineSeries, { color: 'rgba(56, 189, 248, 0.8)', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceScaleId: 'right' });
+        const bbLowerSeries = chart.addSeries(LineSeries, { color: 'rgba(56, 189, 248, 0.5)', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceScaleId: 'right' });
         const rsiSeries = chart.addSeries(LineSeries, { color: '#db2777', lineWidth: 2, priceScaleId: 'left', crosshairMarkerVisible: false, lastValueVisible: false });
         const volumeSeries = chart.addSeries(HistogramSeries, {
             color: '#26a69a',
@@ -177,17 +184,32 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
 
         fetchKlines();
 
-        const handleResize = () => {
-            if (chartContainerRef.current) {
-                chart.applyOptions({ width: chartContainerRef.current.clientWidth, height: chartContainerRef.current.clientHeight });
-            }
-        };
-        window.addEventListener('resize', handleResize);
-        setTimeout(handleResize, 100);
+        const resizeObserver = new ResizeObserver(entries => {
+            if (entries.length === 0 || entries[0].target !== chartContainerRef.current) { return; }
+            const newRect = entries[0].contentRect;
+            chart.applyOptions({ height: newRect.height, width: newRect.width });
+        });
+
+        if (chartContainerRef.current) {
+            resizeObserver.observe(chartContainerRef.current);
+        }
 
         return () => {
-            window.removeEventListener('resize', handleResize);
+            resizeObserver.disconnect();
             chart.remove();
+
+            // Cleanup refs so they respawn on the newly created chart instance
+            candlestickSeriesRef.current = null;
+            currentPriceLineRef.current = null;
+            wallLinesRef.current.clear();
+            lastCandleRef.current = null;
+            allCandlesRef.current = [];
+            emaSeriesRef.current = null;
+            bbUpperSeriesRef.current = null;
+            bbMiddleSeriesRef.current = null;
+            bbLowerSeriesRef.current = null;
+            rsiSeriesRef.current = null;
+            volumeSeriesRef.current = null;
         };
     }, [symbol, interval, exchange]);
 
@@ -338,8 +360,8 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                 const priceLine = candlestickSeriesRef.current?.createPriceLine({
                     price: wall.price,
                     color: isBuy ? 'rgba(34, 197, 94, 0.4)' : 'rgba(239, 68, 68, 0.4)',
-                    lineWidth: 2,
-                    lineStyle: 0,
+                    lineWidth: 1, // Make thinner to reduce visual clutter
+                    lineStyle: 1, // Dotted style
                     axisLabelVisible: true,
                     title: `${wall.type.toUpperCase()} WALL`,
                 });
@@ -421,6 +443,26 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         }
 
     }, [walls, botStatus]);
+
+    // Custom Current Price Line (Black Label)
+    useEffect(() => {
+        if (!candlestickSeriesRef.current || currentPrice <= 0) return;
+
+        if (!currentPriceLineRef.current) {
+            currentPriceLineRef.current = candlestickSeriesRef.current.createPriceLine({
+                price: currentPrice,
+                color: '#3b82f6', // Tailwind blue-500 for the line
+                lineWidth: 1,
+                lineStyle: 1, // Dotted
+                axisLabelVisible: true,
+                title: '',
+                axisLabelColor: '#000000', // Black background
+                axisLabelTextColor: '#ffffff', // White text
+            });
+        } else {
+            currentPriceLineRef.current.applyOptions({ price: currentPrice });
+        }
+    }, [currentPrice]);
 
     // Update Trade Markers
     useEffect(() => {
@@ -521,7 +563,9 @@ const OrderBook: React.FC<{ bids: any[], asks: any[], maxTotal: number }> = ({ b
     if (bids.length === 0 && asks.length === 0) return <div className="text-gray-500 p-4">Loading...</div>;
 
     const formatPrice = (price: number) => {
-        if (price < 0.00001) return price.toFixed(8);
+        if (price < 0.000001) return price.toFixed(12);
+        if (price < 0.00001) return price.toFixed(10);
+        if (price < 0.0001) return price.toFixed(8);
         if (price < 0.001) return price.toFixed(6);
         if (price < 1) return price.toFixed(5);
         if (price < 10) return price.toFixed(4);
@@ -556,7 +600,7 @@ const OrderBook: React.FC<{ bids: any[], asks: any[], maxTotal: number }> = ({ b
                 <span className="text-gray-500 font-sans font-medium">Spread</span>
                 {asks.length > 0 && bids.length > 0 && (
                     <span className="text-brand-primary font-bold">
-                        {((asks[asks.length - 1].price - bids[0].price)).toFixed(5)}
+                        {((asks[asks.length - 1].price - bids[0].price)).toFixed(10).replace(/\.?0+$/, '')}
                     </span>
                 )}
             </div>
@@ -581,7 +625,9 @@ const OrderBook: React.FC<{ bids: any[], asks: any[], maxTotal: number }> = ({ b
 
 // Helper to format prices dynamically
 const formatDisplayPrice = (price: number) => {
-    if (price < 0.00001) return price.toFixed(8);
+    if (price < 0.000001) return price.toFixed(12);
+    if (price < 0.00001) return price.toFixed(10);
+    if (price < 0.0001) return price.toFixed(8);
     if (price < 0.001) return price.toFixed(6);
     if (price < 1) return price.toFixed(5);
     if (price < 10) return price.toFixed(4);
@@ -597,6 +643,7 @@ const OrderFlowHeatmap: React.FC = () => {
     const [symbol, setSymbol] = useState('DOGE/USDT');
     const [interval, setInterval] = useState('1m');
     const [showFootprint, setShowFootprint] = useState(false);
+    const [isFullscreen, setIsFullscreen] = useState(false); // NEW STATE
     const [indicatorSettings, setIndicatorSettings] = useState<IndicatorSettings>({
         showEMA: false,
         showBB: false,
@@ -665,25 +712,37 @@ const OrderFlowHeatmap: React.FC = () => {
 
             <HeatmapSubNav activeTab={activeTab} onChange={setActiveTab} />
 
-            <div className="flex-1 p-4 overflow-hidden relative bg-gray-50 dark:bg-[#050B14]">
-                {/* ALWAYS RENDER HEATMAP */}
-                <div className="flex flex-row h-full gap-4">
-                    <div className="w-[70%] bg-white dark:bg-[#0B1120] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
+            <div className={isFullscreen ? 'fixed inset-0 z-[200] bg-gray-50 dark:bg-[#050B14] p-4' : 'flex-1 p-4 overflow-hidden relative bg-gray-50 dark:bg-[#050B14]'}>
+                {/* IN FULLSCREEN MODE, RENDER ONLY THE MAIN CHART WITHOUT THE LEFT PADDING. OTHERWISE RENDER NORMALLY */}
+                <div className={`flex flex-row h-full gap-4 ${isFullscreen ? 'flex-col' : ''}`}>
+                    <div className={`${isFullscreen ? 'w-full h-full' : 'w-[70%]'} bg-white dark:bg-[#0B1120] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col`}>
                         <div className="p-3 border-b border-gray-200 dark:border-white/5 flex justify-between items-center">
                             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Order Flow Chart</h3>
+                            <button
+                                onClick={() => setIsFullscreen(!isFullscreen)}
+                                className="text-gray-500 hover:text-brand-primary transition-colors"
+                            >
+                                {isFullscreen ? (
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                ) : (
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4" /></svg>
+                                )}
+                            </button>
                         </div>
                         <div className="flex-1 relative">
                             <OrderFlowChart exchange={exchange} symbol={symbol} interval={interval} walls={filteredWalls} currentPrice={currentPrice} showFootprint={showFootprint} indicatorSettings={indicatorSettings} tradeEvent={tradeEvent} botStatus={botStatus} />
                         </div>
                     </div>
-                    <div className="w-[30%] bg-white dark:bg-[#0B1120] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
-                        <div className="p-3 border-b border-gray-200 dark:border-white/5 flex justify-between items-center">
-                            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Level 2 Order Book</h3>
+                    {!isFullscreen && (
+                        <div className="w-[30%] bg-white dark:bg-[#0B1120] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
+                            <div className="p-3 border-b border-gray-200 dark:border-white/5 flex justify-between items-center">
+                                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Level 2 Order Book</h3>
+                            </div>
+                            <div className="flex-1 overflow-hidden p-2">
+                                <OrderBook bids={bids} asks={asks} maxTotal={maxTotal} />
+                            </div>
                         </div>
-                        <div className="flex-1 overflow-hidden p-2">
-                            <OrderBook bids={bids} asks={asks} maxTotal={maxTotal} />
-                        </div>
-                    </div>
+                    )}
                 </div>
 
                 {/* ACTIVE BOT STATUS HUD */}
@@ -760,40 +819,42 @@ const OrderFlowHeatmap: React.FC = () => {
             </div>
 
             {/* WALLHUNTER FLOATING ACTION BUTTON */}
-            {activeWallHunterId ? (
-                <button
-                    onClick={async () => {
-                        try {
-                            await botService.controlBot(activeWallHunterId, 'stop');
-                            setActiveWallHunterId(null);
-                        } catch (err) {
-                            console.error("Failed to stop WallHunter bot", err);
-                        }
-                    }}
-                    className="fixed bottom-8 right-8 z-[100] group"
-                    title="Abort WallHunter"
-                >
-                    <div className="absolute inset-0 bg-red-500 rounded-full blur-xl opacity-40 group-hover:opacity-100 transition-opacity animate-pulse" />
-                    <div className="relative w-16 h-16 bg-gradient-to-br from-red-500 to-red-700 rounded-full flex items-center justify-center border-4 border-white/20 shadow-[0_0_30px_rgba(239,68,68,0.5)] group-hover:scale-110 transition-transform cursor-pointer">
-                        <svg className="w-8 h-8 text-white group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" />
-                        </svg>
-                    </div>
-                </button>
-            ) : (
-                <button
-                    onClick={() => setIsWallHunterOpen(true)}
-                    className="fixed bottom-8 right-8 z-[100] group"
-                    title="Deploy WallHunter"
-                >
-                    <div className="absolute inset-0 bg-yellow-500 rounded-full blur-xl opacity-40 group-hover:opacity-100 transition-opacity animate-pulse" />
-                    <div className="relative w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-600 rounded-full flex items-center justify-center border-4 border-white/20 shadow-2xl group-hover:scale-110 transition-transform cursor-pointer">
-                        <svg className="w-8 h-8 text-white group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                        </svg>
-                    </div>
-                </button>
-            )}
+            {
+                activeWallHunterId ? (
+                    <button
+                        onClick={async () => {
+                            try {
+                                await botService.controlBot(activeWallHunterId, 'stop');
+                                setActiveWallHunterId(null);
+                            } catch (err) {
+                                console.error("Failed to stop WallHunter bot", err);
+                            }
+                        }}
+                        className="fixed bottom-8 right-8 z-[100] group"
+                        title="Abort WallHunter"
+                    >
+                        <div className="absolute inset-0 bg-red-500 rounded-full blur-xl opacity-40 group-hover:opacity-100 transition-opacity animate-pulse" />
+                        <div className="relative w-16 h-16 bg-gradient-to-br from-red-500 to-red-700 rounded-full flex items-center justify-center border-4 border-white/20 shadow-[0_0_30px_rgba(239,68,68,0.5)] group-hover:scale-110 transition-transform cursor-pointer">
+                            <svg className="w-8 h-8 text-white group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" />
+                            </svg>
+                        </div>
+                    </button>
+                ) : (
+                    <button
+                        onClick={() => setIsWallHunterOpen(true)}
+                        className="fixed bottom-8 right-8 z-[100] group"
+                        title="Deploy WallHunter"
+                    >
+                        <div className="absolute inset-0 bg-yellow-500 rounded-full blur-xl opacity-40 group-hover:opacity-100 transition-opacity animate-pulse" />
+                        <div className="relative w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-600 rounded-full flex items-center justify-center border-4 border-white/20 shadow-2xl group-hover:scale-110 transition-transform cursor-pointer">
+                            <svg className="w-8 h-8 text-white group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                            </svg>
+                        </div>
+                    </button>
+                )
+            }
 
             <WallHunterModal
                 isOpen={isWallHunterOpen}
@@ -806,7 +867,7 @@ const OrderFlowHeatmap: React.FC = () => {
                     setIsWallHunterOpen(false);
                 }}
             />
-        </div>
+        </div >
     );
 };
 

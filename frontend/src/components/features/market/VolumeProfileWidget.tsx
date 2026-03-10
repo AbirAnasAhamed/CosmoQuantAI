@@ -63,29 +63,42 @@ export const VolumeProfileWidget: React.FC<VolumeProfileWidgetProps> = ({ chart,
     return (
         <div
             ref={containerRef}
-            className="absolute top-0 right-[60px] w-[120px] h-full pointer-events-none z-10"
+            className="absolute top-0 left-[0px] w-[200px] h-full pointer-events-none z-10 opacity-80"
         >
-            {renderData.map((d, i) => (
-                <div
-                    key={i}
-                    className="absolute right-0 flex"
-                    style={{
-                        top: `${d.y - 4}px`,
-                        height: '8px',
-                        width: `${d.width}%`,
-                        opacity: 0.6
-                    }}
-                >
+            {renderData.map((d, i) => {
+                // Determine dominating volume for glow effect
+                const isBuyDom = d.buyRatio > 0.5;
+                const glowClass = isBuyDom
+                    ? "shadow-[0_0_8px_rgba(34,197,94,0.4)]"
+                    : "shadow-[0_0_8px_rgba(239,68,68,0.4)]";
+
+                return (
                     <div
-                        className="h-full bg-green-500"
-                        style={{ width: `${d.buyRatio * 100}%` }}
-                    />
-                    <div
-                        className="h-full bg-red-500"
-                        style={{ width: `${(1 - d.buyRatio) * 100}%` }}
-                    />
-                </div>
-            ))}
+                        key={i}
+                        className={`absolute left-0 flex overflow-hidden rounded-r-md transition-all duration-300 ${glowClass}`}
+                        style={{
+                            top: `${d.y - 4}px`,
+                            height: '10px',
+                            width: `${Math.max(2, d.width)}%`, // Ensure the bar is at least 2% wide to be visible
+                        }}
+                    >
+                        {/* Buy Volume Bar */}
+                        <div
+                            className="h-full bg-gradient-to-r from-green-600/60 to-green-400/80 border-y border-r border-green-400/40 relative"
+                            style={{ width: `${d.buyRatio * 100}%` }}
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent" />
+                        </div>
+                        {/* Sell Volume Bar */}
+                        <div
+                            className="h-full bg-gradient-to-r from-red-600/60 to-red-400/80 border-y border-l border-red-400/40 relative"
+                            style={{ width: `${(1 - d.buyRatio) * 100}%` }}
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-b from-white/10 to-transparent" />
+                        </div>
+                    </div>
+                );
+            })}
         </div>
     );
 };
