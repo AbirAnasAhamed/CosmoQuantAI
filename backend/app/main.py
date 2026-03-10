@@ -15,6 +15,7 @@ from app.core.redis import redis_manager # ✅ Import RedisManager
 from app.services.liquidation_service import liquidation_service # ✅ Import Liquidation Service
 from app.services.block_trade_worker import block_trade_worker # ✅ Import Block Trade Worker
 from app.services.orderbook_snapshot_service import orderbook_snapshot_service # ✅ Import Orderbook Snapshot Service
+from app.services.binance_liq_stream import liquidation_stream # ✅ Import Binance Liquidation Stream
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
@@ -366,6 +367,11 @@ async def startup_event():
     running_tasks.add(snapshot_task)
     snapshot_task.add_done_callback(running_tasks.discard)
 
+    # Task H: Binance Real-time Liquidation Stream
+    binance_liq_task = asyncio.create_task(liquidation_stream.start())
+    running_tasks.add(binance_liq_task)
+    binance_liq_task.add_done_callback(running_tasks.discard)
+
     # Task D: Active Bot PnL Broadcast
     async def broadcast_active_bot_pnl():
         print("💰 Starting Active Bot PnL Broadcast...")
@@ -458,6 +464,9 @@ async def shutdown_event():
 
     # Stop Orderbook Snapshot Service
     await orderbook_snapshot_service.stop_recording_loop()
+
+    # Stop Binance Liquidation Stream
+    await liquidation_stream.stop()
 
     print("✅ All background tasks stopped.")
 

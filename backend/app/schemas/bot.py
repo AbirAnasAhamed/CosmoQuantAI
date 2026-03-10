@@ -19,6 +19,22 @@ class StrategyConfig(BaseModel):
     vpvr_enabled: Optional[bool] = False
     vpvr_tolerance: Optional[float] = 0.2
 
+    # --- NEW: Liquidation & Micro-Scalp Config ---
+    enable_wall_trigger: Optional[bool] = True
+    enable_liq_trigger: Optional[bool] = False
+    liq_threshold: Optional[float] = 50000.0
+    enable_micro_scalp: Optional[bool] = False
+    micro_scalp_profit_ticks: Optional[int] = 2
+    micro_scalp_min_wall: Optional[float] = 100000.0
+    
+    # --- Advanced Liquidation (Smart HFT) ---
+    enable_liq_cascade: Optional[bool] = False
+    liq_cascade_window: Optional[int] = 5
+    enable_dynamic_liq: Optional[bool] = False
+    dynamic_liq_multiplier: Optional[float] = 1.0
+    enable_ob_imbalance: Optional[bool] = False
+    ob_imbalance_ratio: Optional[float] = 1.5
+
     @validator('stop_loss')
     def validate_stop_loss(cls, v):
         if v is not None and (v < 0 or v > 100):
@@ -45,7 +61,7 @@ class StrategyConfig(BaseModel):
 
 class BotBase(BaseModel):
     name: Optional[str] = None
-    description: Optional[str] = None # ✅ Strategy Description
+    description: Optional[str] = None
     exchange: Optional[str] = "binance"
     market: Optional[str] = "BTC/USDT"
     strategy: Optional[str] = None
@@ -53,38 +69,30 @@ class BotBase(BaseModel):
     status: Optional[str] = "inactive"
     config: Optional[StrategyConfig] = None
     
-    # ✅ এই লাইনগুলো নিশ্চিত করুন (নতুন যোগ করা হয়েছে)
     trade_value: Optional[float] = 100.0
     trade_unit: Optional[str] = "QUOTE"
     api_key_id: Optional[str] = None
-    is_paper_trading: Optional[bool] = True # ✅ Default to True (Handles NULLs)
+    is_paper_trading: Optional[bool] = True 
 
-# Properties to receive on Bot creation
 class BotCreate(BotBase):
     name: str
     exchange: str
     market: str
-    config: StrategyConfig # Make config required for creation if needed, or keep optional but validated if present
+    config: StrategyConfig 
 
-# Properties to receive on Bot update
 class BotUpdate(BotBase):
     pass
 
-# Properties shared by models stored in DB
 class BotInDBBase(BotBase):
     id: int
     owner_id: int
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
-    config: Optional[Dict[str, Any]] = None # DB stores JSON, so we might need mapping or let Pydantic handle it. 
-                                            # Actually, if SQLAlchemy model has JSON type, Pydantic can map StrategyConfig <-> Dict.
-                                            # However, responding to client, we want StrategyConfig. 
-                                            # Let's keep it consistent.
+    config: Optional[Dict[str, Any]] = None 
     
     class Config:
-        from_attributes = True # Pydantic v2 হলে, v1 হলে orm_mode = True
+        from_attributes = True
 
-# Properties to return to client
 class Bot(BotInDBBase):
     pnl: Optional[float] = 0.0
     pnl_percent: Optional[float] = 0.0

@@ -48,6 +48,26 @@ class WallHunterBot:
         self.atr_multiplier = config.get("atr_multiplier", 2.0)
         self.current_atr = 0.0
 
+        # --- NEW FEATURES: Liquidation & Scalp ---
+        self.enable_wall_trigger = config.get("enable_wall_trigger", True)
+        self.enable_liq_trigger = config.get("enable_liq_trigger", False)
+        self.liq_threshold = config.get("liq_threshold", 50000.0)
+        self.enable_micro_scalp = config.get("enable_micro_scalp", False)
+        self.micro_scalp_profit_ticks = config.get("micro_scalp_profit_ticks", 2)
+        self.micro_scalp_min_wall = config.get("micro_scalp_min_wall", 100000.0)
+        
+        # --- SMART LIQUIDATION FEATURES ---
+        from collections import deque
+        self.enable_liq_cascade = config.get("enable_liq_cascade", False)
+        self.liq_cascade_window = config.get("liq_cascade_window", 5) # in seconds
+        self.liq_history = deque() # Stores tuples: (timestamp, amount)
+        
+        self.enable_dynamic_liq = config.get("enable_dynamic_liq", False)
+        self.dynamic_liq_multiplier = config.get("dynamic_liq_multiplier", 1.0)
+        
+        self.enable_ob_imbalance = config.get("enable_ob_imbalance", False)
+        self.ob_imbalance_ratio = config.get("ob_imbalance_ratio", 1.5)
+
         # --- NEW FEATURES: Spoofing Detection ---
         self.min_wall_lifetime = config.get("min_wall_lifetime", 3.0) # ওয়ালকে অন্তত কত সেকেন্ড টিকে থাকতে হবে
         self.tracked_walls = {} # ওয়ালগুলোকে ট্র্যাক করার জন্য ডিকশনারি
@@ -118,6 +138,33 @@ class WallHunterBot:
         if "atr_multiplier" in new_config and new_config["atr_multiplier"] != self.atr_multiplier:
             updates.append(f"ATR Multiplier: {self.atr_multiplier} -> {new_config['atr_multiplier']}")
             self.atr_multiplier = new_config.get("atr_multiplier")
+            
+        if "enable_wall_trigger" in new_config and new_config["enable_wall_trigger"] != self.enable_wall_trigger:
+            status = "ON" if new_config["enable_wall_trigger"] else "OFF"
+            updates.append(f"Wall Trigger: {status}")
+            self.enable_wall_trigger = new_config.get("enable_wall_trigger")
+            
+        if "enable_liq_trigger" in new_config and new_config["enable_liq_trigger"] != self.enable_liq_trigger:
+            status = "ON" if new_config["enable_liq_trigger"] else "OFF"
+            updates.append(f"Liquidation Trigger: {status}")
+            self.enable_liq_trigger = new_config.get("enable_liq_trigger")
+            
+        if "liq_threshold" in new_config and new_config["liq_threshold"] != self.liq_threshold:
+            updates.append(f"Liq Threshold: {self.liq_threshold} -> {new_config['liq_threshold']}")
+            self.liq_threshold = new_config.get("liq_threshold")
+            
+        if "enable_micro_scalp" in new_config and new_config["enable_micro_scalp"] != self.enable_micro_scalp:
+            status = "ON" if new_config["enable_micro_scalp"] else "OFF"
+            updates.append(f"Micro-Scalp: {status}")
+            self.enable_micro_scalp = new_config.get("enable_micro_scalp")
+            
+        if "micro_scalp_profit_ticks" in new_config and new_config["micro_scalp_profit_ticks"] != self.micro_scalp_profit_ticks:
+            updates.append(f"Micro-Scalp Ticks: {self.micro_scalp_profit_ticks} -> {new_config['micro_scalp_profit_ticks']}")
+            self.micro_scalp_profit_ticks = new_config.get("micro_scalp_profit_ticks")
+            
+        if "micro_scalp_min_wall" in new_config and new_config["micro_scalp_min_wall"] != self.micro_scalp_min_wall:
+            updates.append(f"Micro-Scalp Min Wall: {self.micro_scalp_min_wall} -> {new_config['micro_scalp_min_wall']}")
+            self.micro_scalp_min_wall = new_config.get("micro_scalp_min_wall")
             
         # Update internal config dictionary
         self.config.update(new_config)
@@ -213,6 +260,7 @@ class WallHunterBot:
         self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
         self._vpvr_task = asyncio.create_task(self._vpvr_updater_loop())
         self._atr_task = asyncio.create_task(self._atr_updater_loop())
+        self._liq_task = asyncio.create_task(self._liquidation_listener())
         
         mode = "Live Trading" if not self.is_paper_trading else "Paper Trading"
         await self._send_telegram(f"🟢 WallHunter Bot [ID: {self.bot_id}] Started!\nPair: {self.symbol}\nMode: {mode}\nVolume Threshold: {self.vol_threshold}")
@@ -238,6 +286,11 @@ class WallHunterBot:
                 current_time = time.time()
 
                 if not self.active_pos:
+                    if not self.enable_wall_trigger:
+                        await asyncio.sleep(0.05)
+                        self._publish_status(mid_price)
+                        continue
+
                     # 1. বর্তমান অর্ডার বুকের ওয়ালগুলো ফিল্টার করা
                     current_walls = {}
                     max_vol = 0
@@ -360,32 +413,57 @@ class WallHunterBot:
                 actual_entry = current_mid_price
             
             # --- UPDATED: Position tracking for TP1 and TP2 ---
-            self.active_pos = {
-                "entry": actual_entry,
-                "amount": base_amount,
-                "sl": actual_entry * (1 - (self.initial_risk_pct / 100)),
-                "tp1": actual_entry + (self.target_spread * 0.5), # TP1 at 50% target
-                "tp": actual_entry + self.target_spread,          # Final TP
-                "tp1_hit": False,
-                "limit_order_id": None
-            }
-            self.highest_price = actual_entry
-            
-            # Place Limit Order immediately if configured
-            if self.sell_order_type == 'limit':
-                limit_res = await self.engine.execute_trade("sell", base_amount, self.active_pos['tp'], order_type="limit")
+            if self.enable_micro_scalp:
+                tick_profit_pct = self.micro_scalp_profit_ticks * 0.0001
+                tp_price = actual_entry * (1 + tick_profit_pct)
+                
+                self.active_pos = {
+                    "entry": actual_entry,
+                    "amount": base_amount,
+                    "sl": actual_entry * (1 - (self.initial_risk_pct / 100)),
+                    "tp1": tp_price,
+                    "tp": tp_price,
+                    "tp1_hit": True, # Ignore partial TP
+                    "limit_order_id": None,
+                    "micro_scalp": True
+                }
+                self.highest_price = actual_entry
+                
+                limit_res = await self.engine.execute_trade("sell", base_amount, tp_price, order_type="limit")
                 if limit_res and 'id' in limit_res:
                     self.active_pos['limit_order_id'] = limit_res['id']
-                    logger.info(f"Placed Limit TP Order {limit_res['id']} at {self.active_pos['tp']}")
-            
-            logger.info(f"Entered Trade at {actual_entry}. SL: {self.active_pos['sl']}")
-            await self._send_telegram(f"⚡ WallHunter Entered!\nPair: {self.symbol}\nEntry: {actual_entry:.6f}\nTP1 (Scale Out): {self.active_pos['tp1']:.6f}\nFinal TP: {self.active_pos['tp']:.6f}\nSL: {self.active_pos['sl']:.6f}")
+                    logger.info(f"⚡ Micro-Scalp: Placed Limit TP Order {limit_res['id']} at {tp_price}")
+                    
+                await self._send_telegram(f"⚡ Micro-Scalp Entered!\nPair: {self.symbol}\nEntry: {actual_entry:.6f}\nTick Target: {tp_price:.6f}\nSL: {self.active_pos['sl']:.6f}")
+                
+            else:
+                self.active_pos = {
+                    "entry": actual_entry,
+                    "amount": base_amount,
+                    "sl": actual_entry * (1 - (self.initial_risk_pct / 100)),
+                    "tp1": actual_entry + (self.target_spread * 0.5), # TP1 at 50% target
+                    "tp": actual_entry + self.target_spread,          # Final TP
+                    "tp1_hit": False,
+                    "limit_order_id": None,
+                    "micro_scalp": False
+                }
+                self.highest_price = actual_entry
+                
+                # Place Limit Order immediately if configured
+                if self.sell_order_type == 'limit':
+                    limit_res = await self.engine.execute_trade("sell", base_amount, self.active_pos['tp'], order_type="limit")
+                    if limit_res and 'id' in limit_res:
+                        self.active_pos['limit_order_id'] = limit_res['id']
+                        logger.info(f"Placed Limit TP Order {limit_res['id']} at {self.active_pos['tp']}")
+                
+                logger.info(f"Entered Trade at {actual_entry}. SL: {self.active_pos['sl']}")
+                await self._send_telegram(f"⚡ WallHunter Entered!\nPair: {self.symbol}\nEntry: {actual_entry:.6f}\nTP1 (Scale Out): {self.active_pos['tp1']:.6f}\nFinal TP: {self.active_pos['tp']:.6f}\nSL: {self.active_pos['sl']:.6f}")
 
     async def manage_risk(self, current_price: float):
         if not self.active_pos: return
 
         # 1. Check if the limit TP order has already been filled by the exchange
-        if self.sell_order_type == 'limit' and self.active_pos.get('limit_order_id') and not self.is_paper_trading:
+        if (self.sell_order_type == 'limit' or self.active_pos.get('micro_scalp')) and self.active_pos.get('limit_order_id') and not self.is_paper_trading:
             try:
                 order_status = await self.engine.exchange.fetch_order(self.active_pos['limit_order_id'], self.symbol)
                 if order_status and order_status.get('status') == 'closed':
@@ -412,7 +490,7 @@ class WallHunterBot:
 
         # --- NEW: Partial TP & Break-Even SL Logic ---
         # Only execute TP1 logic if partial_tp_pct > 0
-        if self.partial_tp_pct > 0 and not self.active_pos.get('tp1_hit') and current_price >= self.active_pos['tp1']:
+        if not self.active_pos.get('micro_scalp') and self.partial_tp_pct > 0 and not self.active_pos.get('tp1_hit') and current_price >= self.active_pos['tp1']:
             logger.info("🟢 TP1 Hit! Executing Partial Close & Moving SL to Break-Even.")
             sell_amount = self.active_pos['amount'] * (self.partial_tp_pct / 100)
             
@@ -495,6 +573,8 @@ class WallHunterBot:
             self._vpvr_task.cancel()
         if getattr(self, '_atr_task', None):
             self._atr_task.cancel()
+        if getattr(self, '_liq_task', None):
+            self._liq_task.cancel()
         logger.info(f"Bot {self.bot_id} (WallHunter) stopped.")
         await self._send_telegram(f"🔴 WallHunter Bot [ID: {self.bot_id}] Stopped.")
 
@@ -582,3 +662,118 @@ class WallHunterBot:
                 logger.error(f"ATR Update Error: {e}")
                 
             await asyncio.sleep(60) # Update every minute
+
+    async def _liquidation_listener(self):
+        """Listen to global Redis stream for liquidations"""
+        logger.info(f"🎧 [WallHunter {self.bot_id}] Starting Liquidation Listener for {self.symbol}...")
+        if not self.redis:
+            await asyncio.sleep(5)
+            self.redis = get_redis_client()
+            
+        pubsub = self.redis.pubsub()
+        channel = f"stream:liquidations:{self.symbol}"
+        pubsub.subscribe(channel)
+        logger.info(f"🎧 [WallHunter {self.bot_id}] Subscribed to {channel}")
+        
+        while self.running:
+            try:
+                if self.enable_liq_trigger:
+                    message = pubsub.get_message(ignore_subscribe_messages=True)
+                    if message and message['type'] == 'message':
+                        try:
+                            # Handle different data structures safely
+                            if isinstance(message['data'], bytes):
+                                data = json.loads(message['data'].decode('utf-8'))
+                            else:
+                                data = json.loads(message['data'])
+                            
+                            logger.info(f"🔍 [WallHunter {self.bot_id}] Raw Liq Alert: {data}")
+                            
+                            if data.get("side") == "short":
+                                current_raw_time = time.time()
+                                liq_amount = float(data.get("amount", 0))
+                                
+                                # 1. Cascade Logic
+                                cascade_total = liq_amount
+                                if self.enable_liq_cascade:
+                                    self.liq_history.append((current_raw_time, liq_amount))
+                                    # Clean old entries
+                                    while self.liq_history and current_raw_time - self.liq_history[0][0] > self.liq_cascade_window:
+                                        self.liq_history.popleft()
+                                    cascade_total = sum(amount for _, amount in self.liq_history)
+                                
+                                # 2. Dynamic Threshold Logic
+                                active_threshold = self.liq_threshold
+                                if self.enable_dynamic_liq and self.current_atr > 0:
+                                    # Example dynamic calculation: Use ATR value * Multiplier * Contract Size Heuristics
+                                    # (Needs refinement based on asset class, but serves as a base)
+                                    # A safer approach for crypto: Threshold = Current Price * ATR * Multiplier
+                                    try:
+                                        current_price = float(data.get("price", 0))
+                                        if current_price > 0:
+                                           active_threshold = current_price * self.current_atr * self.dynamic_liq_multiplier
+                                    except: pass
+                                
+                                # 3. Trigger check
+                                if cascade_total >= active_threshold:
+                                    logger.info(f"💥 Short Liquidation Triggered! Symbol: {self.symbol} | Cascade Total: ${cascade_total:.2f} | Threshold: ${active_threshold:.2f}")
+                                    if self.enable_liq_cascade:
+                                        self.liq_history.clear() # Reset after triggering
+                                    await self._handle_liquidation_trigger(data)
+                                    
+                        except json.JSONDecodeError:
+                            logger.error(f"Failed to decode Redis liquidation message: {message['data']}")
+            except Exception as e:
+                logger.error(f"Liquidation Listener Error: {e}")
+            await asyncio.sleep(0.1)
+
+    async def _handle_liquidation_trigger(self, liq_data):
+        if self.active_pos: return
+        
+        try:
+            ob = await self.exchange.fetch_order_book(self.symbol, limit=20)
+            if not ob['bids'] or not ob['asks']: return
+            
+            best_bid = ob['bids'][0][0]
+            best_ask = ob['asks'][0][0]
+            mid_price = (best_bid + best_ask) / 2
+            
+            # --- 1. Orderbook Imbalance Check (Tape Reading) ---
+            if self.enable_ob_imbalance:
+                # Calculate volume ratio near mid price
+                bid_vol = sum(vol for price, vol in ob['bids'])
+                ask_vol = sum(vol for price, vol in ob['asks'])
+                
+                if ask_vol > 0:
+                    current_ratio = bid_vol / ask_vol
+                    if current_ratio < self.ob_imbalance_ratio:
+                        logger.info(f"⏭️ Liquidation ignoring: OB Imbalance Ratio too low ({current_ratio:.2f} < {self.ob_imbalance_ratio})")
+                        return
+                    else:
+                        logger.info(f"✅ OB Imbalance check passed ({current_ratio:.2f} >= {self.ob_imbalance_ratio})")
+                else:
+                    return # No asks, weird state
+                
+            # --- 2. Confluence Mode (Wall Check) ---
+            if self.enable_wall_trigger:
+                # Check if there is any bid wall >= micro_scalp_min_wall
+                strong_wall_found = False
+                wall_price = 0
+                for price, vol in ob['bids']:
+                    if vol >= self.micro_scalp_min_wall:
+                        strong_wall_found = True
+                        wall_price = price
+                        break
+                        
+                if strong_wall_found:
+                    logger.info(f"🔥 Confluence Met: Liquidation + Wall at {wall_price}. Sniping!")
+                    await self.execute_snipe(wall_price, "buy", mid_price)
+                else:
+                    logger.info(f"⏭️ Liquidation ignoring: No supporting wall (Needed >= {self.micro_scalp_min_wall})")
+            else:
+                # Only Liquidation mode
+                logger.info(f"🔥 Liquidation Snipe at {best_bid}")
+                await self.execute_snipe(best_bid, "buy", mid_price)
+                
+        except Exception as e:
+             logger.error(f"Liquidation Handling Error: {e}")

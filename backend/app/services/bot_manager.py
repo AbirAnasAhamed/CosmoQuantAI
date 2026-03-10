@@ -114,7 +114,10 @@ class BotManager:
             if bot.strategy == "wall_hunter":
                 logger.info(f"📈 Strategy: WallHunter Level 2 Sniper")
                 logger.info(f"🎯 Target Spread: {bot.config.get('target_spread', 0)}")
-                logger.info(f"🧱 Vol Threshold: {bot.config.get('vol_threshold', 0)}")
+                if bot.config.get('enable_wall_trigger', True):
+                    logger.info(f"🧱 Vol Threshold: {bot.config.get('vol_threshold', 0)}")
+                if bot.config.get('enable_liq_trigger'):
+                    logger.info(f"💥 Liq Threshold: {bot.config.get('liq_threshold', 0)}")
                 logger.info(f"⚖️ Risk Pct: {bot.config.get('risk_pct', 0)}% | TSL: {bot.config.get('trailing_stop', 0)}%")
                 logger.info(f"💰 Trade Amount: {bot.config.get('amount_per_trade', 0)} (Quote Asset)")
                 logger.info(f"📋 Sell Order Type: {bot.config.get('sell_order_type', 'market').upper()}")
