@@ -236,6 +236,9 @@ class WallHunterBot:
             }
         }
         
+        # Public instance for fetching market data without triggering auth checks (MEXC /api/v3/capital/config/getall)
+        self.public_exchange = exchange_class({'enableRateLimit': True})
+        
         # Live Mode-e API select kora
         if not self.is_paper_trading and api_key_record:
             exchange_params.update({
@@ -275,7 +278,7 @@ class WallHunterBot:
         while self.running:
             try:
                 # Real-time L2 Data Fetching
-                orderbook = await self.exchange.fetch_order_book(self.symbol, limit=20)
+                orderbook = await self.public_exchange.fetch_order_book(self.symbol, limit=20)
                 if not orderbook['bids'] or not orderbook['asks']:
                     await asyncio.sleep(1)
                     continue
@@ -374,7 +377,9 @@ class WallHunterBot:
                 await asyncio.sleep(1)
 
     async def execute_snipe(self, wall_price: float, side: str, current_mid_price: float):
-        entry_price = wall_price + 0.00001
+        # Allow a dynamic tick size for entry if we wanted to limit order, but since we market order, 
+        # mid_price is the most accurate reflection of current cost.
+        entry_price = current_mid_price
         
         # Calculate base asset amount from quote currency amount
         quote_amount = self.config.get("amount_per_trade", 10.0)
@@ -575,6 +580,10 @@ class WallHunterBot:
             self._atr_task.cancel()
         if getattr(self, '_liq_task', None):
             self._liq_task.cancel()
+            
+        if hasattr(self, 'public_exchange') and self.public_exchange:
+            await self.public_exchange.close()
+            
         logger.info(f"Bot {self.bot_id} (WallHunter) stopped.")
         await self._send_telegram(f"🔴 WallHunter Bot [ID: {self.bot_id}] Stopped.")
 
@@ -587,7 +596,7 @@ class WallHunterBot:
                 
             try:
                 # Fetch last 100 5m candles
-                ohlcv = await self.exchange.fetch_ohlcv(self.symbol, timeframe='5m', limit=100)
+                ohlcv = await self.public_exchange.fetch_ohlcv(self.symbol, timeframe='5m', limit=100)
                 if not ohlcv:
                     await asyncio.sleep(60)
                     continue
@@ -638,7 +647,7 @@ class WallHunterBot:
             try:
                 # Fetch last N candles
                 limit = self.atr_period + 1
-                ohlcv = await self.exchange.fetch_ohlcv(self.symbol, timeframe='1m', limit=limit)
+                ohlcv = await self.public_exchange.fetch_ohlcv(self.symbol, timeframe='1m', limit=limit)
                 
                 if ohlcv and len(ohlcv) >= 2:
                     tr_list = []
@@ -731,7 +740,7 @@ class WallHunterBot:
         if self.active_pos: return
         
         try:
-            ob = await self.exchange.fetch_order_book(self.symbol, limit=20)
+            ob = await self.public_exchange.fetch_order_book(self.symbol, limit=20)
             if not ob['bids'] or not ob['asks']: return
             
             best_bid = ob['bids'][0][0]

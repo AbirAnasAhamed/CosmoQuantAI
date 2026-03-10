@@ -111,20 +111,45 @@ class BotManager:
             
             logger.info("="*50)
             logger.info(f"🚀 BOT ACTIVATED: ID {bot_id} | {bot.market} on {bot.exchange}")
+            
+            from app.services.notification import NotificationService
+            msg_lines = [f"🚀 *BOT ACTIVATED: ID {bot_id}* | {bot.market} on {bot.exchange}"]
+            
             if bot.strategy == "wall_hunter":
                 logger.info(f"📈 Strategy: WallHunter Level 2 Sniper")
+                msg_lines.append("📈 Strategy: WallHunter Level 2 Sniper")
+                
                 logger.info(f"🎯 Target Spread: {bot.config.get('target_spread', 0)}")
+                msg_lines.append(f"🎯 Target Spread: {bot.config.get('target_spread', 0)}")
+                
                 if bot.config.get('enable_wall_trigger', True):
                     logger.info(f"🧱 Vol Threshold: {bot.config.get('vol_threshold', 0)}")
+                    msg_lines.append(f"🧱 Vol Threshold: {bot.config.get('vol_threshold', 0)}")
+                    
                 if bot.config.get('enable_liq_trigger'):
                     logger.info(f"💥 Liq Threshold: {bot.config.get('liq_threshold', 0)}")
+                    msg_lines.append(f"💥 Liq Threshold: {bot.config.get('liq_threshold', 0)}")
+                    
                 logger.info(f"⚖️ Risk Pct: {bot.config.get('risk_pct', 0)}% | TSL: {bot.config.get('trailing_stop', 0)}%")
+                msg_lines.append(f"⚖️ Risk Pct: {bot.config.get('risk_pct', 0)}% | TSL: {bot.config.get('trailing_stop', 0)}%")
+                
                 logger.info(f"💰 Trade Amount: {bot.config.get('amount_per_trade', 0)} (Quote Asset)")
+                msg_lines.append(f"💰 Trade Amount: {bot.config.get('amount_per_trade', 0)} (Quote Asset)")
+                
                 logger.info(f"📋 Sell Order Type: {bot.config.get('sell_order_type', 'market').upper()}")
+                msg_lines.append(f"📋 Sell Order Type: {bot.config.get('sell_order_type', 'market').upper()}")
             else:
                 logger.info(f"📈 Strategy: {bot.strategy} | Timeframe: {bot.timeframe}")
+                msg_lines.append(f"📈 Strategy: {bot.strategy} | Timeframe: {bot.timeframe}")
+                
                 logger.info(f"💰 Trade Value: {bot.trade_value}")
+                msg_lines.append(f"💰 Trade Value: {bot.trade_value}")
+                
             logger.info("="*50)
+            
+            # Send Telegram Notification explicitly for bot startup
+            if bot.owner_id:
+                asyncio.create_task(NotificationService.send_message(local_db, bot.owner_id, "\n".join(msg_lines)))
             
             return {"status": "success", "message": f"Bot {bot_id} started"}
 
