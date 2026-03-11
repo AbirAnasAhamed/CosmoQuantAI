@@ -34,5 +34,10 @@ export const botService = {
 
     deleteBot: async (botId: string | number): Promise<void> => {
         await apiClient.delete(`/bots/${botId}`);
+    },
+
+    emergencySell: async (botId: string | number, type: 'market' | 'limit'): Promise<any> => {
+        const response = await apiClient.post(`/bots/${botId}/emergency_sell`, { sell_type: type });
+        return response.data;
     }
 };

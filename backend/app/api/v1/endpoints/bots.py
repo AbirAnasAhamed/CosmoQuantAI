@@ -46,6 +46,9 @@ async def send_heartbeat(websocket: WebSocket, interval: int = 30):
 
 from pydantic import BaseModel
 
+class EmergencySellRequest(BaseModel):
+    sell_type: str # "market" or "limit"
+
 class PanicRequest(BaseModel):
     target: str # "all", "losing", "strategy_type"
     value: str = None
@@ -266,6 +269,37 @@ async def control_bot(
         
     db.refresh(bot)
     return bot
+
+@router.post("/{bot_id}/emergency_sell", response_model=Dict[str, Any])
+async def emergency_sell_bot(
+    *,
+    request: Request,
+    db: Session = Depends(deps.get_db),
+    bot_id: int,
+    sell_in: EmergencySellRequest,
+    current_user: models.User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Emergency sell a bot's active position.
+    """
+    bot = db.query(models.Bot).filter(models.Bot.id == bot_id, models.Bot.owner_id == current_user.id).first()
+    if not bot:
+        raise HTTPException(status_code=404, detail="Bot not found")
+        
+    if bot.status != "active":
+        raise HTTPException(status_code=400, detail="Bot is not currently active")
+        
+    if not hasattr(request.app.state, "bot_manager"):
+         raise HTTPException(status_code=500, detail="BotManager not available")
+         
+    try:
+        result = await request.app.state.bot_manager.emergency_sell_bot(bot_id, sell_in.sell_type)
+        if result['status'] == 'error':
+             raise HTTPException(status_code=500, detail=result['message'])
+        return result
+    except Exception as e:
+        logger.error(f"Emergency sell failed for bot {bot_id}: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 @router.get("/{bot_id}/trades", response_model=List[TradeResponse])
 def get_bot_trades(

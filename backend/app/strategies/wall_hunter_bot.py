@@ -587,6 +587,60 @@ class WallHunterBot:
         logger.info(f"Bot {self.bot_id} (WallHunter) stopped.")
         await self._send_telegram(f"🔴 WallHunter Bot [ID: {self.bot_id}] Stopped.")
 
+    async def emergency_sell(self, sell_type: str):
+        """Emergency liquidate the active position."""
+        if not self.active_pos:
+            logger.info(f"No active position to emergency sell for bot {self.bot_id}")
+            return
+            
+        sell_amount = self.active_pos['amount']
+        
+        # Determine the execution price
+        try:
+            ob = await self.public_exchange.fetch_order_book(self.symbol, limit=5)
+            best_bid = ob['bids'][0][0] if ob['bids'] else 0
+            best_ask = ob['asks'][0][0] if ob['asks'] else 0
+            current_price = (best_bid + best_ask) / 2 if best_bid and best_ask else best_bid or best_ask
+        except Exception as e:
+            logger.warning(f"Could not fetch precise market price for emergency sell: {e}")
+            current_price = self.active_pos['entry'] # Fallback
+            
+        if current_price <= 0:
+            raise Exception("Invalid market price fetched.")
+            
+        # Cancel any open limit orders first
+        if self.active_pos.get('limit_order_id'):
+            try:
+                await self.engine.cancel_order(self.active_pos['limit_order_id'])
+                logger.info(f"Cancelled open limit order {self.active_pos['limit_order_id']} for emergency sell.")
+            except Exception as e:
+                logger.warning(f"Failed to cancel open limit order during emergency sell: {e}")
+                
+        if sell_type == "market":
+            logger.info(f"🚨 Executing EMERGENCY MARKET SELL for bot {self.bot_id} at ~{current_price}")
+            await self.engine.execute_trade("sell", sell_amount, current_price)
+            # Finalize position and PnL
+            pnl_val = (current_price - self.active_pos['entry']) * sell_amount
+            await self._send_telegram(f"🚨 WallHunter EMERGENCY EXIT - Market Sell!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nPnL: ${pnl_val:.2f}")
+            self.active_pos = None
+            
+        elif sell_type == "limit":
+            # For a limit sell, we'll try to place it at the best ask or current market mid-price 
+            sell_price = best_ask if best_ask > 0 else current_price
+            logger.info(f"🎯 Executing EMERGENCY LIMIT SELL for bot {self.bot_id} at {sell_price}")
+            limit_res = await self.engine.execute_trade("sell", sell_amount, sell_price, order_type="limit")
+            
+            if limit_res and 'id' in limit_res:
+                self.active_pos['limit_order_id'] = limit_res['id']
+                # We also update the TP tracking to this new limit price
+                self.active_pos['tp'] = sell_price
+                self.sell_order_type = 'limit' # Force limit mode if it wasn't
+                await self._send_telegram(f"🎯 WallHunter EMERGENCY EXIT - Limit Placed!\nPair: {self.symbol}\nLimit Price: {sell_price:.6f}")
+            else:
+                raise Exception("Failed to place emergency limit order.")
+        else:
+            raise ValueError(f"Unknown sell_type: {sell_type}")
+
     async def _vpvr_updater_loop(self):
         """Background task to update High Volume Nodes every 5 minutes."""
         while self.running:

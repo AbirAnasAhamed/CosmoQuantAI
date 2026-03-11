@@ -221,3 +221,20 @@ class BotManager:
                 return {"status": "error", "message": f"Failed to apply live update: {str(e)}"}
         else:
             return {"status": "error", "message": f"Bot strategy does not support live updates"}
+            
+    async def emergency_sell_bot(self, bot_id: int, sell_type: str):
+        """Emergency sell for a running bot's active position."""
+        if bot_id not in self.active_bots:
+            return {"status": "error", "message": "Bot is not currently active in memory"}
+            
+        bot_instance = self.active_bots[bot_id]
+        
+        if hasattr(bot_instance, "emergency_sell") and callable(bot_instance.emergency_sell):
+            try:
+                await bot_instance.emergency_sell(sell_type)
+                return {"status": "success", "message": f"Emergency {sell_type} sell triggered for bot {bot_id}"}
+            except Exception as e:
+                logger.error(f"Error triggering emergency sell for bot {bot_id}: {e}")
+                return {"status": "error", "message": f"Failed to execute emergency sell: {str(e)}"}
+        else:
+            return {"status": "error", "message": f"Bot strategy does not support emergency sell"}

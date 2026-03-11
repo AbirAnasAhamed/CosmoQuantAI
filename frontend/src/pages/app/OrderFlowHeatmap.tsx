@@ -639,6 +639,7 @@ const OrderFlowHeatmap: React.FC = () => {
     const [activeTab, setActiveTab] = useState<'heatmap' | 'bot_settings' | 'bot_logs'>('heatmap');
     const [isWallHunterOpen, setIsWallHunterOpen] = useState(false);
     const [activeWallHunterId, setActiveWallHunterId] = useState<number | null>(null);
+    const [isEmergencySelling, setIsEmergencySelling] = useState(false); // NEW STATE
     const [exchange, setExchange] = useState('binance');
     const [symbol, setSymbol] = useState('DOGE/USDT');
     const [interval, setInterval] = useState('1m');
@@ -680,6 +681,21 @@ const OrderFlowHeatmap: React.FC = () => {
         const maxAsk = asks.length > 0 ? asks[asks.length - 1].total : 0;
         return Math.max(maxBid, maxAsk, 1); // Avoid division by zero
     }, [bids, asks]);
+
+    // Emergency Sell Handler
+    const handleEmergencySell = async (type: 'market' | 'limit') => {
+        if (!activeWallHunterId || isEmergencySelling) return;
+        setIsEmergencySelling(true);
+        try {
+            await botService.emergencySell(activeWallHunterId, type);
+            // Optionally, we could show a success toast here
+        } catch (err: any) {
+            console.error(`Emergency ${type} sell failed:`, err);
+            alert(`Emergency ${type} sell failed: ` + (err.response?.data?.detail || err.message));
+        } finally {
+            setIsEmergencySelling(false);
+        }
+    };
 
     return (
         <div className="flex flex-col h-full bg-brand-light dark:bg-brand-darkest text-slate-900 dark:text-white overflow-hidden rounded-xl border border-gray-200 dark:border-white/10">
@@ -769,6 +785,26 @@ const OrderFlowHeatmap: React.FC = () => {
                                         <div className="flex justify-between text-xs font-mono">
                                             <span className="text-gray-500">Trailing SL:</span>
                                             <span className="text-red-400 font-bold">{formatDisplayPrice(botStatus.sl_price)}</span>
+                                        </div>
+                                        
+                                        {/* EMERGENCY SELL BLOCKS */}
+                                        <div className="mt-2 grid grid-cols-2 gap-2 pointer-events-auto">
+                                            <button
+                                                onClick={() => handleEmergencySell('market')}
+                                                disabled={isEmergencySelling}
+                                                className={`py-1.5 px-2 text-[10px] font-bold rounded bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white border border-red-500/30 transition-colors uppercase flex items-center justify-center gap-1 ${isEmergencySelling ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            >
+                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                                                Market Sell
+                                            </button>
+                                            <button
+                                                onClick={() => handleEmergencySell('limit')}
+                                                disabled={isEmergencySelling}
+                                                className={`py-1.5 px-2 text-[10px] font-bold rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white border border-blue-500/30 transition-colors uppercase flex items-center justify-center gap-1 ${isEmergencySelling ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                            >
+                                                <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" /></svg>
+                                                Limit Sell
+                                            </button>
                                         </div>
                                     </>
                                 )}
