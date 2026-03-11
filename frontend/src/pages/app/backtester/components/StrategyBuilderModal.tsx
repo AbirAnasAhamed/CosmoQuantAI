@@ -23,7 +23,7 @@ export const StrategyBuilderModal: React.FC<StrategyBuilderModalProps> = ({ isOp
     // 1. Load Catalog from Backend
     useEffect(() => {
         if (isOpen) {
-            client.get('/v1/strategies/catalog')
+            client.get('/strategies/catalog')
                 .then(res => {
                     setCatalog(res.data);
                     // Default selection
@@ -51,7 +51,7 @@ export const StrategyBuilderModal: React.FC<StrategyBuilderModalProps> = ({ isOp
         if (!name) return showToast('Please enter a strategy name', 'error');
 
         try {
-            await client.post('/v1/strategies/builder', {
+            await client.post('/strategies/builder', {
                 name,
                 type: selectedStrategy.type,
                 indicator: selectedStrategy.ind,
