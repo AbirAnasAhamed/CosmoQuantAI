@@ -21,8 +21,10 @@ export const useLevel2MarketData = (symbol: string, exchange: string = 'binance'
         let ws: WebSocket | null = null;
         let isSubscribed = true;
         let worker: Worker | null = null;
+        let reconnectTimeout: ReturnType<typeof setTimeout> | null = null;
 
         const connectToBackend = () => {
+            if (!isSubscribed) return;
             // Use relative URL or env var for production, fallback to localhost for dev
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const baseUrl = `${protocol}//${window.location.host}`;
@@ -33,7 +35,9 @@ export const useLevel2MarketData = (symbol: string, exchange: string = 'binance'
 
             try {
                 // Initialize Web Worker
-                worker = new Worker(new URL('../workers/marketDataWorker.ts', import.meta.url), { type: 'module' });
+                if (!worker) {
+                    worker = new Worker(new URL('../workers/marketDataWorker.ts', import.meta.url), { type: 'module' });
+                }
 
                 worker.onmessage = (e) => {
                     if (!isSubscribed) return;
@@ -74,13 +78,13 @@ export const useLevel2MarketData = (symbol: string, exchange: string = 'binance'
                 ws.onclose = () => {
                     console.log(`Disconnected from market depth stream. Reconnecting in 5s...`);
                     if (isSubscribed) {
-                        setTimeout(connectToBackend, 5000);
+                        reconnectTimeout = setTimeout(connectToBackend, 5000);
                     }
                 };
             } catch (error) {
                 console.error("Error creating WebSocket or Worker:", error);
                 if (isSubscribed) {
-                    setTimeout(connectToBackend, 5000);
+                    reconnectTimeout = setTimeout(connectToBackend, 5000);
                 }
             }
         };
@@ -91,11 +95,19 @@ export const useLevel2MarketData = (symbol: string, exchange: string = 'binance'
 
         return () => {
             isSubscribed = false;
+            if (reconnectTimeout) {
+                clearTimeout(reconnectTimeout);
+            }
             if (ws) {
-                ws.close();
+                if (ws.readyState === WebSocket.CONNECTING) {
+                    ws.onopen = () => ws?.close();
+                } else if (ws.readyState === WebSocket.OPEN) {
+                    ws.close();
+                }
             }
             if (worker) {
                 worker.terminate();
+                worker = null;
             }
         };
     }, [symbol, exchange]);
