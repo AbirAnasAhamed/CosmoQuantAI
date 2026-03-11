@@ -21,30 +21,39 @@ export const useSentimentSocket = (activePair: string) => {
     useEffect(() => {
         if (!activePair) return;
 
+        let isSubscribed = true;
+
         const connect = () => {
             // Close existing connection if any
             if (wsRef.current) {
+                wsRef.current.onclose = null;
+                wsRef.current.onerror = null;
                 wsRef.current.close();
             }
 
-            // Construct WebSocket URL
-            // Assuming backend is at localhost:8000 for now based on context
-            // In a real app, use environment variables or logic relative to API_BASE_URL
-            const wsUrl = `ws://localhost:8000/api/v1/sentiment/ws/${activePair}`;
+            // Construct WebSocket URL using current window location to support proxied environments
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            const wsUrl = `${protocol}//${host}/api/v1/sentiment/ws/${activePair}`;
 
             console.log(`🔌 Connecting to Sentiment WS: ${wsUrl}`);
             const ws = new WebSocket(wsUrl);
             wsRef.current = ws;
 
             ws.onopen = () => {
+                if (!isSubscribed) {
+                    ws.close();
+                    return;
+                }
                 console.log('✅ Sentiment WS Connected');
                 setIsConnected(true);
             };
 
             ws.onmessage = (event) => {
+                if (!isSubscribed) return;
                 try {
                     const message: WebSocketMessage = JSON.parse(event.data);
-                    console.log('📩 WS Message:', message);
+                    // console.log('📩 WS Message:', message);
                     setRealTimeData(message);
                 } catch (error) {
                     console.error('❌ Failed to parse WS message:', error);
@@ -52,16 +61,20 @@ export const useSentimentSocket = (activePair: string) => {
             };
 
             ws.onclose = () => {
+                if (!isSubscribed) return;
                 console.log('⚠️ Sentiment WS Disconnected');
                 setIsConnected(false);
                 // Attempt reconnect after 3 seconds
                 reconnectTimeoutRef.current = setTimeout(() => {
-                    console.log('🔄 Reconnecting...');
-                    connect();
+                    if (isSubscribed) {
+                        console.log('🔄 Reconnecting...');
+                        connect();
+                    }
                 }, 3000);
             };
 
             ws.onerror = (error) => {
+                if (!isSubscribed) return;
                 console.error('❌ Sentiment WS Error:', error);
                 ws.close();
             };
@@ -70,7 +83,11 @@ export const useSentimentSocket = (activePair: string) => {
         connect();
 
         return () => {
+            isSubscribed = false;
             if (wsRef.current) {
+                // Prevent onclose handle from triggering during component unmount
+                wsRef.current.onclose = null;
+                wsRef.current.onerror = null;
                 wsRef.current.close();
             }
             if (reconnectTimeoutRef.current) {

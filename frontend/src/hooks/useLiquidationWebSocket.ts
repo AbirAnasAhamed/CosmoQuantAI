@@ -23,7 +23,6 @@ export interface AggregatedStats {
     totalVol: number;
 }
 
-const WS_URL = 'ws://localhost:8000/api/v1/liquidation/ws/stream';
 const MAX_FEED_LENGTH = 50; // Increased buffer
 const MAX_CLD_POINTS = 100;
 
@@ -42,6 +41,9 @@ export const useLiquidationWebSocket = (activePair: string) => {
         try {
             // detailed logging for debugging
             console.log(`Connecting to Liquidation Stream for ${activePair}...`);
+            const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const host = window.location.host;
+            const WS_URL = `${protocol}//${host}/api/v1/liquidation/ws/stream`;
             const ws = new WebSocket(`${WS_URL}?symbol=${activePair.replace('/', '')}`);
 
             ws.onopen = () => {
@@ -138,7 +140,11 @@ export const useLiquidationWebSocket = (activePair: string) => {
     useEffect(() => {
         connect();
         return () => {
-            if (wsRef.current) wsRef.current.close();
+            if (wsRef.current) {
+                wsRef.current.onclose = null;
+                wsRef.current.onerror = null;
+                wsRef.current.close();
+            }
             if (reconnectTimeoutRef.current) clearTimeout(reconnectTimeoutRef.current);
         };
     }, [connect]);
