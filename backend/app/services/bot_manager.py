@@ -134,6 +134,20 @@ class BotManager:
                         logger.info(f"💥 {bot.market} Liq Threshold: {bot.config.get('liq_threshold', 0)}")
                         msg_lines.append(f"💥 {bot.market} Liq Threshold: {bot.config.get('liq_threshold', 0)}")
                     
+                    # Log Advanced Liq Features
+                    adv_features = []
+                    if bot.config.get('enable_liq_cascade'):
+                        adv_features.append(f"Cascade: ON ({bot.config.get('liq_cascade_window')}s)")
+                    if bot.config.get('enable_dynamic_liq'):
+                        adv_features.append(f"Dynamic: ON ({bot.config.get('dynamic_liq_multiplier')}x)")
+                    if bot.config.get('enable_ob_imbalance'):
+                        adv_features.append(f"Tape Reading: ON ({bot.config.get('ob_imbalance_ratio')}x)")
+                    
+                    if adv_features:
+                        adv_str = " | ".join(adv_features)
+                        logger.info(f"⚡ Smart Liq: {adv_str}")
+                        msg_lines.append(f"⚡ Smart Liq: {adv_str}")
+                    
                 logger.info(f"⚖️ Risk Pct: {bot.config.get('risk_pct', 0)}% | TSL: {bot.config.get('trailing_stop', 0)}%")
                 msg_lines.append(f"⚖️ Risk Pct: {bot.config.get('risk_pct', 0)}% | TSL: {bot.config.get('trailing_stop', 0)}%")
                 
