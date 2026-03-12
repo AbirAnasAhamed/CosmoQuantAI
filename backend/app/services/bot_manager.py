@@ -127,8 +127,12 @@ class BotManager:
                     msg_lines.append(f"🧱 Vol Threshold: {bot.config.get('vol_threshold', 0)}")
                     
                 if bot.config.get('enable_liq_trigger'):
-                    logger.info(f"💥 Liq Threshold: {bot.config.get('liq_threshold', 0)}")
-                    msg_lines.append(f"💥 Liq Threshold: {bot.config.get('liq_threshold', 0)}")
+                    if bot.config.get('follow_btc_liq'):
+                        logger.info(f"💥 BTC Liq Threshold: {bot.config.get('btc_liq_threshold', 0)}")
+                        msg_lines.append(f"💥 BTC Liq Threshold: {bot.config.get('btc_liq_threshold', 0)}")
+                    else:
+                        logger.info(f"💥 {bot.market} Liq Threshold: {bot.config.get('liq_threshold', 0)}")
+                        msg_lines.append(f"💥 {bot.market} Liq Threshold: {bot.config.get('liq_threshold', 0)}")
                     
                 logger.info(f"⚖️ Risk Pct: {bot.config.get('risk_pct', 0)}% | TSL: {bot.config.get('trailing_stop', 0)}%")
                 msg_lines.append(f"⚖️ Risk Pct: {bot.config.get('risk_pct', 0)}% | TSL: {bot.config.get('trailing_stop', 0)}%")

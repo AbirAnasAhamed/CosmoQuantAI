@@ -34,6 +34,10 @@ class StrategyConfig(BaseModel):
     dynamic_liq_multiplier: Optional[float] = 1.0
     enable_ob_imbalance: Optional[bool] = False
     ob_imbalance_ratio: Optional[float] = 1.5
+    
+    # --- BTC Liquidation Follower ---
+    follow_btc_liq: Optional[bool] = False
+    btc_liq_threshold: Optional[float] = 500000.0
 
     @validator('stop_loss')
     def validate_stop_loss(cls, v):

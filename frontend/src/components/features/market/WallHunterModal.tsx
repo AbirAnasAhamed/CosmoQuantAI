@@ -41,7 +41,11 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
         enableDynamicLiq: false,        // ATR Based Threshold
         dynamicLiqMultiplier: 1.0,      // Threshold Multiplier
         enableObImbalance: false,       // Tape Reading
-        obImbalanceRatio: 1.5           // Bid/Ask volume ratio
+        obImbalanceRatio: 1.5,          // Bid/Ask volume ratio
+
+        // --- BRAND NEW: BTC Liquidation Follower ---
+        followBtcLiq: false,
+        btcLiqThreshold: 500000
     });
 
     const [existingBot, setExistingBot] = useState<any>(null);
@@ -96,7 +100,11 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                             enableDynamicLiq: c.enable_dynamic_liq !== undefined ? c.enable_dynamic_liq : false,
                             dynamicLiqMultiplier: c.dynamic_liq_multiplier || 1.0,
                             enableObImbalance: c.enable_ob_imbalance !== undefined ? c.enable_ob_imbalance : false,
-                            obImbalanceRatio: c.ob_imbalance_ratio || 1.5
+                            obImbalanceRatio: c.ob_imbalance_ratio || 1.5,
+
+                            // Load BTC feature
+                            followBtcLiq: c.follow_btc_liq !== undefined ? c.follow_btc_liq : false,
+                            btcLiqThreshold: c.btc_liq_threshold || 500000
                         }));
                     } else {
                         setExistingBot(null);
@@ -207,7 +215,11 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                     enable_dynamic_liq: form.enableDynamicLiq,
                     dynamic_liq_multiplier: form.dynamicLiqMultiplier,
                     enable_ob_imbalance: form.enableObImbalance,
-                    ob_imbalance_ratio: form.obImbalanceRatio
+                    ob_imbalance_ratio: form.obImbalanceRatio,
+
+                    // Pass BTC specific settings
+                    follow_btc_liq: form.followBtcLiq,
+                    btc_liq_threshold: form.btcLiqThreshold
                 }
             };
 
@@ -379,11 +391,36 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                                 </div>
                                 {form.enableLiqTrigger && (
                                     <div className="mt-3 pl-1" onClick={e => e.stopPropagation()}>
-                                        <div className="flex justify-between items-end mb-1">
-                                            <label className="text-[10px] font-bold text-gray-400 uppercase">Min Short Liq. Threshold ($)</label>
-                                            <span className="text-xs font-mono font-bold text-rose-500">${form.liqThreshold.toLocaleString()}</span>
+                                        
+                                        {/* --- NEW: Follow BTC Liquidation Toggle --- */}
+                                        <div className="mb-4 bg-orange-500/10 rounded-xl p-3 border border-orange-500/20 flex items-center justify-between cursor-pointer" onClick={() => handleFormChange('followBtcLiq', !form.followBtcLiq)}>
+                                            <div>
+                                                <p className="text-xs font-bold text-white flex items-center gap-1.5">Follow BTC Liquidation <span className="text-[8px] bg-orange-500 text-white px-1 rounded-sm shadow-[0_0_10px_rgba(249,115,22,0.5)]">ALPHA</span></p>
+                                                <p className="text-[9px] text-gray-400 mt-0.5">Trigger buy when BTC gets liquidated heavily</p>
+                                            </div>
+                                            <div className={`w-8 h-4 rounded-full p-0.5 flex transition-colors ${form.followBtcLiq ? 'bg-orange-500 justify-end' : 'bg-gray-700 justify-start'}`}><div className="w-3 h-3 bg-white rounded-full"></div></div>
                                         </div>
-                                        <input disabled={form.enableDynamicLiq} type="range" min="1000" max="500000" step="1000" className={`w-full h-2 rounded-lg appearance-none cursor-pointer accent-rose-500 ${form.enableDynamicLiq ? 'bg-white/5 opacity-50' : 'bg-white/10'}`} value={form.liqThreshold} onChange={(e) => setForm({ ...form, liqThreshold: parseFloat(e.target.value) })} />
+
+                                        {form.followBtcLiq ? (
+                                            <div className="mb-4 bg-black/40 p-3 rounded-lg border border-white/5">
+                                                <div className="flex justify-between items-end mb-1">
+                                                    <label className="text-[10px] font-bold text-gray-400 uppercase">BTC Liq. Threshold ($)</label>
+                                                    <span className="text-xs font-mono font-bold text-orange-500">${form.btcLiqThreshold.toLocaleString()}</span>
+                                                </div>
+                                                <div className="flex gap-3 items-center">
+                                                    <input disabled={form.enableDynamicLiq} type="range" min="100" max="100000000" step="100" className={`flex-1 h-2 rounded-lg appearance-none cursor-pointer accent-orange-500 ${form.enableDynamicLiq ? 'bg-white/5 opacity-50' : 'bg-white/10'}`} value={form.btcLiqThreshold} onChange={(e) => handleFormChange('btcLiqThreshold', parseFloat(e.target.value))} />
+                                                    <input disabled={form.enableDynamicLiq} type="number" min="100" max="100000000" step="100" className={`w-24 bg-black/40 border border-white/10 rounded-xl p-1.5 text-white outline-none focus:border-orange-500 text-center font-mono text-sm ${form.enableDynamicLiq ? 'opacity-50' : ''}`} value={form.btcLiqThreshold} onChange={(e) => handleFormChange('btcLiqThreshold', parseFloat(e.target.value))} />
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="mb-4">
+                                                <div className="flex justify-between items-end mb-1">
+                                                    <label className="text-[10px] font-bold text-gray-400 uppercase">Local Asset Liq. Threshold ($)</label>
+                                                    <span className="text-xs font-mono font-bold text-rose-500">${form.liqThreshold.toLocaleString()}</span>
+                                                </div>
+                                                <input disabled={form.enableDynamicLiq} type="range" min="1000" max="500000" step="1000" className={`w-full h-2 rounded-lg appearance-none cursor-pointer accent-rose-500 ${form.enableDynamicLiq ? 'bg-white/5 opacity-50' : 'bg-white/10'}`} value={form.liqThreshold} onChange={(e) => setForm({ ...form, liqThreshold: parseFloat(e.target.value) })} />
+                                            </div>
+                                        )}
 
                                         {/* --- CASCADE FEATURE --- */}
                                         <div className="mt-4 bg-black/20 rounded-xl p-3 border border-white/5 flex items-center justify-between cursor-pointer" onClick={() => handleFormChange('enableLiqCascade', !form.enableLiqCascade)}>

@@ -68,6 +68,10 @@ class WallHunterBot:
         self.enable_ob_imbalance = config.get("enable_ob_imbalance", False)
         self.ob_imbalance_ratio = config.get("ob_imbalance_ratio", 1.5)
 
+        # --- BRAND NEW: BTC Liquidation Follower ---
+        self.follow_btc_liq = config.get("follow_btc_liq", False)
+        self.btc_liq_threshold = config.get("btc_liq_threshold", 500000.0)
+
         # --- NEW FEATURES: Spoofing Detection ---
         self.min_wall_lifetime = config.get("min_wall_lifetime", 3.0) # ওয়ালকে অন্তত কত সেকেন্ড টিকে থাকতে হবে
         self.tracked_walls = {} # ওয়ালগুলোকে ট্র্যাক করার জন্য ডিকশনারি
@@ -150,7 +154,7 @@ class WallHunterBot:
             self.enable_liq_trigger = new_config.get("enable_liq_trigger")
             
         if "liq_threshold" in new_config and new_config["liq_threshold"] != self.liq_threshold:
-            updates.append(f"Liq Threshold: {self.liq_threshold} -> {new_config['liq_threshold']}")
+            updates.append(f"{self.symbol} Liq Threshold: {self.liq_threshold} -> {new_config['liq_threshold']}")
             self.liq_threshold = new_config.get("liq_threshold")
             
         if "enable_micro_scalp" in new_config and new_config["enable_micro_scalp"] != self.enable_micro_scalp:
@@ -165,6 +169,15 @@ class WallHunterBot:
         if "micro_scalp_min_wall" in new_config and new_config["micro_scalp_min_wall"] != self.micro_scalp_min_wall:
             updates.append(f"Micro-Scalp Min Wall: {self.micro_scalp_min_wall} -> {new_config['micro_scalp_min_wall']}")
             self.micro_scalp_min_wall = new_config.get("micro_scalp_min_wall")
+            
+        if "follow_btc_liq" in new_config and new_config["follow_btc_liq"] != self.follow_btc_liq:
+            status = "ON" if new_config["follow_btc_liq"] else "OFF"
+            updates.append(f"Follow BTC Liq: {status}")
+            self.follow_btc_liq = new_config.get("follow_btc_liq")
+            
+        if "btc_liq_threshold" in new_config and new_config["btc_liq_threshold"] != self.btc_liq_threshold:
+            updates.append(f"BTC Liq Threshold: {self.btc_liq_threshold} -> {new_config['btc_liq_threshold']}")
+            self.btc_liq_threshold = new_config.get("btc_liq_threshold")
             
         # Update internal config dictionary
         self.config.update(new_config)
@@ -734,13 +747,23 @@ class WallHunterBot:
             self.redis = get_redis_client()
             
         pubsub = self.redis.pubsub()
-        channel = f"stream:liquidations:{self.symbol}"
-        pubsub.subscribe(channel)
-        logger.info(f"🎧 [WallHunter {self.bot_id}] Subscribed to {channel}")
+        current_channel = None
         
         while self.running:
             try:
                 if self.enable_liq_trigger:
+                    
+                    # --- NEW: Dynamic Channel Switching ---
+                    target_channel = f"stream:liquidations:BTC/USDT" if self.follow_btc_liq else f"stream:liquidations:{self.symbol}"
+                    
+                    if current_channel != target_channel:
+                        if current_channel:
+                            pubsub.unsubscribe(current_channel)
+                            logger.info(f"🎧 [WallHunter {self.bot_id}] Unsubscribed from {current_channel}")
+                        pubsub.subscribe(target_channel)
+                        current_channel = target_channel
+                        logger.info(f"🎧 [WallHunter {self.bot_id}] Subscribed to {current_channel}")
+                        
                     message = pubsub.get_message(ignore_subscribe_messages=True)
                     if message and message['type'] == 'message':
                         try:
@@ -750,7 +773,16 @@ class WallHunterBot:
                             else:
                                 data = json.loads(message['data'])
                             
-                            logger.info(f"🔍 [WallHunter {self.bot_id}] Raw Liq Alert: {data}")
+                            # Custom Terminal Logs based on feature
+                            liq_side = data.get("side", "").upper()
+                            liq_amount_raw = float(data.get("amount", 0))
+                            
+                            if self.follow_btc_liq:
+                                logger.info(f"\n==============================================")
+                                logger.info(f"🔥 [BTC LIQUIDATION] {liq_side} | Amount: ${liq_amount_raw:,.2f}")
+                                logger.info(f"==============================================\n")
+                            else:
+                                logger.info(f"🔍 [WallHunter {self.bot_id}] Raw Liq Alert: {data}")
                             
                             if data.get("side") == "short":
                                 current_raw_time = time.time()
@@ -765,9 +797,11 @@ class WallHunterBot:
                                         self.liq_history.popleft()
                                     cascade_total = sum(amount for _, amount in self.liq_history)
                                 
-                                # 2. Dynamic Threshold Logic
-                                active_threshold = self.liq_threshold
-                                if self.enable_dynamic_liq and self.current_atr > 0:
+                                # 2. Dynamic Threshold Logic & BTC Follower
+                                base_threshold = self.btc_liq_threshold if self.follow_btc_liq else self.liq_threshold
+                                active_threshold = base_threshold
+                                
+                                if self.enable_dynamic_liq and self.current_atr > 0 and not self.follow_btc_liq:
                                     # Example dynamic calculation: Use ATR value * Multiplier * Contract Size Heuristics
                                     # (Needs refinement based on asset class, but serves as a base)
                                     # A safer approach for crypto: Threshold = Current Price * ATR * Multiplier
@@ -779,7 +813,8 @@ class WallHunterBot:
                                 
                                 # 3. Trigger check
                                 if cascade_total >= active_threshold:
-                                    logger.info(f"💥 Short Liquidation Triggered! Symbol: {self.symbol} | Cascade Total: ${cascade_total:.2f} | Threshold: ${active_threshold:.2f}")
+                                    triggered_symbol = "BTC/USDT" if self.follow_btc_liq else self.symbol
+                                    logger.info(f"💥 Short Liquidation Triggered! Stream: {triggered_symbol} | Cascade Total: ${cascade_total:.2f} | Threshold: ${active_threshold:.2f}")
                                     if self.enable_liq_cascade:
                                         self.liq_history.clear() # Reset after triggering
                                     await self._handle_liquidation_trigger(data)
