@@ -10,7 +10,11 @@ export interface MarketPair {
 }
 
 export const useCCXTMarkets = () => {
-    const [exchanges] = useState<string[]>(ccxt.exchanges);
+    // Filter to exchanges known to support liquidation streams well in CCXT Pro
+    const supportedExchanges = ['binance', 'bybit', 'okx', 'kucoin', 'bitget', 'gateio', 'mexc', 'huobi'];
+    const [exchanges] = useState<string[]>(
+        ccxt.exchanges.filter(e => supportedExchanges.includes(e))
+    );
     const [selectedExchange, setSelectedExchange] = useState<string>('binance');
 
     // Status tracking
@@ -37,7 +41,15 @@ export const useCCXTMarkets = () => {
             // eslint-disable-next-line @typescript-eslint/ban-ts-comment
             // @ts-ignore
             const exchangeClass = ccxt[exchangeId];
-            const exchangeInstance = new exchangeClass({ enableRateLimit: true });
+            
+            const exchangeOptions: any = { enableRateLimit: true, options: {} };
+            if (exchangeId === 'binance') {
+                exchangeOptions.options.defaultType = 'future';
+            } else if (exchangeId === 'bybit' || exchangeId === 'okx' || exchangeId === 'bitget' || exchangeId === 'kucoin') {
+                exchangeOptions.options.defaultType = 'swap';
+            }
+            
+            const exchangeInstance = new exchangeClass(exchangeOptions);
 
             // Fetch raw markets from CCXT
             const rawMarkets = await exchangeInstance.loadMarkets();
@@ -45,16 +57,31 @@ export const useCCXTMarkets = () => {
             // Parse into our standard MarketPair format
             const parsedMarkets: MarketPair[] = [];
             const quotes = new Set<string>();
+            console.log(`[useCCXTMarkets] Loaded ${Object.keys(rawMarkets).length} raw markets for ${exchangeId}`);
 
             Object.values(rawMarkets).forEach((market: any) => {
-                if (market && market.symbol && market.base && market.quote) {
-                    parsedMarkets.push({
-                        symbol: market.symbol,
-                        baseId: market.base,
-                        quoteId: market.quote,
-                        active: market.active !== false // assume active if not explicitly false
-                    });
-                    quotes.add(market.quote);
+                // CCXT futures markets often look like 'BTC/USDT:USDT'. We want to show 'BTC/USDT' or 'BTC/USDT:USDT'
+                // Market objects usually have baseId, quoteId, settle, or we can parse from symbol
+                if (market && market.symbol && market.active !== false) {
+                    // Usually quote is something like 'USDT'
+                    // For futures, ccxt also provides 'settle' which is often the true quote for USD-M futures
+                    const quote = market.settle || market.quote;
+                    const base = market.base;
+                    
+                    if (base && quote) {
+                        // Skip quarterly delivery contracts for simplicity, focus on perps if possible
+                        if (market.symbol.includes('-') && !market.symbol.includes('PERP')) {
+                             return; // Skip dated futures like BTC/USDT:USDT-260327
+                        }
+                        
+                        parsedMarkets.push({
+                            symbol: market.symbol,
+                            baseId: base,
+                            quoteId: quote,
+                            active: true
+                        });
+                        quotes.add(quote);
+                    }
                 }
             });
 

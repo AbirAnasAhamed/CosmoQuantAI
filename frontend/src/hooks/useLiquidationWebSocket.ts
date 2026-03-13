@@ -26,7 +26,7 @@ export interface AggregatedStats {
 const MAX_FEED_LENGTH = 50; // Increased buffer
 const MAX_CLD_POINTS = 100;
 
-export const useLiquidationWebSocket = (activePair: string) => {
+export const useLiquidationWebSocket = (activeExchange: string, activePair: string) => {
     const [isConnected, setIsConnected] = useState(false);
     const [liveFeed, setLiveFeed] = useState<LiquidationEvent[]>([]);
     const [cldData, setCldData] = useState<CldData[]>([]);
@@ -40,11 +40,17 @@ export const useLiquidationWebSocket = (activePair: string) => {
     const connect = useCallback(() => {
         try {
             // detailed logging for debugging
-            console.log(`Connecting to Liquidation Stream for ${activePair}...`);
+            console.log(`Connecting to Liquidation Stream for ${activeExchange}:${activePair}...`);
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
             const host = window.location.host;
             const WS_URL = `${protocol}//${host}/api/v1/liquidation/ws/stream`;
-            const ws = new WebSocket(`${WS_URL}?symbol=${activePair.replace('/', '')}`);
+            
+            // Format symbol explicitly as it appears in CCXT (e.g., BTC/USDT or BTC/USDT:USDT)
+            const params = new URLSearchParams({
+                exchange: activeExchange.toLowerCase(),
+                symbol: activePair
+            });
+            const ws = new WebSocket(`${WS_URL}?${params.toString()}`);
 
             ws.onopen = () => {
                 console.log('Connected to Liquidation Stream');

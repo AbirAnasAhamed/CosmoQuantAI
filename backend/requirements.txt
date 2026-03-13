@@ -1,4 +1,4 @@
-﻿annotated-doc==0.0.4
+annotated-doc==0.0.4
 annotated-types==0.7.0
 anyio==4.11.0
 bcrypt==3.2.2
@@ -40,7 +40,7 @@ uvicorn==0.38.0
 watchfiles==1.1.1
 websockets==15.0.1
 fastapi-mail
-ccxt
+ccxt  # This includes ccxt.pro automatically
 pandas
 numpy
 backtrader

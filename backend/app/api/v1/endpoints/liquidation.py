@@ -14,29 +14,31 @@ async def get_candles(symbol: str, interval: str = "15m", limit: int = 50):
     return await liquidation_service.get_klines(symbol, interval, limit)
 
 @router.websocket("/ws/stream")
-async def websocket_liquidation_stream(websocket: WebSocket, symbol: str = "BTCUSDT"):
+async def websocket_liquidation_stream(websocket: WebSocket, exchange: str = "binance", symbol: str = "BTC/USDT"):
     """
     WebSocket endpoint to stream real-time liquidation data.
     args:
-        symbol: The trading pair symbol to subscribe to (default: BTCUSDT).
+        exchange: The exchange name (e.g., 'binance')
+        symbol: The trading pair symbol to subscribe to (e.g., 'BTC/USDT').
     """
     await websocket.accept()
-    logger.info(f"Client connected to Liquidation Stream for {symbol}")
+    logger.info(f"Client connected to Liquidation Stream for {exchange}:{symbol}")
 
     # Ensure symbol is uppercase for consistency
     target_symbol = symbol.upper()
+    target_exchange = exchange.lower()
 
-    # Subscribe to the requested symbol
-    await liquidation_service.subscribe([target_symbol])
+    # Subscribe to the requested exchange and symbol
+    await liquidation_service.subscribe(target_exchange, target_symbol)
 
     async def send_to_client(data):
         try:
-            # Filter messages: Only send data for the requested symbol
-            if data.get('symbol') == target_symbol:
+            # Filter messages: Only send data for the requested exchange and symbol
+            # Note: in ccxt, symbols are often like 'BTC/USDT' or 'BTC/USDT:USDT'
+            # The service returns the same symbol string asked for, so compare exact
+            if data.get('symbol') == target_symbol and data.get('exchange') == target_exchange:
                 await websocket.send_json(data)
         except Exception as e:
-            # If sending fails, we assume client disconnected or error state
-            # The loop below will catch disconnect, but this handles send errors
             logger.error(f"Error sending to client: {e}")
             raise e
 
@@ -46,12 +48,10 @@ async def websocket_liquidation_stream(websocket: WebSocket, symbol: str = "BTCU
     try:
         # Keep the connection alive
         while True:
-            # We just listen for messages (ping/pong) but don't expect specific commands for now
             await websocket.receive_text()
             
     except WebSocketDisconnect:
-        logger.info(f"Client disconnected from Liquidation Stream ({target_symbol})")
-        # Remove callback
+        logger.info(f"Client disconnected from Liquidation Stream ({target_exchange}:{target_symbol})")
         if send_to_client in liquidation_service._callbacks:
             liquidation_service._callbacks.remove(send_to_client)
             
