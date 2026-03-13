@@ -26,14 +26,15 @@ const FireIcon = ({ className }: { className?: string }) => (
 );
 
 // Custom component for the "Kill Feed" items
-const KillFeedItem: React.FC<{ event: LiquidationEvent }> = ({ event }) => {
+const KillFeedItem: React.FC<{ event: LiquidationEvent; activePair: string }> = ({ event, activePair }) => {
     const isLong = event.type === 'Long';
     const bgColor = isLong ? 'bg-rose-500/5' : 'bg-emerald-500/5';
     const borderColor = isLong ? 'border-rose-500/20' : 'border-emerald-500/20';
     const textColor = isLong ? 'text-rose-500' : 'text-emerald-500';
     const iconWrapperBg = isLong ? 'bg-rose-500/10' : 'bg-emerald-500/10';
     const glowColor = isLong ? 'rgba(244,63,94,0.3)' : 'rgba(16,185,129,0.3)';
-    const label = isLong ? 'Long Rekt' : 'Short Rekt';
+    const baseToken = activePair ? activePair.split('/')[0] : '';
+    const label = `${baseToken} ${isLong ? 'Long Rekt' : 'Short Rekt'}`;
 
     return (
         <div className={`relative flex items-center justify-between p-3 mb-2 rounded-xl border ${borderColor} ${bgColor} ${event.isNew ? 'animate-fade-in-right' : ''} group overflow-hidden transition-colors hover:bg-white/5`}>
@@ -189,11 +190,11 @@ const LiquidationMap: React.FC = () => {
         <div className="flex flex-col h-full gap-4 overflow-hidden">
 
             {/* High-Tech HUD */}
-            <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-5 gap-4 staggered-fade-in">
+            <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-5 gap-4 staggered-fade-in relative z-50">
                 {/* Search & Price */}
-                <Card className="md:col-span-1 flex flex-col justify-center !p-5 relative overflow-hidden bg-gradient-to-br from-[#0B1120] to-[#111827] border-white/5 shadow-2xl rounded-2xl group">
-                    <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/10 via-transparent to-transparent opacity-50 group-hover:opacity-100 transition-opacity duration-700"></div>
-                    <div className="absolute -right-10 -top-10 w-32 h-32 bg-brand-primary/20 blur-[50px] rounded-full"></div>
+                <Card className="md:col-span-1 flex flex-col justify-center !p-5 relative bg-gradient-to-br from-[#0B1120] to-[#111827] border-white/5 shadow-2xl rounded-2xl group z-[60]">
+                    <div className="absolute inset-0 bg-gradient-to-br from-brand-primary/10 via-transparent to-transparent opacity-50 group-hover:opacity-100 transition-opacity duration-700 rounded-2xl pointer-events-none"></div>
+                    <div className="absolute -right-10 -top-10 w-32 h-32 bg-brand-primary/20 blur-[50px] rounded-full pointer-events-none"></div>
                     
                     <div className="relative z-10 flex flex-col gap-4">
                         {/* Header */}
@@ -490,7 +491,7 @@ const LiquidationMap: React.FC = () => {
                                         </div>
                                     )}
                                     {liveFeed.filter(e => e.amount >= minLiquidationThreshold).map(e => (
-                                        <KillFeedItem key={e.id} event={e} />
+                                        <KillFeedItem key={e.id} event={e} activePair={activePair} />
                                     ))}
                                 </div>
                             ) : (
