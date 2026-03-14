@@ -15,7 +15,21 @@ class MarketDepthService:
     """
 
     def __init__(self):
-        pass
+        self._exchanges: Dict[str, Any] = {}
+
+    def get_exchange_instance(self, exchange_id: str):
+        exchange_id = exchange_id.lower()
+        if exchange_id not in self._exchanges:
+            exchange_class = getattr(ccxt, exchange_id, None)
+            if not exchange_class:
+                raise ValueError(f"Exchange '{exchange_id}' not supported.")
+            self._exchanges[exchange_id] = exchange_class({'enableRateLimit': True})
+        return self._exchanges[exchange_id]
+
+    async def close_all_exchanges(self):
+        for exchange in self._exchanges.values():
+            await exchange.close()
+        self._exchanges.clear()
 
     async def fetch_order_book_heatmap(
         self, 
@@ -56,11 +70,7 @@ class MarketDepthService:
                 return json.loads(cached_data)
 
         # 2. Fetch Live Data
-        exchange_class = getattr(ccxt, exchange_id, None)
-        if not exchange_class:
-            raise ValueError(f"Exchange '{exchange_id}' not supported.")
-
-        exchange = exchange_class({'enableRateLimit': True})
+        exchange = self.get_exchange_instance(exchange_id)
         
         try:
             # Load markets to verify symbol support (optional but good for validation)
@@ -95,8 +105,6 @@ class MarketDepthService:
         except Exception as e:
             logger.error(f"Error fetching market depth for {symbol} on {exchange_id}: {e}")
             raise e
-        finally:
-            await exchange.close()
 
     def _aggregate_orders(self, orders: List[List[float]], bucket_size: float, is_bid: bool) -> List[Dict[str, float]]:
         """
@@ -159,11 +167,7 @@ class MarketDepthService:
             if cached:
                 return json.loads(cached)
 
-        exchange_class = getattr(ccxt, exchange_id, None)
-        if not exchange_class:
-            raise ValueError(f"Exchange '{exchange_id}' not supported.")
-        
-        exchange = exchange_class({'enableRateLimit': True})
+        exchange = self.get_exchange_instance(exchange_id)
         try:
             markets = await exchange.load_markets()
             symbols = list(markets.keys())
@@ -171,8 +175,9 @@ class MarketDepthService:
             if redis:
                 await redis.setex(cache_key, 3600, json.dumps(symbols))
             return symbols
-        finally:
-            await exchange.close()
+        except Exception as e:
+            logger.error(f"Error loading markets for {exchange_id}: {e}")
+            raise e
 
     async def fetch_ohlcv(self, symbol: str, exchange_id: str, timeframe: str = '1h', limit: int = 100) -> List[Dict[str, Any]]:
         """
@@ -186,11 +191,7 @@ class MarketDepthService:
             if cached:
                 return json.loads(cached)
 
-        exchange_class = getattr(ccxt, exchange_id, None)
-        if not exchange_class:
-            raise ValueError(f"Exchange '{exchange_id}' not supported.")
-
-        exchange = exchange_class({'enableRateLimit': True})
+        exchange = self.get_exchange_instance(exchange_id)
         try:
             # CCXT returns list of [timestamp, open, high, low, close, volume]
             ohlcv = await exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
@@ -216,7 +217,5 @@ class MarketDepthService:
         except Exception as e:
             logger.error(f"Error fetching OHLCV for {symbol}: {e}")
             raise e
-        finally:
-            await exchange.close()
 
 market_depth_service = MarketDepthService()
