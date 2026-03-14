@@ -421,18 +421,13 @@ class WallHunterBot:
             avg_price = res.get('average')
             fill_price = res.get('price')
             
-            # If CCXT did not return average price initially, fetch the order from the exchange
+            # If CCXT did not return average price initially, launch a background task
+            # We will use current_mid_price (or fill price) temporarily so we can proceed instantly.
             if not self.is_paper_trading and res.get('id') and self.engine.exchange and not (avg_price and avg_price > 0):
-                try:
-                    logger.info(f"Fetching order {res.get('id')} to get accurate execution price...")
-                    await asyncio.sleep(0.5) # Wait for exchange to process market order
-                    fetched_order = await self.engine.exchange.fetch_order(res['id'], self.symbol)
-                    if fetched_order:
-                        res = fetched_order
-                        avg_price = res.get('average')
-                        fill_price = res.get('price')
-                except Exception as e:
-                    logger.warning(f"Failed to fetch updated order info for {res.get('id')}: {e}")
+                logger.info(f"⚡ Price not instantly available for {res.get('id')}. Spawning background tracker...")
+                asyncio.create_task(self._fetch_and_update_entry(res['id'], base_amount, current_mid_price))
+                # For now, we proceed to set up SL/TP using intermediate price
+                pass
 
             actual_entry = avg_price if avg_price and avg_price > 0 else (fill_price if fill_price and fill_price > 0 else execution_price)
             actual_entry = float(actual_entry)
@@ -488,7 +483,62 @@ class WallHunterBot:
                         logger.info(f"Placed Limit TP Order {limit_res['id']} at {self.active_pos['tp']}")
                 
                 logger.info(f"Entered Trade at {actual_entry}. SL: {self.active_pos['sl']}")
-                await self._send_telegram(f"⚡ WallHunter Entered!\nPair: {self.symbol}\nEntry: {actual_entry:.6f}\nTP1 (Scale Out): {self.active_pos['tp1']:.6f}\nFinal TP: {self.active_pos['tp']:.6f}\nSL: {self.active_pos['sl']:.6f}")
+                await self._send_telegram(f"⚡ WallHunter Entered!\nPair: {self.symbol}\nEntry {actual_entry:.6f}\nTP1: {self.active_pos['tp1']:.6f}\nFinal TP: {self.active_pos['tp']:.6f}\nSL: {self.active_pos['sl']:.6f}")
+
+    async def _fetch_and_update_entry(self, order_id: str, amount: float, mid_price: float):
+        """Background task to fetch precise execution price without blocking strategy"""
+        await asyncio.sleep(0.5) # Give the exchange half a second to settle
+        try:
+            fetched_order = await self.engine.exchange.fetch_order(order_id, self.symbol)
+            if not fetched_order:
+                return
+            
+            avg_price = fetched_order.get('average')
+            fill_price = fetched_order.get('price')
+            actual_entry = avg_price if avg_price and avg_price > 0 else (fill_price if fill_price and fill_price > 0 else mid_price)
+            actual_entry = float(actual_entry)
+            
+            # Sanity Check
+            slippage_pct = abs(actual_entry - mid_price) / mid_price
+            if slippage_pct > 0.02:
+                logger.warning(f"Suspicious delayed fill price: {actual_entry}. Keeping previous {mid_price}.")
+                return
+                
+            # Update only if position is still active
+            if self.active_pos and self.active_pos.get('entry') != actual_entry:
+                old_entry = self.active_pos['entry']
+                self.active_pos['entry'] = actual_entry
+                
+                # Recalculate SL/TP targets based on exact price
+                if self.active_pos.get('micro_scalp'):
+                    tick_profit_pct = self.micro_scalp_profit_ticks * 0.0001
+                    tp_price = actual_entry * (1 + tick_profit_pct)
+                    self.active_pos['sl'] = actual_entry * (1 - (self.initial_risk_pct / 100))
+                    self.active_pos['tp'] = tp_price
+                    self.active_pos['tp1'] = tp_price
+                else:
+                    self.active_pos['sl'] = actual_entry * (1 - (self.initial_risk_pct / 100))
+                    self.active_pos['tp1'] = actual_entry + (self.target_spread * 0.5)
+                    self.active_pos['tp'] = actual_entry + self.target_spread
+                    
+                self.highest_price = actual_entry
+                logger.info(f"🔄 Entry precision updated in background: {old_entry:.6f} -> {actual_entry:.6f}")
+                
+                # If there's an active limit order, we might need to adjust it
+                active_limit_id = self.active_pos.get('limit_order_id')
+                if active_limit_id:
+                    # Cancel the old limit order and replace it with the precise one
+                    try:
+                        await self.engine.cancel_order(active_limit_id)
+                        limit_res = await self.engine.execute_trade("sell", self.active_pos['amount'], self.active_pos['tp'], order_type="limit")
+                        if limit_res and 'id' in limit_res:
+                            self.active_pos['limit_order_id'] = limit_res['id']
+                            logger.info(f"🔄 Adjusted Limit TP Order to exact price {self.active_pos['tp']}")
+                    except Exception as limit_err:
+                        logger.error(f"Failed to adjust limit order in background precision update: {limit_err}")
+                        
+        except Exception as e:
+            logger.warning(f"Background fetch_order failed for {order_id}: {e}")
 
     async def manage_risk(self, current_price: float):
         if not self.active_pos: return
