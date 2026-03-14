@@ -126,6 +126,11 @@ class BotManager:
                     logger.info(f"🧱 Vol Threshold: {bot.config.get('vol_threshold', 0)}")
                     msg_lines.append(f"🧱 Vol Threshold: {bot.config.get('vol_threshold', 0)}")
                     
+                if bot.config.get('vpvr_enabled', False):
+                    vpvr_tolerance = bot.config.get('vpvr_tolerance', 0.2)
+                    logger.info(f"📊 VPVR Confirmation: ON ({vpvr_tolerance}% tol)")
+                    msg_lines.append(f"📊 VPVR Confirmation: ON ({vpvr_tolerance}% tol)")
+                    
                 if bot.config.get('enable_liq_trigger'):
                     if bot.config.get('follow_btc_liq'):
                         logger.info(f"💥 BTC Liq Threshold: {bot.config.get('btc_liq_threshold', 0)}")
