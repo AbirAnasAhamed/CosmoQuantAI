@@ -343,11 +343,37 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                 } else if (len > 0 && allCandlesRef.current[len - 1].time === updatedCandle.time) {
                     allCandlesRef.current[len - 1] = updatedCandle;
                 }
+
+                // --- Live Real-Time Indicator Updates ---
+                const currentData = allCandlesRef.current;
+                if (currentData.length > 0) {
+                    if (indicatorSettings.showEMA && emaSeriesRef.current) {
+                        const emaData = calculateEMA(currentData, indicatorSettings.emaPeriod);
+                        if (emaData.length > 0) {
+                            emaSeriesRef.current.update(emaData[emaData.length - 1] as any);
+                        }
+                    }
+                    if (indicatorSettings.showBB && bbUpperSeriesRef.current && bbMiddleSeriesRef.current && bbLowerSeriesRef.current) {
+                        const bbData = calculateBollingerBands(currentData, indicatorSettings.bbPeriod, indicatorSettings.bbStdDev);
+                        if (bbData.length > 0) {
+                            const lastBB = bbData[bbData.length - 1];
+                            bbUpperSeriesRef.current.update({ time: lastBB.time as any, value: lastBB.upper });
+                            bbMiddleSeriesRef.current.update({ time: lastBB.time as any, value: lastBB.middle });
+                            bbLowerSeriesRef.current.update({ time: lastBB.time as any, value: lastBB.lower });
+                        }
+                    }
+                    if (indicatorSettings.showRSI && rsiSeriesRef.current) {
+                        const rsiData = calculateRSI(currentData, indicatorSettings.rsiPeriod);
+                        if (rsiData.length > 0) {
+                            rsiSeriesRef.current.update(rsiData[rsiData.length - 1] as any);
+                        }
+                    }
+                }
             } catch (e) {
-                console.error("Failed to update realtime candle", e);
+                console.error("Failed to update realtime candle and indicators", e);
             }
         }
-    }, [currentPrice, tradeEvent, interval]);
+    }, [currentPrice, tradeEvent, interval, indicatorSettings]);
 
     // Update horizontal price lines for walls intelligently without blindly clearing
     useEffect(() => {
