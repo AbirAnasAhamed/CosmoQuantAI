@@ -560,10 +560,24 @@ class WallHunterBot:
             logger.info(f"⚠️ Triggering SL: Current Price ({current_price:.6f}) <= SL ({self.active_pos['sl']:.6f})")
             sell_amount = self.active_pos['amount']
             
-            # Cancel open limit order if TSL hits
-            if self.sell_order_type == 'limit' and self.active_pos.get('limit_order_id'):
-                await self.engine.cancel_order(self.active_pos['limit_order_id'])
-                logger.info("Cancelled Limit TP Order due to Stop Loss hit")
+            # Cancel open limit order if SL/TSL hits (handles both limit sell orders and micro_scalp)
+            if (self.sell_order_type == 'limit' or self.active_pos.get('micro_scalp')) and self.active_pos.get('limit_order_id'):
+                canceled = False
+                for attempt in range(3):
+                    try:
+                        logger.info(f"Attempting to cancel Limit TP Order {self.active_pos['limit_order_id']} before SL market sell (Attempt {attempt+1}/3)")
+                        await self.engine.cancel_order(self.active_pos['limit_order_id'])
+                        canceled = True
+                        break
+                    except Exception as e:
+                        logger.warning(f"Failed to cancel Limit TP Order on attempt {attempt+1}: {e}")
+                        await asyncio.sleep(0.2)
+                
+                if canceled:
+                    logger.info("Successfully cancelled Limit TP Order due to Stop Loss hit. Waiting for funds to unlock...")
+                    await asyncio.sleep(0.5) # Wait for exchange to release the locked base asset balance
+                else:
+                    logger.error("COULD NOT CANCEL LIMIT TP ORDER! SL Market order might fail with Insufficient Balance.")
                 
             await self.engine.execute_trade("sell", sell_amount, current_price)
             
