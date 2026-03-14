@@ -21,6 +21,7 @@ class StrategyConfig(BaseModel):
 
     # --- NEW: Liquidation & Micro-Scalp Config ---
     enable_wall_trigger: Optional[bool] = True
+    max_wall_distance_pct: Optional[float] = 1.0
     enable_liq_trigger: Optional[bool] = False
     liq_threshold: Optional[float] = 50000.0
     enable_micro_scalp: Optional[bool] = False

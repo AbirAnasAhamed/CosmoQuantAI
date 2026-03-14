@@ -29,6 +29,7 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
 
         // --- NEW: Liquidation & Scalp States ---
         enableWallTrigger: true,        // Default wall detection
+        maxWallDistancePct: 1.0,        // Max distance from mid price
         enableLiqTrigger: false,        // Liquidation sniper toggle
         liqThreshold: 50000,            // Min liquidation amount
         enableMicroScalp: false,        // Auto tick-scalping
@@ -88,6 +89,7 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
 
                             // Load existing new states if present
                             enableWallTrigger: c.enable_wall_trigger !== undefined ? c.enable_wall_trigger : true,
+                            maxWallDistancePct: c.max_wall_distance_pct !== undefined ? c.max_wall_distance_pct : 1.0,
                             enableLiqTrigger: c.enable_liq_trigger !== undefined ? c.enable_liq_trigger : false,
                             liqThreshold: c.liq_threshold || 50000,
                             enableMicroScalp: c.enable_micro_scalp !== undefined ? c.enable_micro_scalp : false,
@@ -203,6 +205,7 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
 
                     // --- NEW: Passing to backend ---
                     enable_wall_trigger: form.enableWallTrigger,
+                    max_wall_distance_pct: form.maxWallDistancePct,
                     enable_liq_trigger: form.enableLiqTrigger,
                     liq_threshold: form.liqThreshold,
                     enable_micro_scalp: form.enableMicroScalp,
@@ -366,12 +369,26 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                                     <span className={`text-[10px] font-black px-2 py-1 rounded-md ${form.enableWallTrigger ? 'bg-brand-primary/20 text-brand-primary' : 'bg-white/5 text-gray-500'}`}>{form.enableWallTrigger ? 'ON' : 'OFF'}</span>
                                 </div>
                                 {form.enableWallTrigger && (
-                                    <div className="mt-3 pl-1" onClick={e => e.stopPropagation()}>
-                                        <div className="flex justify-between items-end mb-1">
-                                            <label className="text-[10px] font-bold text-gray-400 uppercase">Volume Wall Threshold</label>
-                                            <span className="text-xs font-mono font-bold text-brand-primary">{form.vol.toLocaleString()}</span>
+                                    <div className="mt-3 pl-1 space-y-4" onClick={e => e.stopPropagation()}>
+                                        <div>
+                                            <div className="flex justify-between items-end mb-1">
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase">Volume Wall Threshold</label>
+                                                <span className="text-xs font-mono font-bold text-brand-primary">{form.vol.toLocaleString()}</span>
+                                            </div>
+                                            <input type="range" min="0" max="10000000" step="1000" className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-brand-primary" value={form.vol} onChange={(e) => setForm({ ...form, vol: parseFloat(e.target.value) })} />
                                         </div>
-                                        <input type="range" min="0" max="10000000" step="1000" className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-brand-primary" value={form.vol} onChange={(e) => setForm({ ...form, vol: parseFloat(e.target.value) })} />
+                                        
+                                        <div className="bg-black/20 p-3 rounded-lg border border-white/5">
+                                            <div className="flex justify-between items-end mb-1">
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase">Max Wall Distance (%)</label>
+                                                <span className="text-xs font-mono font-bold text-brand-primary">{form.maxWallDistancePct}%</span>
+                                            </div>
+                                            <div className="flex gap-3 items-center">
+                                                <input type="range" min="0.1" max="10.0" step="0.1" className="flex-1 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-brand-primary" value={form.maxWallDistancePct} onChange={(e) => setForm({ ...form, maxWallDistancePct: parseFloat(e.target.value) })} />
+                                                <input type="number" min="0.1" max="100" step="0.1" className="w-20 bg-black/40 border border-white/10 rounded-xl p-1.5 text-white outline-none focus:border-brand-primary text-center font-mono text-sm" value={form.maxWallDistancePct} onChange={(e) => setForm({ ...form, maxWallDistancePct: parseFloat(e.target.value) })} />
+                                            </div>
+                                            <p className="text-[9px] text-gray-500 mt-1.5">Only trigger if wall is within this % distance from current price to prevent premature entries.</p>
+                                        </div>
                                     </div>
                                 )}
                             </div>
@@ -605,3 +622,4 @@ const InputField = ({ label, value, onChange, step = 1 }: any) => (
         <input type="number" step={step} className="w-full bg-white/5 border border-white/10 rounded-xl p-3 text-white outline-none focus:border-brand-primary" value={value} onChange={(e) => onChange(parseFloat(e.target.value))} />
     </div>
 );
+// trigger IDE react-jsx refresh

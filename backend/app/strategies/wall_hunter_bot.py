@@ -50,6 +50,7 @@ class WallHunterBot:
 
         # --- NEW FEATURES: Liquidation & Scalp ---
         self.enable_wall_trigger = config.get("enable_wall_trigger", True)
+        self.max_wall_distance_pct = config.get("max_wall_distance_pct", 1.0)
         self.enable_liq_trigger = config.get("enable_liq_trigger", False)
         self.liq_threshold = config.get("liq_threshold", 50000.0)
         self.enable_micro_scalp = config.get("enable_micro_scalp", False)
@@ -147,6 +148,10 @@ class WallHunterBot:
             status = "ON" if new_config["enable_wall_trigger"] else "OFF"
             updates.append(f"Wall Trigger: {status}")
             self.enable_wall_trigger = new_config.get("enable_wall_trigger")
+            
+        if "max_wall_distance_pct" in new_config and new_config["max_wall_distance_pct"] != self.max_wall_distance_pct:
+            updates.append(f"Max Wall Distance %: {self.max_wall_distance_pct} -> {new_config['max_wall_distance_pct']}")
+            self.max_wall_distance_pct = new_config.get("max_wall_distance_pct")
             
         if "enable_liq_trigger" in new_config and new_config["enable_liq_trigger"] != self.enable_liq_trigger:
             status = "ON" if new_config["enable_liq_trigger"] else "OFF"
@@ -318,7 +323,10 @@ class WallHunterBot:
                         if vol > max_vol:
                             max_vol = vol
                         if vol >= self.vol_threshold:
-                            current_walls[price] = vol
+                            # Validate distance from current mid_price
+                            distance_pct = abs(price - mid_price) / mid_price * 100.0
+                            if distance_pct <= self.max_wall_distance_pct:
+                                current_walls[price] = vol
                     
                     if current_time % 5 < 0.05: # Print approx every 5 seconds
                         logger.info(f"🔍 [Debug] Max Bid Vol: {max_vol}, Threshold: {self.vol_threshold}, Walls Configured: {len(current_walls)}, Tracked: {len(self.tracked_walls)}")
