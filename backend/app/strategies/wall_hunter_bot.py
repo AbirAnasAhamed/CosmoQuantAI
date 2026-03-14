@@ -2,7 +2,7 @@ import asyncio
 import logging
 import time
 from typing import Dict, Any, Optional
-import ccxt.async_support as ccxt
+import ccxt.pro as ccxt
 import json
 from app.utils import get_redis_client
 from app.strategies.order_block_bot import OrderBlockExecutionEngine
@@ -290,8 +290,13 @@ class WallHunterBot:
     async def _run_loop(self):
         while self.running:
             try:
-                # Real-time L2 Data Fetching
-                orderbook = await self.public_exchange.fetch_order_book(self.symbol, limit=20)
+                # Real-time L2 Data Fetching via WebSocket
+                try:
+                    orderbook = await self.public_exchange.watch_order_book(self.symbol, limit=20)
+                except Exception as e:
+                    logger.warning(f"WebSocket orderbook error: {e}, falling back to REST")
+                    orderbook = await self.public_exchange.fetch_order_book(self.symbol, limit=20)
+                    
                 if not orderbook['bids'] or not orderbook['asks']:
                     await asyncio.sleep(1)
                     continue
@@ -303,7 +308,6 @@ class WallHunterBot:
 
                 if not self.active_pos:
                     if not self.enable_wall_trigger:
-                        await asyncio.sleep(0.05)
                         self._publish_status(mid_price)
                         continue
 
@@ -383,7 +387,8 @@ class WallHunterBot:
                     await self.manage_risk(mid_price)
 
                 self._publish_status(mid_price)
-                await asyncio.sleep(0.05) # 50ms latency for L2 scan
+                # Yield control, watch_order_book automatically pauses until the next orderbook update
+                await asyncio.sleep(0.001) 
             
             except Exception as e:
                 logger.error(f"Hunter Loop Error: {e}")
