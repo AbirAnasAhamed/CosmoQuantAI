@@ -132,6 +132,16 @@ export const useOrderFlowData = (symbol: string, exchange: string, interval: str
                           let cvdDelta = 0;
                           const trades = data.data;
                           
+                          // Align timestamp to the current candlestick interval
+                          const nowMs = new Date().getTime();
+                          let intervalMs = 60000; // default 1m
+                          if (interval.endsWith('m')) intervalMs = parseInt(interval) * 60000;
+                          else if (interval.endsWith('h')) intervalMs = parseInt(interval) * 3600000;
+                          else if (interval.endsWith('d')) intervalMs = parseInt(interval) * 86400000;
+                          
+                          const currentCandleTime = Math.floor(nowMs / intervalMs) * (intervalMs / 1000);
+                          const now = currentCandleTime; // Use bucketed time for both CVD and Footprint
+                          
                           // Process each trade
                           trades.forEach((trade: any) => {
                                const amount = parseFloat(trade.amount);
@@ -142,10 +152,7 @@ export const useOrderFlowData = (symbol: string, exchange: string, interval: str
                                cvdDelta += isBuy ? amount : -amount;
                                
                                // 2. Update Footprint
-                               // Very basic rolling footprint state for the current session
-                               const now = new Date().getTime() / 1000;
-                               
-                               if (activeFootprints.length === 0) {
+                               if (activeFootprints.length === 0 || activeFootprints[activeFootprints.length - 1].time !== now) {
                                    activeFootprints.push({
                                         time: now as any,
                                         high: price,
@@ -178,8 +185,20 @@ export const useOrderFlowData = (symbol: string, exchange: string, interval: str
                           // Update State Batch
                           if (isMounted) {
                               setCvdData(prev => {
-                                  const lastVal = prev.length > 0 ? prev[prev.length - 1].value : 0;
-                                  return [...prev.slice(-100), { time: (new Date().getTime() / 1000) as any, value: lastVal + cvdDelta }];
+                                  if (prev.length === 0) {
+                                      return [{ time: currentCandleTime as any, value: cvdDelta }];
+                                  }
+                                  
+                                  const lastPoint = prev[prev.length - 1];
+                                  if (lastPoint.time === currentCandleTime) {
+                                      // Update current candle's CVD
+                                      const newPrev = [...prev];
+                                      newPrev[newPrev.length - 1] = { time: currentCandleTime as any, value: lastPoint.value + cvdDelta };
+                                      return newPrev;
+                                  } else {
+                                      // Start new candle's CVD
+                                      return [...prev.slice(-100), { time: currentCandleTime as any, value: lastPoint.value + cvdDelta }];
+                                  }
                               });
                               setFootprintData([...activeFootprints.slice(-50)]);
                           }

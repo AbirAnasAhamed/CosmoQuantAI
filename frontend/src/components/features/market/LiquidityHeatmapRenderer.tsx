@@ -57,6 +57,9 @@ export const LiquidityHeatmapRenderer: React.FC<LiquidityHeatmapRendererProps> =
         const logicalRange = timeScale.getVisibleLogicalRange();
         if (!logicalRange) return;
 
+        // Exact width of one logical bar on the screen
+        const barSpacing = timeWidth / Math.max(1, logicalRange.to - logicalRange.from);
+
         // Global or local max? We use visible range max for dynamic contrast
         let maxVol = 1;
         const fromIdx = Math.max(0, Math.floor(logicalRange.from || 0));
@@ -80,12 +83,7 @@ export const LiquidityHeatmapRenderer: React.FC<LiquidityHeatmapRendererProps> =
             const x = timeScale.timeToCoordinate(pt.time as any);
             if (x === null) continue;
 
-            let nextX = x + (timeWidth / (toIdx - fromIdx + 1)); // Default width estimate
-            if (i < len - 1) {
-                const nx = timeScale.timeToCoordinate(data[i + 1].time as any);
-                if (nx !== null) nextX = nx;
-            }
-            const barWidth = Math.max(1.5, Math.abs(nextX - x));
+            const barWidth = Math.max(1.5, barSpacing);
 
             for (let j = 0; j < pt.levels.length; j++) {
                 const level = pt.levels[j];
@@ -115,6 +113,7 @@ export const LiquidityHeatmapRenderer: React.FC<LiquidityHeatmapRendererProps> =
 
                 // Only draw inside main pane width (avoid painting over scales on right)
                 if (x >= -barWidth && x <= timeWidth) {
+                    // Draw centered exactly on the coordinate x
                     ctx.fillRect(Math.floor(x - barWidth / 2), Math.floor(y - cellHeight / 2), Math.ceil(barWidth), cellHeight);
                 }
             }
