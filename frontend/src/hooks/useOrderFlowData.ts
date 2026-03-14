@@ -66,65 +66,28 @@ export const useOrderFlowData = (symbol: string, exchange: string, interval: str
                     const cvd: CVDDataPoint[] = [];
                     const footprints: FootprintCandleData[] = [];
 
+                    // Calculate basic CVD and VPVR from klines for historical context
                     parsedKlines.forEach((c: any) => {
-                        // Estimate buy/sell proportion based on price action within the candle (no Math.random)
                         const range = c.high - c.low || 1;
                         const buyRatio = Math.max(0, Math.min(1, (c.close - c.low) / range));
                         const sellRatio = 1 - buyRatio;
-
                         const buyVol = c.volume * buyRatio;
                         const sellVol = c.volume * sellRatio;
-
-                        // 2. Accumulate CVD
-                        // Delta is buy limits hit (market buys) minus sell limits hit (market sells)
+                        
                         const delta = buyVol - sellVol;
                         currentCvd += delta;
                         cvd.push({ time: c.time as any, value: currentCvd });
 
-                        // Distribute volume into VPVR buckets
                         const bucketPrice = Math.floor(c.close / step) * step;
                         const existing = priceBuckets.get(bucketPrice) || { vol: 0, buy: 0, sell: 0 };
+                        
                         priceBuckets.set(bucketPrice, {
                             vol: existing.vol + c.volume,
                             buy: existing.buy + buyVol,
                             sell: existing.sell + sellVol
                         });
-
-                        // 3. Generate deterministic Footprint from real candle data
-                        const candleFootprint: FootprintCandleData = {
-                            time: c.time as any,
-                            high: c.high,
-                            low: c.low,
-                            ticks: []
-                        };
-
-                        const numTicks = Math.max(2, Math.min(5, Math.floor(range / 0.5)));
-                        const tickStep = range / numTicks;
-
-                        if (range > 0 && tickStep > 0) {
-                            for (let p = c.low; p <= c.high; p += tickStep) {
-                                // Deterministic logic: more volume near the close price
-                                const distanceToClose = Math.abs(c.close - p);
-                                const weight = 1 - (distanceToClose / range);
-
-                                const tickVol = (c.volume / numTicks) * weight;
-                                const tickBuyVol = tickVol * buyRatio;
-                                const tickSellVol = tickVol * sellRatio;
-
-                                const isImbalance = Math.max(tickBuyVol, tickSellVol) > Math.min(tickBuyVol, tickSellVol) * 2;
-
-                                candleFootprint.ticks.push({
-                                    price: p,
-                                    bidVolume: tickBuyVol,
-                                    askVolume: tickSellVol,
-                                    isImbalance
-                                });
-                            }
-                        }
-                        footprints.push(candleFootprint);
                     });
 
-                    // Format VPVR Data
                     const vpvr: VPVRData[] = Array.from(priceBuckets.entries()).map(([price, data]) => ({
                         price,
                         volume: data.vol,
@@ -133,8 +96,8 @@ export const useOrderFlowData = (symbol: string, exchange: string, interval: str
                     }));
 
                     setVpvrData(vpvr);
-                    setCvdData(cvd);
-                    setFootprintData(footprints);
+                    setCvdData(cvd); // Pre-fill with historical data
+                    setFootprintData(footprints); // Empty initially until real trades come in
                 } else {
                     setVpvrData([]);
                     setCvdData([]);
@@ -149,9 +112,93 @@ export const useOrderFlowData = (symbol: string, exchange: string, interval: str
         };
 
         fetchOrderFlowData();
+        
+        // WebSocket Connection for Order Flow (Real-Time CVD & Footprints)
+        let ws: WebSocket | null = null;
+        if (symbol) {
+             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+             // Vite proxy forwards paths starting with /ws to backend
+             const wsUrl = `${protocol}//${window.location.host}/ws/market-data/${symbol}`;
+             ws = new WebSocket(wsUrl);
+             
+             let activeFootprints: FootprintCandleData[] = [];
+             
+             ws.onmessage = (event) => {
+                 try {
+                     const data = JSON.parse(event.data);
+                     
+                     // Handle real-time trades
+                     if (data.type === "trade" && Array.isArray(data.data)) {
+                          let cvdDelta = 0;
+                          const trades = data.data;
+                          
+                          // Process each trade
+                          trades.forEach((trade: any) => {
+                               const amount = parseFloat(trade.amount);
+                               const price = parseFloat(trade.price);
+                               const isBuy = trade.type === 'buy';
+                               
+                               // 1. Update CVD (Buy = +, Sell = -)
+                               cvdDelta += isBuy ? amount : -amount;
+                               
+                               // 2. Update Footprint
+                               // Very basic rolling footprint state for the current session
+                               const now = new Date().getTime() / 1000;
+                               
+                               if (activeFootprints.length === 0) {
+                                   activeFootprints.push({
+                                        time: now as any,
+                                        high: price,
+                                        low: price,
+                                        ticks: []
+                                   });
+                               }
+                               
+                               const currentCandle = activeFootprints[activeFootprints.length - 1];
+                               if (price > currentCandle.high) currentCandle.high = price;
+                               if (price < currentCandle.low) currentCandle.low = price;
+                               
+                               // Find or create tick bucket
+                               const tickStep = 0.5; // Example tick size
+                               const bucketPrice = Math.floor(price / tickStep) * tickStep;
+                               let tick = currentCandle.ticks.find(t => t.price === bucketPrice);
+                               
+                               if (!tick) {
+                                   tick = { price: bucketPrice, bidVolume: 0, askVolume: 0, isImbalance: false };
+                                   currentCandle.ticks.push(tick);
+                                   currentCandle.ticks.sort((a, b) => b.price - a.price); // Descending order
+                               }
+                               
+                               if (isBuy) tick.askVolume += amount; // Buy hits Ask
+                               else tick.bidVolume += amount;       // Sell hits Bid
+                               
+                               tick.isImbalance = Math.max(tick.bidVolume, tick.askVolume) > Math.min(tick.bidVolume, tick.askVolume) * 2;
+                          });
+                          
+                          // Update State Batch
+                          if (isMounted) {
+                              setCvdData(prev => {
+                                  const lastVal = prev.length > 0 ? prev[prev.length - 1].value : 0;
+                                  return [...prev.slice(-100), { time: (new Date().getTime() / 1000) as any, value: lastVal + cvdDelta }];
+                              });
+                              setFootprintData([...activeFootprints.slice(-50)]);
+                          }
+                     }
+                 } catch (e) {
+                     console.error("WebSocket order flow parse error", e);
+                 }
+             };
+        }
 
         return () => {
             isMounted = false;
+            if (ws) {
+                if (ws.readyState === WebSocket.CONNECTING) {
+                    ws.onopen = () => ws?.close();
+                } else if (ws.readyState === WebSocket.OPEN) {
+                    ws.close();
+                }
+            }
         };
     }, [symbol, exchange, interval]);
 

@@ -472,7 +472,7 @@ async def shutdown_event():
 
 # --- WebSocket Endpoints ---
 
-@app.websocket("/ws/market-data/{symbol}")
+@app.websocket("/ws/market-data/{symbol:path}")
 async def websocket_endpoint(websocket: WebSocket, symbol: str):
     await manager.connect(websocket, symbol)
     try:

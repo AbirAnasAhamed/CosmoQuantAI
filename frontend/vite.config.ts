@@ -42,6 +42,12 @@ export default defineConfig(({ mode }) => {
           secure: false,
           ws: true,
         },
+        '/ws': {
+          target: backendUrl,
+          changeOrigin: true,
+          secure: false,
+          ws: true,
+        },
         '/static': {
           target: backendUrl,
           changeOrigin: true,
