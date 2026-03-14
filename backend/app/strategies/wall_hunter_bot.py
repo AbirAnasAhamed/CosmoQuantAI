@@ -523,7 +523,8 @@ class WallHunterBot:
         # Only execute TP1 logic if partial_tp_pct > 0
         if not self.active_pos.get('micro_scalp') and self.partial_tp_pct > 0 and not self.active_pos.get('tp1_hit') and current_price >= self.active_pos['tp1']:
             logger.info("🟢 TP1 Hit! Executing Partial Close & Moving SL to Break-Even.")
-            sell_amount = self.active_pos['amount'] * (self.partial_tp_pct / 100)
+            sell_amount_raw = self.active_pos['amount'] * (self.partial_tp_pct / 100)
+            sell_amount = float(self.engine.exchange.amount_to_precision(self.symbol, sell_amount_raw))
             
             # Use limit order if configured for selling to prevent slippage on TP1
             if self.sell_order_type == 'limit':
@@ -546,7 +547,8 @@ class WallHunterBot:
                 except Exception as e:
                     logger.error(f"Failed to update limit order after TP1: {e}")
             
-            self.active_pos['amount'] -= sell_amount
+            remaining_raw = self.active_pos['amount'] - sell_amount
+            self.active_pos['amount'] = float(self.engine.exchange.amount_to_precision(self.symbol, remaining_raw))
             # Move SL to Entry + a small fraction of the target spread to ensure it's profitable but below TP1
             # We use 10% of the target spread as the profitable break-even distance
             profitable_be = self.active_pos['entry'] + (self.target_spread * 0.1)
