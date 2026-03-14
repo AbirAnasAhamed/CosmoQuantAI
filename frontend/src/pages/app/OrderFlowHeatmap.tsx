@@ -20,16 +20,18 @@ import { BotLogsTab } from '../../components/features/market/BotLogsTab';
 import { WallHunterModal } from '../../components/features/market/WallHunterModal';
 import { botService } from '../../services/botService';
 import { useWallHunterStatus } from '@/hooks/useWallHunterStatus';
+import { toast } from 'react-hot-toast';
 
 // Helper to convert interval string to ms
 const parseIntervalToMs = (interval: string): number => {
     const value = parseInt(interval) || 1;
-    const unit = interval.replace(/[0-9]/g, '').toLowerCase() || 'm';
+    const unit = interval.replace(/[0-9]/g, '') || 'm';
     switch (unit) {
         case 'm': return value * 60 * 1000;
         case 'h': return value * 60 * 60 * 1000;
         case 'd': return value * 24 * 60 * 60 * 1000;
         case 'w': return value * 7 * 24 * 60 * 60 * 1000;
+        case 'M': return value * 30 * 24 * 60 * 60 * 1000; // approximation for month
         default: return value * 60 * 1000; // default to minutes
     }
 };
@@ -142,6 +144,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         volumeSeriesRef.current = volumeSeries;
 
         // Fetch real historical data
+        let isMounted = true;
         const fetchKlines = async () => {
             try {
                 const data = await marketDepthService.getOHLCV(
@@ -150,6 +153,9 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                     interval,
                     200
                 );
+                
+                if (!isMounted) return;
+
                 const candles = data.map((k: any) => ({
                     time: k.time as any,
                     open: parseFloat(k.open),
@@ -158,7 +164,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                     close: parseFloat(k.close),
                     volume: parseFloat(k.volume || 100),
                 }));
-                if (candlestickSeriesRef.current) {
+                if (candlestickSeriesRef.current && isMounted) {
                     candlestickSeriesRef.current.setData(candles);
                     allCandlesRef.current = candles;
                     if (candles.length > 0) {
@@ -166,7 +172,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                     }
 
                     // Format and set volume data
-                    if (volumeSeriesRef.current) {
+                    if (volumeSeriesRef.current && isMounted) {
                         const volumeData = candles.map((k: any) => ({
                             time: k.time,
                             value: k.volume,
@@ -178,7 +184,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                     chart.timeScale().fitContent();
                 }
             } catch (err) {
-                console.error("Failed to fetch klines for heatmap:", err);
+                if (isMounted) console.error("Failed to fetch klines for heatmap:", err);
             }
         };
 
@@ -195,6 +201,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         }
 
         return () => {
+            isMounted = false;
             resizeObserver.disconnect();
             chart.remove();
 
@@ -481,6 +488,10 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             });
             // Sort markers by time as required by lightweight-charts
             markersRef.current.sort((a, b) => a.time - b.time);
+            // Limit array size to prevent memory leak and browser crashes
+            if (markersRef.current.length > 50) {
+                markersRef.current = markersRef.current.slice(-50);
+            }
             markersPluginRef.current?.setMarkers(markersRef.current);
         } else if (!isPositionOpen && wasPositionOpen) {
             markersRef.current.push({
@@ -491,6 +502,10 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                 text: 'SELL',
             });
             markersRef.current.sort((a, b) => a.time - b.time);
+            // Limit array size to prevent memory leak and browser crashes
+            if (markersRef.current.length > 50) {
+                markersRef.current = markersRef.current.slice(-50);
+            }
             markersPluginRef.current?.setMarkers(markersRef.current);
         }
 
@@ -573,6 +588,8 @@ const OrderBook: React.FC<{ bids: any[], asks: any[], maxTotal: number }> = ({ b
     };
     const formatSize = (s: number) => s.toFixed(2);
 
+    const reversedAsks = useMemo(() => asks.slice().reverse(), [asks]);
+
     return (
         <div className="flex flex-col h-full font-mono text-[11px] select-none">
             <div className="flex text-gray-500 pb-2 border-b border-gray-200 dark:border-white/10 px-2 uppercase tracking-wider font-bold">
@@ -583,7 +600,7 @@ const OrderBook: React.FC<{ bids: any[], asks: any[], maxTotal: number }> = ({ b
 
             {/* Asks (Sell) */}
             <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col justify-end">
-                {asks.slice().reverse().map((ask, i) => (
+                {reversedAsks.map((ask, i) => (
                     <div key={i} className="flex px-2 py-[2px] relative group hover:bg-white/5 cursor-pointer">
                         <div
                             className="absolute right-0 top-0 h-full bg-red-500/10 dark:bg-red-500/20 transition-all duration-300 pointer-events-none"
@@ -688,10 +705,10 @@ const OrderFlowHeatmap: React.FC = () => {
         setIsEmergencySelling(true);
         try {
             await botService.emergencySell(activeWallHunterId, type);
-            // Optionally, we could show a success toast here
+            toast.success(`Emergency ${type} sell triggered successfully`);
         } catch (err: any) {
             console.error(`Emergency ${type} sell failed:`, err);
-            alert(`Emergency ${type} sell failed: ` + (err.response?.data?.detail || err.message));
+            toast.error(`Emergency ${type} sell failed: ` + (err.response?.data?.detail || err.message));
         } finally {
             setIsEmergencySelling(false);
         }

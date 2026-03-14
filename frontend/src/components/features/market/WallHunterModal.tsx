@@ -129,9 +129,19 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
             const currentSpread = bestAsk - bestBid;
 
             const currentPrice = bestBid;
-            const magnitude = Math.floor(Math.log10(currentPrice > 0 ? currentPrice : 1));
-            const dynamicStep = Math.pow(10, magnitude - 4);
-            const displayDigits = Math.max(0, -(magnitude - 4));
+            
+            // Fixed Math Error for low-cap coins
+            let dynamicStep = 0.01;
+            let displayDigits = 2;
+            if (currentPrice < 0.000001) { dynamicStep = 0.00000001; displayDigits = 8; }
+            else if (currentPrice < 0.00001) { dynamicStep = 0.0000001; displayDigits = 7; }
+            else if (currentPrice < 0.0001) { dynamicStep = 0.000001; displayDigits = 6; }
+            else if (currentPrice < 0.001) { dynamicStep = 0.00001; displayDigits = 5; }
+            else if (currentPrice < 1) { dynamicStep = 0.0001; displayDigits = 4; }
+            else if (currentPrice < 10) { dynamicStep = 0.001; displayDigits = 3; }
+            else if (currentPrice < 100) { dynamicStep = 0.01; displayDigits = 2; }
+            else if (currentPrice < 1000) { dynamicStep = 0.1; displayDigits = 1; }
+            else { dynamicStep = 1; displayDigits = 0; }
 
             optimalSpread = currentSpread + (bestAsk * 0.001);
             optimalSpread = parseFloat(Math.max(dynamicStep, Math.min(dynamicStep * 100, optimalSpread)).toFixed(displayDigits));
@@ -256,10 +266,21 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
 
     // --- Dynamic Target Spread Calculation based on asset price magnitude ---
     const currentPrice = bids.length > 0 ? bids[0].price : (asks.length > 0 ? asks[0].price : 1);
-    const magnitude = Math.floor(Math.log10(currentPrice > 0 ? currentPrice : 1));
-    const dynamicStep = Math.pow(10, magnitude - 4);
+    
+    // Fixed Math Error for low-cap coins
+    let dynamicStep = 0.01;
+    let displayDigits = 2;
+    if (currentPrice < 0.000001) { dynamicStep = 0.00000001; displayDigits = 8; }
+    else if (currentPrice < 0.00001) { dynamicStep = 0.0000001; displayDigits = 7; }
+    else if (currentPrice < 0.0001) { dynamicStep = 0.000001; displayDigits = 6; }
+    else if (currentPrice < 0.001) { dynamicStep = 0.00001; displayDigits = 5; }
+    else if (currentPrice < 1) { dynamicStep = 0.0001; displayDigits = 4; }
+    else if (currentPrice < 10) { dynamicStep = 0.001; displayDigits = 3; }
+    else if (currentPrice < 100) { dynamicStep = 0.01; displayDigits = 2; }
+    else if (currentPrice < 1000) { dynamicStep = 0.1; displayDigits = 1; }
+    else { dynamicStep = 1; displayDigits = 0; }
+
     const dynamicMax = dynamicStep * 500; // Allows up to 500 ticks spread
-    const displayDigits = Math.max(0, -(magnitude - 4));
 
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
