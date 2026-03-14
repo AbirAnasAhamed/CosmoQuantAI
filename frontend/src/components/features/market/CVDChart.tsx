@@ -81,7 +81,18 @@ export const CVDChart: React.FC<CVDChartProps> = ({ mainChart, data }) => {
     // Sync Data
     useEffect(() => {
         if (seriesRef.current && data && data.length > 0) {
-            seriesRef.current.setData(data as any);
+            // Lightweight charts require strictly ascending, unique time points
+            const uniqueDataMap = new Map<number, CVDDataPoint>();
+            data.forEach(item => {
+                uniqueDataMap.set(item.time, item);
+            });
+            const sortedData = Array.from(uniqueDataMap.values()).sort((a, b) => a.time - b.time);
+            
+            try {
+                seriesRef.current.setData(sortedData as any);
+            } catch (err) {
+                console.error("Failed to set CVD Chart data:", err);
+            }
         }
     }, [data]);
 

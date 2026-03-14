@@ -56,7 +56,17 @@ export const useHeatmapData = (symbol: string, exchange: string) => {
                 }
 
                 setHeatmapData(prev => {
-                    const newData = [...prev, newPoint];
+                    const uniqueDataMap = new Map<number, HeatmapDataPoint>();
+                    
+                    // Add previous data
+                    prev.forEach(item => uniqueDataMap.set(item.time, item));
+                    
+                    // Add new point (overwrites if same time)
+                    uniqueDataMap.set(newPoint.time, newPoint);
+                    
+                    // Sort descending by time (newest last)
+                    const newData = Array.from(uniqueDataMap.values()).sort((a, b) => a.time - b.time);
+
                     // Keep last 200 points to prevent memory leak
                     if (newData.length > 200) {
                         return newData.slice(newData.length - 200);
@@ -73,12 +83,76 @@ export const useHeatmapData = (symbol: string, exchange: string) => {
             }
         };
 
-        // Initial fetch
-        setLoading(true);
-        fetchHeatmap();
+        const fetchHistorical = async () => {
+            if (!symbol || !exchange) return;
 
-        // Poll every 5 seconds (matching Redis TTL in backend)
-        intervalRef.current = setInterval(fetchHeatmap, 5000);
+            try {
+                // Fetch last 1 hour of data
+                const end = new Date();
+                const start = new Date(end.getTime() - 60 * 60 * 1000);
+
+                const res = await api.get('/market-depth/heatmap/historical', {
+                    params: {
+                        symbol: symbol.toUpperCase(),
+                        exchange,
+                        start_time: start.toISOString(),
+                        end_time: end.toISOString(),
+                        interval: "1m"
+                    }
+                });
+
+                if (!isMounted) return;
+
+                const snapshots = res.data.snapshots || [];
+                const historicalPoints: HeatmapDataPoint[] = [];
+
+                snapshots.forEach((snap: any) => {
+                    const pointTime = Math.floor(new Date(snap.timestamp).getTime() / 1000);
+                    const point: HeatmapDataPoint = {
+                        time: pointTime,
+                        levels: []
+                    };
+                    
+                    if (snap.bids && Array.isArray(snap.bids)) {
+                        snap.bids.forEach((bid: any) => {
+                            point.levels.push({
+                                price: bid.price,
+                                volume: bid.volume,
+                                type: 'bid'
+                            });
+                        });
+                    }
+                    if (snap.asks && Array.isArray(snap.asks)) {
+                        snap.asks.forEach((ask: any) => {
+                            point.levels.push({
+                                price: ask.price,
+                                volume: ask.volume,
+                                type: 'ask'
+                            });
+                        });
+                    }
+                    historicalPoints.push(point);
+                });
+
+                // Sort ascending by time (from oldest to newest) just in case API order is off
+                historicalPoints.sort((a, b) => a.time - b.time);
+
+                setHeatmapData(historicalPoints);
+            } catch (err: any) {
+                console.error("Failed to fetch historical heatmap data:", err);
+            }
+        };
+
+        const init = async () => {
+            setLoading(true);
+            await fetchHistorical();
+            await fetchHeatmap(); // Fetch current
+
+            // Poll every 5 seconds (matching Redis TTL in backend)
+            intervalRef.current = setInterval(fetchHeatmap, 5000);
+        };
+
+        init();
 
         return () => {
             isMounted = false;
