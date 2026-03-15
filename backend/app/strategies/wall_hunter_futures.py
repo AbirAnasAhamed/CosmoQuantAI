@@ -59,6 +59,11 @@ class WallHunterFuturesStrategy:
         self.follow_btc_liq = self.config.get("follow_btc_liq", False)
         self.btc_liq_threshold = self.config.get("btc_liq_threshold", 500000.0)
         
+        # --- Tape Reading / Imbalance ---
+        self.enable_ob_imbalance = self.config.get("enable_ob_imbalance", False)
+        self.ob_imbalance_ratio = self.config.get("ob_imbalance_ratio", 1.5)
+        self.liquidation_safety_pct = self.config.get("liquidation_safety_pct", 5.0)
+        
         # State
         self.running = False
         self.redis = get_redis_client()
@@ -184,28 +189,33 @@ class WallHunterFuturesStrategy:
                         continue
 
                     current_walls = {}
+                    potential_triggers = []
                     
-                    # ১. বড় ওয়াল ডিটেক্ট করা (Long এর জন্য Bids, Short এর জন্য Asks)
-                    if self.direction in ['long', 'auto']:
-                        for price, vol in orderbook['bids']:
-                            if vol >= self.vol_threshold:
-                                dist_pct = abs(price - mid_price) / mid_price * 100
-                                if dist_pct <= self.max_wall_distance_pct:
-                                    current_walls[price] = {'vol': vol, 'type': 'buy'}
+                    # ১. বড় ওয়াল ডিটেক্ট করা
+                    bid_vol_total = 0.0
+                    ask_vol_total = 0.0
                     
-                    if self.direction in ['short', 'auto']:
-                        for price, vol in orderbook['asks']:
-                            if vol >= self.vol_threshold:
-                                dist_pct = abs(price - mid_price) / mid_price * 100
-                                if dist_pct <= self.max_wall_distance_pct:
-                                    current_walls[price] = {'vol': vol, 'type': 'sell'}
+                    # Accumulate volume for imbalance check + detect walls
+                    for price, vol in orderbook['bids']:
+                        bid_vol_total += vol
+                        if self.direction in ['long', 'auto'] and vol >= self.vol_threshold:
+                            dist_pct = abs(price - mid_price) / mid_price * 100
+                            if dist_pct <= self.max_wall_distance_pct:
+                                current_walls[price] = {'vol': vol, 'type': 'buy'}
+                    
+                    for price, vol in orderbook['asks']:
+                        ask_vol_total += vol
+                        if self.direction in ['short', 'auto'] and vol >= self.vol_threshold:
+                            dist_pct = abs(price - mid_price) / mid_price * 100
+                            if dist_pct <= self.max_wall_distance_pct:
+                                current_walls[price] = {'vol': vol, 'type': 'sell'}
 
-                    # ২. ট্র্যাকিং এবং স্পুফিং ডিটেকশন
+                    # ২. ট্র্যাকিং এবং স্পুফিং ডিটেকশন (Collect all confirmed walls)
                     for price, info in current_walls.items():
                         if price in self.tracked_walls:
                             self.tracked_walls[price]['last_seen'] = current_time
-                            
                             alive_time = current_time - self.tracked_walls[price]['first_seen']
+                            
                             if alive_time >= self.min_wall_lifetime:
                                 wall_type = self.tracked_walls[price]['type']
                                 
@@ -217,12 +227,12 @@ class WallHunterFuturesStrategy:
                                             logger.info(f"🚫 Wall at {price} rejected: Not near any HVN.")
                                             self.tracked_walls[price]['hvn_rejected'] = True
                                         continue
-
-                                logger.info(f"🟢 {wall_type.upper()} Wall Confirmed at {price} (Alive: {alive_time:.1f}s). Snipping!")
-                                # Buy wall -> Entry LONG (buy), Sell wall -> Entry SHORT (sell)
-                                await self.execute_snipe(price, "buy" if wall_type == 'buy' else "sell", mid_price)
-                                self.tracked_walls.clear()
-                                break
+                                
+                                potential_triggers.append({
+                                    'price': price,
+                                    'vol': info['vol'],
+                                    'type': wall_type
+                                })
                         else:
                             self.tracked_walls[price] = {
                                 "vol": info['vol'],
@@ -231,7 +241,39 @@ class WallHunterFuturesStrategy:
                                 "last_seen": current_time
                             }
                     
-                    # ৩. ভ্যানিশ হওয়া ওয়ালগুলো সরানো
+                    # ৩. সেরা ওয়াল নির্বাচন (Highest Volume Wall)
+                    if potential_triggers:
+                        # Sort by volume descending
+                        potential_triggers.sort(key=lambda x: x['vol'], reverse=True)
+                        
+                        # Apply Imbalance check if enabled
+                        imbalance_ratio = (bid_vol_total / ask_vol_total) if ask_vol_total > 0 else 10.0
+                        
+                        best_wall = None
+                        for wall in potential_triggers:
+                            # If AUTO mode, check imbalance
+                            if self.direction == 'auto' and self.enable_ob_imbalance:
+                                if wall['type'] == 'buy' and imbalance_ratio < self.ob_imbalance_ratio:
+                                    continue # Not enough buy pressure
+                                if wall['type'] == 'sell' and imbalance_ratio > (1 / self.ob_imbalance_ratio):
+                                    continue # Not enough sell pressure
+                            
+                            best_wall = wall
+                            break
+                        
+                        if best_wall:
+                            logger.info(f"🟢 [BEST WALL] {best_wall['type'].upper()} Confirmed at {best_wall['price']} (Vol: {best_wall['vol']}). Snipping!")
+                            if self.enable_ob_imbalance:
+                                logger.info(f"📊 Market Imbalance: {imbalance_ratio:.2f}x (Threshold: {self.ob_imbalance_ratio}x)")
+                            
+                            reason = f"Wall confirmed at {best_wall['price']}"
+                            if self.enable_ob_imbalance:
+                                reason += f" (Imbalance: {imbalance_ratio:.2f}x)"
+                            
+                            await self.execute_snipe(best_wall['price'], "buy" if best_wall['type'] == 'buy' else "sell", mid_price, reason=reason)
+                            self.tracked_walls.clear()
+                    
+                    # ৪. ভ্যানিশ হওয়া ওয়ালগুলো সরানো
                     spoofed = [p for p in self.tracked_walls if p not in current_walls]
                     for p in spoofed:
                         del self.tracked_walls[p]
@@ -247,15 +289,17 @@ class WallHunterFuturesStrategy:
                 logger.error(f"Futures Hunter Loop Error: {e}")
                 await asyncio.sleep(2)
 
-    async def execute_snipe(self, wall_price: float, side: str, current_mid_price: float):
+    async def execute_snipe(self, wall_price: float, side: str, current_mid_price: float, reason: str = "Wall Detection"):
         """অর্ডার এক্সিকিউট করা"""
+        pos_side = "LONG" if side == "buy" else "SHORT"
         try:
             entry_price = current_mid_price
             # Total Position Size = Amount * Leverage
             total_notional = self.amount_per_trade * self.leverage
             base_amount = float(f"{total_notional / entry_price:.6f}")
             
-            logger.info(f"⚡ [FuturesHunter] Entering {side.upper()} at {entry_price} (Amount: {base_amount})")
+            logger.info(f"⚡ [FuturesHunter] Entering {pos_side} at {entry_price} (Amount: {base_amount})")
+            logger.info(f"📝 Reason: {reason}")
             
             res = await self.engine.execute_trade(side, base_amount, entry_price)
             if res:
@@ -302,7 +346,8 @@ class WallHunterFuturesStrategy:
                             "tp1_hit": False
                         })
 
-                logger.info(f"✅ Position Opened: {side.upper()} | Entry {actual_entry}, SL {self.active_pos['sl']}, TP {self.active_pos['tp']}, TP1 {self.active_pos.get('tp1')}")
+                logger.info(f"✅ Position Opened: {pos_side} | Entry {actual_entry}, SL {self.active_pos['sl']}, TP {self.active_pos['tp']}")
+                asyncio.create_task(self._send_telegram(f"🚀 *{pos_side} Opened*\nPair: {self.symbol}\nEntry: {actual_entry}\nReason: {reason}"))
                 
         except Exception as e:
             logger.error(f"Snipe Execution Error: {e}")
@@ -517,6 +562,8 @@ class WallHunterFuturesStrategy:
             if "atr_sl_enabled" in new_config: self.atr_sl_enabled = new_config["atr_sl_enabled"]
             if "enable_wall_trigger" in new_config: self.enable_wall_trigger = new_config["enable_wall_trigger"]
             if "enable_liq_trigger" in new_config: self.enable_liq_trigger = new_config["enable_liq_trigger"]
+            if "enable_ob_imbalance" in new_config: self.enable_ob_imbalance = new_config["enable_ob_imbalance"]
+            if "ob_imbalance_ratio" in new_config: self.ob_imbalance_ratio = new_config["ob_imbalance_ratio"]
             
             asyncio.create_task(self._send_telegram(f"⚙️ *Live Config Update*\n{self.symbol} Futures Bot\n\n" + "\n".join([f"• {u}" for u in updates])))
 
@@ -599,20 +646,21 @@ class WallHunterFuturesStrategy:
                         # Trigger entry if not in position
                         if not self.active_pos:
                             side = "buy" if liq_side == "sell" else "sell" # Counter-trade the liquidation
+                            reason = f"Liquidation trigger ({liq_side.upper()} ${liq_amount:,.0f} on {target_ch.split(':')[-1]})"
                             logger.info(f"🔥 [LIQ TRIGGER] {liq_side.upper()} {liq_amount} on {target_ch}. Entering {side.upper()}")
-                            await self._handle_liquidation_trigger(side)
+                            await self._handle_liquidation_trigger(side, reason=reason)
             except Exception as e: 
                 logger.error(f"Liq Listener Error: {e}")
                 await asyncio.sleep(2)
             await asyncio.sleep(0.1)
 
-    async def _handle_liquidation_trigger(self, side: str):
+    async def _handle_liquidation_trigger(self, side: str, reason: str):
         if self.active_pos: return
         try:
             # Fetch current price
             ob = await self.public_exchange.fetch_order_book(self.symbol, limit=5)
             mid = (ob['bids'][0][0] + ob['asks'][0][0]) / 2
-            await self.execute_snipe(mid, side, mid)
+            await self.execute_snipe(mid, side, mid, reason=reason)
         except Exception as e: logger.error(f"Liq Handler Error: {e}")
 
     async def _send_telegram(self, msg: str):
