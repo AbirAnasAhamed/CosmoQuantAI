@@ -58,6 +58,8 @@ class WallHunterFuturesStrategy:
         self.enable_liq_cascade = self.config.get("enable_liq_cascade", False)
         self.follow_btc_liq = self.config.get("follow_btc_liq", False)
         self.btc_liq_threshold = self.config.get("btc_liq_threshold", 500000.0)
+        self.enable_dynamic_liq = self.config.get("enable_dynamic_liq", False)
+        self.dynamic_liq_multiplier = self.config.get("dynamic_liq_multiplier", 1.0)
         
         # --- Tape Reading / Imbalance ---
         self.enable_ob_imbalance = self.config.get("enable_ob_imbalance", False)
@@ -562,6 +564,14 @@ class WallHunterFuturesStrategy:
             updates.append(f"Amount: {self.amount_per_trade} -> {new_config['amount_per_trade']}")
             self.amount_per_trade = new_config["amount_per_trade"]
 
+        if "ob_imbalance_ratio" in new_config:
+            updates.append(f"OB Ratio: {self.ob_imbalance_ratio} -> {new_config['ob_imbalance_ratio']}")
+            self.ob_imbalance_ratio = new_config["ob_imbalance_ratio"]
+
+        if "liq_threshold" in new_config:
+            updates.append(f"Liq Threshold: {self.liq_threshold} -> {new_config['liq_threshold']}")
+            self.liq_threshold = new_config["liq_threshold"]
+
         if updates:
             self.config.update(new_config)
             
@@ -574,6 +584,11 @@ class WallHunterFuturesStrategy:
             if "enable_liq_trigger" in new_config: self.enable_liq_trigger = new_config["enable_liq_trigger"]
             if "enable_ob_imbalance" in new_config: self.enable_ob_imbalance = new_config["enable_ob_imbalance"]
             if "ob_imbalance_ratio" in new_config: self.ob_imbalance_ratio = new_config["ob_imbalance_ratio"]
+            if "enable_liq_cascade" in new_config: self.enable_liq_cascade = new_config["enable_liq_cascade"]
+            if "enable_dynamic_liq" in new_config: self.enable_dynamic_liq = new_config["enable_dynamic_liq"]
+            if "dynamic_liq_multiplier" in new_config: self.dynamic_liq_multiplier = new_config["dynamic_liq_multiplier"]
+            if "follow_btc_liq" in new_config: self.follow_btc_liq = new_config["follow_btc_liq"]
+            if "btc_liq_threshold" in new_config: self.btc_liq_threshold = new_config["btc_liq_threshold"]
             
             asyncio.create_task(self._send_telegram(f"⚙️ *Live Config Update*\n{self.symbol} Futures Bot\n\n" + "\n".join([f"• {u}" for u in updates])))
 
@@ -646,18 +661,37 @@ class WallHunterFuturesStrategy:
                     data = json.loads(msg['data'].decode('utf-8'))
                     liq_amount = float(data.get('amount', 0))
                     liq_side = data.get('side', '').lower() # 'buy' means Longs liquidated, 'sell' means Shorts liquidated
+                    now = time.time()
                     
-                    # Entry Logic: If Shorts liquidated (sell), price likely dropped fast, maybe a bounce? 
-                    # OR if Longs liquidated (buy), price dropped.
-                    # Usually: Liq Sell (Shorts) -> Bullish catalyst (Short Squeeze potential)
-                    # Liq Buy (Longs) -> Bearish catalyst (Long Liquidation cascade)
+                    # 1. Cascade Logic
+                    if self.enable_liq_cascade:
+                        self.liq_history.append((now, liq_amount))
+                        while self.liq_history and now - self.liq_history[0][0] > self.liq_cascade_window:
+                            self.liq_history.popleft()
+                        active_amount = sum(a for t, a in self.liq_history)
+                    else:
+                        active_amount = liq_amount
+
+                    # 2. Dynamic Threshold Logic
+                    base_threshold = self.btc_liq_threshold if self.follow_btc_liq else self.liq_threshold
+                    active_threshold = base_threshold
                     
-                    if liq_amount >= (self.btc_liq_threshold if self.follow_btc_liq else self.liq_threshold):
-                        # Trigger entry if not in position
+                    if self.enable_dynamic_liq and self.current_atr > 0 and not self.follow_btc_liq:
+                        # Threshold = Multiplier * ATR * Side-specific heuristics
+                        # A simple effective one: Price * ATR_PCT * Multiplier
+                        try:
+                            # Use ATR as volatility proxy
+                            active_threshold = base_threshold * (1 + (self.current_atr * self.dynamic_liq_multiplier))
+                        except: pass
+
+                    # 3. Trigger Decision
+                    if active_amount >= active_threshold:
                         if not self.active_pos:
-                            side = "buy" if liq_side == "sell" else "sell" # Counter-trade the liquidation
-                            reason = f"Liquidation trigger ({liq_side.upper()} ${liq_amount:,.0f} on {target_ch.split(':')[-1]})"
-                            logger.info(f"🔥 [LIQ TRIGGER] {liq_side.upper()} {liq_amount} on {target_ch}. Entering {side.upper()}")
+                            side = "buy" if liq_side == "sell" else "sell"
+                            if self.enable_liq_cascade: self.liq_history.clear()
+                            
+                            reason = f"Liquidation Trigger ({liq_side.upper()} ${active_amount:,.0f} [Thresh: ${active_threshold:,.0f}])"
+                            logger.info(f"🔥 [LIQ TRIGGER] {reason} on {target_ch}")
                             await self._handle_liquidation_trigger(side, reason=reason)
             except Exception as e: 
                 logger.error(f"Liq Listener Error: {e}")
@@ -667,9 +701,41 @@ class WallHunterFuturesStrategy:
     async def _handle_liquidation_trigger(self, side: str, reason: str):
         if self.active_pos: return
         try:
-            # Fetch current price
-            ob = await self.public_exchange.fetch_order_book(self.symbol, limit=5)
+            # 1. Fetch current price and orderbook for filters
+            ob = await self.public_exchange.fetch_order_book(self.symbol, limit=20)
+            if not ob['bids'] or not ob['asks']: return
+            
             mid = (ob['bids'][0][0] + ob['asks'][0][0]) / 2
+            
+            # 2. Imbalance Filter (Confluence)
+            if self.enable_ob_imbalance:
+                bid_vol = sum(v for p, v in ob['bids'])
+                ask_vol = sum(v for p, v in ob['asks'])
+                if side == "buy":
+                    ratio = bid_vol / ask_vol if ask_vol > 0 else 999
+                else:
+                    ratio = ask_vol / bid_vol if bid_vol > 0 else 999
+                
+                if ratio < self.ob_imbalance_ratio:
+                    logger.info(f"⏭️ [LIQ] Rejected: OB Imbalance Ratio {ratio:.2f} < {self.ob_imbalance_ratio}")
+                    return
+                logger.info(f"✅ [LIQ] OB Imbalance Confirmed: {ratio:.2f}x")
+
+            # 3. Wall Confirmation Filter
+            if self.enable_wall_trigger:
+                strong_wall = False
+                target_levels = ob['bids'] if side == "buy" else ob['asks']
+                # Check for any wall meeting the threshold
+                for p, v in target_levels:
+                    if v >= self.micro_scalp_min_wall:
+                        strong_wall = True
+                        logger.info(f"🔥 [LIQ] Wall Confluence: Found {v:,.0f} wall at {p}")
+                        break
+                
+                if not strong_wall:
+                    logger.info(f"⏭️ [LIQ] Rejected: No supporting wall >= {self.micro_scalp_min_wall}")
+                    return
+
             await self.execute_snipe(mid, side, mid, reason=reason)
         except Exception as e: logger.error(f"Liq Handler Error: {e}")
 

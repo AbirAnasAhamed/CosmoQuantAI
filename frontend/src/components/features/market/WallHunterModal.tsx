@@ -557,11 +557,93 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                                 </div>
                                 {form.enableLiqTrigger && (
                                     <div className="mt-3 pl-1 space-y-4" onClick={e => e.stopPropagation()}>
-                                        <div className="flex justify-between items-end mb-1">
-                                            <label className="text-[10px] font-bold text-gray-400 uppercase">Local Asset Liq. Threshold ($)</label>
-                                            <span className="text-xs font-mono font-bold text-rose-500">${form.liqThreshold.toLocaleString()}</span>
+                                        <div className={form.followBtcLiq ? 'opacity-30 pointer-events-none grayscale transition-all' : 'transition-all'}>
+                                            <div className="flex justify-between items-end mb-1">
+                                                <label className="text-[10px] font-bold text-gray-400 uppercase">Local Asset Liq. Threshold ($) {form.followBtcLiq && '(Ignored)'}</label>
+                                                <span className="text-xs font-mono font-bold text-rose-500">${form.liqThreshold.toLocaleString()}</span>
+                                            </div>
+                                            <input 
+                                                type="range" 
+                                                min="1000" 
+                                                max="1000000" 
+                                                step="1000" 
+                                                className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-rose-500 bg-white/10" 
+                                                value={form.liqThreshold} 
+                                                disabled={form.followBtcLiq}
+                                                onChange={(e) => setForm({ ...form, liqThreshold: parseFloat(e.target.value) })} 
+                                            />
                                         </div>
-                                        <input type="range" min="1000" max="500000" step="1000" className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-rose-500 bg-white/10" value={form.liqThreshold} onChange={(e) => setForm({ ...form, liqThreshold: parseFloat(e.target.value) })} />
+
+                                        {/* BTC Follower */}
+                                        <div className="bg-black/20 p-3 rounded-lg border border-white/5 space-y-3">
+                                            <div className="flex items-center justify-between cursor-pointer" onClick={() => handleFormChange('followBtcLiq', !form.followBtcLiq)}>
+                                                <div className="flex items-center gap-2">
+                                                    <div className={`w-10 h-5 rounded-full p-1 transition-colors flex items-center ${form.followBtcLiq ? 'bg-orange-500' : 'bg-gray-700'}`}>
+                                                        <div className={`w-3 h-3 bg-white rounded-full shadow-md transform transition-transform ${form.followBtcLiq ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                                                    </div>
+                                                    <span className="text-[11px] font-black text-white uppercase tracking-wider">Follow BTC Liquidation Flux</span>
+                                                </div>
+                                            </div>
+                                            {form.followBtcLiq && (
+                                                <div className="animate-fadeIn pt-1">
+                                                    <div className="flex justify-between items-end mb-1">
+                                                        <label className="text-[10px] font-bold text-gray-400 uppercase">BTC Threshold ($)</label>
+                                                        <span className="text-xs font-mono font-bold text-orange-400">${form.btcLiqThreshold.toLocaleString()}</span>
+                                                    </div>
+                                                    <div className="flex gap-3 items-center">
+                                                        <input type="range" min="10000" max="5000000" step="10000" className="flex-1 h-1.5 rounded-lg appearance-none cursor-pointer accent-orange-500 bg-white/10" value={form.btcLiqThreshold} onChange={(e) => handleFormChange('btcLiqThreshold', parseFloat(e.target.value))} />
+                                                        <input type="number" step="10000" className="w-24 bg-black/40 border border-white/10 rounded-lg p-1 text-white text-center font-mono text-xs" value={form.btcLiqThreshold} onChange={(e) => handleFormChange('btcLiqThreshold', parseFloat(e.target.value))} />
+                                                    </div>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        {/* Cascade & Dynamic */}
+                                        <div className="grid grid-cols-2 gap-3">
+                                            <div className={`bg-black/20 p-3 rounded-lg border cursor-pointer transition-colors ${form.enableLiqCascade ? 'border-rose-500/30 bg-rose-500/5' : 'border-white/5'}`} onClick={() => handleFormChange('enableLiqCascade', !form.enableLiqCascade)}>
+                                                <span className="text-[10px] font-bold text-white uppercase block mb-2">Cascade Detection</span>
+                                                {form.enableLiqCascade ? (
+                                                    <div onClick={e => e.stopPropagation()}>
+                                                        <div className="flex justify-between text-[9px] mb-1">
+                                                            <span className="text-gray-400">WINDOW</span>
+                                                            <span className="text-rose-400 font-mono">{form.liqCascadeWindow}s</span>
+                                                        </div>
+                                                        <input type="range" min="1" max="60" className="w-full h-1 accent-rose-500" value={form.liqCascadeWindow} onChange={(e) => handleFormChange('liqCascadeWindow', parseInt(e.target.value))} />
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-[9px] text-gray-500">Enable to detect liquidations in series</span>
+                                                )}
+                                            </div>
+                                            
+                                            <div className={`bg-black/20 p-3 rounded-lg border cursor-pointer transition-colors ${form.enableDynamicLiq ? 'border-cyan-500/30 bg-cyan-500/5' : 'border-white/5'}`} onClick={() => handleFormChange('enableDynamicLiq', !form.enableDynamicLiq)}>
+                                                <span className="text-[10px] font-bold text-white uppercase block mb-2">Dynamic Adapt</span>
+                                                {form.enableDynamicLiq ? (
+                                                    <div onClick={e => e.stopPropagation()}>
+                                                        <div className="flex justify-between text-[9px] mb-1">
+                                                            <span className="text-gray-400">MULT</span>
+                                                            <span className="text-cyan-400 font-mono">{form.dynamicLiqMultiplier}x</span>
+                                                        </div>
+                                                        <input type="range" min="0.5" max="5.0" step="0.1" className="w-full h-1 accent-cyan-500" value={form.dynamicLiqMultiplier} onChange={(e) => handleFormChange('dynamicLiqMultiplier', parseFloat(e.target.value))} />
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-[9px] text-gray-500">Auto-adjust threshold based on volatility</span>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Imbalance Filter for Liquidation */}
+                                        <div className={`bg-black/20 p-3 rounded-lg border cursor-pointer transition-colors ${form.enableObImbalance ? 'border-amber-500/30 bg-amber-500/5' : 'border-white/5'}`} onClick={() => handleFormChange('enableObImbalance', !form.enableObImbalance)}>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <span className="text-[10px] font-bold text-white uppercase">Bid/Ask Imbalance Filter</span>
+                                                {form.enableObImbalance && <span className="text-xs font-mono font-bold text-amber-500">{form.obImbalanceRatio}x</span>}
+                                            </div>
+                                            {form.enableObImbalance && (
+                                                <div onClick={e => e.stopPropagation()} className="animate-fadeIn">
+                                                    <input type="range" min="1.1" max="10.0" step="0.1" className="w-full h-1.5 accent-amber-500 bg-white/10 rounded-lg appearance-none cursor-pointer" value={form.obImbalanceRatio} onChange={(e) => handleFormChange('obImbalanceRatio', parseFloat(e.target.value))} />
+                                                    <p className="text-[8px] text-gray-500 mt-1 italic">Only trigger if orderbook also shows {form.obImbalanceRatio}x imbalance.</p>
+                                                </div>
+                                            )}
+                                        </div>
                                     </div>
                                 )}
                             </div>

@@ -167,7 +167,23 @@ class BotManager:
                 if bot.config.get('enable_wall_trigger', True):
                     triggers.append(f"Wall ({bot.config.get('vol_threshold', 0)})")
                 if bot.config.get('enable_liq_trigger'):
-                    triggers.append(f"Liq Event ({'BTC' if bot.config.get('follow_btc_liq') else 'Local'})")
+                    is_btc = bot.config.get('follow_btc_liq')
+                    thresh = bot.config.get('btc_liq_threshold' if is_btc else 'liq_threshold', 0)
+                    liq_str = f"Liq ({'BTC' if is_btc else 'Local'}: ${thresh:,.0f}"
+                    
+                    # Add detailed flags
+                    flags = []
+                    if bot.config.get('enable_liq_cascade'):
+                        flags.append(f"Cascade:{bot.config.get('liq_cascade_window', 5)}s")
+                    if bot.config.get('enable_dynamic_liq'):
+                        flags.append(f"Dynamic:{bot.config.get('dynamic_liq_multiplier', 1.0)}x")
+                    if bot.config.get('enable_ob_imbalance'):
+                        flags.append(f"Imb:{bot.config.get('ob_imbalance_ratio', 1.5)}x")
+                    
+                    if flags:
+                        liq_str += " | " + ", ".join(flags)
+                    liq_str += ")"
+                    triggers.append(liq_str)
                 
                 if triggers:
                     trigger_str = " | ".join(triggers)
