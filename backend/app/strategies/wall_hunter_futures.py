@@ -40,8 +40,92 @@ class WallHunterFuturesStrategy:
         self.active_pos = None
         self.extreme_price = 0.0 # Will track Highest for Long, Lowest for Short
         self.tracked_walls = {} # {price: {first_seen, last_seen, vol, type}}
+        
+        # Tasks
+        self._main_task = None
+        self._heartbeat_task = None
+        
+        # CCXT Instances
+        self.public_exchange = None
+        self.private_exchange = None
+        self.engine = None
 
-    # ... (start, initialize_futures_settings, _heartbeat_loop remain mostly same)
+    async def start(self, api_key_record=None):
+        """বট স্টার্ট করার মেইন এন্ট্রি পয়েন্ট"""
+        self.running = True
+        logger.info(f"🚀 [FuturesHunter {self.bot_id}] Starting on {self.symbol}")
+        
+        try:
+            # ১. এক্সচেঞ্জ ইনিশিয়ালাইজেশন
+            exchange_class = getattr(ccxt_pro, self.exchange_id)
+            
+            # Public instance for data
+            self.public_exchange = exchange_class({'enableRateLimit': True})
+            
+            # Private instance for trading
+            exchange_params = {
+                'enableRateLimit': True,
+                'options': {'adjustForTimeDifference': True}
+            }
+            
+            if not self.is_paper_trading and api_key_record:
+                from app.core.security import decrypt_key
+                exchange_params.update({
+                    'apiKey': decrypt_key(api_key_record.api_key),
+                    'secret': decrypt_key(api_key_record.secret_key)
+                })
+                if hasattr(api_key_record, 'passphrase') and api_key_record.passphrase:
+                    exchange_params['password'] = decrypt_key(api_key_record.passphrase)
+            
+            self.private_exchange = exchange_class(exchange_params)
+            
+            # ২. ফিউচার সেটিংস সেটআপ (লেভারেজ, মার্জিন মোড)
+            await self.initialize_futures_settings()
+            
+            # ৩. এক্সিকিউশন ইঞ্জিন
+            engine_config = self.config.copy()
+            engine_config['symbol'] = self.symbol
+            engine_config['trading_mode'] = 'futures'
+            self.engine = OrderBlockExecutionEngine(engine_config, exchange=self.private_exchange)
+            
+            # ৪. মেইন লুপ এবং হার্টবিট শুরু করা
+            self._main_task = asyncio.create_task(self._run_loop())
+            self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
+            
+            logger.info(f"✅ [FuturesHunter {self.bot_id}] Initialization Complete")
+            
+        except Exception as e:
+            logger.error(f"❌ Failed to start Futures Bot {self.bot_id}: {str(e)}")
+            self.running = False
+            raise e
+
+    async def initialize_futures_settings(self):
+        """এক্সচেঞ্জে লেভারেজ এবং মার্জিন মোড সেট করবে"""
+        try:
+            logger.info(f"[{self.bot_id}] Setting up Futures Market: {self.symbol}, Leverage {self.leverage}x, Mode: {self.margin_mode}")
+            
+            if self.is_paper_trading:
+                self.private_exchange.set_sandbox_mode(True)
+                
+            # সেট লেভারেজ
+            try:
+                await self.private_exchange.set_leverage(self.leverage, self.symbol)
+            except Exception as e:
+                logger.warning(f"Could not set leverage (might already be set): {e}")
+                
+            # সেট মার্জিন মোড
+            try:
+                await self.private_exchange.set_margin_mode(self.margin_mode.lower(), self.symbol)
+            except Exception as e:
+                logger.warning(f"Could not set margin mode (might already be set): {e}")
+                
+        except Exception as e:
+            logger.error(f"Futures Settings initialization error: {e}")
+
+    async def _heartbeat_loop(self):
+        while self.running:
+            logger.info(f"💓 [FuturesHunter {self.bot_id}] monitoring {self.symbol} (Futures Mode)...")
+            await asyncio.sleep(10)
 
     async def _run_loop(self):
         """মেইন স্ট্র্যাটেজি লুপ: L2 অর্ডারবুক ট্র্যাকিং"""

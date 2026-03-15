@@ -53,13 +53,14 @@ class OrderBlockExecutionEngine:
     def __init__(self, config: Dict[str, Any], exchange=None):
         self.is_paper_trading = config.get("is_paper_trading", True)
         self.exchange_id = config.get("exchange", "binance").lower()
-        self.pair = config.get("pair") or config.get("symbol")
-        self.exchange = exchange
+        self.trading_mode = config.get("trading_mode", "spot")
+        self.leverage = config.get("leverage", 1)
         
         # Paper trading state
         self.paper_balance_quote = config.get("paper_balance_initial", 10000.0)
         self.paper_balance_base = 0.0
-        self.active_position = None # Simplification: only 1 active position for the bot
+        self.paper_open_positions = [] # Track multiple if needed, but usually 1
+        self.active_position = None 
 
     async def execute_trade(self, side: str, amount: float, price: float, order_type: str = "market") -> Optional[Dict[str, Any]]:
         """
@@ -75,6 +76,7 @@ class OrderBlockExecutionEngine:
         timestamp = time.time()
         
         cost = amount * price
+        required_margin = cost / self.leverage
         
         if order_type.lower() == "limit":
             logger.debug(f"[PAPER] Placed LIMIT {side.upper()} order for {amount} {self.pair} at {price}.")
@@ -87,24 +89,58 @@ class OrderBlockExecutionEngine:
                 "status": "open"
             }
         
-        if side == "buy":
-            if self.paper_balance_quote >= cost:
-                self.paper_balance_quote -= cost
-                self.paper_balance_base += amount
-                self.active_position = {"side": "long", "entry_price": price, "amount": amount}
-                logger.debug(f"[PAPER] Bought {amount} {self.pair} at {price}. Cost: {cost}")
-            else:
-                logger.warning(f"[PAPER] Insufficient balance for BUY. Need {cost}, have {self.paper_balance_quote}")
-                return None
-        elif side == "sell":
-             if self.paper_balance_base >= amount:
-                 self.paper_balance_base -= amount
-                 self.paper_balance_quote += cost
-                 self.active_position = None
-                 logger.debug(f"[PAPER] Sold {amount} {self.pair} at {price}. Value: {cost}")
-             else:
-                 logger.warning(f"[PAPER] Insufficient base balance for SELL. Need {amount}, have {self.paper_balance_base}")
-                 return None
+        if self.trading_mode == "futures":
+            # Futures Paper Logic: Both Buy/Sell use Quote as margin
+            if side == "buy": # Open Long or Close Short
+                if self.active_position and self.active_position['side'] == 'short':
+                    # Closing Short
+                    pnl = (self.active_position['entry_price'] - price) * amount
+                    self.paper_balance_quote += pnl
+                    self.active_position = None
+                    logger.debug(f"[PAPER-FUTURES] Closed SHORT at {price}. PnL: {pnl}")
+                else:
+                    # Opening Long
+                    if self.paper_balance_quote >= required_margin:
+                        self.active_position = {"side": "long", "entry_price": price, "amount": amount}
+                        logger.debug(f"[PAPER-FUTURES] Opened LONG at {price}. Cost: {cost}, Margin: {required_margin}")
+                    else:
+                        logger.warning(f"[PAPER-FUTURES] Insufficient quote for LONG. Need {required_margin}, have {self.paper_balance_quote}")
+                        return None
+            else: # side == "sell" -> Open Short or Close Long
+                if self.active_position and self.active_position['side'] == 'long':
+                    # Closing Long
+                    pnl = (price - self.active_position['entry_price']) * amount
+                    self.paper_balance_quote += pnl
+                    self.active_position = None
+                    logger.debug(f"[PAPER-FUTURES] Closed LONG at {price}. PnL: {pnl}")
+                else:
+                    # Opening Short
+                    if self.paper_balance_quote >= required_margin:
+                        self.active_position = {"side": "short", "entry_price": price, "amount": amount}
+                        logger.debug(f"[PAPER-FUTURES] Opened SHORT at {price}. Cost: {cost}, Margin: {required_margin}")
+                    else:
+                        logger.warning(f"[PAPER-FUTURES] Insufficient quote for SHORT. Need {required_margin}, have {self.paper_balance_quote}")
+                        return None
+        else:
+            # Spot Paper Logic
+            if side == "buy":
+                if self.paper_balance_quote >= cost:
+                    self.paper_balance_quote -= cost
+                    self.paper_balance_base += amount
+                    self.active_position = {"side": "long", "entry_price": price, "amount": amount}
+                    logger.debug(f"[PAPER-SPOT] Bought {amount} {self.pair} at {price}. Cost: {cost}")
+                else:
+                    logger.warning(f"[PAPER-SPOT] Insufficient balance for BUY. Need {cost}, have {self.paper_balance_quote}")
+                    return None
+            elif side == "sell":
+                 if self.paper_balance_base >= amount:
+                     self.paper_balance_base -= amount
+                     self.paper_balance_quote += cost
+                     self.active_position = None
+                     logger.debug(f"[PAPER-SPOT] Sold {amount} {self.pair} at {price}. Value: {cost}")
+                 else:
+                     logger.warning(f"[PAPER-SPOT] Insufficient base balance for SELL. Need {amount}, have {self.paper_balance_base}")
+                     return None
                  
         return {
             "id": trade_id,
