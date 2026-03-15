@@ -2,6 +2,7 @@ import logging
 import asyncio
 import time
 import json
+import ccxt
 import ccxt.pro as ccxt_pro
 from app.utils import get_redis_client
 from app.strategies.order_block_bot import OrderBlockExecutionEngine
@@ -102,7 +103,8 @@ class WallHunterFuturesStrategy:
                 'enableRateLimit': True,
                 'options': {
                     'adjustForTimeDifference': True,
-                    'recvWindow': 10000 if self.exchange_id == 'mexc' else 5000
+                    'recvWindow': 60000 if self.exchange_id == 'mexc' else 5000,
+                    'new_updates': True if self.exchange_id == 'mexc' else False
                 }
             }
             
@@ -160,13 +162,23 @@ class WallHunterFuturesStrategy:
                 
             # সেট লেভারেজ
             try:
-                await self.private_exchange.set_leverage(self.leverage, self.symbol)
+                if self.exchange_id == 'mexc':
+                    # MEXC requires both long and short leverage to be set separately
+                    open_type = 1 if self.margin_mode == 'isolated' else 2
+                    await self.private_exchange.set_leverage(self.leverage, self.symbol, {'openType': open_type, 'positionType': 1}) # Long
+                    await self.private_exchange.set_leverage(self.leverage, self.symbol, {'openType': open_type, 'positionType': 2}) # Short
+                else:
+                    await self.private_exchange.set_leverage(self.leverage, self.symbol)
             except Exception as e:
                 logger.warning(f"Could not set leverage (might already be set): {e}")
                 
             # সেট মার্জিন মোড
             try:
-                await self.private_exchange.set_margin_mode(self.margin_mode.lower(), self.symbol)
+                if self.exchange_id == 'mexc':
+                    # MEXC setMarginMode requires leverage as well
+                    await self.private_exchange.set_margin_mode(self.margin_mode, self.symbol, {'leverage': self.leverage})
+                else:
+                    await self.private_exchange.set_margin_mode(self.margin_mode.lower(), self.symbol)
             except Exception as e:
                 logger.warning(f"Could not set margin mode (might already be set): {e}")
                 
@@ -197,6 +209,9 @@ class WallHunterFuturesStrategy:
                 best_ask = orderbook['asks'][0][0]
                 mid_price = (best_bid + best_ask) / 2
                 current_time = time.time()
+
+                if current_time % 10 < 0.1: # Periodic debug info
+                     logger.info(f"🔍 [Debug {self.bot_id}] {self.symbol} Mid: {mid_price:.6f} | Bids: {len(orderbook['bids'])} | Asks: {len(orderbook['asks'])}")
 
                 if not self.active_pos:
                     if not self.enable_wall_trigger:

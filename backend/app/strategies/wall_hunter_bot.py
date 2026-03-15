@@ -250,7 +250,8 @@ class WallHunterBot:
             'enableRateLimit': True,
             'options': {
                 'adjustForTimeDifference': True,
-                'recvWindow': 60000
+                'recvWindow': 60000 if self.exchange_id == 'mexc' else 5000,
+                'new_updates': True if self.exchange_id == 'mexc' else False
             }
         }
         
