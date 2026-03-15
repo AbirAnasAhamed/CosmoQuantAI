@@ -154,6 +154,11 @@ class BotManager:
                         logger.info(f"📐 Liq Safety Distance: {dist}%")
                         msg_lines.append(f"📐 Liq Distance: {dist}%")
 
+                    if bot.config.get('enable_ob_imbalance'):
+                        ratio = bot.config.get('ob_imbalance_ratio', 1.5)
+                        logger.info(f"📊 Heatmap Imbalance: {ratio}x")
+                        msg_lines.append(f"📊 Heatmap Imbalance: {ratio}x")
+
                 logger.info(f"🎯 Target Spread: {bot.config.get('target_spread', 0)}")
                 msg_lines.append(f"🎯 Target Spread: {bot.config.get('target_spread', 0)}")
                 

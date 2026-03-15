@@ -437,13 +437,49 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                                         </div>
                                         <div className="space-y-1">
                                             <label className="text-[10px] text-gray-400 font-bold uppercase">Position Direction</label>
-                                            <select className="w-full bg-black/40 border border-white/10 p-2.5 rounded-lg text-white outline-none text-sm" value={form.positionDirection} onChange={(e) => handleFormChange('positionDirection', e.target.value)}>
+                                            <select 
+                                                className="w-full bg-black/40 border border-white/10 p-2.5 rounded-lg text-white outline-none text-sm" 
+                                                value={form.positionDirection} 
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    handleFormChange('positionDirection', val);
+                                                    if (val === 'auto') handleFormChange('enableObImbalance', true);
+                                                }}
+                                            >
                                                 <option className="bg-[#0B1120]" value="auto">Auto (Heatmap Based)</option>
                                                 <option className="bg-[#0B1120] text-green-400" value="long">Long Only</option>
                                                 <option className="bg-[#0B1120] text-red-400" value="short">Short Only</option>
                                             </select>
                                         </div>
                                     </div>
+
+                                    {form.positionDirection === 'auto' && (
+                                        <div className="animate-fadeIn bg-black/40 border border-orange-500/30 p-3 rounded-xl">
+                                            <div className="flex justify-between items-center mb-1">
+                                                <label className="text-[10px] font-bold text-orange-400 uppercase tracking-tighter">Heatmap Imbalance Ratio</label>
+                                                <span className="text-xs font-mono font-bold text-white">{form.obImbalanceRatio}x</span>
+                                            </div>
+                                            <div className="flex gap-3 items-center">
+                                                <input 
+                                                    type="range" 
+                                                    min="1.1" 
+                                                    max="10.0" 
+                                                    step="0.1" 
+                                                    className="flex-1 h-1.5 accent-orange-500 bg-white/10 rounded-lg appearance-none cursor-pointer" 
+                                                    value={form.obImbalanceRatio} 
+                                                    onChange={(e) => handleFormChange('obImbalanceRatio', parseFloat(e.target.value))} 
+                                                />
+                                                <input 
+                                                    type="number" 
+                                                    step="0.1" 
+                                                    className="w-16 bg-black/40 border border-white/10 rounded-lg p-1 text-white text-center font-mono text-xs" 
+                                                    value={form.obImbalanceRatio} 
+                                                    onChange={(e) => handleFormChange('obImbalanceRatio', parseFloat(e.target.value))} 
+                                                />
+                                            </div>
+                                            <p className="text-[9px] text-gray-500 mt-1 italic">Bot will only enter if one side has {form.obImbalanceRatio}x more volume than the other.</p>
+                                        </div>
+                                    )}
 
                                     <div>
                                         <div className="flex justify-between items-end mb-1">
