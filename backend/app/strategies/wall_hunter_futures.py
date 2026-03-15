@@ -101,6 +101,11 @@ class WallHunterFuturesStrategy:
                 'options': {'adjustForTimeDifference': True}
             }
             
+            try:
+                await self.public_exchange.load_markets()
+            except Exception as e:
+                logger.warning(f"Could not load public markets: {e}")
+
             if not self.is_paper_trading and api_key_record:
                 from app.core.security import decrypt_key
                 exchange_params.update({
@@ -112,6 +117,11 @@ class WallHunterFuturesStrategy:
             
             self.private_exchange = exchange_class(exchange_params)
             
+            try:
+                await self.private_exchange.load_markets()
+            except Exception as e:
+                logger.warning(f"Could not load private markets: {e}")
+
             # ২. ফিউচার সেটিংস সেটআপ (লেভারেজ, মার্জিন মোড)
             await self.initialize_futures_settings()
             

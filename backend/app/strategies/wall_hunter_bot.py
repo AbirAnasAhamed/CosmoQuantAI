@@ -277,6 +277,13 @@ class WallHunterBot:
         # Initialize execution engine with the correct exchange instance
         self.engine = OrderBlockExecutionEngine(self.config, exchange=self.exchange)
         
+        try:
+            await self.public_exchange.load_markets()
+            if self.exchange:
+                await self.exchange.load_markets()
+        except Exception as e:
+            logger.warning(f"Could not load markets during startup: {e}")
+
         asyncio.create_task(self._run_loop())
         self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
         self._vpvr_task = asyncio.create_task(self._vpvr_updater_loop())
