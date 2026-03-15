@@ -34,6 +34,31 @@ class WallHunterFuturesStrategy:
         self.max_wall_distance_pct = self.config.get("max_wall_distance_pct", 1.0)
         self.amount_per_trade = self.config.get("amount_per_trade", 10.0)
         
+        # --- NEW FEATURES: Partial TP & Triggers ---
+        self.partial_tp_pct = self.config.get("partial_tp_pct", 50.0)
+        self.vpvr_enabled = self.config.get("vpvr_enabled", False)
+        self.vpvr_tolerance = self.config.get("vpvr_tolerance", 0.2)
+        self.top_hvns = []
+        
+        self.atr_sl_enabled = self.config.get("atr_sl_enabled", False)
+        self.atr_period = self.config.get("atr_period", 14)
+        self.atr_multiplier = self.config.get("atr_multiplier", 2.0)
+        self.current_atr = 0.0
+        
+        self.enable_wall_trigger = self.config.get("enable_wall_trigger", True)
+        self.enable_liq_trigger = self.config.get("enable_liq_trigger", False)
+        self.liq_threshold = self.config.get("liq_threshold", 50000.0)
+        self.enable_micro_scalp = self.config.get("enable_micro_scalp", False)
+        self.micro_scalp_profit_ticks = self.config.get("micro_scalp_profit_ticks", 2)
+        self.micro_scalp_min_wall = self.config.get("micro_scalp_min_wall", 100000.0)
+        
+        from collections import deque
+        self.liq_history = deque()
+        self.liq_cascade_window = self.config.get("liq_cascade_window", 5)
+        self.enable_liq_cascade = self.config.get("enable_liq_cascade", False)
+        self.follow_btc_liq = self.config.get("follow_btc_liq", False)
+        self.btc_liq_threshold = self.config.get("btc_liq_threshold", 500000.0)
+        
         # State
         self.running = False
         self.redis = get_redis_client()
@@ -44,6 +69,9 @@ class WallHunterFuturesStrategy:
         # Tasks
         self._main_task = None
         self._heartbeat_task = None
+        self._vpvr_task = None
+        self._atr_task = None
+        self._liq_task = None
         
         # CCXT Instances
         self.public_exchange = None
@@ -91,6 +119,9 @@ class WallHunterFuturesStrategy:
             # ৪. মেইন লুপ এবং হার্টবিট শুরু করা
             self._main_task = asyncio.create_task(self._run_loop())
             self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
+            self._vpvr_task = asyncio.create_task(self._vpvr_updater_loop())
+            self._atr_task = asyncio.create_task(self._atr_updater_loop())
+            self._liq_task = asyncio.create_task(self._liquidation_listener())
             
             logger.info(f"✅ [FuturesHunter {self.bot_id}] Initialization Complete")
             
@@ -148,6 +179,10 @@ class WallHunterFuturesStrategy:
                 current_time = time.time()
 
                 if not self.active_pos:
+                    if not self.enable_wall_trigger:
+                        self._publish_status(mid_price)
+                        continue
+
                     current_walls = {}
                     
                     # ১. বড় ওয়াল ডিটেক্ট করা (Long এর জন্য Bids, Short এর জন্য Asks)
@@ -173,6 +208,16 @@ class WallHunterFuturesStrategy:
                             alive_time = current_time - self.tracked_walls[price]['first_seen']
                             if alive_time >= self.min_wall_lifetime:
                                 wall_type = self.tracked_walls[price]['type']
+                                
+                                # VPVR Confirmation
+                                if self.vpvr_enabled and self.top_hvns:
+                                    is_hvn_aligned = any(abs(price - hvn) / hvn <= (self.vpvr_tolerance / 100.0) for hvn in self.top_hvns)
+                                    if not is_hvn_aligned:
+                                        if not self.tracked_walls[price].get('hvn_rejected'):
+                                            logger.info(f"🚫 Wall at {price} rejected: Not near any HVN.")
+                                            self.tracked_walls[price]['hvn_rejected'] = True
+                                        continue
+
                                 logger.info(f"🟢 {wall_type.upper()} Wall Confirmed at {price} (Alive: {alive_time:.1f}s). Snipping!")
                                 # Buy wall -> Entry LONG (buy), Sell wall -> Entry SHORT (sell)
                                 await self.execute_snipe(price, "buy" if wall_type == 'buy' else "sell", mid_price)
@@ -232,7 +277,30 @@ class WallHunterFuturesStrategy:
                     }
                 
                 self.extreme_price = actual_entry
-                logger.info(f"✅ Position Opened: {side.upper()} | Entry {actual_entry}, SL {self.active_pos['sl']}, TP {self.active_pos['tp']}")
+                
+                # --- NEW: Partial TP1 calculation ---
+                if self.enable_micro_scalp:
+                    tick_profit_pct = self.micro_scalp_profit_ticks * 0.0001
+                    tp_price = actual_entry * (1 + tick_profit_pct) if side == "buy" else actual_entry * (1 - tick_profit_pct)
+                    self.active_pos.update({
+                        "tp": tp_price,
+                        "tp1": tp_price, 
+                        "tp1_hit": True # No partial for micro-scalp
+                    })
+                else:
+                    tp_dist = abs(self.active_pos['tp'] - actual_entry)
+                    if side == "buy": # LONG
+                        self.active_pos.update({
+                            "tp1": actual_entry + (tp_dist * 0.5),
+                            "tp1_hit": False
+                        })
+                    else: # SHORT
+                        self.active_pos.update({
+                            "tp1": actual_entry - (tp_dist * 0.5),
+                            "tp1_hit": False
+                        })
+
+                logger.info(f"✅ Position Opened: {side.upper()} | Entry {actual_entry}, SL {self.active_pos['sl']}, TP {self.active_pos['tp']}, TP1 {self.active_pos.get('tp1')}")
                 
         except Exception as e:
             logger.error(f"Snipe Execution Error: {e}")
@@ -248,11 +316,19 @@ class WallHunterFuturesStrategy:
             if current_price > self.extreme_price:
                 self.extreme_price = current_price
                 new_sl = self.extreme_price * (1 - (self.tsl_pct / 100))
+                # ATR Support
+                if self.atr_sl_enabled and self.current_atr > 0:
+                    atr_sl = self.extreme_price - (self.current_atr * self.atr_multiplier)
+                    new_sl = max(new_sl, atr_sl)
                 self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
         else: # short
             if current_price < self.extreme_price or self.extreme_price == 0:
                 self.extreme_price = current_price
                 new_sl = self.extreme_price * (1 + (self.tsl_pct / 100))
+                # ATR Support
+                if self.atr_sl_enabled and self.current_atr > 0:
+                    atr_sl = self.extreme_price + (self.current_atr * self.atr_multiplier)
+                    new_sl = min(new_sl, atr_sl)
                 self.active_pos['sl'] = min(self.active_pos['sl'], new_sl)
 
         # TP / SL চেক
@@ -260,6 +336,11 @@ class WallHunterFuturesStrategy:
         reason = ""
         
         if side == "long":
+            # Scale-Out (Partial TP1)
+            if self.partial_tp_pct > 0 and not self.active_pos.get('tp1_hit') and current_price >= self.active_pos['tp1']:
+                await self.execute_partial_close(current_price)
+                return
+
             if current_price >= self.active_pos['tp']:
                 should_exit = True
                 reason = "Take Profit"
@@ -267,6 +348,11 @@ class WallHunterFuturesStrategy:
                 should_exit = True
                 reason = "Stop Loss"
         else: # short
+            # Scale-Out (Partial TP1)
+            if self.partial_tp_pct > 0 and not self.active_pos.get('tp1_hit') and current_price <= self.active_pos['tp1']:
+                await self.execute_partial_close(current_price)
+                return
+
             if current_price <= self.active_pos['tp']:
                 should_exit = True
                 reason = "Take Profit"
@@ -283,7 +369,36 @@ class WallHunterFuturesStrategy:
             res = await self.engine.execute_trade(exit_side, self.active_pos['amount'], current_price)
             if res:
                 logger.info(f"✅ {side.upper()} Position Closed: {reason}")
+                await self._send_telegram(f"🏁 *{side.upper()} Closed* ({reason})\nPrice: {current_price}\nPair: {self.symbol}")
                 self.active_pos = None
+
+    async def execute_partial_close(self, current_price: float):
+        """TP1 এ পজিশনের একাংশ ক্লোজ করা এবং SL ব্রেক-ইভেনে আনা"""
+        side = self.active_pos['side']
+        entry = self.active_pos['entry']
+        amount = self.active_pos['amount']
+        
+        sell_amount_raw = amount * (self.partial_tp_pct / 100)
+        # Precision Adjust
+        sell_amount = float(f"{sell_amount_raw:.6f}") # Simplified
+        
+        logger.info(f"🔓 [PARTIAL TP] Closing {self.partial_tp_pct}% of {side.upper()} at {current_price}")
+        
+        exit_side = "sell" if side == "long" else "buy"
+        res = await self.engine.execute_trade(exit_side, sell_amount, current_price)
+        
+        if res:
+            self.active_pos['amount'] -= sell_amount
+            # Move SL to Break-Even (Entry + tiny buffer)
+            buffer = abs(self.active_pos['tp'] - entry) * 0.1
+            if side == "long":
+                self.active_pos['sl'] = max(self.active_pos['sl'], entry + buffer)
+            else:
+                self.active_pos['sl'] = min(self.active_pos['sl'], entry - buffer)
+            
+            self.active_pos['tp1_hit'] = True
+            logger.info(f"✅ Partial TP Completed. Remaining: {self.active_pos['amount']}, New SL: {self.active_pos['sl']}")
+            await self._send_telegram(f"🔓 *Partial TP1 Hit!* ({self.partial_tp_pct}%)\nRemaining amount closed at Break-Even SL.")
 
     def _publish_status(self, current_price: float):
         try:
@@ -318,11 +433,12 @@ class WallHunterFuturesStrategy:
 
     async def stop(self):
         self.running = False
-        if self._main_task: self._main_task.cancel()
-        if self._heartbeat_task: self._heartbeat_task.cancel()
-        
         if self.public_exchange: await self.public_exchange.close()
         if self.private_exchange: await self.private_exchange.close()
+        
+        if self._vpvr_task: self._vpvr_task.cancel()
+        if self._atr_task: self._atr_task.cancel()
+        if self._liq_task: self._liq_task.cancel()
         
         logger.info(f"🔴 [FuturesHunter {self.bot_id}] Stopped.")
         await self._send_telegram(f"🔴 Futures Bot [ID: {self.bot_id}] Stopped.")
@@ -381,7 +497,111 @@ class WallHunterFuturesStrategy:
 
         if updates:
             self.config.update(new_config)
+            
+            # --- Sync internal parameters ---
+            if "partial_tp_pct" in new_config: self.partial_tp_pct = new_config["partial_tp_pct"]
+            if "vpvr_enabled" in new_config: self.vpvr_enabled = new_config["vpvr_enabled"]
+            if "vpvr_tolerance" in new_config: self.vpvr_tolerance = new_config["vpvr_tolerance"]
+            if "atr_sl_enabled" in new_config: self.atr_sl_enabled = new_config["atr_sl_enabled"]
+            if "enable_wall_trigger" in new_config: self.enable_wall_trigger = new_config["enable_wall_trigger"]
+            if "enable_liq_trigger" in new_config: self.enable_liq_trigger = new_config["enable_liq_trigger"]
+            
             asyncio.create_task(self._send_telegram(f"⚙️ *Live Config Update*\n{self.symbol} Futures Bot\n\n" + "\n".join([f"• {u}" for u in updates])))
+
+    async def _vpvr_updater_loop(self):
+        """VPVR High Volume Nodes আপডেট করবে (প্রতি ৫ মিনিটে)"""
+        while self.running:
+            if not self.vpvr_enabled:
+                await asyncio.sleep(60)
+                continue
+            try:
+                ohlcv = await self.public_exchange.fetch_ohlcv(self.symbol, timeframe='5m', limit=100)
+                if ohlcv:
+                    prices = [c[4] for c in ohlcv]
+                    vols = [c[5] for c in ohlcv]
+                    min_p, max_p = min(prices), max(prices)
+                    bins = 50
+                    step = (max_p - min_p) / bins
+                    profile = [0.0] * bins
+                    for i, p in enumerate(prices):
+                        idx = int((p - min_p) / step) if step > 0 else 0
+                        if idx >= bins: idx = bins - 1
+                        profile[idx] += vols[i]
+                    top_indices = sorted(range(bins), key=lambda i: profile[i], reverse=True)[:3]
+                    self.top_hvns = [min_p + (i * step) + (step/2) for i in top_indices]
+                    logger.info(f"📊 [FuturesHunter {self.bot_id}] VPVR HVNs: {self.top_hvns}")
+            except Exception as e: logger.error(f"VPVR Error: {e}")
+            await asyncio.sleep(300)
+
+    async def _atr_updater_loop(self):
+        """ATR ভ্যালু আপডেট করবে (প্রতি মিনিটে)"""
+        while self.running:
+            if not self.atr_sl_enabled:
+                await asyncio.sleep(60)
+                continue
+            try:
+                ohlcv = await self.public_exchange.fetch_ohlcv(self.symbol, timeframe='1m', limit=self.atr_period + 1)
+                if len(ohlcv) > self.atr_period:
+                    tr_list = []
+                    for i in range(1, len(ohlcv)):
+                        h, l, pc = ohlcv[i][2], ohlcv[i][3], ohlcv[i-1][4]
+                        tr = max(h - l, abs(h - pc), abs(l - pc))
+                        tr_list.append(tr)
+                    self.current_atr = sum(tr_list[-self.atr_period:]) / self.atr_period
+                    logger.info(f"📈 [FuturesHunter {self.bot_id}] ATR: {self.current_atr}")
+            except Exception as e: logger.error(f"ATR Error: {e}")
+            await asyncio.sleep(60)
+
+    async def _liquidation_listener(self):
+        """লিকুইডেশন ইভেন্ট লিসেনার (রেডিস সাবস্ক্রিপশন)"""
+        pubsub = self.redis.pubsub()
+        current_ch = None
+        while self.running:
+            try:
+                if not self.enable_liq_trigger:
+                    if current_ch:
+                        pubsub.unsubscribe(current_ch)
+                        current_ch = None
+                    await asyncio.sleep(5)
+                    continue
+                
+                target_ch = f"stream:liquidations:BTC/USDT" if self.follow_btc_liq else f"stream:liquidations:{self.symbol}"
+                if current_ch != target_ch:
+                    if current_ch: pubsub.unsubscribe(current_ch)
+                    pubsub.subscribe(target_ch)
+                    current_ch = target_ch
+                    logger.info(f"🎧 [FuturesHunter {self.bot_id}] Monitoring Liquidations: {current_ch}")
+
+                msg = pubsub.get_message(ignore_subscribe_messages=True)
+                if msg and msg['type'] == 'message':
+                    data = json.loads(msg['data'].decode('utf-8'))
+                    liq_amount = float(data.get('amount', 0))
+                    liq_side = data.get('side', '').lower() # 'buy' means Longs liquidated, 'sell' means Shorts liquidated
+                    
+                    # Entry Logic: If Shorts liquidated (sell), price likely dropped fast, maybe a bounce? 
+                    # OR if Longs liquidated (buy), price dropped.
+                    # Usually: Liq Sell (Shorts) -> Bullish catalyst (Short Squeeze potential)
+                    # Liq Buy (Longs) -> Bearish catalyst (Long Liquidation cascade)
+                    
+                    if liq_amount >= (self.btc_liq_threshold if self.follow_btc_liq else self.liq_threshold):
+                        # Trigger entry if not in position
+                        if not self.active_pos:
+                            side = "buy" if liq_side == "sell" else "sell" # Counter-trade the liquidation
+                            logger.info(f"🔥 [LIQ TRIGGER] {liq_side.upper()} {liq_amount} on {target_ch}. Entering {side.upper()}")
+                            await self._handle_liquidation_trigger(side)
+            except Exception as e: 
+                logger.error(f"Liq Listener Error: {e}")
+                await asyncio.sleep(2)
+            await asyncio.sleep(0.1)
+
+    async def _handle_liquidation_trigger(self, side: str):
+        if self.active_pos: return
+        try:
+            # Fetch current price
+            ob = await self.public_exchange.fetch_order_book(self.symbol, limit=5)
+            mid = (ob['bids'][0][0] + ob['asks'][0][0]) / 2
+            await self.execute_snipe(mid, side, mid)
+        except Exception as e: logger.error(f"Liq Handler Error: {e}")
 
     async def _send_telegram(self, msg: str):
         if not self.owner_id: return
