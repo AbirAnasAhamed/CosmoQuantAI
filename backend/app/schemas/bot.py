@@ -19,7 +19,14 @@ class StrategyConfig(BaseModel):
     vpvr_enabled: Optional[bool] = False
     vpvr_tolerance: Optional[float] = 0.2
 
-    # --- NEW: Liquidation & Micro-Scalp Config ---
+    # --- NEW: Futures Config ---
+    trading_mode: Optional[str] = "spot"
+    margin_mode: Optional[str] = "cross"
+    position_direction: Optional[str] = "auto"
+    reduce_only: Optional[bool] = True
+    liquidation_safety_pct: Optional[float] = 5.0
+
+    # --- Liquidation & Micro-Scalp Config ---
     enable_wall_trigger: Optional[bool] = True
     max_wall_distance_pct: Optional[float] = 1.0
     enable_liq_trigger: Optional[bool] = False

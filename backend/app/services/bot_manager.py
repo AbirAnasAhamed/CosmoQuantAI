@@ -63,6 +63,8 @@ class BotManager:
 
             if bot.strategy == "wall_hunter":
                 from app.strategies.wall_hunter_bot import WallHunterBot
+                from app.strategies.wall_hunter_futures import WallHunterFuturesStrategy
+                from app.services.ccxt_service import ccxt_service
                 from app.models import ApiKey
                 
                 config = {
@@ -73,14 +75,27 @@ class BotManager:
                 if bot.config:
                     config.update(bot.config)
                     
-                bot_instance = WallHunterBot(bot.id, config, local_db, owner_id=bot.owner_id)
+                trading_mode = config.get('trading_mode', 'spot')
+                
+                if trading_mode == 'futures':
+                    # সম্পূর্ণ নতুন এবং আলাদা ফিউচার লজিক রান হবে
+                    bot_instance = WallHunterFuturesStrategy(bot, ccxt_service)
+                    logger.info(f"Starting Wall Hunter in FUTURES mode for {bot.market}")
+                else:
+                    # এক্সিস্টিং স্পট বট রান হবে
+                    bot_instance = WallHunterBot(bot.id, config, local_db, owner_id=bot.owner_id)
+                    logger.info(f"Starting Wall Hunter in SPOT mode for {bot.market}")
+
                 bot_instance.bot = bot # keep reference
                 
                 api_key_record = None
                 if not bot.is_paper_trading and bot.api_key_id:
                     api_key_record = local_db.query(ApiKey).filter_by(id=bot.api_key_id).first()
                     
-                await bot_instance.start(api_key_record)
+                # স্ট্র্যাটেজি স্টার্ট করা
+                if hasattr(bot_instance, 'start') and callable(getattr(bot_instance, 'start')):
+                    await bot_instance.start(api_key_record)
+                
                 self.active_bots[bot_id] = bot_instance
             else:
                 # 1. Create Instance

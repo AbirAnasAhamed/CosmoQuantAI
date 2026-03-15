@@ -11,19 +11,17 @@ from app.api import deps
 from app.services.market_service import MarketService
 from app.services.websocket_manager import manager
 
+from app.services.ccxt_service import CcxtService
+
 router = APIRouter()
 market_service = MarketService()
-
-DATA_FEED_DIR = "app/data_feeds"
-os.makedirs(DATA_FEED_DIR, exist_ok=True)
 
 # ✅ 1. সব এক্সচেঞ্জের লিস্ট
 @router.get("/exchanges", response_model=List[str])
 def get_exchanges():
     try:
-        # ccxt.exchanges contains 130+ exchanges, many require auth or are broken (like 'alp').
-        # Using a curated list of popular reliable exchanges.
-        return ['binance', 'alpaca', 'kucoin', 'bybit', 'okx', 'kraken', 'gateio', 'mexc', 'huobi']
+        # Use curated list of popular reliable exchanges from ccxt_service
+        return CcxtService.POPULAR_EXCHANGES
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 

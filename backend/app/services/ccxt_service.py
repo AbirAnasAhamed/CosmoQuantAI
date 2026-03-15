@@ -12,7 +12,6 @@ class CcxtService:
     Implements caching using Redis to avoid rate limits.
     """
     
-    # List of popular exchanges to prioritize or filter
     POPULAR_EXCHANGES = [
         'binance', 'kraken', 'coinbase', 'kucoin', 'bybit', 'okx', 'bitstamp', 
         'gateio', 'htx', 'mexc', 'bitget', 'gemini'
@@ -22,22 +21,13 @@ class CcxtService:
         pass
 
     async def get_exchanges(self) -> List[Dict[str, str]]:
-        """
-        Returns a list of supported exchanges.
-        Cached for 24 hours.
-        """
         cache_key = "market_discovery:exchanges"
         
-        # Try to get from cache
         redis = redis_manager.get_redis()
         if redis:
             cached_data = await redis.get(cache_key)
             if cached_data:
                 return json.loads(cached_data)
-
-        # If not in cache, generate list
-        # ccxt.exchanges is a simple list of strings. 
-        # We will map them to a more useful structure and filter/sort.
         
         exchanges_list = []
         for exchange_id in ccxt.exchanges:
@@ -48,44 +38,33 @@ class CcxtService:
                     "popular": True
                 })
         
-        # Sort: Popular first, then alphabetical
         exchanges_list.sort(key=lambda x: x['id'])
         
-        # Cache the result
         if redis:
-            await redis.setex(cache_key, 86400, json.dumps(exchanges_list)) # 24 hours
+            await redis.setex(cache_key, 86400, json.dumps(exchanges_list))
             
         return exchanges_list
 
     async def get_pairs(self, exchange_id: str) -> List[str]:
-        """
-        Returns a list of active pairs/symbols for a given exchange.
-        Cached for 1 hour.
-        """
         exchange_id = exchange_id.lower()
         cache_key = f"market_discovery:pairs:{exchange_id}"
         
-        # Try to get from cache
         redis = redis_manager.get_redis()
         if redis:
             cached_data = await redis.get(cache_key)
             if cached_data:
                 return json.loads(cached_data)
 
-        # Check if exchange is valid
         if exchange_id not in ccxt.exchanges:
             raise ValueError(f"Exchange '{exchange_id}' not found in CCXT.")
 
         api = None
         try:
-            # Instantiate exchange class dynamically
             exchange_class = getattr(ccxt, exchange_id)
-            api = exchange_class({'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},})
+            api = exchange_class({'enableRateLimit': True, 'options': {'adjustForTimeDifference': True}})
             
-            # Load markets
             markets = await api.load_markets()
             
-            # Filter pairs (active only, spot/swap preferred if distinguishable, but generally all active symbols)
             pairs = []
             for symbol, market in markets.items():
                 if market.get('active', True):
@@ -93,9 +72,8 @@ class CcxtService:
             
             pairs.sort()
             
-            # Cache the result
             if redis:
-                await redis.setex(cache_key, 3600, json.dumps(pairs)) # 1 hour
+                await redis.setex(cache_key, 3600, json.dumps(pairs))
             
             return pairs
             
@@ -105,5 +83,55 @@ class CcxtService:
         finally:
             if api:
                 await api.close()
+
+    # --- NEW FUTURES & EXECUTION HELPERS ---
+    
+    def format_futures_symbol(self, symbol: str, exchange_id: str) -> str:
+        """
+        Converts a Spot symbol (e.g. BTC/USDT) to a Futures symbol (e.g. BTC/USDT:USDT)
+        based on the exchange's CCXT formatting rules.
+        """
+        exchange_id = exchange_id.lower()
+        if exchange_id in ['binance', 'bybit', 'okx', 'mexc']:
+            if ":" not in symbol and "/" in symbol:
+                quote = symbol.split('/')[1]
+                return f"{symbol}:{quote}"
+        return symbol
+
+    def setup_paper_trading(self, api: Any, is_paper: bool):
+        """
+        Enables testnet/sandbox mode if paper trading is ON.
+        """
+        if is_paper:
+            api.set_sandbox_mode(True)
+            logger.info(f"Testnet/Sandbox mode ENABLED for {api.id}")
+        return api
+
+    async def set_leverage(self, api: Any, leverage: int, symbol: str):
+        """Set futures leverage dynamically via authenticated API instance"""
+        try:
+            if hasattr(api, 'set_leverage'):
+                response = await api.set_leverage(leverage, symbol)
+                logger.info(f"Leverage set to {leverage}x for {symbol}")
+                return response
+            else:
+                logger.warning(f"Exchange {api.id} does not support set_leverage directly.")
+        except Exception as e:
+            logger.error(f"Error setting leverage: {e}")
+            raise e
+
+    async def set_margin_mode(self, api: Any, margin_mode: str, symbol: str):
+        """Set margin mode: 'cross' or 'isolated' via authenticated API instance"""
+        try:
+            if hasattr(api, 'set_margin_mode'):
+                response = await api.set_margin_mode(margin_mode.lower(), symbol)
+                logger.info(f"Margin mode set to {margin_mode} for {symbol}")
+                return response
+        except Exception as e:
+            if "No need to change" in str(e) or "already" in str(e).lower():
+                logger.info("Margin type is already set correctly.")
+            else:
+                logger.error(f"Error setting margin mode: {e}")
+                raise e
 
 ccxt_service = CcxtService()
