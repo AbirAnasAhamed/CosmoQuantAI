@@ -271,18 +271,18 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         let eventTimestamp = Date.now();
 
         // Update from exact trades (gives us volume and exact price)
-        if (tradeEvent && tradeEvent !== lastTradeEventRef.current) {
+        if (tradeEvent && tradeEvent.price > 0 && !isNaN(tradeEvent.price) && tradeEvent !== lastTradeEventRef.current) {
             newClose = tradeEvent.price;
             newHigh = Math.max(newHigh, tradeEvent.price);
             newLow = Math.min(newLow, tradeEvent.price);
-            newVolume += tradeEvent.volume;
+            newVolume += (tradeEvent.volume || 0);
             eventTimestamp = tradeEvent.timestamp || Date.now();
             lastTradeEventRef.current = tradeEvent;
             needsUpdate = true;
         }
 
         // Update from order book tick (mid-price update)
-        if (currentPrice && currentPrice !== lastProcessedPriceRef.current) {
+        if (currentPrice && currentPrice > 0 && !isNaN(currentPrice) && currentPrice !== lastProcessedPriceRef.current) {
             newClose = currentPrice;
             newHigh = Math.max(newHigh, currentPrice);
             newLow = Math.min(newLow, currentPrice);
@@ -303,13 +303,14 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             if (eventTimestamp >= candleTimeMs + intervalMs) {
                 // Crosses the timeframe boundary, create a new candle
                 const nextCandleTimeMs = Math.floor(eventTimestamp / intervalMs) * intervalMs;
+                const startPrice = (tradeEvent && tradeEvent.price > 0) ? tradeEvent.price : (currentPrice > 0 ? currentPrice : lastCandle.close);
                 updatedCandle = {
                     time: isSeconds ? Math.floor(nextCandleTimeMs / 1000) : nextCandleTimeMs,
                     open: lastCandle.close,
-                    high: tradeEvent ? tradeEvent.price : currentPrice,
-                    low: tradeEvent ? tradeEvent.price : currentPrice,
-                    close: tradeEvent ? tradeEvent.price : currentPrice,
-                    volume: tradeEvent ? tradeEvent.volume : 0,
+                    high: startPrice,
+                    low: startPrice,
+                    close: startPrice,
+                    volume: (tradeEvent && tradeEvent.price > 0) ? tradeEvent.volume : 0,
                 };
                 isNewCandle = true;
             } else {

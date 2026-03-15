@@ -12,6 +12,7 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
     // --- NEW: Trading Mode State ---
     const [tradingMode, setTradingMode] = useState<'spot' | 'futures'>('spot');
     const [availableExchanges, setAvailableExchanges] = useState<string[]>([]);
+    const [showAdvancedTSL, setShowAdvancedTSL] = useState(false);
 
     const [form, setForm] = useState({
         symbol: symbol,
@@ -437,7 +438,7 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                                         <div className="space-y-1">
                                             <label className="text-[10px] text-gray-400 font-bold uppercase">Position Direction</label>
                                             <select className="w-full bg-black/40 border border-white/10 p-2.5 rounded-lg text-white outline-none text-sm" value={form.positionDirection} onChange={(e) => handleFormChange('positionDirection', e.target.value)}>
-                                                <option className="bg-[#0B1120]" value="auto">Auto (Hitmap Based)</option>
+                                                <option className="bg-[#0B1120]" value="auto">Auto (Heatmap Based)</option>
                                                 <option className="bg-[#0B1120] text-green-400" value="long">Long Only</option>
                                                 <option className="bg-[#0B1120] text-red-400" value="short">Short Only</option>
                                             </select>
@@ -611,8 +612,55 @@ export const WallHunterModal: React.FC<{ isOpen: boolean; onClose: () => void; s
                                 )}
                             </div>
 
-                            <div>
+                            <div className="grid grid-cols-2 gap-4">
                                 <InputField label="Spoof Detect Time (Seconds)" value={form.spoofTime} onChange={(v: number) => setForm({ ...form, spoofTime: v })} step={0.5} />
+                                <InputField label="Trailing SL Step (%)" value={form.tsl} onChange={(v: number) => setForm({ ...form, tsl: v })} step={0.1} />
+                            </div>
+
+                            {/* --- VPVR SECTION --- */}
+                            <div className={`border rounded-xl p-4 transition-colors cursor-pointer ${form.vpvrEnabled ? 'bg-yellow-500/5 border-yellow-500/50' : 'bg-transparent border-white/10 hover:border-white/30'}`} onClick={() => handleFormChange('vpvrEnabled', !form.vpvrEnabled)}>
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-10 h-5 rounded-full p-1 transition-colors duration-200 flex items-center ${form.vpvrEnabled ? 'bg-yellow-500' : 'bg-gray-700'}`}>
+                                            <div className={`w-3 h-3 bg-white rounded-full shadow-md transform transition-transform duration-200 ${form.vpvrEnabled ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                                        </div>
+                                        <span className="text-sm font-black text-white uppercase tracking-wider">VPVR High Volume Node Confirmation</span>
+                                    </div>
+                                </div>
+                                {form.vpvrEnabled && (
+                                    <div className="mt-3 pl-1 animate-fadeIn" onClick={e => e.stopPropagation()}>
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Value Area Tolerance (%)</label>
+                                        <div className="flex gap-3 items-center">
+                                            <input type="range" min="0.05" max="2.0" step="0.05" className="flex-1 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-yellow-500" value={form.vpvrTolerance} onChange={(e) => handleFormChange('vpvrTolerance', parseFloat(e.target.value))} />
+                                            <input type="number" step="0.05" className="w-20 bg-black/40 border border-white/10 rounded-xl p-1.5 text-white text-center font-mono text-sm" value={form.vpvrTolerance} onChange={(e) => handleFormChange('vpvrTolerance', parseFloat(e.target.value))} />
+                                        </div>
+                                        <p className="text-[9px] text-gray-500 mt-2 italic">Only enter trades if price is within this % of the Volume Profile High Volume Node.</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* --- ATR SECTION --- */}
+                            <div className={`border rounded-xl p-4 transition-colors cursor-pointer ${form.atrEnabled ? 'bg-blue-500/5 border-blue-500/50' : 'bg-transparent border-white/10 hover:border-white/30'}`} onClick={() => handleFormChange('atrEnabled', !form.atrEnabled)}>
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-10 h-5 rounded-full p-1 transition-colors duration-200 flex items-center ${form.atrEnabled ? 'bg-blue-500' : 'bg-gray-700'}`}>
+                                            <div className={`w-3 h-3 bg-white rounded-full shadow-md transform transition-transform duration-200 ${form.atrEnabled ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                                        </div>
+                                        <span className="text-sm font-black text-white uppercase tracking-wider">ATR Volatility Based Stops</span>
+                                    </div>
+                                </div>
+                                {form.atrEnabled && (
+                                    <div className="mt-3 pl-1 grid grid-cols-2 gap-4 animate-fadeIn" onClick={e => e.stopPropagation()}>
+                                        <div>
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">ATR Period</label>
+                                            <input type="number" className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white text-center font-mono" value={form.atrPeriod} onChange={(e) => handleFormChange('atrPeriod', parseInt(e.target.value))} />
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Multiplier</label>
+                                            <input type="number" step="0.1" className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white text-center font-mono" value={form.atrMultiplier} onChange={(e) => handleFormChange('atrMultiplier', parseFloat(e.target.value))} />
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                         </div>
                     )}

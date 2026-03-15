@@ -325,3 +325,71 @@ class WallHunterFuturesStrategy:
         if self.private_exchange: await self.private_exchange.close()
         
         logger.info(f"🔴 [FuturesHunter {self.bot_id}] Stopped.")
+        await self._send_telegram(f"🔴 Futures Bot [ID: {self.bot_id}] Stopped.")
+
+    async def emergency_sell(self, sell_type: str):
+        """Emergency liquidate the active position."""
+        if not self.active_pos:
+            logger.info(f"No active position to emergency sell for bot {self.bot_id}")
+            return
+            
+        side = self.active_pos['side']
+        amount = self.active_pos['amount']
+        
+        # Determine current market price
+        try:
+            ob = await self.public_exchange.fetch_order_book(self.symbol, limit=5)
+            best_bid = ob['bids'][0][0] if ob['bids'] else 0
+            best_ask = ob['asks'][0][0] if ob['asks'] else 0
+            current_price = (best_bid + best_ask) / 2 if best_bid and best_ask else best_bid or best_ask
+        except Exception as e:
+            logger.warning(f"Could not fetch precise price for emergency sell: {e}")
+            current_price = self.active_pos['entry']
+
+        # Determine exit side
+        exit_side = "sell" if side == "long" else "buy"
+        
+        logger.info(f"🚨 [EMERGENCY] Closing {side.upper()} position for bot {self.bot_id} via {sell_type.upper()}")
+        
+        res = await self.engine.execute_trade(exit_side, amount, current_price, order_type=sell_type)
+        if res:
+            pnl_val = (current_price - self.active_pos['entry']) * amount if side == "long" else (self.active_pos['entry'] - current_price) * amount
+            await self._send_telegram(f"🚨 *EMERGENCY EXIT* triggered!\nPair: {self.symbol}\nSide: {side.upper()}\nExit Price: {current_price}\nPnL: ${pnl_val:.2f}")
+            self.active_pos = None
+            logger.info(f"✅ Emergency exit completed.")
+
+    def update_config(self, new_config: dict):
+        """Update strategy parameters dynamically."""
+        logger.info(f"🔄 [FuturesHunter {self.bot_id}] Live config update: {new_config}")
+        
+        updates = []
+        if "vol_threshold" in new_config:
+            updates.append(f"Vol Threshold: {self.vol_threshold} -> {new_config['vol_threshold']}")
+            self.vol_threshold = new_config["vol_threshold"]
+        
+        if "target_spread" in new_config:
+            updates.append(f"Spread: {self.target_spread} -> {new_config['target_spread']}")
+            self.target_spread = new_config["target_spread"]
+            
+        if "risk_pct" in new_config:
+            updates.append(f"Risk: {self.initial_risk_pct}% -> {new_config['risk_pct']}%")
+            self.initial_risk_pct = new_config["risk_pct"]
+            
+        if "trailing_stop" in new_config:
+            updates.append(f"TSL: {self.tsl_pct}% -> {new_config['trailing_stop']}%")
+            self.tsl_pct = new_config["trailing_stop"]
+
+        if updates:
+            self.config.update(new_config)
+            asyncio.create_task(self._send_telegram(f"⚙️ *Live Config Update*\n{self.symbol} Futures Bot\n\n" + "\n".join([f"• {u}" for u in updates])))
+
+    async def _send_telegram(self, msg: str):
+        if not self.owner_id: return
+        from app.services.notification import NotificationService
+        from app.db.session import SessionLocal
+        try:
+            db = SessionLocal()
+            await NotificationService.send_message(db, self.owner_id, msg)
+            db.close()
+        except Exception as e:
+            logger.error(f"Telegram notify error: {e}")
