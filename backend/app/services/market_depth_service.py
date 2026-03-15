@@ -120,7 +120,8 @@ class MarketDepthService:
         """
         buckets = {}
         
-        for price, amount in orders:
+        for level in orders:
+            price, amount = level[0], level[1]
             if bucket_size > 0:
                 # Group both bids and asks into uniform buckets to avoid artificial spreads
                 # Floor division ensures everything snaps to the same grid

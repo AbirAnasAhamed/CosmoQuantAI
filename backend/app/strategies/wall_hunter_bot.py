@@ -326,7 +326,8 @@ class WallHunterBot:
                     # 1. বর্তমান অর্ডার বুকের ওয়ালগুলো ফিল্টার করা
                     current_walls = {}
                     max_vol = 0
-                    for price, vol in orderbook['bids']:
+                    for level in orderbook['bids']:
+                        price, vol = level[0], level[1]
                         if vol > max_vol:
                             max_vol = vol
                         if vol >= self.vol_threshold:
@@ -334,14 +335,21 @@ class WallHunterBot:
                             distance_pct = abs(price - mid_price) / mid_price * 100.0
                             if distance_pct <= self.max_wall_distance_pct:
                                 current_walls[price] = vol
-                    
-                    if current_time % 5 < 0.05: # Print approx every 5 seconds
-                        logger.info(f"🔍 [Debug] Max Bid Vol: {max_vol}, Threshold: {self.vol_threshold}, Walls Configured: {len(current_walls)}, Tracked: {len(self.tracked_walls)}")
-                    
+
+                    for level in orderbook['asks']:
+                        price, vol = level[0], level[1]
+                        if vol > max_vol:
+                            max_vol = vol
+                        if vol >= self.vol_threshold:
+                            # Validate distance from current mid_price
+                            distance_pct = abs(price - mid_price) / mid_price * 100.0
+                            if distance_pct <= self.max_wall_distance_pct:
+                                current_walls[price] = vol
+
                     # 2. ওয়াল অ্যানালাইসিস এবং স্পুফিং ডিটেকশন
                     for price, vol in current_walls.items():
                         if self.min_wall_lifetime <= 0:
-                            # 0-সেকেন্ড হলে সাথে সাথেই কিনে ফেলবে (পুরোনো লজিকের মতো)
+                            # 0-সেকেন্ড হলে সাথে সাথেই কিনে ফেলবে
                             if self.vpvr_enabled and self.top_hvns:
                                 is_hvn_aligned = any(abs(price - hvn) / hvn <= (self.vpvr_tolerance / 100.0) for hvn in self.top_hvns)
                                 if not is_hvn_aligned:
@@ -349,11 +357,12 @@ class WallHunterBot:
                                         logger.info(f"🚫 Instant Snipe at {price} rejected: Not near any HVN.")
                                         self.tracked_walls[price] = {"hvn_rejected": True, "first_seen": current_time, "last_seen": current_time}
                                     continue
-
+                            
+                            side = "buy" if any(price == p for p, v in orderbook['bids']) else "sell"
                             logger.info(f"🟢 Instant Snipe at {price} (Spoof Detect is 0s) {'[HVN Confirmed]' if self.vpvr_enabled else ''}. Executing!")
-                            await self.execute_snipe(price, "buy", mid_price)
+                            await self.execute_snipe(price, side, mid_price)
                             self.tracked_walls.clear()
-                            current_walls.clear() # Prevent further processing
+                            current_walls.clear()
                             break
 
                         if price in self.tracked_walls:
@@ -925,8 +934,8 @@ class WallHunterBot:
             # --- 1. Orderbook Imbalance Check (Tape Reading) ---
             if self.enable_ob_imbalance:
                 # Calculate volume ratio near mid price
-                bid_vol = sum(vol for price, vol in ob['bids'])
-                ask_vol = sum(vol for price, vol in ob['asks'])
+                bid_vol = sum(level[1] for level in ob['bids'])
+                ask_vol = sum(level[1] for level in ob['asks'])
                 
                 if ask_vol > 0:
                     current_ratio = bid_vol / ask_vol
@@ -943,7 +952,8 @@ class WallHunterBot:
                 # Check if there is any bid wall >= micro_scalp_min_wall
                 strong_wall_found = False
                 wall_price = 0
-                for price, vol in ob['bids']:
+                for level in ob['bids']:
+                    price, vol = level[0], level[1]
                     if vol >= self.micro_scalp_min_wall:
                         strong_wall_found = True
                         wall_price = price

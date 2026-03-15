@@ -100,7 +100,10 @@ class WallHunterFuturesStrategy:
             # Private instance for trading
             exchange_params = {
                 'enableRateLimit': True,
-                'options': {'adjustForTimeDifference': True}
+                'options': {
+                    'adjustForTimeDifference': True,
+                    'recvWindow': 10000 if self.exchange_id == 'mexc' else 5000
+                }
             }
             
             try:
@@ -208,14 +211,16 @@ class WallHunterFuturesStrategy:
                     ask_vol_total = 0.0
                     
                     # Accumulate volume for imbalance check + detect walls
-                    for price, vol in orderbook['bids']:
+                    for level in orderbook['bids']:
+                        price, vol = level[0], level[1]
                         bid_vol_total += vol
                         if self.direction in ['long', 'auto'] and vol >= self.vol_threshold:
                             dist_pct = abs(price - mid_price) / mid_price * 100
                             if dist_pct <= self.max_wall_distance_pct:
                                 current_walls[price] = {'vol': vol, 'type': 'buy'}
                     
-                    for price, vol in orderbook['asks']:
+                    for level in orderbook['asks']:
+                        price, vol = level[0], level[1]
                         ask_vol_total += vol
                         if self.direction in ['short', 'auto'] and vol >= self.vol_threshold:
                             dist_pct = abs(price - mid_price) / mid_price * 100
@@ -726,10 +731,11 @@ class WallHunterFuturesStrategy:
                 strong_wall = False
                 target_levels = ob['bids'] if side == "buy" else ob['asks']
                 # Check for any wall meeting the threshold
-                for p, v in target_levels:
+                for level in target_levels:
+                    price, v = level[0], level[1]
                     if v >= self.micro_scalp_min_wall:
                         strong_wall = True
-                        logger.info(f"🔥 [LIQ] Wall Confluence: Found {v:,.0f} wall at {p}")
+                        logger.info(f"🔥 [LIQ] Wall Confluence: Found {v:,.0f} wall at {price}")
                         break
                 
                 if not strong_wall:
