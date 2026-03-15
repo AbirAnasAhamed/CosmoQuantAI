@@ -124,58 +124,75 @@ class BotManager:
             bot.status = "active"
             local_db.commit()
             
+            trading_mode = bot.config.get('trading_mode', 'spot').upper()
             logger.info("="*50)
             logger.info(f"🚀 BOT ACTIVATED: ID {bot_id} | {bot.market} on {bot.exchange}")
+            logger.info(f"🛠️  Trading Mode: {trading_mode}")
             
             from app.services.notification import NotificationService
-            msg_lines = [f"🚀 *BOT ACTIVATED: ID {bot_id}* | {bot.market} on {bot.exchange}"]
+            msg_lines = [
+                f"🚀 *BOT ACTIVATED: ID {bot_id}*",
+                f"💎 Pair: {bot.market} | {bot.exchange}",
+                f"🛠️ Mode: {trading_mode}"
+            ]
             
             if bot.strategy == "wall_hunter":
                 logger.info(f"📈 Strategy: WallHunter Level 2 Sniper")
                 msg_lines.append("📈 Strategy: WallHunter Level 2 Sniper")
                 
+                # Futures Specific Info
+                if trading_mode == 'FUTURES':
+                    leverage = bot.config.get('leverage', 10)
+                    margin = bot.config.get('margin_mode', 'cross').upper()
+                    direction = bot.config.get('position_direction', 'auto').upper()
+                    
+                    logger.info(f"⚙️  Futures: {leverage}x | {margin} Margin | {direction} Dir")
+                    msg_lines.append(f"⚙️ Futures: {leverage}x | {margin} | {direction}")
+                    
+                    if bot.config.get('liq_distance_safety_pct'):
+                        dist = bot.config.get('liq_distance_safety_pct')
+                        logger.info(f"📐 Liq Safety Distance: {dist}%")
+                        msg_lines.append(f"📐 Liq Distance: {dist}%")
+
                 logger.info(f"🎯 Target Spread: {bot.config.get('target_spread', 0)}")
                 msg_lines.append(f"🎯 Target Spread: {bot.config.get('target_spread', 0)}")
                 
+                # Trigger Modes
+                triggers = []
                 if bot.config.get('enable_wall_trigger', True):
-                    logger.info(f"🧱 Vol Threshold: {bot.config.get('vol_threshold', 0)}")
-                    msg_lines.append(f"🧱 Vol Threshold: {bot.config.get('vol_threshold', 0)}")
-                    
-                if bot.config.get('vpvr_enabled', False):
-                    vpvr_tolerance = bot.config.get('vpvr_tolerance', 0.2)
-                    logger.info(f"📊 VPVR Confirmation: ON ({vpvr_tolerance}% tol)")
-                    msg_lines.append(f"📊 VPVR Confirmation: ON ({vpvr_tolerance}% tol)")
-                    
+                    triggers.append(f"Wall ({bot.config.get('vol_threshold', 0)})")
                 if bot.config.get('enable_liq_trigger'):
-                    if bot.config.get('follow_btc_liq'):
-                        logger.info(f"💥 BTC Liq Threshold: {bot.config.get('btc_liq_threshold', 0)}")
-                        msg_lines.append(f"💥 BTC Liq Threshold: {bot.config.get('btc_liq_threshold', 0)}")
-                    else:
-                        logger.info(f"💥 {bot.market} Liq Threshold: {bot.config.get('liq_threshold', 0)}")
-                        msg_lines.append(f"💥 {bot.market} Liq Threshold: {bot.config.get('liq_threshold', 0)}")
-                    
-                    # Log Advanced Liq Features
-                    adv_features = []
-                    if bot.config.get('enable_liq_cascade'):
-                        adv_features.append(f"Cascade: ON ({bot.config.get('liq_cascade_window')}s)")
-                    if bot.config.get('enable_dynamic_liq'):
-                        adv_features.append(f"Dynamic: ON ({bot.config.get('dynamic_liq_multiplier')}x)")
-                    if bot.config.get('enable_ob_imbalance'):
-                        adv_features.append(f"Tape Reading: ON ({bot.config.get('ob_imbalance_ratio')}x)")
-                    
-                    if adv_features:
-                        adv_str = " | ".join(adv_features)
-                        logger.info(f"⚡ Smart Liq: {adv_str}")
-                        msg_lines.append(f"⚡ Smart Liq: {adv_str}")
-                    
+                    triggers.append(f"Liq Event ({'BTC' if bot.config.get('follow_btc_liq') else 'Local'})")
+                
+                if triggers:
+                    trigger_str = " | ".join(triggers)
+                    logger.info(f"🔔 Triggers: {trigger_str}")
+                    msg_lines.append(f"🔔 Triggers: {trigger_str}")
+                
+                # Advanced Settings
+                adv = []
+                if bot.config.get('vpvr_enabled'):
+                    adv.append(f"VPVR ({bot.config.get('vpvr_tolerance', 0.2)}%)")
+                if bot.config.get('atr_sl_enabled'):
+                    adv.append(f"ATR (P:{bot.config.get('atr_period', 14)})")
+                if bot.config.get('partial_tp_pct', 0) > 0:
+                    adv.append(f"Scale-Out ({bot.config.get('partial_tp_pct')}%)")
+                if bot.config.get('enable_micro_scalp'):
+                    adv.append(f"Micro-Scalp")
+                
+                if adv:
+                    adv_str = " | ".join(adv)
+                    logger.info(f"⚡ Advanced: {adv_str}")
+                    msg_lines.append(f"⚡ Advanced: {adv_str}")
+
                 logger.info(f"⚖️ Risk Pct: {bot.config.get('risk_pct', 0)}% | TSL: {bot.config.get('trailing_stop', 0)}%")
-                msg_lines.append(f"⚖️ Risk Pct: {bot.config.get('risk_pct', 0)}% | TSL: {bot.config.get('trailing_stop', 0)}%")
+                msg_lines.append(f"⚖️ Risk: {bot.config.get('risk_pct', 0)}% | TSL: {bot.config.get('trailing_stop', 0)}%")
                 
                 logger.info(f"💰 Trade Amount: {bot.config.get('amount_per_trade', 0)} (Quote Asset)")
-                msg_lines.append(f"💰 Trade Amount: {bot.config.get('amount_per_trade', 0)} (Quote Asset)")
+                msg_lines.append(f"💰 Amount: {bot.config.get('amount_per_trade', 0)}")
                 
-                logger.info(f"📋 Sell Order Type: {bot.config.get('sell_order_type', 'market').upper()}")
-                msg_lines.append(f"📋 Sell Order Type: {bot.config.get('sell_order_type', 'market').upper()}")
+                logger.info(f"📋 Sell Order: {bot.config.get('sell_order_type', 'market').upper()}")
+                msg_lines.append(f"📋 Order Type: {bot.config.get('sell_order_type', 'market').upper()}")
             else:
                 logger.info(f"📈 Strategy: {bot.strategy} | Timeframe: {bot.timeframe}")
                 msg_lines.append(f"📈 Strategy: {bot.strategy} | Timeframe: {bot.timeframe}")
