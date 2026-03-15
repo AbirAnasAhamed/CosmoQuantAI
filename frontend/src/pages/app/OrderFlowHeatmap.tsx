@@ -667,7 +667,8 @@ const OrderBook: React.FC<{ bids: any[], asks: any[], maxTotal: number }> = ({ b
 };
 
 // Helper to format prices dynamically
-const formatDisplayPrice = (price: number) => {
+const formatDisplayPrice = (price: number | undefined | null) => {
+    if (price === undefined || price === null || isNaN(price)) return '---';
     if (price < 0.000001) return price.toFixed(12);
     if (price < 0.00001) return price.toFixed(10);
     if (price < 0.0001) return price.toFixed(8);
@@ -816,7 +817,7 @@ const OrderFlowHeatmap: React.FC = () => {
                                 <div className="flex justify-between items-center bg-black/20 p-2 rounded-lg border border-white/5">
                                     <span className="text-gray-400 font-mono text-xs">Unrealized PnL:</span>
                                     <span className={`font-mono font-bold text-lg ${botStatus.pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>
-                                        ${botStatus.pnl.toFixed(2)} ({botStatus.pnl_percent > 0 ? '+' : ''}{botStatus.pnl_percent.toFixed(2)}%)
+                                        ${(botStatus.pnl || 0).toFixed(2)} ({botStatus.pnl_percent > 0 ? '+' : ''}{(botStatus.pnl_percent || 0).toFixed(2)}%)
                                     </span>
                                 </div>
                                 {botStatus.position && (
