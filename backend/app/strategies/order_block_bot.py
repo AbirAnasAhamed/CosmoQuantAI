@@ -55,6 +55,9 @@ class OrderBlockExecutionEngine:
         self.exchange_id = config.get("exchange", "binance").lower()
         self.trading_mode = config.get("trading_mode", "spot")
         self.leverage = config.get("leverage", 1)
+        self.pair = config.get("symbol") or config.get("pair") or "DOGE/USDT"
+        self.exchange = exchange
+        self.config = config # store for reference
         
         # Paper trading state
         self.paper_balance_quote = config.get("paper_balance_initial", 10000.0)
