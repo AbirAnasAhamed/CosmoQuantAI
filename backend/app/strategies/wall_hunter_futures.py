@@ -251,7 +251,9 @@ class WallHunterFuturesStrategy:
         """অর্ডার এক্সিকিউট করা"""
         try:
             entry_price = current_mid_price
-            base_amount = float(f"{self.amount_per_trade / entry_price:.6f}")
+            # Total Position Size = Amount * Leverage
+            total_notional = self.amount_per_trade * self.leverage
+            base_amount = float(f"{total_notional / entry_price:.6f}")
             
             logger.info(f"⚡ [FuturesHunter] Entering {side.upper()} at {entry_price} (Amount: {base_amount})")
             
@@ -494,6 +496,16 @@ class WallHunterFuturesStrategy:
         if "trailing_stop" in new_config:
             updates.append(f"TSL: {self.tsl_pct}% -> {new_config['trailing_stop']}%")
             self.tsl_pct = new_config["trailing_stop"]
+
+        if "leverage" in new_config:
+            updates.append(f"Leverage: {self.leverage}x -> {new_config['leverage']}x")
+            self.leverage = new_config["leverage"]
+            # Apply leverage to exchange live
+            asyncio.create_task(self.private_exchange.set_leverage(self.leverage, self.symbol))
+
+        if "amount_per_trade" in new_config:
+            updates.append(f"Amount: {self.amount_per_trade} -> {new_config['amount_per_trade']}")
+            self.amount_per_trade = new_config["amount_per_trade"]
 
         if updates:
             self.config.update(new_config)

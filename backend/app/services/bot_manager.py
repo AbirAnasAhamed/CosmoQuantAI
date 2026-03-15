@@ -149,8 +149,8 @@ class BotManager:
                     logger.info(f"⚙️  Futures: {leverage}x | {margin} Margin | {direction} Dir")
                     msg_lines.append(f"⚙️ Futures: {leverage}x | {margin} | {direction}")
                     
-                    if bot.config.get('liq_distance_safety_pct'):
-                        dist = bot.config.get('liq_distance_safety_pct')
+                    if bot.config.get('liquidation_safety_pct'):
+                        dist = bot.config.get('liquidation_safety_pct')
                         logger.info(f"📐 Liq Safety Distance: {dist}%")
                         msg_lines.append(f"📐 Liq Distance: {dist}%")
 
