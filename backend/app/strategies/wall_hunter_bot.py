@@ -94,6 +94,10 @@ class WallHunterBot:
         self.btc_time_window = config.get("btc_time_window", 15)
         self.btc_min_move_pct = config.get("btc_min_move_pct", 0.1)
         self.btc_correlation_tracker = None
+        
+        # --- NEW: Custom Buy Order Type & Buffer ---
+        self.buy_order_type = config.get("buy_order_type", "market")
+        self.limit_buffer = config.get("limit_buffer", 1.0)
         # ----------------------------------------
         
         self.engine = OrderBlockExecutionEngine(config)
@@ -247,6 +251,16 @@ class WallHunterBot:
             if self.btc_correlation_tracker:
                 self.btc_correlation_tracker.update_params(min_move_pct=self.btc_min_move_pct)
             
+        if "buy_order_type" in new_config and new_config["buy_order_type"] != self.buy_order_type:
+            updates.append(f"Buy Order Type: {self.buy_order_type} -> {new_config['buy_order_type']}")
+            self.buy_order_type = new_config.get("buy_order_type")
+            
+        if "limit_buffer" in new_config and new_config["limit_buffer"] != self.limit_buffer:
+            updates.append(f"Limit Buffer: {self.limit_buffer}% -> {new_config['limit_buffer']}%")
+            self.limit_buffer = new_config.get("limit_buffer")
+            if self.engine:
+                self.engine.config["limit_buffer"] = self.limit_buffer
+
         # Update internal config dictionary
         self.config.update(new_config)
         
@@ -385,7 +399,23 @@ class WallHunterBot:
             self._btc_task = None
         
         mode = "Live Trading" if not self.is_paper_trading else "Paper Trading"
-        await self._send_telegram(f"🟢 WallHunter Bot [ID: {self.bot_id}] Started!\nPair: {self.symbol}\nMode: {mode}\nVolume Threshold: {self.vol_threshold}")
+        
+        startup_msg = (
+            f"🟢 WallHunter Bot [ID: {self.bot_id}] Started!\n"
+            f"Pair: {self.symbol}\n"
+            f"Mode: {mode}\n"
+            f"Buy Order: {self.buy_order_type.upper()}\n"
+            f"Limit Buffer: {self.limit_buffer}%\n"
+            f"Vol Threshold: {self.vol_threshold}"
+        )
+        
+        logger.info(f"🚀 [WallHunter {self.bot_id}] Booting up with config:\n"
+                    f"- Symbol: {self.symbol}\n"
+                    f"- Buy Type: {self.buy_order_type}\n"
+                    f"- Limit Buffer: {self.limit_buffer}%\n"
+                    f"- Vol Threshold: {self.vol_threshold}")
+        
+        await self._send_telegram(startup_msg)
 
     async def _heartbeat_loop(self):
         """Prints a friendly heartbeat to the terminal every 5 seconds"""
@@ -462,6 +492,8 @@ class WallHunterBot:
                                     metrics = self.btc_correlation_tracker.get_metrics_string()
                                     logger.info(f"🚫 [BTC Divergence] Snipe at {price} rejected! {metrics}")
                                     continue
+                                else:
+                                    logger.info(f"✅ [BTC Correlation] Aligned for {side.upper()}! {self.btc_correlation_tracker.get_metrics_string()}")
 
                             logger.info(f"🟢 Instant Snipe at {price} (Spoof Detect is 0s) {'[HVN Confirmed]' if self.vpvr_enabled else ''}. Executing!")
                             await self.execute_snipe(price, side, mid_price)
@@ -502,6 +534,8 @@ class WallHunterBot:
                                         logger.info(f"🚫 [BTC Divergence] Confirmed Wall at {price} rejected! {metrics}")
                                         self.tracked_walls[price]['btc_rejected'] = True
                                         continue
+                                    else:
+                                        logger.info(f"✅ [BTC Correlation] Aligned for {side.upper()}! {self.btc_correlation_tracker.get_metrics_string()}")
                                         
                                 logger.info(f"🟢 Genuine Wall detected at {price} (Alive for {time_alive:.1f}s) {'[HVN Confirmed]' if self.vpvr_enabled else ''}. Executing Snipe!")
                                 await self.execute_snipe(price, side, mid_price)
@@ -553,7 +587,15 @@ class WallHunterBot:
         execution_price = current_mid_price if self.is_paper_trading else entry_price
         
         logger.info(f"⚡ [WallHunter {self.bot_id}] Executing Snipe: {side.upper()} {base_amount} {self.symbol} at {execution_price}")
-        res = await self.engine.execute_trade(side, base_amount, execution_price)
+        
+        # Use custom buy order type if provided, otherwise default to market
+        snipe_order_type = self.buy_order_type
+        if snipe_order_type == "marketable_limit":
+             # "marketable_limit" is a special instruction for our engine to use LIMIT with buffer on MEXC
+             # but we pass "market" to it so it knows to apply the conversion logic if it's MEXC
+             snipe_order_type = "market"
+             
+        res = await self.engine.execute_trade(side, base_amount, execution_price, order_type=snipe_order_type)
         if res:
             logger.info(f"✅ [WallHunter {self.bot_id}] Trade executed successfully. Order ID: {res.get('id')}")
             # Safely extract average fill price. Fallback to requested entry_price if not provided or 0

@@ -35,6 +35,10 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
         atrEnabled: false,
         atrPeriod: 14,
         atrMultiplier: 2.0,
+        
+        // --- NEW: Custom Buy Order Type & Buffer ---
+        buyOrderType: 'market',
+        limitBuffer: 0.5,
 
         enableWallTrigger: true,        
         maxWallDistancePct: 1.0,        
@@ -68,9 +72,9 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
 
         // --- NEW: BTC Correlation Filter ---
         enableBtcCorrelation: false,
-        btcCorrelationThreshold: 0.7,
+        btcCorrelationThreshold: 0.5,
         btcTimeWindow: 15,
-        btcMinMovePct: 0.1
+        btcMinMovePct: 0.025
     });
 
     const [existingBot, setExistingBot] = useState<any>(null);
@@ -151,7 +155,11 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                             enableBtcCorrelation: c.enable_btc_correlation !== undefined ? c.enable_btc_correlation : false,
                             btcCorrelationThreshold: c.btc_correlation_threshold || 0.7,
                             btcTimeWindow: c.btc_time_window || 15,
-                            btcMinMovePct: c.btc_min_move_pct || 0.1
+                            btcMinMovePct: c.btc_min_move_pct || 0.1,
+                            
+                            // Load custom buy order settings
+                            buyOrderType: c.buy_order_type || 'market',
+                            limitBuffer: c.limit_buffer !== undefined ? c.limit_buffer : 0.5
                         }));
                     } else {
                         setExistingBot(null);
@@ -348,7 +356,11 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                     enable_btc_correlation: form.enableBtcCorrelation,
                     btc_correlation_threshold: form.btcCorrelationThreshold,
                     btc_time_window: form.btcTimeWindow,
-                    btc_min_move_pct: form.btcMinMovePct
+                    btc_min_move_pct: form.btcMinMovePct,
+
+                    // New Buy Order Logic
+                    buy_order_type: form.buyOrderType,
+                    limit_buffer: form.limitBuffer
                 }
             };
 
@@ -473,6 +485,34 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                         <option className="bg-[#0B1120] text-white" value="limit">Limit</option>
                                     </select>
                                 </div>
+                            </div>
+                            
+                            {/* --- NEW: BUY ORDER TYPE & BUFFER --- */}
+                            <div className="flex gap-4 p-3 bg-white/5 border border-white/10 rounded-2xl">
+                                <div className="flex-1 space-y-1">
+                                    <label className="text-[10px] text-gray-400 font-black uppercase">Buy Order Type</label>
+                                    <select 
+                                        className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white outline-none focus:border-brand-primary text-sm font-bold" 
+                                        value={form.buyOrderType} 
+                                        onChange={(e) => handleFormChange('buyOrderType', e.target.value)}
+                                    >
+                                        <option className="bg-[#0B1120]" value="market">Market (Normal)</option>
+                                        <option className="bg-[#0B1120]" value="limit">Limit (Maker)</option>
+                                        <option className="bg-[#0B1120]" value="marketable_limit">Marketable Limit (Recommended for MEXC)</option>
+                                    </select>
+                                </div>
+                                {form.buyOrderType === 'marketable_limit' && (
+                                    <div className="w-1/3 space-y-1 animate-fadeIn">
+                                        <label className="text-[10px] text-orange-400 font-black uppercase">Limit Buffer (%)</label>
+                                        <input 
+                                            type="number" 
+                                            step="0.01" 
+                                            className="w-full bg-orange-500/10 border border-orange-500/30 rounded-xl p-2.5 text-orange-400 outline-none text-center font-mono font-bold" 
+                                            value={form.limitBuffer} 
+                                            onChange={(e) => handleFormChange('limitBuffer', parseFloat(e.target.value))} 
+                                        />
+                                    </div>
+                                )}
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">

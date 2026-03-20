@@ -231,7 +231,15 @@ class BotManager:
                 msg_lines.append(f"💰 Amount: {config.get('amount_per_trade', 0)}")
                 
                 logger.info(f"📋 Sell Order: {config.get('sell_order_type', 'market').upper()}")
-                msg_lines.append(f"📋 Order Type: {config.get('sell_order_type', 'market').upper()}")
+                msg_lines.append(f"📋 Sell Order (TP): {config.get('sell_order_type', 'market').upper()}")
+                
+                buy_type = config.get('buy_order_type', 'market').upper()
+                buffer = config.get('limit_buffer', 0.5)
+                buy_log = f"🛒 Buy Order: {buy_type}"
+                if buy_type == "MARKETABLE_LIMIT":
+                    buy_log += f" (Buffer: {buffer}%)"
+                logger.info(buy_log)
+                msg_lines.append(buy_log)
             else:
                 logger.info(f"📈 Strategy: {bot.strategy} | Timeframe: {bot.timeframe}")
                 msg_lines.append(f"📈 Strategy: {bot.strategy} | Timeframe: {bot.timeframe}")

@@ -177,11 +177,12 @@ class OrderBlockExecutionEngine:
             if self.exchange_id == 'mexc' and final_order_type == 'market':
                 logger.info(f"⚠️ [MEXC] Converting MARKET {side} to Marketable LIMIT to bypass 30041 error.")
                 final_order_type = 'limit'
-                # Add 1% slippage buffer to ensure instant fill (Marketable Limit)
+                # Use configured slippage buffer (default 1.0%)
+                buffer_pct = self.config.get("limit_buffer", 1.0) / 100.0
                 if side.lower() == 'buy':
-                    final_price = price * 1.01 # Buy 1% higher than current mid
+                    final_price = price * (1 + buffer_pct)
                 else:
-                    final_price = price * 0.99 # Sell 1% lower than current mid
+                    final_price = price * (1 - buffer_pct)
             
             # 2. Precision Handling
             # Ensure amount and price meet exchange-specific decimal requirements
