@@ -12,8 +12,10 @@ import { LiquidityHeatmapRenderer, HeatmapDataPoint } from '../../components/fea
 import { VolumeProfileWidget, VPVRData } from '../../components/features/market/VolumeProfileWidget';
 import { CVDChart, CVDDataPoint } from '../../components/features/market/CVDChart';
 import { FootprintRenderer, FootprintCandleData, FootprintDataTick } from '../../components/features/market/FootprintRenderer';
+import { FibonacciCloudRenderer, FibonacciData } from '../../components/features/market/FibonacciCloudRenderer';
+import { IchimokuRenderer } from '../../components/features/market/IchimokuRenderer';
 import { IndicatorSelector, IndicatorSettings } from '../../components/features/market/IndicatorSelector';
-import { calculateEMA, calculateBollingerBands, calculateRSI, updateEMA, updateBollingerBands, updateRSI } from '../../utils/indicators';
+import { calculateEMA, calculateBollingerBands, calculateRSI, updateEMA, updateBollingerBands, updateRSI, calculateIchimoku, IchimokuDataPoint } from '../../utils/indicators';
 import { HeatmapSubNav } from '../../components/features/market/HeatmapSubNav';
 import { BotSettingsTab } from '../../components/features/market/BotSettingsTab';
 import { BotLogsTab } from '../../components/features/market/BotLogsTab';
@@ -57,6 +59,8 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
     const markersRef = useRef<any[]>([]);
     const markersPluginRef = useRef<any>(null);
     const [countdownFormatted, setCountdownFormatted] = useState<string>('');
+    const [fiboData, setFiboData] = useState<FibonacciData | null>(null);
+    const [ichimokuData, setIchimokuData] = useState<IchimokuDataPoint[]>([]);
     const { vpvrData, cvdData, footprintData } = useOrderFlowData(symbol, exchange, interval);
     const { heatmapData: realHeatmapData } = useHeatmapData(symbol, exchange);
 
@@ -452,6 +456,89 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         return () => clearInterval(updateInterval);
     }, [interval, indicatorSettings]);
 
+    // Auto Fibonacci Indicator
+    useEffect(() => {
+        if (!indicatorSettings.showAutoFibo || allCandlesRef.current.length === 0) {
+            setFiboData(null);
+            return;
+        }
+
+        const data = allCandlesRef.current;
+        const lookback = Math.min(indicatorSettings.autoFiboLookback, data.length);
+        const windowData = data.slice(-lookback);
+        
+        let highest = -Infinity;
+        let lowest = Infinity;
+        let highTime = 0;
+        let lowTime = 0;
+        
+        for (let i = 0; i < windowData.length; i++) {
+            if (windowData[i].high > highest) {
+                highest = windowData[i].high;
+                highTime = windowData[i].time;
+            }
+            if (windowData[i].low < lowest) {
+                lowest = windowData[i].low;
+                lowTime = windowData[i].time;
+            }
+        }
+
+        if (highest === lowest) {
+            setFiboData(null);
+            return;
+        }
+
+        const diff = highest - lowest;
+        // Match the colors and levels from standard premium trading tools (like the user image)
+        const levels = [
+            { level: 0, title: '0% (Low)', color: '#ffffff', cloudColor: 'rgba(239, 68, 68, 0.15)' },
+            { level: 0.236, title: '23.6%', color: '#ef4444', cloudColor: 'rgba(132, 204, 22, 0.15)' },
+            { level: 0.382, title: '38.2%', color: '#84cc16', cloudColor: 'rgba(34, 197, 94, 0.15)' },
+            { level: 0.5, title: '50.0%', color: '#22c55e', cloudColor: 'rgba(20, 184, 166, 0.15)' },
+            { level: 0.618, title: '61.8%', color: '#14b8a6', cloudColor: 'rgba(59, 130, 246, 0.15)' },
+            { level: 0.786, title: '78.6%', color: '#3b82f6', cloudColor: 'rgba(156, 163, 175, 0.15)' },
+            { level: 1, title: '100% (High)', color: '#ffffff', cloudColor: 'rgba(0,0,0,0)' }
+        ].map(l => ({
+            ...l,
+            price: lowest + diff * l.level
+        }));
+
+        setFiboData({
+            highest,
+            lowest,
+            highTime,
+            lowTime,
+            levels
+        });
+
+    }, [indicatorSettings.showAutoFibo, indicatorSettings.autoFiboLookback, allCandlesRef.current.length, currentPrice]);
+
+    // Ichimoku Cloud Calculation
+    useEffect(() => {
+        if (!indicatorSettings.showIchimoku || allCandlesRef.current.length === 0) {
+            setIchimokuData([]);
+            return;
+        }
+
+        const data = allCandlesRef.current;
+        const result = calculateIchimoku(
+            data,
+            indicatorSettings.tenkanPeriod,
+            indicatorSettings.kijunPeriod,
+            indicatorSettings.senkouBPeriod,
+            indicatorSettings.displacement
+        );
+        setIchimokuData(result);
+    }, [
+        indicatorSettings.showIchimoku,
+        indicatorSettings.tenkanPeriod,
+        indicatorSettings.kijunPeriod,
+        indicatorSettings.senkouBPeriod,
+        indicatorSettings.displacement,
+        allCandlesRef.current.length,
+        currentPrice
+    ]);
+
     // Update horizontal price lines for walls intelligently without blindly clearing
     useEffect(() => {
         if (!candlestickSeriesRef.current || !chartRef.current) return;
@@ -677,6 +764,8 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                 <div ref={chartContainerRef} className="w-full h-full absolute inset-0 z-0" />
                 <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden" style={{ right: 60, bottom: 26 }}>
                     <LiquidityHeatmapRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={realHeatmapData} />
+                    <FibonacciCloudRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={fiboData} />
+                    <IchimokuRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={ichimokuData} displacement={indicatorSettings.displacement} />
                     {showFootprint && <FootprintRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={footprintData} visible={showFootprint} />}
                 </div>
                 <VolumeProfileWidget chart={chartRef.current} series={candlestickSeriesRef.current} data={vpvrData} />
@@ -803,10 +892,17 @@ const OrderFlowHeatmap: React.FC = () => {
         showBB: false,
         showRSI: false,
         showVolume: true,
+        showAutoFibo: false,
+        showIchimoku: false,
         emaPeriod: 20,
         bbPeriod: 20,
         bbStdDev: 2,
         rsiPeriod: 14,
+        autoFiboLookback: 200,
+        tenkanPeriod: 9,
+        kijunPeriod: 26,
+        senkouBPeriod: 52,
+        displacement: 26,
     });
     const { bids, asks, walls, currentPrice, tradeEvent } = useLevel2MarketData(symbol, exchange);
     const { volumeThreshold, setVolumeThreshold } = useVolumeFilter(1000);

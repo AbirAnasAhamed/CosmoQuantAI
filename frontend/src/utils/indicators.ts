@@ -234,3 +234,61 @@ export const calculateATR = (data: { time: any; high: number; low: number; close
 
     return result;
 };
+
+// --- Ichimoku Cloud ---
+export interface IchimokuDataPoint {
+    time: string | number;
+    tenkan: number | null;
+    kijun: number | null;
+    senkouA: number | null;
+    senkouB: number | null;
+    chikou: number | null;
+}
+
+export const calculateIchimoku = (
+    data: { time: any; high: number; low: number; close: number }[],
+    tenkanPeriod: number = 9,
+    kijunPeriod: number = 26,
+    senkouBPeriod: number = 52,
+    displacement: number = 26
+): IchimokuDataPoint[] => {
+    const result: IchimokuDataPoint[] = [];
+    if (data.length < Math.min(tenkanPeriod, kijunPeriod, senkouBPeriod)) return result;
+
+    const getExtremes = (slice: { high: number; low: number }[]) => {
+        let h = -Infinity;
+        let l = Infinity;
+        for (const p of slice) {
+            if (p.high > h) h = p.high;
+            if (p.low < l) l = p.low;
+        }
+        return (h + l) / 2;
+    };
+
+    for (let i = 0; i < data.length; i++) {
+        const tenkan = i >= tenkanPeriod - 1 ? getExtremes(data.slice(i - tenkanPeriod + 1, i + 1)) : null;
+        const kijun = i >= kijunPeriod - 1 ? getExtremes(data.slice(i - kijunPeriod + 1, i + 1)) : null;
+        const senkouB = i >= senkouBPeriod - 1 ? getExtremes(data.slice(i - senkouBPeriod + 1, i + 1)) : null;
+        
+        let senkouA = null;
+        if (tenkan !== null && kijun !== null) {
+            senkouA = (tenkan + kijun) / 2;
+        }
+
+        let chikou = null;
+        if (i + displacement < data.length) {
+            chikou = data[i + displacement].close;
+        }
+
+        result.push({
+            time: data[i].time,
+            tenkan,
+            kijun,
+            senkouA, 
+            senkouB,
+            chikou
+        });
+    }
+
+    return result;
+};

@@ -5,10 +5,17 @@ export interface IndicatorSettings {
     showBB: boolean;
     showRSI: boolean;
     showVolume: boolean;
+    showAutoFibo: boolean;
+    showIchimoku: boolean;
     emaPeriod: number;
     bbPeriod: number;
     bbStdDev: number;
     rsiPeriod: number;
+    autoFiboLookback: number;
+    tenkanPeriod: number;
+    kijunPeriod: number;
+    senkouBPeriod: number;
+    displacement: number;
 }
 
 interface IndicatorSelectorProps {
@@ -158,6 +165,84 @@ export const IndicatorSelector: React.FC<IndicatorSelectorProps> = ({ settings, 
                                 />
                                 <span className="ml-3 text-sm font-medium text-gray-900 dark:text-gray-200 group-hover:text-brand-primary transition-colors">Volume</span>
                             </label>
+                        </div>
+
+                        <div className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-colors group">
+                            <label className="flex items-center cursor-pointer flex-1">
+                                <input
+                                    type="checkbox"
+                                    checked={settings.showAutoFibo}
+                                    onChange={() => toggleIndicator('showAutoFibo')}
+                                    className="w-4 h-4 text-brand-primary bg-gray-100 border-gray-300 rounded focus:ring-brand-primary dark:focus:ring-brand-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                />
+                                <span className="ml-3 text-sm font-medium text-gray-900 dark:text-gray-200 group-hover:text-brand-primary transition-colors">Auto Fibo</span>
+                            </label>
+                            <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded">
+                                <span className="text-xs text-gray-500">LB:</span>
+                                <input
+                                    type="number"
+                                    value={settings.autoFiboLookback}
+                                    onChange={(e) => updateSetting('autoFiboLookback', Number(e.target.value))}
+                                    className="w-10 text-xs bg-transparent text-gray-700 dark:text-gray-300 focus:outline-none focus:text-brand-primary"
+                                    min={10} max={1000} step={10}
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex flex-col gap-2 p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-colors group">
+                           <div className="flex items-center justify-between">
+                            <label className="flex items-center cursor-pointer flex-1">
+                                <input
+                                    type="checkbox"
+                                    checked={settings.showIchimoku}
+                                    onChange={() => toggleIndicator('showIchimoku')}
+                                    className="w-4 h-4 text-brand-primary bg-gray-100 border-gray-300 rounded focus:ring-brand-primary dark:focus:ring-brand-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                />
+                                <span className="ml-3 text-sm font-medium text-gray-900 dark:text-gray-200 group-hover:text-brand-primary transition-colors">Ichimoku Cloud</span>
+                            </label>
+                           </div>
+                           <div className="grid grid-cols-2 gap-2 text-[10px]">
+                                <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded">
+                                    <span className="text-gray-500">T:</span>
+                                    <input
+                                        type="number"
+                                        value={settings.tenkanPeriod}
+                                        onChange={(e) => updateSetting('tenkanPeriod', Number(e.target.value))}
+                                        className="w-full bg-transparent text-gray-700 dark:text-gray-300 focus:outline-none focus:text-brand-primary text-center"
+                                        min={1} max={100}
+                                    />
+                                </div>
+                                <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded">
+                                    <span className="text-gray-500">K:</span>
+                                    <input
+                                        type="number"
+                                        value={settings.kijunPeriod}
+                                        onChange={(e) => updateSetting('kijunPeriod', Number(e.target.value))}
+                                        className="w-full bg-transparent text-gray-700 dark:text-gray-300 focus:outline-none focus:text-brand-primary text-center"
+                                        min={1} max={200}
+                                    />
+                                </div>
+                                <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded">
+                                    <span className="text-gray-500">B:</span>
+                                    <input
+                                        type="number"
+                                        value={settings.senkouBPeriod}
+                                        onChange={(e) => updateSetting('senkouBPeriod', Number(e.target.value))}
+                                        className="w-full bg-transparent text-gray-700 dark:text-gray-300 focus:outline-none focus:text-brand-primary text-center"
+                                        min={1} max={400}
+                                    />
+                                </div>
+                                <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/10 px-1.5 py-0.5 rounded">
+                                    <span className="text-gray-500">D:</span>
+                                    <input
+                                        type="number"
+                                        value={settings.displacement}
+                                        onChange={(e) => updateSetting('displacement', Number(e.target.value))}
+                                        className="w-full bg-transparent text-gray-700 dark:text-gray-300 focus:outline-none focus:text-brand-primary text-center"
+                                        min={1} max={100}
+                                    />
+                                </div>
+                           </div>
                         </div>
                     </div>
                 </div>
