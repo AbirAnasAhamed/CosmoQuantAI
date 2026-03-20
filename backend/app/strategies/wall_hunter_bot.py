@@ -34,6 +34,7 @@ class WallHunterBot:
         self.initial_risk_pct = config.get("risk_pct", 0.5)
         self.tsl_pct = config.get("trailing_stop", 0.2)
         self.sell_order_type = config.get("sell_order_type", "market")
+        self.trading_mode = config.get("trading_mode", "spot").lower()
         
         # --- NEW FEATURES: Partial TP & Break-Even SL ---
         self.partial_tp_pct = config.get("partial_tp_pct", 50.0) # TP1 এ কত পার্সেন্ট সেল করবে
@@ -105,6 +106,9 @@ class WallHunterBot:
     def update_config(self, new_config: dict):
         """Update strategy parameters dynamically without stopping the bot."""
         logger.info(f"🔄 [WallHunter {self.bot_id}] Live config update requested: {new_config}")
+        
+        if "trading_mode" in new_config:
+            self.trading_mode = new_config["trading_mode"].lower()
         
         # Keep track of old values for logging
         updates = []
@@ -423,13 +427,15 @@ class WallHunterBot:
                             if distance_pct <= self.max_wall_distance_pct:
                                 current_walls[price] = {'vol': vol, 'type': 'buy'}
 
-                    for level in orderbook['asks']:
-                        price, vol = level[0], level[1]
-                        if vol >= self.vol_threshold:
-                            # Validate distance from current mid_price
-                            distance_pct = abs(price - mid_price) / mid_price * 100.0
-                            if distance_pct <= self.max_wall_distance_pct:
-                                current_walls[price] = {'vol': vol, 'type': 'sell'}
+                    # Only scan SELL walls if we are in Futures mode (to open SHORT)
+                    if self.trading_mode == 'futures':
+                        for level in orderbook['asks']:
+                            price, vol = level[0], level[1]
+                            if vol >= self.vol_threshold:
+                                # Validate distance from current mid_price
+                                distance_pct = abs(price - mid_price) / mid_price * 100.0
+                                if distance_pct <= self.max_wall_distance_pct:
+                                    current_walls[price] = {'vol': vol, 'type': 'sell'}
 
                     # 2. ওয়াল অ্যানালাইসিস এবং স্পুফিং ডিটেকশন
                     for price, wall_info in current_walls.items():

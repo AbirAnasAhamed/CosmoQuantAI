@@ -57,6 +57,12 @@ class StrategyConfig(BaseModel):
     absorption_threshold: Optional[float] = 50000.0
     absorption_window: Optional[float] = 10.0
 
+    # --- BTC Correlation Filter ---
+    enable_btc_correlation: Optional[bool] = False
+    btc_correlation_threshold: Optional[float] = 0.7
+    btc_time_window: Optional[int] = 15
+    btc_min_move_pct: Optional[float] = 0.1
+
     @validator('stop_loss')
     def validate_stop_loss(cls, v):
         if v is not None and (v < 0 or v > 100):

@@ -199,6 +199,14 @@ class BotManager:
                 else:
                     logger.info(f"🧬 CVD Absorption: OFF")
                     msg_lines.append(f"🧬 CVD Absorption: OFF")
+
+                # BTC Correlation Filter Info
+                if config.get('enable_btc_correlation'):
+                    logger.info(f"📉 BTC Correlation Anti-Fakeout: ON (Threshold: {config.get('btc_correlation_threshold', 0.7)})")
+                    msg_lines.append(f"📉 BTC Correlation: ON ({config.get('btc_correlation_threshold', 0.7)})")
+                else:
+                    logger.info(f"📉 BTC Correlation Anti-Fakeout: OFF")
+                    msg_lines.append(f"📉 BTC Correlation: OFF")
                 
                 # Advanced Settings
                 adv = []
