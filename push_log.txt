@@ -1,0 +1,101 @@
+﻿git : remote: error: 
+GH013: Repository 
+rule violations found 
+for refs/heads/main.  
+      
+At line:1 char:1
++ git push -u origin 
+main 2>&1 | Out-File 
+-Encoding utf8 
+push_log.txt
++ ~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~
+    + CategoryInfo    
+          : NotSpeci  
+  fied: (remote: er   
+ ror: ...s/main.      
+      :String) []    
+, RemoteException
+    + FullyQualifiedE 
+   rrorId : NativeCo  
+  mmandError
+ 
+remote: 
+remote: - GITHUB PUSH 
+PROTECTION        
+remote:   ΓÇöΓÇöΓÇöΓÇö
+ΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓ
+ÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇ
+öΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇö
+ΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓ
+ÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇ
+ö        
+remote:     Resolve 
+the following 
+violations before 
+pushing again        
+remote: 
+remote:     - Push 
+cannot contain 
+secrets        
+remote: 
+remote:             
+remote:      (?) 
+Learn how to resolve 
+a blocked push        
+remote:      https://d
+ocs.github.com/code-se
+curity/secret-scanning
+/working-with-secret-s
+canning-and-push-prote
+ction/working-with-pus
+h-protection-from-the-
+command-line#resolving
+-a-blocked-push       
+ 
+remote:             
+remote:             
+remote:       ΓÇöΓÇö 
+Hugging Face User 
+Access Token ΓÇöΓÇöΓÇö
+ΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓ
+ÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇöΓÇ
+öΓÇöΓÇö        
+remote:        
+locations:        
+remote:          - 
+commit: bc005766ef7167
+7440f9eeee04cec9df35e9
+4d11        
+remote:            
+path: .env.example:8  
+      
+remote:             
+remote:        (?) To 
+push, remove secret 
+from commit(s) or 
+follow this URL to 
+allow the secret.     
+   
+remote:        https:/
+/github.com/AbirAnasAh
+amed/CosmoQuantAI/secu
+rity/secret-scanning/u
+nblock-secret/39Nt3P9F
+pKkYhMgvmevGP6iqdnS   
+     
+remote:             
+remote: 
+remote: 
+To https://github.com/
+AbirAnasAhamed/CosmoQu
+antAI.git
+ ! [remote rejected] 
+main -> main (push 
+declined due to 
+repository rule 
+violations)
+error: failed to push 
+some refs to 'https://
+github.com/AbirAnasAha
+med/CosmoQuantAI.git'

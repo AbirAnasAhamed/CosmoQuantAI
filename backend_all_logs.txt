@@ -1,0 +1,627 @@
+Requirement already satisfied: hmmlearn in /usr/local/lib/python3.12/site-packages (0.3.3)
+Requirement already satisfied: statsmodels in /usr/local/lib/python3.12/site-packages (0.14.6)
+Requirement already satisfied: numpy>=1.10 in /usr/local/lib/python3.12/site-packages (from hmmlearn) (2.2.6)
+Requirement already satisfied: scikit-learn!=0.22.0,>=0.16 in /usr/local/lib/python3.12/site-packages (from hmmlearn) (1.8.0)
+Requirement already satisfied: scipy>=0.19 in /usr/local/lib/python3.12/site-packages (from hmmlearn) (1.17.1)
+Requirement already satisfied: pandas!=2.1.0,>=1.4 in /usr/local/lib/python3.12/site-packages (from statsmodels) (3.0.1)
+Requirement already satisfied: patsy>=0.5.6 in /usr/local/lib/python3.12/site-packages (from statsmodels) (1.0.2)
+Requirement already satisfied: packaging>=21.3 in /usr/local/lib/python3.12/site-packages (from statsmodels) (26.0)
+Requirement already satisfied: python-dateutil>=2.8.2 in /usr/local/lib/python3.12/site-packages (from pandas!=2.1.0,>=1.4->statsmodels) (2.9.0.post0)
+Requirement already satisfied: joblib>=1.3.0 in /usr/local/lib/python3.12/site-packages (from scikit-learn!=0.22.0,>=0.16->hmmlearn) (1.5.3)
+Requirement already satisfied: threadpoolctl>=3.2.0 in /usr/local/lib/python3.12/site-packages (from scikit-learn!=0.22.0,>=0.16->hmmlearn) (3.6.0)
+Requirement already satisfied: six>=1.5 in /usr/local/lib/python3.12/site-packages (from python-dateutil>=2.8.2->pandas!=2.1.0,>=1.4->statsmodels) (1.17.0)
+WARNING: Running pip as the 'root' user can result in broken permissions and conflicting behaviour with the system package manager, possibly rendering your system unusable. It is recommended to use a virtual environment instead: https://pip.pypa.io/warnings/venv. Use the --root-user-action option if you know what you are doing and want to suppress this warning.
+
+[notice] A new release of pip is available: 25.0.1 -> 26.0.1
+[notice] To update, run: pip install --upgrade pip
++ python
++ alembic upgrade head
+INFO  [alembic.runtime.migration] Context impl PostgresqlImpl.
+INFO  [alembic.runtime.migration] Will assume transactional DDL.
+/usr/local/lib/python3.12/site-packages/pydantic/_internal/_config.py:383: UserWarning: Valid config keys have changed in V2:
+* 'orm_mode' has been renamed to 'from_attributes'
+  warnings.warn(message, UserWarning)
+INFO:     Started server process [1]
+INFO:     Waiting for application startup.
+INFO:app.core.redis:🔌 Connecting to Redis at redis://redis:6379/0...
+INFO:app.core.redis:✅ Redis Connection Pool Established.
+✅ Backend System Logging attached to Redis.
+INFO:app.services.bot_manager:✅ BotManager Service Started
+🚀 Background Market Data Task Started
+📡 Listening to Redis Log Stream...
+📡 Listening to Redis Task Updates...
+📡 Listening to Block Trade Stream...
+INFO:app.services.liquidation_service:LiquidationService started via CCXT Pro
+INFO:app.services.orderbook_snapshot_service:🚀 Starting Historcial Orderbook Snapshot recording loop...
+INFO:app.services.binance_liq_stream:🟢 Starting Binance Liquidation Stream...
+💰 Starting Active Bot PnL Broadcast...
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+INFO:app.services.binance_liq_stream:🔗 Connected to Binance Liquidation WebSocket
+INFO:     172.18.0.1:49522 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     172.18.0.1:49528 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     172.18.0.1:49538 - "WebSocket /api/v1/dashboard/ws" [accepted]
+INFO:     connection open
+INFO:     172.18.0.1:49550 - "WebSocket /api/v1/dashboard/ws" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     connection closed
+INFO:     172.18.0.7:35642 - "GET /api/v1/users/api-keys HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35648 - "GET /api/v1/users/me HTTP/1.1" 200 OK
+INFO:     172.18.0.7:38486 - "GET /api/v1/users/api-keys HTTP/1.1" 200 OK
+INFO:     172.18.0.7:38488 - "GET /api/v1/users/me HTTP/1.1" 200 OK
+INFO:     172.18.0.7:38496 - "GET /api/v1/dashboard/summary HTTP/1.1" 200 OK
+INFO:     172.18.0.7:38502 - "GET /api/v1/dashboard/summary HTTP/1.1" 200 OK
+INFO:     172.18.0.7:38510 - "GET /api/v1/analytics/performance HTTP/1.1" 200 OK
+INFO:     172.18.0.7:38526 - "GET /api/v1/analytics/performance HTTP/1.1" 200 OK
+INFO:     172.18.0.7:38536 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:38538 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+INFO:     172.18.0.1:34656 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     172.18.0.7:38550 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+INFO:     172.18.0.1:34668 - "WebSocket /ws" [accepted]
+INFO:     connection open
+INFO:     172.18.0.7:38560 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     172.18.0.7:38570 - "WebSocket /ws/market-data/DOGE/USDT" [accepted]
+INFO:     connection open
+INFO:     connection closed
+INFO:     172.18.0.7:38584 - "GET /api/v1/market-depth/exchanges HTTP/1.1" 200 OK
+INFO:app.services.market_depth_service:Fetching markets for binance...
+INFO:app.services.market_depth_service:Creating exchange instance for binance (class: binance)
+INFO:app.services.market_depth_service:Loading markets for binance at initialization...
+INFO:     172.18.0.7:38624 - "WebSocket /api/v1/market-depth/ws/binance/DOGE/USDT" [accepted]
+INFO:     connection open
+INFO:app.services.market_data_streamer:🚀 Starting background CCXT stream for binance:DOGE/USDT
+INFO:app.services.market_data_streamer:🚀 Starting background CCXT trades stream for binance:DOGE/USDT
+INFO:     172.18.0.7:38618 - "GET /api/v1/market-depth/heatmap/historical?symbol=DOGE%2FUSDT&exchange=binance&start_time=2026-03-18T06:36:37.773Z&end_time=2026-03-18T07:36:37.773Z&interval=1m HTTP/1.1" 200 OK
+INFO:     172.18.0.7:38638 - "WebSocket /ws/market-data/DOGE/USDT" [accepted]
+INFO:     connection open
+INFO:     172.18.0.7:38644 - "GET /api/v1/market-depth/heatmap/historical?symbol=DOGE%2FUSDT&exchange=binance&start_time=2026-03-18T06:36:37.790Z&end_time=2026-03-18T07:36:37.790Z&interval=1m HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     172.18.0.7:43756 - "WebSocket /api/v1/market-depth/ws/binance/DOGE/USDT" [accepted]
+INFO:     connection open
+INFO:     172.18.0.7:43764 - "GET /api/v1/market-depth/exchanges HTTP/1.1" 200 OK
+INFO:app.services.market_depth_service:Fetched 4279 spot markets for binance
+INFO:app.services.market_depth_service:Fetching Binance Futures markets...
+INFO:app.services.market_depth_service:Creating exchange instance for binance_futures (class: binance)
+INFO:app.services.market_depth_service:Loading markets for binance_futures at initialization...
+INFO:     172.18.0.7:38592 - "GET /api/v1/market-data/klines?symbol=DOGE%2FUSDT&exchange=binance&interval=1m&limit=200 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:38634 - "GET /api/v1/market-depth/ohlcv?symbol=DOGE%2FUSDT&exchange=binance&timeframe=1m&limit=200 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:38616 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43780 - "GET /api/v1/market-depth/ohlcv?symbol=DOGE%2FUSDT&exchange=binance&timeframe=1m&limit=200 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43790 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:app.services.market_depth_service:Fetched 4279 Binance futures markets
+INFO:app.services.market_depth_service:Total merged markets for binance: 4279
+INFO:     172.18.0.7:38604 - "GET /api/v1/market-depth/markets?exchange=binance HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43794 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43808 - "GET /api/v1/market-depth/markets?exchange=binance HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43824 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43766 - "GET /api/v1/market-data/klines?symbol=DOGE%2FUSDT&exchange=binance&interval=1m&limit=200 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:48110 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:48124 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:48136 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:48140 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:59660 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:59670 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:59674 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:59680 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50614 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50620 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     connection closed
+INFO:app.services.market_depth_service:Fetching markets for kucoin...
+INFO:app.services.market_depth_service:Creating exchange instance for kucoin (class: kucoin)
+INFO:app.services.market_depth_service:Loading markets for kucoin at initialization...
+INFO:     172.18.0.7:50636 - "GET /api/v1/market-depth/heatmap/historical?symbol=DOGE%2FUSDT&exchange=kucoin&start_time=2026-03-18T06:37:13.507Z&end_time=2026-03-18T07:37:13.507Z&interval=1m HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50644 - "WebSocket /api/v1/market-depth/ws/kucoin/DOGE/USDT" [accepted]
+INFO:     connection open
+INFO:app.services.market_data_streamer:🚀 Starting background CCXT stream for kucoin:DOGE/USDT
+INFO:app.services.market_data_streamer:🚀 Starting background CCXT trades stream for kucoin:DOGE/USDT
+INFO:app.services.market_depth_service:Fetched 1143 spot markets for kucoin
+INFO:app.services.market_depth_service:Fetching Kucoin Futures markets...
+INFO:app.services.market_depth_service:Creating exchange instance for kucoinfutures (class: kucoinfutures)
+INFO:app.services.market_depth_service:Loading markets for kucoinfutures at initialization...
+INFO:app.services.market_depth_service:Fetched 560 Kucoin futures markets
+INFO:app.services.market_depth_service:Total merged markets for kucoin: 1703
+INFO:     172.18.0.7:50634 - "GET /api/v1/market-depth/markets?exchange=kucoin HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     172.18.0.7:41858 - "WebSocket /ws/market-data/DOGE/USDT%3AUSDT" [accepted]
+INFO:     connection open
+INFO:     172.18.0.7:41860 - "WebSocket /api/v1/market-depth/ws/kucoin/DOGE/USDT%3AUSDT" [accepted]
+INFO:     connection open
+INFO:app.services.market_data_streamer:🚀 Starting background CCXT stream for kucoinfutures:DOGE/USDT:USDT
+INFO:app.services.market_data_streamer:🚀 Starting background CCXT trades stream for kucoinfutures:DOGE/USDT:USDT
+INFO:     172.18.0.7:34078 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:34090 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:34104 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:34112 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:34114 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:34120 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40224 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40230 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     connection closed
+INFO:     172.18.0.1:52892 - "WebSocket /ws" [accepted]
+INFO:     connection closed
+INFO:     172.18.0.1:52904 - "WebSocket /api/v1/dashboard/ws" [accepted]
+INFO:     connection open
+INFO:     172.18.0.7:56612 - "GET /api/v1/users/api-keys HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56620 - "GET /api/v1/users/me HTTP/1.1" 200 OK
+INFO:     172.18.0.1:52908 - "WebSocket /api/v1/dashboard/ws" [accepted]
+INFO:     connection open
+INFO:     172.18.0.7:56626 - "GET /api/v1/dashboard/summary HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56628 - "GET /api/v1/users/api-keys HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56640 - "GET /api/v1/users/me HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56652 - "GET /api/v1/dashboard/summary HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56664 - "GET /api/v1/analytics/performance HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56670 - "GET /api/v1/analytics/performance HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56686 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56694 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56702 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56704 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+INFO:     172.18.0.1:52912 - "WebSocket /ws" [accepted]
+INFO:     172.18.0.1:52914 - "WebSocket /ws" [accepted]
+INFO:     172.18.0.7:56708 - "WebSocket /ws/market-data/DOGE/USDT" [accepted]
+INFO:     172.18.0.7:56760 - "WebSocket /api/v1/market-depth/ws/binance/DOGE/USDT" [accepted]
+INFO:     connection open
+INFO:     connection open
+INFO:     connection open
+INFO:     connection open
+INFO:     172.18.0.7:56710 - "GET /api/v1/market-depth/exchanges HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56740 - "GET /api/v1/market-depth/heatmap/historical?symbol=DOGE%2FUSDT&exchange=binance&start_time=2026-03-18T06:38:04.814Z&end_time=2026-03-18T07:38:04.814Z&interval=1m HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     172.18.0.7:56722 - "GET /api/v1/market-depth/markets?exchange=binance HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     connection closed
+INFO:     172.18.0.7:56782 - "GET /api/v1/market-depth/heatmap/historical?symbol=DOGE%2FUSDT&exchange=binance&start_time=2026-03-18T06:38:04.822Z&end_time=2026-03-18T07:38:04.822Z&interval=1m HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56786 - "WebSocket /ws/market-data/DOGE/USDT" [accepted]
+INFO:     connection open
+INFO:     172.18.0.7:56800 - "WebSocket /api/v1/market-depth/ws/binance/DOGE/USDT" [accepted]
+INFO:     connection open
+INFO:     172.18.0.7:56808 - "GET /api/v1/market-depth/exchanges HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56768 - "GET /api/v1/market-depth/ohlcv?symbol=DOGE%2FUSDT&exchange=binance&timeframe=1m&limit=200 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56822 - "GET /api/v1/market-depth/markets?exchange=binance HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56826 - "GET /api/v1/market-depth/ohlcv?symbol=DOGE%2FUSDT&exchange=binance&timeframe=1m&limit=200 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56756 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56830 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56834 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56836 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56732 - "GET /api/v1/market-data/klines?symbol=DOGE%2FUSDT&exchange=binance&interval=1m&limit=200 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56838 - "GET /api/v1/market-data/klines?symbol=DOGE%2FUSDT&exchange=binance&interval=1m&limit=200 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40462 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40468 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40478 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40482 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     connection closed
+INFO:     172.18.0.7:42756 - "WebSocket /ws/market-data/DOGE/USDT" [accepted]
+INFO:     connection open
+INFO:     172.18.0.7:42776 - "GET /api/v1/market-depth/heatmap/historical?symbol=DOGE%2FUSDT&exchange=kucoin&start_time=2026-03-18T06:38:19.870Z&end_time=2026-03-18T07:38:19.870Z&interval=1m HTTP/1.1" 200 OK
+INFO:     172.18.0.7:42740 - "GET /api/v1/market-depth/markets?exchange=kucoin HTTP/1.1" 200 OK
+INFO:     172.18.0.7:42794 - "WebSocket /api/v1/market-depth/ws/kucoin/DOGE/USDT" [accepted]
+INFO:     connection open
+INFO:     172.18.0.7:42790 - "GET /api/v1/market-depth/ohlcv?symbol=DOGE%2FUSDT&exchange=kucoin&timeframe=1m&limit=200 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:42772 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:42804 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:42762 - "GET /api/v1/market-data/klines?symbol=DOGE%2FUSDT&exchange=kucoin&interval=1m&limit=200 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:42820 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:42832 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:42836 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35614 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35624 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35626 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35632 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43644 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43652 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43660 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43672 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:57020 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:57034 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:57050 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:57058 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:47470 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:47478 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:47488 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:47502 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43266 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43280 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43294 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43310 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43404 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43420 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43424 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43426 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:49430 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:49432 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:49446 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:49460 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50630 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50646 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50652 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50654 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40896 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40906 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40922 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40936 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44514 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44528 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44542 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44554 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:42588 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:42600 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:42606 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:42618 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56112 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56120 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56130 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:56138 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:41378 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:41380 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:41392 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:41398 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:58206 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:58208 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:58214 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:58218 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:33224 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:33238 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:33246 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:33248 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43962 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43966 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43970 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43986 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40192 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40202 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40210 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40212 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35246 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35248 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35264 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35266 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:45902 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:45904 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:45918 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:45922 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44632 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44646 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44662 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44676 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35936 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35944 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35952 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35968 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50688 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50694 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50706 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50710 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51210 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51220 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51232 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51242 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40560 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40564 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40580 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40582 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:41186 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:41192 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:41208 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:41216 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40576 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40588 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40598 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40610 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:45828 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:45842 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:45856 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:45868 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:33222 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:33232 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:33240 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:33254 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:45870 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:45880 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:45884 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:45898 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50818 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50824 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50828 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50832 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:46862 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:46872 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:46888 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:46892 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:42528 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:42540 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:42544 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:42550 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:38610 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:38622 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:38626 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:38640 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50370 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50372 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50378 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50386 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     connection closed
+INFO:     172.18.0.7:51922 - "WebSocket /ws/market-data/DOGE/USDT%3AUSDT" [accepted]
+INFO:     connection open
+INFO:     172.18.0.7:51944 - "GET /api/v1/market-depth/heatmap/historical?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&start_time=2026-03-18T06:44:10.279Z&end_time=2026-03-18T07:44:10.279Z&interval=1m HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51962 - "WebSocket /api/v1/market-depth/ws/kucoin/DOGE/USDT%3AUSDT" [accepted]
+INFO:     connection open
+INFO:     172.18.0.7:51956 - "GET /api/v1/market-depth/ohlcv?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&timeframe=1m&limit=200 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51964 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51934 - "GET /api/v1/market-data/klines?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&interval=1m&limit=200 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51950 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51976 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51978 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51986 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:47630 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:47634 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:47636 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:47642 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:54866 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:54870 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:54876 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:54884 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50498 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50514 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50526 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50534 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35370 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35378 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35380 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35384 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43894 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43898 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43912 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:43914 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51472 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51480 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51496 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51502 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:59680 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:59682 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:59690 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:59696 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:59574 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:59584 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:59594 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:59608 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:47102 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:47112 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:47124 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:47130 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:57184 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:57186 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:57190 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:57206 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:60300 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:60316 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:60320 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:60328 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:34080 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:34086 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:34092 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:34096 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:58416 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:58422 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:58434 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:58444 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:52186 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:52200 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:52206 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:52222 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44066 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44078 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     connection closed
+INFO:     172.18.0.7:44090 - "WebSocket /ws/market-data/BTC/USDT%3AUSDT" [accepted]
+INFO:     connection open
+INFO:     172.18.0.7:44124 - "GET /api/v1/market-depth/heatmap/historical?symbol=BTC%2FUSDT:USDT&exchange=kucoin&start_time=2026-03-18T06:46:45.653Z&end_time=2026-03-18T07:46:45.653Z&interval=1m HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44134 - "WebSocket /api/v1/market-depth/ws/kucoin/BTC/USDT%3AUSDT" [accepted]
+INFO:     connection open
+INFO:app.services.market_data_streamer:🚀 Starting background CCXT stream for kucoinfutures:BTC/USDT:USDT
+INFO:app.services.market_data_streamer:🚀 Starting background CCXT trades stream for kucoinfutures:BTC/USDT:USDT
+INFO:     172.18.0.7:44110 - "GET /api/v1/market-depth/ohlcv?symbol=BTC%2FUSDT:USDT&exchange=kucoin&timeframe=1m&limit=200 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44098 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44152 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44140 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44104 - "GET /api/v1/market-data/klines?symbol=BTC%2FUSDT:USDT&exchange=kucoin&interval=1m&limit=200 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:42006 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:42022 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:42032 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:42044 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:52264 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:52266 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:52280 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:52286 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:60752 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:60758 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:60762 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:60774 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51212 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51220 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51242 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51226 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:52150 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:52156 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:52166 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:52182 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:54320 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:54326 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:54340 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:54350 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:46416 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:46418 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:46450 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:46434 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44850 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44854 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44856 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44870 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:36312 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:36316 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:36320 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:36334 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35100 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35102 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35108 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35124 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50428 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50430 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50438 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50450 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44800 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44810 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44832 - "GET /api/v1/market-depth/heatmap?symbol=BTC%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44816 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     connection closed
+INFO:     172.18.0.7:32936 - "WebSocket /ws/market-data/DOGE/USDT" [accepted]
+INFO:     connection open
+INFO:     172.18.0.7:32946 - "GET /api/v1/market-depth/heatmap/historical?symbol=DOGE%2FUSDT&exchange=kucoin&start_time=2026-03-18T06:48:51.065Z&end_time=2026-03-18T07:48:51.065Z&interval=1m HTTP/1.1" 200 OK
+INFO:     172.18.0.7:32976 - "WebSocket /api/v1/market-depth/ws/kucoin/DOGE/USDT" [accepted]
+INFO:     connection open
+INFO:     172.18.0.7:32984 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:32970 - "GET /api/v1/market-depth/ohlcv?symbol=DOGE%2FUSDT&exchange=kucoin&timeframe=1m&limit=200 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:32960 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:32998 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:32958 - "GET /api/v1/market-data/klines?symbol=DOGE%2FUSDT&exchange=kucoin&interval=1m&limit=200 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:33010 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:33016 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:54778 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:54792 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:54808 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:54812 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:55488 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:55500 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:55512 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:55524 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:49714 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:49718 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:49734 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:49750 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51278 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51286 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51296 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51310 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:36552 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:36540 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     connection closed
+INFO:     connection closed
+INFO:     172.18.0.7:36564 - "WebSocket /ws/market-data/DOGE/USDT%3AUSDT" [accepted]
+INFO:     connection open
+INFO:     172.18.0.7:36572 - "GET /api/v1/market-depth/heatmap/historical?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&start_time=2026-03-18T06:49:42.692Z&end_time=2026-03-18T07:49:42.692Z&interval=1m HTTP/1.1" 200 OK
+INFO:     172.18.0.7:36610 - "WebSocket /api/v1/market-depth/ws/kucoin/DOGE/USDT%3AUSDT" [accepted]
+INFO:     connection open
+INFO:     172.18.0.7:36600 - "GET /api/v1/market-depth/ohlcv?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&timeframe=1m&limit=200 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:36584 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:36614 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:36586 - "GET /api/v1/market-data/klines?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&interval=1m&limit=200 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:36618 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:33908 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:33912 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:33922 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:33924 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:59816 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:59824 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:59832 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:59838 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:59854 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50460 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50474 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50484 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50496 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44600 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44608 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44616 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:44630 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:54606 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:54610 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:54620 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35304 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35310 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35312 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35314 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50138 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50148 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50152 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50164 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40264 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40272 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40288 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:40304 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:34640 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:34654 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:34670 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:34674 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:55712 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:55714 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:55730 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:55740 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:55630 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:55640 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:55654 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:60904 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:60910 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:60926 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:60938 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51070 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51076 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51082 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51088 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:41014 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:41030 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:41040 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:41048 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51318 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51332 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51344 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:51360 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:52242 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:52248 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:52250 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:52260 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:55706 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:55710 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:55726 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:55742 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50850 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50862 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50866 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:50878 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35620 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35634 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35648 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35652 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:57612 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:57618 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:57624 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:57638 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:53764 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:53772 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:53778 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:53794 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:57294 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:53330 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:53346 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:53346 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:53342 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:46990 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:46994 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:60428 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:60432 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:45832 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:45848 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35156 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:35158 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:41258 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+INFO:     172.18.0.7:41262 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT:USDT&exchange=kucoin&bucket_size=50&depth=100 HTTP/1.1" 200 OK

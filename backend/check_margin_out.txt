@@ -1,0 +1,69 @@
+set_margin_mode signature: (marginMode: str, symbol: Optional[str] = None, params={})
+set_leverage signature: (leverage: int, symbol: Optional[str] = None, params={})
+
+set_margin_mode source:
+    async def set_margin_mode(self, marginMode: str, symbol: Str = None, params={}):
+        """
+        set margin mode to 'cross' or 'isolated'
+
+        https://www.kucoin.com/docs/rest/futures-trading/positions/modify-margin-mode
+
+        :param str marginMode: 'cross' or 'isolated'
+        :param str symbol: unified market symbol
+        :param dict [params]: extra parameters specific to the exchange API endpoint
+        :returns dict: response from the exchange
+        """
+        if symbol is None:
+            raise ArgumentsRequired(self.id + ' setMarginMode() requires a symbol argument')
+        self.check_required_argument('setMarginMode', marginMode, 'marginMode', ['cross', 'isolated'])
+        await self.load_markets()
+        market = self.market(symbol)
+        request: dict = {
+            'symbol': market['id'],
+            'marginMode': marginMode.upper(),
+        }
+        response = await self.futuresPrivatePostPositionChangeMarginMode(self.extend(request, params))
+        #
+        #    {
+        #        "code": "200000",
+        #        "data": {
+        #            "symbol": "XBTUSDTM",
+        #            "marginMode": "ISOLATED"
+        #        }
+        #    }
+        #
+        data = self.safe_dict(response, 'data', {})
+        return self.parse_margin_mode(data, market)
+
+
+set_leverage source:
+    async def set_leverage(self, leverage: int, symbol: Str = None, params={}):
+        """
+        set the level of leverage for a market
+
+        https://www.kucoin.com/docs/rest/futures-trading/positions/modify-cross-margin-leverage
+
+        :param float leverage: the rate of leverage
+        :param str symbol: unified market symbol
+        :param dict [params]: extra parameters specific to the exchange API endpoint
+        :returns dict: response from the exchange
+        """
+        marginMode = None
+        marginMode, params = self.handle_margin_mode_and_params(symbol, params)
+        if marginMode != 'cross':
+            raise NotSupported(self.id + ' setLeverage() currently supports only params["marginMode"] = "cross"')
+        await self.load_markets()
+        market = self.market(symbol)
+        request: dict = {
+            'symbol': market['id'],
+            'leverage': str(leverage),
+        }
+        response = await self.futuresPrivatePostChangeCrossUserLeverage(self.extend(request, params))
+        #
+        #    {
+        #        "code": "200000",
+        #        "data": True
+        #    }
+        #
+        return self.parse_leverage(response, market)
+

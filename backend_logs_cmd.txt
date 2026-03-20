@@ -1,0 +1,200 @@
+cosmoquant_backend  | INFO:app.services.binance_liq_stream:🔗 Connected to Binance Liquidation WebSocket
+cosmoquant_backend  | INFO:     172.18.0.1:46890 - "WebSocket /ws" [accepted]
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     172.18.0.1:46900 - "WebSocket /ws" [accepted]
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     172.18.0.1:46916 - "WebSocket /ws" [accepted]
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     172.18.0.1:46928 - "WebSocket /ws" [accepted]
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     172.18.0.1:46942 - "WebSocket /api/v1/dashboard/ws" [accepted]
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     172.18.0.1:46944 - "WebSocket /api/v1/dashboard/ws" [accepted]
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     connection closed
+cosmoquant_backend  | INFO:     connection closed
+cosmoquant_backend  | INFO:     172.18.0.1:46958 - "WebSocket /api/v1/dashboard/ws" [accepted]
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     172.18.0.1:46960 - "WebSocket /api/v1/dashboard/ws" [accepted]
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     connection closed
+cosmoquant_backend  | INFO:     connection closed
+cosmoquant_backend  | INFO:     172.18.0.7:44312 - "GET /api/v1/users/api-keys HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:44318 - "GET /api/v1/users/me HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:44336 - "GET /api/v1/users/me HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:44346 - "GET /api/v1/users/api-keys HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:44322 - "GET /api/v1/dashboard/summary HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:44354 - "GET /api/v1/dashboard/summary HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:44368 - "GET /api/v1/users/api-keys HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:44380 - "GET /api/v1/users/me HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:44438 - "GET /api/v1/analytics/performance HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:44388 - "GET /api/v1/users/me HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:44394 - "GET /api/v1/users/api-keys HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:44424 - "GET /api/v1/dashboard/summary HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:44406 - "GET /api/v1/dashboard/summary HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:44408 - "GET /api/v1/analytics/performance HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:44442 - "GET /api/v1/analytics/performance HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:44458 - "GET /api/v1/analytics/performance HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:44472 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:44486 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:44492 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.1:46972 - "WebSocket /ws" [accepted]
+cosmoquant_backend  | INFO:     172.18.0.1:46982 - "WebSocket /ws" [accepted]
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     172.18.0.7:44502 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.1:46992 - "WebSocket /ws" [accepted]
+cosmoquant_backend  | INFO:     172.18.0.1:47006 - "WebSocket /ws" [accepted]
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     172.18.0.7:44504 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:44520 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:44524 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:47328 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     connection closed
+cosmoquant_backend  | INFO:     172.18.0.7:47344 - "WebSocket /api/v1/market-depth/ws/binance/DOGE/USDT" [accepted]
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:app.services.market_data_streamer:🚀 Starting background CCXT stream for binance:DOGE/USDT
+cosmoquant_backend  | INFO:app.services.market_data_streamer:🚀 Starting background CCXT trades stream for binance:DOGE/USDT
+cosmoquant_backend  | INFO:     connection closed
+cosmoquant_backend  | INFO:     172.18.0.7:47358 - "GET /api/v1/market-depth/exchanges HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:47416 - "WebSocket /api/v1/market-depth/ws/binance/DOGE/USDT" [accepted]
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     172.18.0.7:47420 - "GET /api/v1/market-depth/exchanges HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:47368 - "GET /api/v1/market-depth/markets?exchange=binance HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:60772 - "GET /api/v1/market-depth/markets?exchange=binance HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:47382 - "GET /api/v1/market-data/klines?symbol=DOGE%2FUSDT&exchange=binance&interval=1m&limit=200 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:47390 - "GET /api/v1/market-depth/ohlcv?symbol=DOGE%2FUSDT&exchange=binance&timeframe=1m&limit=200 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:60798 - "GET /api/v1/market-depth/ohlcv?symbol=DOGE%2FUSDT&exchange=binance&timeframe=1m&limit=200 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:47406 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:60810 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:60824 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:60836 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:60848 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:60784 - "GET /api/v1/market-data/klines?symbol=DOGE%2FUSDT&exchange=binance&interval=1m&limit=200 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:60852 - "GET /api/v1/market-depth/heatmap?symbol=DOGE%2FUSDT&exchange=binance&bucket_size=50&depth=100 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     connection closed
+cosmoquant_backend  | INFO:     172.18.0.7:60860 - "WebSocket /api/v1/liquidation/ws/stream?exchange=binance&symbol=BTC%2FUSDT" [accepted]
+cosmoquant_backend  | INFO:app.api.v1.endpoints.liquidation:Client connected to Liquidation Stream for binance:BTC/USDT
+cosmoquant_backend  | INFO:app.services.liquidation_service:Subscribed to: binance:BTC/USDT
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:app.services.liquidation_service:Started CCXT watch_liquidations loop for binance BTC/USDT
+cosmoquant_backend  | INFO:app.api.v1.endpoints.liquidation:Client disconnected from Liquidation Stream (binance:BTC/USDT)
+cosmoquant_backend  | INFO:     connection closed
+cosmoquant_backend  | INFO:     172.18.0.7:60874 - "WebSocket /api/v1/liquidation/ws/stream?exchange=binance&symbol=BTC%2FUSDT" [accepted]
+cosmoquant_backend  | INFO:app.api.v1.endpoints.liquidation:Client connected to Liquidation Stream for binance:BTC/USDT
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     172.18.0.7:54366 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:44104 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:44120 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:51014 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:51662 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:51670 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:40262 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:40190 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:40174 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | ERROR:app.services.liquidation_service:Error watching binance BTC/USDT: unsupported operand type(s) for *: 'float' and 'NoneType'
+cosmoquant_backend  | INFO:     172.18.0.7:55264 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:59582 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:37814 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:57480 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:50758 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:49258 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | ERROR:app.services.liquidation_service:Error watching binance BTC/USDT: unsupported operand type(s) for *: 'float' and 'NoneType'
+cosmoquant_backend  | INFO:     172.18.0.7:43442 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:43450 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:app.api.v1.endpoints.liquidation:Client disconnected from Liquidation Stream (binance:BTC/USDT)
+cosmoquant_backend  | INFO:     connection closed
+cosmoquant_backend  | INFO:     172.18.0.7:48276 - "WebSocket /api/v1/liquidation/ws/stream?exchange=binance&symbol=BTC%2FUSDT" [accepted]
+cosmoquant_backend  | INFO:app.api.v1.endpoints.liquidation:Client connected to Liquidation Stream for binance:BTC/USDT
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     172.18.0.7:38964 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:38980 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:50610 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:50624 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:60852 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:60864 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     connection closed
+cosmoquant_backend  | INFO:     connection closed
+cosmoquant_backend  | INFO:     connection closed
+cosmoquant_backend  | INFO:app.api.v1.endpoints.liquidation:Client disconnected from Liquidation Stream (binance:BTC/USDT)
+cosmoquant_backend  | INFO:     connection closed
+cosmoquant_backend  | INFO:     172.18.0.1:57986 - "WebSocket /ws" [accepted]
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     172.18.0.1:57988 - "WebSocket /ws" [accepted]
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     172.18.0.1:58002 - "WebSocket /api/v1/dashboard/ws" [accepted]
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     172.18.0.1:58014 - "WebSocket /api/v1/dashboard/ws" [accepted]
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     172.18.0.7:43306 - "GET /api/v1/users/api-keys HTTP/1.1" 401 Unauthorized
+cosmoquant_backend  | INFO:     connection closed
+cosmoquant_backend  | INFO:     connection closed
+cosmoquant_backend  | INFO:     172.18.0.7:43322 - "GET /api/v1/users/me HTTP/1.1" 401 Unauthorized
+cosmoquant_backend  | INFO:     172.18.0.7:43352 - "GET /api/v1/dashboard/summary HTTP/1.1" 401 Unauthorized
+cosmoquant_backend  | INFO:     172.18.0.7:43336 - "GET /api/v1/users/api-keys HTTP/1.1" 401 Unauthorized
+cosmoquant_backend  | INFO:     172.18.0.7:43378 - "GET /api/v1/dashboard/summary HTTP/1.1" 401 Unauthorized
+cosmoquant_backend  | INFO:     172.18.0.7:43374 - "GET /api/v1/users/me HTTP/1.1" 401 Unauthorized
+cosmoquant_backend  | INFO:     172.18.0.7:43366 - "POST /api/v1/auth/refresh-token HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:43406 - "POST /api/v1/auth/refresh-token HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:43422 - "POST /api/v1/auth/refresh-token HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:43390 - "POST /api/v1/auth/refresh-token HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:43440 - "POST /api/v1/auth/refresh-token HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:43454 - "POST /api/v1/auth/refresh-token HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:43482 - "GET /api/v1/users/me HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:43466 - "GET /api/v1/users/api-keys HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:43424 - "GET /api/v1/dashboard/summary HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:43498 - "GET /api/v1/users/api-keys HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:43528 - "GET /api/v1/analytics/performance HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:43496 - "GET /api/v1/users/me HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:43512 - "GET /api/v1/dashboard/summary HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:43558 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:43544 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:43538 - "GET /api/v1/analytics/performance HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:43564 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.1:58026 - "WebSocket /ws" [accepted]
+cosmoquant_backend  | INFO:     172.18.0.1:58036 - "WebSocket /ws" [accepted]
+cosmoquant_backend  | INFO:     172.18.0.7:50640 - "WebSocket /api/v1/liquidation/ws/stream?exchange=binance&symbol=BTC%2FUSDT" [accepted]
+cosmoquant_backend  | INFO:app.api.v1.endpoints.liquidation:Client connected to Liquidation Stream for binance:BTC/USDT
+cosmoquant_backend  | INFO:     172.18.0.7:50642 - "WebSocket /api/v1/liquidation/ws/stream?exchange=binance&symbol=BTC%2FUSDT" [accepted]
+cosmoquant_backend  | INFO:app.api.v1.endpoints.liquidation:Client connected to Liquidation Stream for binance:BTC/USDT
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     172.18.0.7:43580 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     connection closed
+cosmoquant_backend  | INFO:app.api.v1.endpoints.liquidation:Client disconnected from Liquidation Stream (binance:BTC/USDT)
+cosmoquant_backend  | INFO:     connection closed
+cosmoquant_backend  | INFO:     172.18.0.7:52758 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:52768 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:app.api.v1.endpoints.liquidation:Client disconnected from Liquidation Stream (binance:BTC/USDT)
+cosmoquant_backend  | INFO:     connection closed
+cosmoquant_backend  | INFO:     172.18.0.1:48098 - "WebSocket /api/v1/options/live" [accepted]
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     connection closed
+cosmoquant_backend  | INFO:     172.18.0.1:48102 - "WebSocket /api/v1/options/live" [accepted]
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     connection closed
+cosmoquant_backend  | INFO:     172.18.0.7:49080 - "WebSocket /api/v1/liquidation/ws/stream?exchange=binance&symbol=BTC%2FUSDT" [accepted]
+cosmoquant_backend  | INFO:app.api.v1.endpoints.liquidation:Client connected to Liquidation Stream for binance:BTC/USDT
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:app.api.v1.endpoints.liquidation:Client disconnected from Liquidation Stream (binance:BTC/USDT)
+cosmoquant_backend  | INFO:     connection closed
+cosmoquant_backend  | INFO:     172.18.0.7:49096 - "WebSocket /api/v1/liquidation/ws/stream?exchange=binance&symbol=BTC%2FUSDT" [accepted]
+cosmoquant_backend  | INFO:app.api.v1.endpoints.liquidation:Client connected to Liquidation Stream for binance:BTC/USDT
+cosmoquant_backend  | INFO:     connection open
+cosmoquant_backend  | INFO:     172.18.0.7:34474 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:34478 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:53648 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:53652 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:45778 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:45794 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:54302 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:54316 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:56794 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:56806 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | ERROR:app.services.liquidation_service:Error watching binance BTC/USDT: unsupported operand type(s) for *: 'float' and 'NoneType'
+cosmoquant_backend  | INFO:     172.18.0.7:43714 - "GET /api/v1/system/health HTTP/1.1" 200 OK
+cosmoquant_backend  | INFO:     172.18.0.7:43704 - "GET /api/v1/whale-alerts/recent?limit=5 HTTP/1.1" 200 OK
+cosmoquant_backend  | ERROR:app.services.liquidation_service:Error watching binance BTC/USDT: unsupported operand type(s) for *: 'float' and 'NoneType'
