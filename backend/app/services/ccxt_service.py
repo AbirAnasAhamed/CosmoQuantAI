@@ -61,7 +61,13 @@ class CcxtService:
         api = None
         try:
             exchange_class = getattr(ccxt, exchange_id)
-            api = exchange_class({'enableRateLimit': True, 'options': {'adjustForTimeDifference': True}})
+            api = exchange_class({
+                'enableRateLimit': True,
+                'options': {
+                    'adjustForTimeDifference': True,
+                    'recvWindow': 60000 if exchange_id == 'mexc' else 10000
+                }
+            })
             
             markets = await api.load_markets()
             

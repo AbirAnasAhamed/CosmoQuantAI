@@ -162,8 +162,12 @@ class LiveBotEngine:
             exchange_options = {
                 'apiKey': decrypted_api_key,
                 'secret': decrypted_secret,
-                'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},
-                'options': {'defaultType': self.deployment_target}
+                'enableRateLimit': True,
+                'options': {
+                    'adjustForTimeDifference': True,
+                    'recvWindow': 60000 if api_key_record.exchange.lower() == 'mexc' else 10000,
+                    'defaultType': self.deployment_target
+                }
             }
 
             # Optional Passphrase for KuCoin/OKX

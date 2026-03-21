@@ -48,10 +48,12 @@ async def get_portfolio_balances(
                 'apiKey': decrypted_api_key,
                 'secret': decrypted_secret,
                 'enableRateLimit': True,
+                'options': {
+                    'adjustForTimeDifference': True,
+                    'recvWindow': 60000 if exchange_id == 'mexc' else 10000
+                }
             }
-            if decrypted_passphrase:
-                exchange_config['password'] = decrypted_passphrase
-                
+            
             api = exchange_class(exchange_config)
         except Exception as decrypt_error:
             logger.error(f"Failed to decrypt keys for {exchange_id}: {decrypt_error}")

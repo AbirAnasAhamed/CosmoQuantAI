@@ -45,7 +45,10 @@ class MarketDepthService:
                     logger.error(f"Exchange class '{real_class_id}' not found in CCXT async_support.")
                     raise ValueError(f"Exchange '{real_class_id}' not supported.")
                 
-                options = {'enableRateLimit': True}
+                options = {
+                    'enableRateLimit': True,
+                    'options': {'adjustForTimeDifference': True}
+                }
                 
                 if cache_id == 'binance_futures':
                     options['options'] = {'defaultType': 'future'}

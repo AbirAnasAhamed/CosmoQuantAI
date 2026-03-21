@@ -846,7 +846,11 @@ def execute_sor_child_order(user_id: int, exchange_id: str, symbol: str, side: s
         exchange = exchange_class({
             'apiKey': api_key_record.api_key,
             'secret': decrypted_secret,
-            'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},
+            'enableRateLimit': True,
+            'options': {
+                'adjustForTimeDifference': True,
+                'recvWindow': 60000 if exchange_id.lower() == 'mexc' else 10000
+            },
         })
         
         # 3. Execute Order

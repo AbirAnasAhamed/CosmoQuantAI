@@ -54,7 +54,11 @@ async def test_exchange_connection(request: ConnectionTestRequest):
         exchange = exchange_class({
             'apiKey': request.api_key,
             'secret': request.api_secret,
-            'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},
+            'enableRateLimit': True,
+            'options': {
+                'adjustForTimeDifference': True,
+                'recvWindow': 60000 if request.exchange_id.lower() == 'mexc' else 10000
+            }
         })
         
         # Try to fetch balance as a test
@@ -94,11 +98,23 @@ async def place_order(
         if not exchange_class:
              raise HTTPException(status_code=400, detail="Unsupported exchange")
 
-        exchange = exchange_class({
+        exchange_config = {
             'apiKey': api_key_record.api_key,
             'secret': decrypted_secret,
-            'enableRateLimit': True, 'options': {'adjustForTimeDifference': True},
-        })
+            'enableRateLimit': True,
+            'options': {
+                'adjustForTimeDifference': True,
+                'recvWindow': 60000 if order.exchange_id.lower() == 'mexc' else 10000
+            }
+        }
+        
+        if hasattr(api_key_record, 'passphrase') and api_key_record.passphrase:
+            try:
+                exchange_config['password'] = decrypt_key(api_key_record.passphrase)
+            except Exception:
+                exchange_config['password'] = api_key_record.passphrase
+
+        exchange = exchange_class(exchange_config)
 
         # ৩. অর্ডার প্লেস করা
         response = None
