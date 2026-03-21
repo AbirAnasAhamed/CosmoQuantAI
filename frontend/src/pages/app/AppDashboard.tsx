@@ -61,7 +61,8 @@ const NavItem: React.FC<{
     label: string;
     isActive: boolean;
     onClick: () => void;
-}> = ({ icon, label, isActive, onClick }) => (
+    isCollapsed?: boolean;
+}> = ({ icon, label, isActive, onClick, isCollapsed }) => (
     <button
         onClick={onClick}
         className={`group relative flex items-center w-full px-4 py-3 mb-2 rounded-2xl transition-all duration-300 ease-out overflow-hidden
@@ -81,13 +82,15 @@ const NavItem: React.FC<{
         )}
 
         {/* Icon Container */}
-        <span className={`relative z-10 w-6 h-6 flex items-center justify-center rounded-lg transition-colors duration-300 
+        <span className={`relative z-10 w-6 h-6 flex-shrink-0 flex items-center justify-center rounded-lg transition-colors duration-300 
             ${isActive ? 'bg-white/20 text-white' : 'bg-transparent text-slate-400 group-hover:text-brand-primary group-hover:bg-brand-primary/10'}`}>
             {icon}
         </span>
 
         {/* Label */}
-        <span className="relative z-10 ml-3 text-sm font-medium tracking-wide truncate">{label}</span>
+        <span className={`relative z-10 ml-3 text-sm font-medium tracking-wide truncate transition-all duration-300 ${isCollapsed ? 'opacity-0 w-0 ml-0 overflow-hidden' : 'opacity-100'}`}>
+            {label}
+        </span>
 
         {/* Active Indicator Dot */}
         {isActive && (
@@ -100,7 +103,9 @@ const Sidebar: React.FC<{
     currentView: AppView;
     onNavigate: (view: AppView, section?: string) => void;
     onLogout: () => void;
-}> = ({ currentView, onNavigate, onLogout }) => {
+    isCollapsed: boolean;
+    onToggle: () => void;
+}> = ({ currentView, onNavigate, onLogout, isCollapsed, onToggle }) => {
     const { userProfile } = useSettings();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const profileRef = useRef<HTMLDivElement>(null);
@@ -188,26 +193,43 @@ const Sidebar: React.FC<{
     ], []);
 
     return (
-        <aside className="w-72 bg-[#F8FAFC] dark:bg-[#050B14] border-r border-gray-200 dark:border-white/5 flex flex-col h-screen transition-colors duration-300 shadow-[5px_0_20px_rgba(0,0,0,0.05)] z-20 relative">
+        <aside className={`${isCollapsed ? 'w-20' : 'w-72'} bg-[#F8FAFC] dark:bg-[#050B14] border-r border-gray-200 dark:border-white/5 flex flex-col h-screen transition-all duration-300 ease-in-out shadow-[5px_0_20px_rgba(0,0,0,0.05)] z-20 relative group`}>
+
+            {/* Collapse Toggle Button */}
+            <button
+                onClick={onToggle}
+                className="absolute -right-3 top-20 w-6 h-6 bg-white dark:bg-[#161e2e] border border-gray-200 dark:border-gray-700 rounded-full flex items-center justify-center text-gray-400 hover:text-brand-primary shadow-md z-30 transition-transform duration-300 hover:scale-110"
+            >
+                <ChevronDownIcon className={`w-4 h-4 transition-transform duration-300 ${isCollapsed ? '-rotate-90' : 'rotate-90'}`} />
+            </button>
 
             {/* Glowing Background Effect */}
             <div className="absolute top-0 left-0 w-full h-96 bg-brand-primary/5 dark:bg-brand-primary/10 blur-[80px] pointer-events-none"></div>
 
             <div className="p-6 pb-4 relative z-10">
-                <div className="flex items-center justify-center mb-2 transform hover:scale-105 transition-transform duration-300">
+                <div className={`flex items-center justify-center mb-2 transition-all duration-700 ease-in-out ${
+                    isCollapsed 
+                        ? 'opacity-80 scale-50 -translate-y-4' 
+                        : 'opacity-100 scale-100 translate-y-0'
+                } [&_img]:transition-all [&_img]:duration-700 [&_span]:transition-all [&_span]:duration-700 ${
+                    isCollapsed ? '[&_span]:opacity-0 [&_span]:translate-y-4 [&_span]:scale-50' : '[&_span]:opacity-100 [&_span]:translate-y-0 [&_span]:scale-100'
+                }`}>
                     <Logo />
                 </div>
                 {/* Stylish Divider */}
-                <div className="h-px w-full bg-gradient-to-r from-transparent via-gray-300 dark:via-gray-700 to-transparent my-6"></div>
+                <div className={`h-px w-full bg-gradient-to-r from-transparent via-gray-300 dark:via-gray-700 to-transparent my-6 transition-all duration-500 ${isCollapsed ? 'opacity-0 scale-x-0' : 'opacity-100 scale-x-100'}`}></div>
             </div>
 
             <nav className="flex-1 space-y-2 overflow-y-auto px-4 custom-scrollbar pb-4 relative z-10">
                 {navCategories.map(category => (
                     <div key={category.title} className="mb-8 last:mb-0">
                         {/* Gradient Text Header */}
-                        <h3 className="px-4 mb-3 text-[10px] font-extrabold uppercase tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-slate-500 to-slate-400 dark:from-gray-400 dark:to-gray-600 select-none">
-                            {category.title}
-                        </h3>
+                        {!isCollapsed && (
+                            <h3 className="px-4 mb-3 text-[10px] font-extrabold uppercase tracking-[0.2em] text-transparent bg-clip-text bg-gradient-to-r from-slate-500 to-slate-400 dark:from-gray-400 dark:to-gray-600 select-none animate-fade-in">
+                                {category.title}
+                            </h3>
+                        )}
+                        {isCollapsed && <div className="h-px bg-gray-200 dark:bg-gray-800 mx-4 mb-3 opacity-50" />}
                         <div className="space-y-1">
                             {category.items.map(item => (
                                 <NavItem
@@ -216,6 +238,7 @@ const Sidebar: React.FC<{
                                     label={item.label}
                                     isActive={currentView === item.view}
                                     onClick={() => onNavigate(item.view)}
+                                    isCollapsed={isCollapsed}
                                 />
                             ))}
                         </div>
@@ -250,16 +273,18 @@ const Sidebar: React.FC<{
                         <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-brand-primary to-purple-500 text-white flex items-center justify-center font-bold text-sm shadow-md ring-2 ring-white dark:ring-[#0B1120]">AA</div>
                         <div className="absolute bottom-0 right-0 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-[#0B1120] rounded-full"></div>
                     </div>
-                    <div className="ml-3 flex-1 min-w-0 text-left">
+                    <div className="ml-3 flex-1 min-w-0 text-left transition-all duration-300" style={{ width: isCollapsed ? '0px' : 'auto', opacity: isCollapsed ? 0 : 1, overflow: 'hidden' }}>
                         <p className="font-bold text-sm text-slate-900 dark:text-white truncate group-hover:text-brand-primary transition-colors">{userProfile.fullName}</p>
                         <p className="text-[10px] text-gray-500 dark:text-gray-400 truncate font-medium flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full bg-brand-warning"></span>
                             Pro Trader Plan
                         </p>
                     </div>
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 ${isProfileOpen ? 'bg-brand-primary/10 text-brand-primary rotate-180' : 'bg-transparent text-gray-400 group-hover:text-brand-primary'}`}>
-                        <ChevronDownIcon className="h-5 w-5" />
-                    </div>
+                    {!isCollapsed && (
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 ${isProfileOpen ? 'bg-brand-primary/10 text-brand-primary rotate-180' : 'bg-transparent text-gray-400 group-hover:text-brand-primary'}`}>
+                            <ChevronDownIcon className="h-5 w-5" />
+                        </div>
+                    )}
                 </button>
             </div>
         </aside>
@@ -274,6 +299,7 @@ const AppDashboard: React.FC<AppDashboardProps> = ({ currentView, onNavigate, on
     const [walletAddress, setWalletAddress] = useState<string | null>(null);
     const [isAssistantOpen, setIsAssistantOpen] = useState(false);
     const [modalView, setModalView] = useState<AppView | null>(null);
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
     const prevViewRef = useRef<AppView>(AppView.DASHBOARD);
 
     // OmniTrade State Removed
@@ -365,8 +391,14 @@ const AppDashboard: React.FC<AppDashboardProps> = ({ currentView, onNavigate, on
 
     return (
         <BacktestProvider>
-            <div className="flex h-screen bg-brand-light dark:bg-brand-darkest">
-                <Sidebar currentView={currentView} onNavigate={onNavigate} onLogout={onLogout} />
+            <div className="flex h-screen bg-brand-light dark:bg-brand-darkest transition-all duration-300">
+                <Sidebar 
+                    currentView={currentView} 
+                    onNavigate={onNavigate} 
+                    onLogout={onLogout} 
+                    isCollapsed={isSidebarCollapsed} 
+                    onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+                />
                 <div className="flex-1 flex flex-col overflow-hidden relative z-0">
                     <header className="flex-shrink-0 bg-white/80 dark:bg-brand-darkest/80 backdrop-blur-md border-b border-gray-200 dark:border-brand-border-dark/50 z-10">
                         <div className="flex justify-between items-center px-8 h-16">
