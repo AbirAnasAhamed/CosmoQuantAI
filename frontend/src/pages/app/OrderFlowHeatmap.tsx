@@ -23,6 +23,7 @@ import { WallHunterModal } from '../../components/features/market/WallHunterModa
 import { botService } from '../../services/botService';
 import { useWallHunterStatus } from '@/hooks/useWallHunterStatus';
 import { toast } from 'react-hot-toast';
+import { useOrderFlowContext } from '@/context/OrderFlowContext';
 
 // Helper to convert interval string to ms
 const parseIntervalToMs = (interval: string): number => {
@@ -878,32 +879,18 @@ const formatDisplayPrice = (price: number | undefined | null) => {
 
 // Main Page Component
 const OrderFlowHeatmap: React.FC = () => {
-    const [activeTab, setActiveTab] = useState<'heatmap' | 'bot_settings' | 'bot_logs'>('heatmap');
+    const {
+        activeTab, setActiveTab,
+        activeWallHunterId, setActiveWallHunterId,
+        exchange, setExchange,
+        symbol, setSymbol,
+        interval, setInterval,
+        showFootprint, setShowFootprint,
+        indicatorSettings, setIndicatorSettings
+    } = useOrderFlowContext();
     const [isWallHunterOpen, setIsWallHunterOpen] = useState(false);
-    const [activeWallHunterId, setActiveWallHunterId] = useState<number | null>(null);
     const [isEmergencySelling, setIsEmergencySelling] = useState(false); // NEW STATE
-    const [exchange, setExchange] = useState('binance');
-    const [symbol, setSymbol] = useState('DOGE/USDT');
-    const [interval, setInterval] = useState('1m');
-    const [showFootprint, setShowFootprint] = useState(false);
     const [isFullscreen, setIsFullscreen] = useState(false); // NEW STATE
-    const [indicatorSettings, setIndicatorSettings] = useState<IndicatorSettings>({
-        showEMA: false,
-        showBB: false,
-        showRSI: false,
-        showVolume: true,
-        showAutoFibo: false,
-        showIchimoku: false,
-        emaPeriod: 20,
-        bbPeriod: 20,
-        bbStdDev: 2,
-        rsiPeriod: 14,
-        autoFiboLookback: 200,
-        tenkanPeriod: 9,
-        kijunPeriod: 26,
-        senkouBPeriod: 52,
-        displacement: 26,
-    });
     const { bids, asks, walls, currentPrice, tradeEvent } = useLevel2MarketData(symbol, exchange);
     const { volumeThreshold, setVolumeThreshold } = useVolumeFilter(1000);
     const { statusData: botStatus, isConnected: botWsConnected } = useWallHunterStatus(activeWallHunterId);

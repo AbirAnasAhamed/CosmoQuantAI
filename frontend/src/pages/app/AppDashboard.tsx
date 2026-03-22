@@ -294,6 +294,7 @@ const Sidebar: React.FC<{
 const MODAL_VIEWS: AppView[] = [];
 
 import { BacktestProvider } from '@/context/BacktestContext';
+import { OrderFlowProvider } from '@/context/OrderFlowContext';
 
 const AppDashboard: React.FC<AppDashboardProps> = ({ currentView, onNavigate, onLogout, activeSettingsSection }) => {
     const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -391,51 +392,53 @@ const AppDashboard: React.FC<AppDashboardProps> = ({ currentView, onNavigate, on
 
     return (
         <BacktestProvider>
-            <div className="flex h-screen bg-brand-light dark:bg-brand-darkest transition-all duration-300">
-                <Sidebar 
-                    currentView={currentView} 
-                    onNavigate={onNavigate} 
-                    onLogout={onLogout} 
-                    isCollapsed={isSidebarCollapsed} 
-                    onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
-                />
-                <div className="flex-1 flex flex-col overflow-hidden relative z-0">
-                    <header className="flex-shrink-0 bg-white/80 dark:bg-brand-darkest/80 backdrop-blur-md border-b border-gray-200 dark:border-brand-border-dark/50 z-10">
-                        <div className="flex justify-between items-center px-8 h-16">
-                            <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-                                {viewToRender}
-                            </h1>
-                            <div className="flex items-center gap-4">
-                                {showWalletConnect && (
-                                    <div>
-                                        {walletAddress ? (
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-xs font-mono bg-gray-100 dark:bg-brand-dark/50 px-2 py-1 rounded text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
-                                                    {`${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}`}
-                                                </span>
-                                                <Button variant="secondary" onClick={handleDisconnectWallet} className="px-3 py-1 text-xs h-8">Disconnect</Button>
-                                            </div>
-                                        ) : (
-                                            <Button variant="secondary" onClick={handleConnectWallet} className="px-3 py-1 text-xs h-8 shadow-sm bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10">Connect Wallet</Button>
-                                        )}
-                                    </div>
-                                )}
-                                <PanicButton />
-                                <Button variant="outline" onClick={() => setIsAssistantOpen(true)} className="!p-2 rounded-full border-gray-200 dark:border-gray-700 text-gray-500 hover:text-brand-primary">
-                                    <AssistantIcon className="h-5 w-5" />
-                                </Button>
-                                <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
-                                <ThemeToggle />
+            <OrderFlowProvider>
+                <div className="flex h-screen bg-brand-light dark:bg-brand-darkest transition-all duration-300">
+                    <Sidebar 
+                        currentView={currentView} 
+                        onNavigate={onNavigate} 
+                        onLogout={onLogout} 
+                        isCollapsed={isSidebarCollapsed} 
+                        onToggle={() => setIsSidebarCollapsed(!isSidebarCollapsed)} 
+                    />
+                    <div className="flex-1 flex flex-col overflow-hidden relative z-0">
+                        <header className="flex-shrink-0 bg-white/80 dark:bg-brand-darkest/80 backdrop-blur-md border-b border-gray-200 dark:border-brand-border-dark/50 z-10">
+                            <div className="flex justify-between items-center px-8 h-16">
+                                <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
+                                    {viewToRender}
+                                </h1>
+                                <div className="flex items-center gap-4">
+                                    {showWalletConnect && (
+                                        <div>
+                                            {walletAddress ? (
+                                                <div className="flex items-center gap-2">
+                                                    <span className="text-xs font-mono bg-gray-100 dark:bg-brand-dark/50 px-2 py-1 rounded text-gray-600 dark:text-gray-300 border border-gray-200 dark:border-gray-700">
+                                                        {`${walletAddress.substring(0, 6)}...${walletAddress.substring(walletAddress.length - 4)}`}
+                                                    </span>
+                                                    <Button variant="secondary" onClick={handleDisconnectWallet} className="px-3 py-1 text-xs h-8">Disconnect</Button>
+                                                </div>
+                                            ) : (
+                                                <Button variant="secondary" onClick={handleConnectWallet} className="px-3 py-1 text-xs h-8 shadow-sm bg-white dark:bg-white/10 border border-gray-200 dark:border-white/10">Connect Wallet</Button>
+                                            )}
+                                        </div>
+                                    )}
+                                    <PanicButton />
+                                    <Button variant="outline" onClick={() => setIsAssistantOpen(true)} className="!p-2 rounded-full border-gray-200 dark:border-gray-700 text-gray-500 hover:text-brand-primary">
+                                        <AssistantIcon className="h-5 w-5" />
+                                    </Button>
+                                    <div className="w-px h-6 bg-gray-200 dark:bg-gray-700 mx-1"></div>
+                                    <ThemeToggle />
+                                </div>
                             </div>
-                        </div>
-                        {viewToRender === AppView.MARKET && <div className="border-t border-gray-100 dark:border-gray-800"><MarketTicker /></div>}
-                    </header>
-                    <main className="flex-1 overflow-y-auto p-8 relative">
-                        {renderContent()}
-                    </main>
+                            {viewToRender === AppView.MARKET && <div className="border-t border-gray-100 dark:border-gray-800"><MarketTicker /></div>}
+                        </header>
+                        <main className="flex-1 overflow-y-auto p-8 relative">
+                            {renderContent()}
+                        </main>
+                    </div>
+                    <AIAssistantModal isOpen={isAssistantOpen} onClose={() => setIsAssistantOpen(false)} currentView={viewToRender} />
                 </div>
-                <AIAssistantModal isOpen={isAssistantOpen} onClose={() => setIsAssistantOpen(false)} currentView={viewToRender} />
-            </div>
+            </OrderFlowProvider>
         </BacktestProvider>
     );
 };
