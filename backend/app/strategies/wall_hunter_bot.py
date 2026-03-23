@@ -837,24 +837,20 @@ class WallHunterBot:
             await self.engine.execute_trade("sell", sell_amount, current_price)
             self.total_executed_orders += 1
             
-            if self.active_pos.get('tp1_hit') and current_price >= self.active_pos['entry']:
-                 # Calculate the small guaranteed PnL from the profitable break-even
+            if self.active_pos.get('tp1_hit'):
                  pnl_val = (current_price - self.active_pos['entry']) * sell_amount
                  self.total_realized_pnl += pnl_val
-                 if pnl_val > 0:
-                     self.total_wins += 1
-                 else:
-                     self.total_losses += 1
+                 self.total_wins += 1
                  await self._send_telegram(f"🛡️ WallHunter EXIT - Stopped out at Profitable Break-even!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nSecured PnL: ${pnl_val:.2f}")
             else:
-                 # Calculate PnL
                  pnl_val = (current_price - self.active_pos['entry']) * sell_amount
                  self.total_realized_pnl += pnl_val
-                 if pnl_val > 0:
+                 if current_price > self.active_pos['entry']:
                      self.total_wins += 1
+                     await self._send_telegram(f"🛡️ WallHunter EXIT - Stopped out in Profit!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nSecured PnL: ${pnl_val:.2f}")
                  else:
                      self.total_losses += 1
-                 await self._send_telegram(f"🛑 WallHunter EXIT - Stopped Out!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nPnL: ${pnl_val:.2f}")
+                     await self._send_telegram(f"🛑 WallHunter EXIT - Stopped Out!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nPnL: ${pnl_val:.2f}")
             self.active_pos = None
             logger.info("Exit: Stop Loss / TSL Hit")
             
