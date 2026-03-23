@@ -13,6 +13,8 @@ export interface WallHunterStatusData {
     vol_threshold: number;
     absorption_delta?: number;
     is_absorbing?: boolean;
+    total_pnl?: number;
+    total_orders?: number;
 }
 
 export const useWallHunterStatus = (botId: number | null) => {

@@ -1009,6 +1009,20 @@ const OrderFlowHeatmap: React.FC = () => {
                                         ${(botStatus.pnl || 0).toFixed(2)} ({botStatus.pnl_percent > 0 ? '+' : ''}{(botStatus.pnl_percent || 0).toFixed(2)}%)
                                     </span>
                                 </div>
+                                <div className="grid grid-cols-2 gap-2">
+                                    <div className="bg-black/20 p-2 rounded-lg border border-white/5 flex flex-col">
+                                        <span className="text-gray-400 font-mono text-[10px] uppercase">Total PnL</span>
+                                        <span className={`font-mono font-bold ${botStatus.total_pnl && botStatus.total_pnl < 0 ? 'text-red-400' : 'text-green-400'}`}>
+                                            ${(botStatus.total_pnl || 0).toFixed(2)}
+                                        </span>
+                                    </div>
+                                    <div className="bg-black/20 p-2 rounded-lg border border-white/5 flex flex-col">
+                                        <span className="text-gray-400 font-mono text-[10px] uppercase">Orders Executed</span>
+                                        <span className="font-mono font-bold text-blue-400">
+                                            {botStatus.total_orders || 0}
+                                        </span>
+                                    </div>
+                                </div>
                                 {botStatus.position && (
                                     <>
                                         <div className="flex justify-between text-xs font-mono">
