@@ -15,6 +15,8 @@ export interface WallHunterStatusData {
     is_absorbing?: boolean;
     total_pnl?: number;
     total_orders?: number;
+    total_wins?: number;
+    total_losses?: number;
 }
 
 export const useWallHunterStatus = (botId: number | null) => {

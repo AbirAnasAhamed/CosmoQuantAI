@@ -108,6 +108,8 @@ class WallHunterBot:
         self.redis = get_redis_client()
         self.total_executed_orders = 0
         self.total_realized_pnl = 0.0
+        self.total_wins = 0
+        self.total_losses = 0
 
     def update_config(self, new_config: dict):
         """Update strategy parameters dynamically without stopping the bot."""
@@ -311,6 +313,8 @@ class WallHunterBot:
                 "pnl_percent": float(f"{pnl_pct:.2f}"),
                 "total_pnl": float(f"{self.total_realized_pnl:.2f}"),
                 "total_orders": self.total_executed_orders,
+                "total_wins": self.total_wins,
+                "total_losses": self.total_losses,
                 "price": float(f"{current_price:.10f}"),
                 "position": position,
                 "entry_price": float(f"{entry_price:.10f}"),
@@ -740,6 +744,10 @@ class WallHunterBot:
                     pnl_val = (filled_price - self.active_pos['entry']) * sell_amount
                     self.total_realized_pnl += pnl_val
                     self.total_executed_orders += 1
+                    if pnl_val > 0:
+                        self.total_wins += 1
+                    else:
+                        self.total_losses += 1
                     await self._send_telegram(f"🎯 WallHunter EXIT - Limit TP Filled!\nPair: {self.symbol}\nExit Price: {filled_price:.6f}\nPnL: ${pnl_val:.2f}")
                     logger.info(f"✅ Limit TP Order {self.active_pos['limit_order_id']} was filled by exchange at {filled_price}")
                     self.active_pos = None
@@ -832,11 +840,19 @@ class WallHunterBot:
                  # Calculate the small guaranteed PnL from the profitable break-even
                  pnl_val = (current_price - self.active_pos['entry']) * sell_amount
                  self.total_realized_pnl += pnl_val
+                 if pnl_val > 0:
+                     self.total_wins += 1
+                 else:
+                     self.total_losses += 1
                  await self._send_telegram(f"🛡️ WallHunter EXIT - Stopped out at Profitable Break-even!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nSecured PnL: ${pnl_val:.2f}")
             else:
                  # Calculate PnL
                  pnl_val = (current_price - self.active_pos['entry']) * sell_amount
                  self.total_realized_pnl += pnl_val
+                 if pnl_val > 0:
+                     self.total_wins += 1
+                 else:
+                     self.total_losses += 1
                  await self._send_telegram(f"🛑 WallHunter EXIT - Stopped Out!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nPnL: ${pnl_val:.2f}")
             self.active_pos = None
             logger.info("Exit: Stop Loss / TSL Hit")
@@ -857,6 +873,10 @@ class WallHunterBot:
             pnl_val = (current_price - self.active_pos['entry']) * sell_amount
             self.total_realized_pnl += pnl_val
             self.total_executed_orders += 1
+            if pnl_val > 0:
+                self.total_wins += 1
+            else:
+                self.total_losses += 1
             await self._send_telegram(f"🎯 WallHunter EXIT - Final Take Profit Hit!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nPnL: ${pnl_val:.2f}")
             self.active_pos = None
             logger.info("Exit: Take Profit Hit")
@@ -921,6 +941,10 @@ class WallHunterBot:
             # Finalize position and PnL
             pnl_val = (current_price - self.active_pos['entry']) * sell_amount
             self.total_realized_pnl += pnl_val
+            if pnl_val > 0:
+                self.total_wins += 1
+            else:
+                self.total_losses += 1
             await self._send_telegram(f"🚨 WallHunter EMERGENCY EXIT - Market Sell!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nPnL: ${pnl_val:.2f}")
             self.active_pos = None
             

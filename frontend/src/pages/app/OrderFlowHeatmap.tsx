@@ -1022,6 +1022,18 @@ const OrderFlowHeatmap: React.FC = () => {
                                             {botStatus.total_orders || 0}
                                         </span>
                                     </div>
+                                    <div className="bg-black/20 p-2 rounded-lg border border-white/5 flex flex-col">
+                                        <span className="text-gray-400 font-mono text-[10px] uppercase">Wins</span>
+                                        <span className="font-mono font-bold text-green-400">
+                                            {botStatus.total_wins || 0}
+                                        </span>
+                                    </div>
+                                    <div className="bg-black/20 p-2 rounded-lg border border-white/5 flex flex-col">
+                                        <span className="text-gray-400 font-mono text-[10px] uppercase">Losses</span>
+                                        <span className="font-mono font-bold text-red-400">
+                                            {botStatus.total_losses || 0}
+                                        </span>
+                                    </div>
                                 </div>
                                 {botStatus.position && (
                                     <>
