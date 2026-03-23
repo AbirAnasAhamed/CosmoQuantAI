@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import api from '@/services/client';
+import { useMarketStore } from '@/store/marketStore';
 import { useToast } from '@/context/ToastContext';
 import { sentimentService } from '@/services/sentimentService';
 import type { SentimentSource, SentimentLabel, SentimentHeatmapItem } from '@/types';
@@ -26,8 +27,7 @@ export const useSentimentEngine = () => {
 
     // State
     const [aiModel, setAiModel] = useState<'vader' | 'finbert'>('vader');
-    const [activePair, setActivePair] = useState('BTC/USDT'); // Default startup pair
-    const [activeExchange, setActiveExchange] = useState(''); // Default exchange (empty or 'binance')
+    const { globalSymbol: activePair, setGlobalSymbol: setActivePair, globalExchange: activeExchange, setGlobalExchange: setActiveExchange } = useMarketStore();
     const [chartData, setChartData] = useState<SentimentChartPoint[]>([]);
     const [sentimentSources, setSentimentSources] = useState<SentimentSource[]>([]);
     const [fearGreedIndex, setFearGreedIndex] = useState(50);

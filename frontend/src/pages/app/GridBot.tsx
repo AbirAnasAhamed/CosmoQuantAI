@@ -3,6 +3,7 @@ import { Play, Square, Settings, Activity, Zap, Layers, RefreshCw, ChevronDown, 
 import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickSeries, Time } from 'lightweight-charts';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
+import { useMarketStore } from '@/store/marketStore';
 
 // Reusable Components
 const GlassCard: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
@@ -48,9 +49,7 @@ const GridBot = () => {
     const [isRunning, setIsRunning] = useState(false);
 
     // Config
-    const [pair, setPair] = useState('BTC/USDT');
-    const [exchange, setExchange] = useState('binance');
-    const [timeframe, setTimeframe] = useState('1h');
+    const { globalExchange: exchange, setGlobalExchange: setExchange, globalSymbol: pair, setGlobalSymbol: setPair, globalInterval: timeframe, setGlobalInterval: setTimeframe } = useMarketStore();
     const [lowerLimit, setLowerLimit] = useState(90000);
     const [upperLimit, setUpperLimit] = useState(100000);
     const [gridCount, setGridCount] = useState(10);

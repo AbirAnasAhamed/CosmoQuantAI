@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import { useMarketStore } from '@/store/marketStore';
 import { GoogleGenAI } from '@google/genai';
 import { MOCK_ASSETS, SUPPORTED_EXCHANGES } from '@/constants';
 import Button from '@/components/common/Button';
@@ -144,6 +145,7 @@ const ConnectExchangeModal: React.FC<{
 const PortfolioTracker: React.FC = () => {
     const { theme } = useTheme();
     const { showToast } = useToast();
+    const { setGlobalSymbol, setGlobalExchange } = useMarketStore();
     const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
     const [riskTolerance, setRiskTolerance] = useState(65);
     const [scenario, setScenario] = useState<'Normal' | 'Recession' | 'High Inflation' | 'Stagflation'>('Normal');
@@ -481,7 +483,7 @@ const PortfolioTracker: React.FC = () => {
                             {assets.map(asset => {
                                 const change24h = asset.price24h ? (asset.price - asset.price24h) / asset.price24h * 100 : 0;
                                 return (
-                                    <tr key={asset.id} onClick={() => setSelectedAsset(asset)} className={`group cursor-pointer hover:bg-white/10 transition-colors ${selectedAsset?.id === asset.id ? 'bg-white/5' : ''}`}>
+                                    <tr key={asset.id} onClick={() => { setSelectedAsset(asset); setGlobalSymbol(asset.symbol); if(asset.exchange) setGlobalExchange(asset.exchange.toLowerCase()); }} className={`group cursor-pointer hover:bg-white/10 transition-colors ${selectedAsset?.id === asset.id ? 'bg-white/5' : ''}`}>
                                         <td className="p-10">
                                             <div className="flex flex-col">
                                                 <span className="text-xl font-black text-white tracking-widest uppercase">{asset.symbol}</span>

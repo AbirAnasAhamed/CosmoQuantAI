@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 // lightweight-charts ইম্পোর্ট সরিয়ে ফেলা হয়েছে
 import apiClient from '@/services/client';
 import { useTheme } from '@/context/ThemeContext';
+import { useMarketStore } from '@/store/marketStore';
 import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
 import { generateTrade, SUPPORTED_EXCHANGES, ExpandIcon, CollapseIcon, MOCK_CRYPTO_NEWS } from '@/constants';
@@ -322,9 +323,13 @@ const ConnectExchangeModal: React.FC<{
 const Market: React.FC = () => {
     const { theme } = useTheme();
 
-    // চার্ট এবং উইজেট স্টেট
-    const [activePair, setActivePair] = useState('BTC/USDT');
-    const [activeTimeframe, setActiveTimeframe] = useState<Timeframe>('1h');
+    const { 
+        globalSymbol: activePair, setGlobalSymbol: setActivePair, 
+        globalInterval, setGlobalInterval, 
+        globalExchange: activeExchangeId, setGlobalExchange: setActiveExchangeId 
+    } = useMarketStore();
+    const activeTimeframe = globalInterval as Timeframe;
+    const setActiveTimeframe = setGlobalInterval;
     const [lastPrice, setLastPrice] = useState(0);
     const [priceUpdateStatus, setPriceUpdateStatus] = useState<'up' | 'down' | 'none'>('none');
     const [price24hAgo, setPrice24hAgo] = useState(0);
@@ -343,7 +348,6 @@ const Market: React.FC = () => {
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [exchanges, setExchanges] = useState<Exchange[]>(SUPPORTED_EXCHANGES);
-    const [activeExchangeId, setActiveExchangeId] = useState('binance');
 
     const [isChartFullScreen, setIsChartFullScreen] = useState(false);
     const [widgetKey, setWidgetKey] = useState(Date.now());

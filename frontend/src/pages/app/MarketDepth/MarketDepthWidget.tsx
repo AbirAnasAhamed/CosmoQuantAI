@@ -4,6 +4,7 @@ import Button from '@/components/common/Button';
 import { useTheme } from '@/context/ThemeContext';
 import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickData, IPriceLine, CandlestickSeries, Time } from 'lightweight-charts';
 import { Combobox, Transition } from '@headlessui/react';
+import { useMarketStore } from '@/store/marketStore';
 
 interface OrderBucket {
     price: number;
@@ -107,9 +108,7 @@ const MarketDepthWidget: React.FC = () => {
     const API_BASE = 'http://localhost:8000/api/v1/market-depth';
 
     // State - Selection
-    const [selectedExchange, setSelectedExchange] = useState('binance');
-    const [selectedSymbol, setSelectedSymbol] = useState('BTC/USDT');
-    const [selectedTimeframe, setSelectedTimeframe] = useState('1h');
+    const { globalExchange: selectedExchange, setGlobalExchange: setSelectedExchange, globalSymbol: selectedSymbol, setGlobalSymbol: setSelectedSymbol, globalInterval: selectedTimeframe, setGlobalInterval: setSelectedTimeframe } = useMarketStore();
     const [bucketSize, setBucketSize] = useState(50);
 
     // State - Data Lists

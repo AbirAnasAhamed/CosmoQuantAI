@@ -3,6 +3,7 @@ import { Play, Square, Settings, Activity, RefreshCw } from 'lucide-react';
 import { createChart, ColorType, IChartApi, ISeriesApi, CandlestickSeries, Time } from 'lightweight-charts';
 import toast from 'react-hot-toast';
 import { leadLagService, LeadLagBot as BotConfig, LeadLagTradeLog } from '../../services/leadLagService';
+import { useMarketStore } from '@/store/marketStore';
 
 // Reusable Components
 const GlassCard: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
@@ -16,11 +17,10 @@ const LeadLagBot = () => {
     const [isRunning, setIsRunning] = useState(false);
 
     // Form States
-    const [targetPair, setTargetPair] = useState('SOL/USDT');
+    const { globalSymbol: targetPair, setGlobalSymbol: setTargetPair, globalInterval: timeframe, setGlobalInterval: setTimeframe } = useMarketStore();
     const [tradeSize, setTradeSize] = useState(100);
     const [stopLoss, setStopLoss] = useState(5.0);
     const [takeProfit, setTakeProfit] = useState(10.0);
-    const [timeframe, setTimeframe] = useState('15m');
     const [indicators, setIndicators] = useState('EMA Crossover');
     const [logs, setLogs] = useState<LeadLagTradeLog[]>([]);
 

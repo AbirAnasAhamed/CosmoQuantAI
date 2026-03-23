@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useMarketStore } from '@/store/marketStore';
 import Button from '@/components/common/Button';
 import type { ActiveBot, BacktestResult } from '@/types';
 import { useToast } from '@/context/ToastContext';
@@ -16,6 +17,7 @@ import DEXExecutionWidget from '@/components/features/bots/DEXExecutionWidget';
 
 const BotLab: React.FC = () => {
     const [isCreating, setIsCreating] = useState(false);
+    const { globalSymbol } = useMarketStore();
     const [isVisualBuilderOpen, setIsVisualBuilderOpen] = useState(false);
     const [bots, setBots] = useState<ActiveBot[]>([]);
     const { showToast } = useToast();
@@ -145,7 +147,7 @@ const BotLab: React.FC = () => {
         try {
             const botPayload = {
                 name: name,
-                market: 'BTC/USDT',
+                market: globalSymbol || 'BTC/USDT',
                 strategy: 'Custom Visual Protocol',
                 pnl: 0,
                 pnlPercent: 0,

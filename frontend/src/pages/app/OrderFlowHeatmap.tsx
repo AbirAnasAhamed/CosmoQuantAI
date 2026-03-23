@@ -23,7 +23,9 @@ import { WallHunterModal } from '../../components/features/market/WallHunterModa
 import { botService } from '../../services/botService';
 import { useWallHunterStatus } from '@/hooks/useWallHunterStatus';
 import { toast } from 'react-hot-toast';
-import { useOrderFlowContext } from '@/context/OrderFlowContext';
+import { useMarketStore } from '@/store/marketStore';
+import { useBotStore } from '@/store/botStore';
+import { useUIStore } from '@/store/uiStore';
 
 // Helper to convert interval string to ms
 const parseIntervalToMs = (interval: string): number => {
@@ -879,15 +881,10 @@ const formatDisplayPrice = (price: number | undefined | null) => {
 
 // Main Page Component
 const OrderFlowHeatmap: React.FC = () => {
-    const {
-        activeTab, setActiveTab,
-        activeWallHunterId, setActiveWallHunterId,
-        exchange, setExchange,
-        symbol, setSymbol,
-        interval, setInterval,
-        showFootprint, setShowFootprint,
-        indicatorSettings, setIndicatorSettings
-    } = useOrderFlowContext();
+    const { globalExchange: exchange, setGlobalExchange: setExchange, globalSymbol: symbol, setGlobalSymbol: setSymbol, globalInterval: interval, setGlobalInterval: setInterval } = useMarketStore();
+    const { activeWallHunterId, setActiveWallHunterId, indicatorSettings, setIndicatorSettings } = useBotStore();
+    const { orderFlowActiveTab: activeTab, setOrderFlowActiveTab: setActiveTab, orderFlowShowFootprint: showFootprint, setOrderFlowShowFootprint: setShowFootprint } = useUIStore();
+    
     const [isWallHunterOpen, setIsWallHunterOpen] = useState(false);
     const [isEmergencySelling, setIsEmergencySelling] = useState(false); // NEW STATE
     const [isFullscreen, setIsFullscreen] = useState(false); // NEW STATE

@@ -3,10 +3,11 @@ import { Clock, TrendingDown, CheckCircle, Layers, AlertOctagon, Activity, Trend
 import { Trade } from '@/types';
 import apiClient from '../../../services/client'; // ✅ Import API Client
 import { toast } from 'react-hot-toast'; // ✅ Import Toast if not already there, assuming standard setup
+import { useMarketStore } from '@/store/marketStore';
 
 export const ExecutionEngine = () => {
     // ✅ New State for Real Trading
-    const [selectedExchange, setSelectedExchange] = useState('binance');
+    const { globalExchange: selectedExchange, setGlobalExchange: setSelectedExchange, globalSymbol: symbol } = useMarketStore();
 
     const [isRunning, setIsRunning] = useState(false);
     const [expandedTradeId, setExpandedTradeId] = useState<string | null>(null);
@@ -331,7 +332,7 @@ export const ExecutionEngine = () => {
         // --- REAL TRADING EXECUTION ---
         try {
             const payload = {
-                symbol: 'BTC/USDT', // Hardcoded for now based on UI context, or use state if available
+                symbol: symbol, // Now dynamically driven by globalSymbol
                 side: side.toLowerCase(),
                 type: orderType.toLowerCase(),
                 amount: manualAmount,
@@ -349,7 +350,7 @@ export const ExecutionEngine = () => {
             // Add to local blotter for immediate feedback
             const newTrade: Trade = {
                 id: data.id || `M-${Math.floor(1000 + Math.random() * 9000)}`,
-                symbol: data.symbol || 'BTC/USDT',
+                symbol: data.symbol || symbol,
                 side: side,
                 amount: parseFloat(data.amount) || manualAmount,
                 price: parseFloat(data.price) || manualPrice,

@@ -8,6 +8,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Play, Square, Settings, RefreshCw, Terminal, Activity, Zap, Key, AlertTriangle, TrendingUp, Monitor, Check, ChevronsUpDown } from 'lucide-react';
 import { Combobox, ComboboxInput, ComboboxButton, ComboboxOptions, ComboboxOption } from '@headlessui/react';
 import api from '../../services/api';
+import { useMarketStore } from '@/store/marketStore';
 
 interface LogEntry {
     id: number;
@@ -42,13 +43,11 @@ const ArbitrageBot = () => {
     const [availablePairs, setAvailablePairs] = useState<string[]>(['BTC/USDT', 'ETH/USDT']); // Default fallback
 
     // Selection State
-    const [exchangeA, setExchangeA] = useState('');
+    const { globalExchange: exchangeA, setGlobalExchange: setExchangeA, globalSymbol: pair, setGlobalSymbol: setPair } = useMarketStore();
     const [apiKeyA, setApiKeyA] = useState('');
 
     const [exchangeB, setExchangeB] = useState('');
     const [apiKeyB, setApiKeyB] = useState('');
-
-    const [pair, setPair] = useState('BTC/USDT');
     const [mode, setMode] = useState<'auto' | 'manual'>('manual');
     const [isPaperTrading, setIsPaperTrading] = useState(true);
     const [autoBalance, setAutoBalance] = useState(false);

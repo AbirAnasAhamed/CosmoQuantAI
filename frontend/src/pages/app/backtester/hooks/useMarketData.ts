@@ -1,13 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 import { useToast } from '@/context/ToastContext';
 import { getExchangeList, getExchangeMarkets, syncMarketData } from '@/services/backtester';
+import { useMarketStore } from '@/store/marketStore';
 
 export const useMarketData = () => {
     const { showToast } = useToast();
     const [exchanges, setExchanges] = useState<string[]>([]);
     const [markets, setMarkets] = useState<string[]>([]);
-    const [selectedExchange, setSelectedExchange] = useState('binance');
-    const [symbol, setSymbol] = useState('');
+    const { globalExchange: selectedExchange, setGlobalExchange: setSelectedExchange, globalSymbol: symbol, setGlobalSymbol: setSymbol } = useMarketStore();
     const [isLoadingMarkets, setIsLoadingMarkets] = useState(false);
 
     // Sync States

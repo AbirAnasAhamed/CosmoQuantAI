@@ -9,6 +9,7 @@ import {
 } from '@/services/backtester';
 import { useBacktestSocket } from '@/hooks/useBacktestSocket';
 import { getExchangeMarkets } from '@/services/backtester';
+import { useMarketStore } from '@/store/marketStore';
 
 export const useDownloadData = () => {
     const { showToast } = useToast();
@@ -19,10 +20,8 @@ export const useDownloadData = () => {
 
     // Form State
     const [downloadType, setDownloadType] = useState<'candles' | 'trades' | 'convert'>('candles'); // ✅ Added 'convert'
-    const [dlExchange, setDlExchange] = useState('binance');
+    const { globalExchange: dlExchange, setGlobalExchange: setDlExchange, globalSymbol: dlSymbol, setGlobalSymbol: setDlSymbol, globalInterval: dlTimeframe, setGlobalInterval: setDlTimeframe } = useMarketStore();
     const [dlMarkets, setDlMarkets] = useState<string[]>([]);
-    const [dlSymbol, setDlSymbol] = useState('BTC/USDT');
-    const [dlTimeframe, setDlTimeframe] = useState('1h');
     const [dlStartDate, setDlStartDate] = useState('2024-01-01');
     const [dlEndDate, setDlEndDate] = useState('');
 

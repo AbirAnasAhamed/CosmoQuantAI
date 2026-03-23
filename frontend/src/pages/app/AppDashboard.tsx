@@ -294,7 +294,6 @@ const Sidebar: React.FC<{
 const MODAL_VIEWS: AppView[] = [];
 
 import { BacktestProvider } from '@/context/BacktestContext';
-import { OrderFlowProvider } from '@/context/OrderFlowContext';
 
 const AppDashboard: React.FC<AppDashboardProps> = ({ currentView, onNavigate, onLogout, activeSettingsSection }) => {
     const [walletAddress, setWalletAddress] = useState<string | null>(null);
@@ -392,9 +391,8 @@ const AppDashboard: React.FC<AppDashboardProps> = ({ currentView, onNavigate, on
 
     return (
         <BacktestProvider>
-            <OrderFlowProvider>
-                <div className="flex h-screen bg-brand-light dark:bg-brand-darkest transition-all duration-300">
-                    <Sidebar 
+            <div className="flex h-screen bg-brand-light dark:bg-brand-darkest transition-all duration-300">
+                <Sidebar 
                         currentView={currentView} 
                         onNavigate={onNavigate} 
                         onLogout={onLogout} 
@@ -437,8 +435,7 @@ const AppDashboard: React.FC<AppDashboardProps> = ({ currentView, onNavigate, on
                         </main>
                     </div>
                     <AIAssistantModal isOpen={isAssistantOpen} onClose={() => setIsAssistantOpen(false)} currentView={viewToRender} />
-                </div>
-            </OrderFlowProvider>
+            </div>
         </BacktestProvider>
     );
 };

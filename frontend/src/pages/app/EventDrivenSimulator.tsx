@@ -7,10 +7,11 @@ import EquityCurve from '@/components/features/simulation/EquityCurve';
 import OrderBookWidget from '@/components/features/simulation/OrderBookWidget';
 import LogConsole, { LogMessage } from '@/components/features/simulation/LogConsole';
 import { CandlestickData, Time, SeriesMarker } from 'lightweight-charts';
+import { useMarketStore } from '@/store/marketStore';
 
 const EventDrivenSimulator: React.FC = () => {
     const [isRunning, setIsRunning] = useState(false);
-    const [symbol, setSymbol] = useState('BTC/USDT');
+    const { globalSymbol: symbol, setGlobalSymbol: setSymbol } = useMarketStore();
     const [logs, setLogs] = useState<LogMessage[]>([]);
     const [marketData, setMarketData] = useState<CandlestickData[]>([]);
     const [equityData, setEquityData] = useState<{ time: string; value: number; timestamp: number }[]>([]);

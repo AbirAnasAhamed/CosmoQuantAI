@@ -8,6 +8,7 @@ import ComboBox from '@/components/common/ComboBox';
 import { useLiquidationWebSocket, LiquidationEvent, CldData, AggregatedStats } from '../../hooks/useLiquidationWebSocket';
 import { useCCXTMarkets } from '../../hooks/useCCXTMarkets';
 import LiquidationBubbleChart from '@/components/features/trading/LiquidationBubbleChart';
+import { useUIStore } from '@/store/uiStore';
 
 // --- ICONS ---
 
@@ -92,16 +93,21 @@ const LiquidationMap: React.FC = () => {
 
     // Resize & Layout State
     const [isResizing, setIsResizing] = useState(false);
-    const [chartWidth, setChartWidth] = useState(70);
-    const [rightPanelTab, setRightPanelTab] = useState<'feed' | 'cld'>('feed');
+    const {
+        liquidationChartWidth: chartWidth,
+        setLiquidationChartWidth: setChartWidth,
+        liquidationRightPanelTab: rightPanelTab,
+        setLiquidationRightPanelTab: setRightPanelTab,
+        liquidationHighlightedLevels: highlightedLevels,
+        setLiquidationHighlightedLevels: setHighlightedLevels,
+        liquidationMinThreshold: minLiquidationThreshold,
+        setLiquidationMinThreshold: setMinLiquidationThreshold,
+        liquidationChartView: chartView,
+        setLiquidationChartView: setChartView
+    } = useUIStore();
     const containerRef = useRef<HTMLDivElement>(null);
 
-    const [highlightedLevels, setHighlightedLevels] = useState<number[]>([]);
     const [highlightLevelInput, setHighlightLevelInput] = useState('');
-    const [minLiquidationThreshold, setMinLiquidationThreshold] = useState(10000);
-
-    // View Switcher State
-    const [chartView, setChartView] = useState<'price' | 'bubbles'>('price');
 
     const toggleFullScreen = () => { setIsChartFullScreen(prev => !prev); setWidgetKey(Date.now()); };
     useEffect(() => { document.body.classList.toggle('body-no-scroll', isChartFullScreen); }, [isChartFullScreen]);
@@ -155,10 +161,10 @@ const LiquidationMap: React.FC = () => {
     // Drawing Lines
     const handleAddHighlight = useCallback((level: number) => {
         if (!isNaN(level) && !highlightedLevels.includes(level)) {
-            setHighlightedLevels(prev => [...prev, level].sort((a, b) => b - a));
+            setHighlightedLevels([...highlightedLevels, level].sort((a, b) => b - a));
         }
-    }, [highlightedLevels]);
-    const handleRemoveHighlight = (level: number) => { setHighlightedLevels(prev => prev.filter(l => l !== level)); };
+    }, [highlightedLevels, setHighlightedLevels]);
+    const handleRemoveHighlight = (level: number) => { setHighlightedLevels(highlightedLevels.filter(l => l !== level)); };
     const handleHighlightSubmit = (e: FormEvent) => {
         e.preventDefault();
         const level = parseFloat(highlightLevelInput);
