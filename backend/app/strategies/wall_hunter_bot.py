@@ -803,7 +803,8 @@ class WallHunterBot:
                 self.active_pos['sl'] = max(self.active_pos['sl'], profitable_be)
                 self.active_pos['tp1_hit'] = True
                 
-                pnl_val = (self.active_pos['tp1'] if self.sell_order_type == 'limit' else current_price - self.active_pos['entry']) * sell_amount
+                exit_price = self.active_pos['tp1'] if self.sell_order_type == 'limit' else current_price
+                pnl_val = (exit_price - self.active_pos['entry']) * sell_amount
                 self.total_realized_pnl += pnl_val
                 await self._send_telegram(f"🔓 Partial TP Hit!\nPair: {self.symbol}\nLocked Profit: ${pnl_val:.2f}\n✅ Stop-Loss is now Risk-Free at Entry + {(self.target_spread * 0.1):.6f}!")
             else:
