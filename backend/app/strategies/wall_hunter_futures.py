@@ -39,6 +39,10 @@ class WallHunterFuturesStrategy:
         
         # --- NEW FEATURES: Partial TP & Triggers ---
         self.partial_tp_pct = self.config.get("partial_tp_pct", 50.0)
+        self.partial_tp_trigger_pct = self.config.get("partial_tp_trigger_pct", 0.0)
+        self.sl_breakeven_trigger_pct = self.config.get("sl_breakeven_trigger_pct", 0.0)
+        self.sl_breakeven_target_pct = self.config.get("sl_breakeven_target_pct", 0.0)
+        
         self.vpvr_enabled = self.config.get("vpvr_enabled", False)
         self.vpvr_tolerance = self.config.get("vpvr_tolerance", 0.2)
         self.top_hvns = []
@@ -464,7 +468,8 @@ class WallHunterFuturesStrategy:
                         "amount": base_amount,
                         "sl": actual_entry * (1 - (self.initial_risk_pct / 100)),
                         "tp": actual_entry + self.target_spread,
-                        "side": "long"
+                        "side": "long",
+                        "breakeven_hit": False
                     }
                 else: # SHORT
                     self.active_pos = {
@@ -472,7 +477,8 @@ class WallHunterFuturesStrategy:
                         "amount": base_amount,
                         "sl": actual_entry * (1 + (self.initial_risk_pct / 100)),
                         "tp": actual_entry - self.target_spread,
-                        "side": "short"
+                        "side": "short",
+                        "breakeven_hit": False
                     }
                 
                 self.extreme_price = actual_entry
@@ -485,22 +491,28 @@ class WallHunterFuturesStrategy:
                         "tp": tp_price,
                         "tp1": tp_price, 
                         "tp1_hit": True, # No partial for micro-scalp
+                        "breakeven_hit": False,
                         "limit_order_id": None
                     })
                 else:
-                    tp_dist = abs(self.active_pos['tp'] - actual_entry)
-                    if side == "buy": # LONG
-                        self.active_pos.update({
-                            "tp1": actual_entry + (tp_dist * 0.5),
-                            "tp1_hit": False,
-                            "limit_order_id": None
-                        })
-                    else: # SHORT
-                        self.active_pos.update({
-                            "tp1": actual_entry - (tp_dist * 0.5),
-                            "tp1_hit": False,
-                            "limit_order_id": None
-                        })
+                    if getattr(self, 'partial_tp_trigger_pct', 0.0) > 0:
+                        if side == "buy": # LONG
+                            tp1_price = actual_entry * (1 + (self.partial_tp_trigger_pct / 100))
+                        else: # SHORT
+                            tp1_price = actual_entry * (1 - (self.partial_tp_trigger_pct / 100))
+                    else:
+                        tp_dist = abs(self.active_pos['tp'] - actual_entry)
+                        if side == "buy": # LONG
+                            tp1_price = actual_entry + (tp_dist * 0.5)
+                        else: # SHORT
+                            tp1_price = actual_entry - (tp_dist * 0.5)
+
+                    self.active_pos.update({
+                        "tp1": tp1_price,
+                        "tp1_hit": False,
+                        "breakeven_hit": False,
+                        "limit_order_id": None
+                    })
 
                 # --- PLACE LIMIT ORDER ---
                 if self.sell_order_type == 'limit':
@@ -546,21 +558,45 @@ class WallHunterFuturesStrategy:
         if side == "long":
             if current_price > self.extreme_price:
                 self.extreme_price = current_price
-                new_sl = self.extreme_price * (1 - (self.tsl_pct / 100))
-                # ATR Support
-                if self.atr_sl_enabled and self.current_atr > 0:
-                    atr_sl = self.extreme_price - (self.current_atr * self.atr_multiplier)
-                    new_sl = max(new_sl, atr_sl)
-                self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
+                if getattr(self, 'tsl_pct', 0.0) > 0:
+                    new_sl = self.extreme_price * (1 - (self.tsl_pct / 100))
+                    # ATR Support
+                    if self.atr_sl_enabled and self.current_atr > 0:
+                        atr_sl = self.extreme_price - (self.current_atr * self.atr_multiplier)
+                        new_sl = max(new_sl, atr_sl)
+                    self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
         else: # short
             if current_price < self.extreme_price or self.extreme_price == 0:
                 self.extreme_price = current_price
-                new_sl = self.extreme_price * (1 + (self.tsl_pct / 100))
-                # ATR Support
-                if self.atr_sl_enabled and self.current_atr > 0:
-                    atr_sl = self.extreme_price + (self.current_atr * self.atr_multiplier)
-                    new_sl = min(new_sl, atr_sl)
-                self.active_pos['sl'] = min(self.active_pos['sl'], new_sl)
+                if getattr(self, 'tsl_pct', 0.0) > 0:
+                    new_sl = self.extreme_price * (1 + (self.tsl_pct / 100))
+                    # ATR Support
+                    if self.atr_sl_enabled and self.current_atr > 0:
+                        atr_sl = self.extreme_price + (self.current_atr * self.atr_multiplier)
+                        new_sl = min(new_sl, atr_sl)
+                    self.active_pos['sl'] = min(self.active_pos['sl'], new_sl)
+
+        # --- NEW: Independent Breakeven SL Logic ---
+        if getattr(self, 'sl_breakeven_trigger_pct', 0.0) > 0 and not self.active_pos.get('breakeven_hit'):
+            entry = self.active_pos['entry']
+            if side == "long":
+                trigger_price = entry * (1 + (self.sl_breakeven_trigger_pct / 100))
+                if current_price >= trigger_price:
+                    new_breakeven_sl = entry * (1 + (self.sl_breakeven_target_pct / 100))
+                    if new_breakeven_sl > self.active_pos['sl']:
+                        self.active_pos['sl'] = new_breakeven_sl
+                        self.active_pos['breakeven_hit'] = True
+                        logger.info(f"🛡️ Set LONG SL to Risk-Free Breakeven at {new_breakeven_sl:.6f}")
+                        asyncio.create_task(self._send_telegram(f"🛡️ Stop-Loss moved to Risk-Free!\nPair: {self.symbol}\nNew SL: {new_breakeven_sl:.6f}"))
+            else: # short
+                trigger_price = entry * (1 - (self.sl_breakeven_trigger_pct / 100))
+                if current_price <= trigger_price:
+                    new_breakeven_sl = entry * (1 - (self.sl_breakeven_target_pct / 100))
+                    if new_breakeven_sl < self.active_pos['sl']:
+                        self.active_pos['sl'] = new_breakeven_sl
+                        self.active_pos['breakeven_hit'] = True
+                        logger.info(f"🛡️ Set SHORT SL to Risk-Free Breakeven at {new_breakeven_sl:.6f}")
+                        asyncio.create_task(self._send_telegram(f"🛡️ Stop-Loss moved to Risk-Free!\nPair: {self.symbol}\nNew SL: {new_breakeven_sl:.6f}"))
 
         # TP / SL চেক
         should_exit = False
@@ -634,13 +670,6 @@ class WallHunterFuturesStrategy:
         if sell_amount < min_amount:
             logger.warning(f"Partial TP amount {sell_amount_raw} is less than minimum {min_amount}. Skipping Partial TP.")
             self.active_pos['tp1_hit'] = True
-            
-            # Move SL to Break-Even anyway since we hit TP1 target
-            buffer = abs(self.active_pos['tp'] - entry) * 0.1
-            if side == "long":
-                self.active_pos['sl'] = max(self.active_pos['sl'], entry + buffer)
-            else:
-                self.active_pos['sl'] = min(self.active_pos['sl'], entry - buffer)
             return
             
         logger.info(f"🔓 [PARTIAL TP] Closing {self.partial_tp_pct}% ({sell_amount} contracts) of {side.upper()} at {current_price}")
@@ -671,16 +700,9 @@ class WallHunterFuturesStrategy:
         
         if res:
             self.active_pos['amount'] -= sell_amount
-            # Move SL to Break-Even (Entry + tiny buffer)
-            buffer = abs(self.active_pos['tp'] - entry) * 0.1
-            if side == "long":
-                self.active_pos['sl'] = max(self.active_pos['sl'], entry + buffer)
-            else:
-                self.active_pos['sl'] = min(self.active_pos['sl'], entry - buffer)
-            
             self.active_pos['tp1_hit'] = True
-            logger.info(f"✅ Partial TP Completed. Remaining: {self.active_pos['amount']}, New SL: {self.active_pos['sl']}")
-            await self._send_telegram(f"🔓 *Partial TP1 Hit!* ({self.partial_tp_pct}%)\nRemaining amount closed at Break-Even SL.")
+            logger.info(f"✅ Partial TP Completed. Remaining: {self.active_pos['amount']}, SL: {self.active_pos['sl']}")
+            await self._send_telegram(f"🔓 *Partial TP1 Hit!* ({self.partial_tp_pct}%)\nRemaining amount running.")
         else:
             logger.warning("❌ Partial TP execution failed. Marking tp1_hit as True to prevent infinite loop spam, position size unchanged.")
             self.active_pos['tp1_hit'] = True
@@ -779,6 +801,25 @@ class WallHunterFuturesStrategy:
         logger.info(f"🔄 [FuturesHunter {self.bot_id}] Live config update: {new_config}")
         
         updates = []
+        if "partial_tp_pct" in new_config and new_config["partial_tp_pct"] != getattr(self, "partial_tp_pct", 50.0):
+            updates.append(f"Partial TP: {getattr(self, 'partial_tp_pct', 50.0)}% -> {new_config['partial_tp_pct']}%")
+            self.partial_tp_pct = new_config.get("partial_tp_pct")
+            
+        if "partial_tp_trigger_pct" in new_config and new_config["partial_tp_trigger_pct"] != getattr(self, "partial_tp_trigger_pct", 0.0):
+            old_trigger = getattr(self, "partial_tp_trigger_pct", 0.0)
+            updates.append(f"Partial TP Trigger: {old_trigger}% -> {new_config['partial_tp_trigger_pct']}%")
+            self.partial_tp_trigger_pct = new_config.get("partial_tp_trigger_pct")
+            
+        if "sl_breakeven_trigger_pct" in new_config and new_config["sl_breakeven_trigger_pct"] != getattr(self, "sl_breakeven_trigger_pct", 0.0):
+            old_trigger = getattr(self, "sl_breakeven_trigger_pct", 0.0)
+            updates.append(f"Breakeven Trigger: {old_trigger}% -> {new_config['sl_breakeven_trigger_pct']}%")
+            self.sl_breakeven_trigger_pct = new_config.get("sl_breakeven_trigger_pct")
+            
+        if "sl_breakeven_target_pct" in new_config and new_config["sl_breakeven_target_pct"] != getattr(self, "sl_breakeven_target_pct", 0.0):
+            old_target = getattr(self, "sl_breakeven_target_pct", 0.0)
+            updates.append(f"Breakeven Target: {old_target}% -> {new_config['sl_breakeven_target_pct']}%")
+            self.sl_breakeven_target_pct = new_config.get("sl_breakeven_target_pct")
+            
         if "vol_threshold" in new_config:
             updates.append(f"Vol Threshold: {self.vol_threshold} -> {new_config['vol_threshold']}")
             self.vol_threshold = new_config["vol_threshold"]

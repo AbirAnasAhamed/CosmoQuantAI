@@ -38,6 +38,9 @@ class WallHunterBot:
         
         # --- NEW FEATURES: Partial TP & Break-Even SL ---
         self.partial_tp_pct = config.get("partial_tp_pct", 50.0) # TP1 এ কত পার্সেন্ট সেল করবে
+        self.partial_tp_trigger_pct = config.get("partial_tp_trigger_pct", 0.0)
+        self.sl_breakeven_trigger_pct = config.get("sl_breakeven_trigger_pct", 0.0)
+        self.sl_breakeven_target_pct = config.get("sl_breakeven_target_pct", 0.0)
         
         # --- NEW FEATURES: VPVR Confirmation ---
         self.vpvr_enabled = config.get("vpvr_enabled", False)
@@ -150,6 +153,16 @@ class WallHunterBot:
         if "partial_tp_pct" in new_config and new_config["partial_tp_pct"] != self.partial_tp_pct:
             updates.append(f"Partial TP: {self.partial_tp_pct}% -> {new_config['partial_tp_pct']}%")
             self.partial_tp_pct = new_config.get("partial_tp_pct")
+            
+        if "sl_breakeven_trigger_pct" in new_config and new_config["sl_breakeven_trigger_pct"] != getattr(self, "sl_breakeven_trigger_pct", 0.0):
+            old_trigger = getattr(self, "sl_breakeven_trigger_pct", 0.0)
+            updates.append(f"Breakeven Trigger: {old_trigger}% -> {new_config['sl_breakeven_trigger_pct']}%")
+            self.sl_breakeven_trigger_pct = new_config.get("sl_breakeven_trigger_pct")
+            
+        if "sl_breakeven_target_pct" in new_config and new_config["sl_breakeven_target_pct"] != getattr(self, "sl_breakeven_target_pct", 0.0):
+            old_target = getattr(self, "sl_breakeven_target_pct", 0.0)
+            updates.append(f"Breakeven Target: {old_target}% -> {new_config['sl_breakeven_target_pct']}%")
+            self.sl_breakeven_target_pct = new_config.get("sl_breakeven_target_pct")
             
         if "vpvr_enabled" in new_config and new_config["vpvr_enabled"] != self.vpvr_enabled:
             status = "Enabled" if new_config["vpvr_enabled"] else "Disabled"
@@ -639,6 +652,7 @@ class WallHunterBot:
                     "tp1": tp_price,
                     "tp": tp_price,
                     "tp1_hit": True, # Ignore partial TP
+                    "breakeven_hit": False,
                     "limit_order_id": None,
                     "micro_scalp": True
                 }
@@ -652,13 +666,16 @@ class WallHunterBot:
                 await self._send_telegram(f"⚡ Micro-Scalp Entered!\nPair: {self.symbol}\nEntry: {actual_entry:.6f}\nTick Target: {tp_price:.6f}\nSL: {self.active_pos['sl']:.6f}")
                 
             else:
+                tp1_price = actual_entry * (1 + (getattr(self, 'partial_tp_trigger_pct', 0.0) / 100)) if getattr(self, 'partial_tp_trigger_pct', 0.0) > 0 else actual_entry + (self.target_spread * 0.5)
+
                 self.active_pos = {
                     "entry": actual_entry,
                     "amount": base_amount,
                     "sl": actual_entry * (1 - (self.initial_risk_pct / 100)),
-                    "tp1": actual_entry + (self.target_spread * 0.5), # TP1 at 50% target
+                    "tp1": tp1_price,
                     "tp": actual_entry + self.target_spread,          # Final TP
                     "tp1_hit": False,
+                    "breakeven_hit": False,
                     "limit_order_id": None,
                     "micro_scalp": False
                 }
@@ -764,10 +781,22 @@ class WallHunterBot:
                 new_sl = self.highest_price * (1 - (self.tsl_pct / 100))
             self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
 
-        # --- NEW: Partial TP & Break-Even SL Logic ---
+        # --- NEW: Independent Breakeven SL Logic ---
+        if getattr(self, 'sl_breakeven_trigger_pct', 0.0) > 0 and not self.active_pos.get('breakeven_hit'):
+            trigger_price = self.active_pos['entry'] * (1 + (self.sl_breakeven_trigger_pct / 100))
+            if current_price >= trigger_price:
+                new_breakeven_sl = self.active_pos['entry'] * (1 + (self.sl_breakeven_target_pct / 100))
+                # Only move if the new breakeven SL is higher than current SL AND current max price
+                if new_breakeven_sl > self.active_pos['sl']:
+                    self.active_pos['sl'] = new_breakeven_sl
+                    self.active_pos['breakeven_hit'] = True
+                    logger.info(f"🛡️ Set SL to Risk-Free Breakeven at {new_breakeven_sl:.6f}")
+                    asyncio.create_task(self._send_telegram(f"🛡️ Stop-Loss moved to Risk-Free!\nPair: {self.symbol}\nNew SL: {new_breakeven_sl:.6f}"))
+
+        # --- Partial TP Logic ---
         # Only execute TP1 logic if partial_tp_pct > 0
         if not self.active_pos.get('micro_scalp') and self.partial_tp_pct > 0 and not self.active_pos.get('tp1_hit') and current_price >= self.active_pos['tp1']:
-            logger.info("🟢 TP1 Hit! Executing Partial Close & Moving SL to Break-Even.")
+            logger.info("🟢 TP1 Hit! Executing Partial Close.")
             sell_amount_raw = self.active_pos['amount'] * (self.partial_tp_pct / 100)
             sell_amount = float(self.engine.exchange.amount_to_precision(self.symbol, sell_amount_raw))
             
@@ -797,16 +826,12 @@ class WallHunterBot:
             if res:
                 remaining_raw = self.active_pos['amount'] - sell_amount
                 self.active_pos['amount'] = float(self.engine.exchange.amount_to_precision(self.symbol, remaining_raw))
-                # Move SL to Entry + a small fraction of the target spread to ensure it's profitable but below TP1
-                # We use 10% of the target spread as the profitable break-even distance
-                profitable_be = self.active_pos['entry'] + (self.target_spread * 0.1)
-                self.active_pos['sl'] = max(self.active_pos['sl'], profitable_be)
                 self.active_pos['tp1_hit'] = True
                 
                 exit_price = self.active_pos['tp1'] if self.sell_order_type == 'limit' else current_price
                 pnl_val = (exit_price - self.active_pos['entry']) * sell_amount
                 self.total_realized_pnl += pnl_val
-                await self._send_telegram(f"🔓 Partial TP Hit!\nPair: {self.symbol}\nLocked Profit: ${pnl_val:.2f}\n✅ Stop-Loss is now Risk-Free at Entry + {(self.target_spread * 0.1):.6f}!")
+                await self._send_telegram(f"🔓 Partial TP Hit!\nPair: {self.symbol}\nLocked Profit: ${pnl_val:.2f}")
             else:
                 logger.warning("❌ Partial TP execution failed on exchange. Skipping partial TP size reduction to stay in sync with exchange.")
                 self.active_pos['tp1_hit'] = True

@@ -24,12 +24,17 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
         vol: 500000,
         spread: 0.0002,
         risk: 0.5,
+        enableTsl: true,
         tsl: 0.2,
         amount: 100,
         sellOrderType: 'market',
         spoofTime: 3.0,
         enablePartialTp: true,
         partialTp: 50.0,
+        partialTpTriggerPct: 0.0,
+        enableBreakevenSl: false,
+        breakevenTriggerPct: 0.5,
+        breakevenTargetPct: 0.1,
         vpvrEnabled: false,
         vpvrTolerance: 0.2,
         atrEnabled: false,
@@ -111,12 +116,17 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                             vol: c.vol_threshold || 500000,
                             spread: c.target_spread || 0.0002,
                             risk: c.risk_pct || 0.5,
-                            tsl: c.trailing_stop || 0.2,
+                            enableTsl: c.trailing_stop !== undefined ? c.trailing_stop > 0 : true,
+                            tsl: c.trailing_stop !== undefined && c.trailing_stop > 0 ? c.trailing_stop : 0.2,
                             amount: c.amount_per_trade || 100,
                             sellOrderType: c.sell_order_type || 'market',
                             spoofTime: c.min_wall_lifetime !== undefined ? c.min_wall_lifetime : 3.0,
                             enablePartialTp: c.partial_tp_pct !== undefined ? c.partial_tp_pct > 0 : true,
                             partialTp: c.partial_tp_pct !== undefined && c.partial_tp_pct > 0 ? c.partial_tp_pct : 50.0,
+                            partialTpTriggerPct: c.partial_tp_trigger_pct || 0.0,
+                            enableBreakevenSl: c.sl_breakeven_trigger_pct !== undefined ? c.sl_breakeven_trigger_pct > 0 : false,
+                            breakevenTriggerPct: c.sl_breakeven_trigger_pct !== undefined && c.sl_breakeven_trigger_pct > 0 ? c.sl_breakeven_trigger_pct : 0.5,
+                            breakevenTargetPct: c.sl_breakeven_target_pct !== undefined ? c.sl_breakeven_target_pct : 0.1,
                             vpvrEnabled: c.vpvr_enabled !== undefined ? c.vpvr_enabled : false,
                             vpvrTolerance: c.vpvr_tolerance !== undefined ? c.vpvr_tolerance : 0.2,
                             atrEnabled: c.atr_sl_enabled !== undefined ? c.atr_sl_enabled : false,
@@ -308,12 +318,15 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                     trading_mode: tradingMode, // Spot vs Futures Isolation Flag
                     amount_per_trade: form.amount,
                     target_spread: form.spread,
-                    trailing_stop: form.tsl,
+                    trailing_stop: form.enableTsl ? form.tsl : 0.0,
                     vol_threshold: form.vol,
                     risk_pct: form.risk,
                     sell_order_type: form.sellOrderType,
                     min_wall_lifetime: form.spoofTime,
                     partial_tp_pct: form.enablePartialTp ? form.partialTp : 0.0,
+                    partial_tp_trigger_pct: form.enablePartialTp ? form.partialTpTriggerPct : 0.0,
+                    sl_breakeven_trigger_pct: form.enableBreakevenSl ? form.breakevenTriggerPct : 0.0,
+                    sl_breakeven_target_pct: form.enableBreakevenSl ? form.breakevenTargetPct : 0.0,
                     vpvr_enabled: form.vpvrEnabled,
                     vpvr_tolerance: form.vpvrTolerance,
                     atr_sl_enabled: form.atrEnabled,
@@ -840,7 +853,21 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
 
                             <div className="grid grid-cols-2 gap-4">
                                 <InputField label="Initial Risk % (Stop-Loss)" value={form.risk} onChange={(v: number) => setForm({ ...form, risk: v })} step={0.1} />
-                                <InputField label="Trailing SL Step %" value={form.tsl} onChange={(v: number) => setForm({ ...form, tsl: v })} step={0.1} />
+                                
+                                <div className="bg-white/5 border border-white/10 rounded-xl p-3 flex flex-col justify-center">
+                                    <div className="flex items-center justify-between mb-2">
+                                        <label className="text-[10px] font-bold text-gray-400 uppercase">Trailing SL</label>
+                                        <div className={`w-8 h-4 rounded-full p-0.5 flex items-center cursor-pointer ${form.enableTsl ? 'bg-brand-primary' : 'bg-gray-700'}`}
+                                             onClick={(e) => { e.stopPropagation(); handleFormChange('enableTsl', !form.enableTsl); }}>
+                                            <div className={`w-3 h-3 bg-white rounded-full transform transition-transform ${form.enableTsl ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                                        </div>
+                                    </div>
+                                    {form.enableTsl ? (
+                                        <input type="number" step="0.1" className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white outline-none focus:border-brand-primary text-center font-mono text-sm" value={form.tsl} onChange={(e) => handleFormChange('tsl', parseFloat(e.target.value))} />
+                                    ) : (
+                                        <div className="text-xs text-gray-500 text-center py-2 font-mono">Disabled</div>
+                                    )}
+                                </div>
                             </div>
 
                             <div className="bg-white/5 border border-white/10 rounded-xl p-4 hover:border-brand-primary/30 transition-colors">
@@ -850,15 +877,46 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                             <div className={`w-4 h-4 bg-white rounded-full transform transition-transform ${form.enablePartialTp ? 'translate-x-6' : 'translate-x-0'}`}></div>
                                         </div>
                                         <div>
-                                            <span className="text-xs font-black text-white uppercase block">Scale-Out & Break-Even</span>
+                                            <span className="text-xs font-black text-white uppercase block">Scale-Out (Partial TP)</span>
                                         </div>
                                     </div>
                                 </div>
                                 {form.enablePartialTp && (
                                     <div className="flex gap-4 items-center animate-fadeIn p-3 bg-black/20 rounded-xl border border-white/5">
                                         <div className="flex-1">
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Sell at Target TP1 (%)</label>
-                                            <input type="number" step="10" className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white outline-none focus:border-brand-primary text-center font-mono text-lg" value={form.partialTp} onChange={(e) => handleFormChange('partialTp', parseFloat(e.target.value))} />
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Scale-Out Trigger Price (%)</label>
+                                            <input type="number" step="0.1" className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white outline-none focus:border-brand-primary text-center font-mono text-lg" value={form.partialTpTriggerPct} onChange={(e) => handleFormChange('partialTpTriggerPct', parseFloat(e.target.value))} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Sell Position Amount (%)</label>
+                                            <input type="number" step="1" className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white outline-none focus:border-brand-primary text-center font-mono text-lg" value={form.partialTp} onChange={(e) => handleFormChange('partialTp', parseFloat(e.target.value))} />
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* --- NEW: BREAKEVEN SL SECTION --- */}
+                            <div className="bg-white/5 border border-white/10 rounded-xl p-4 hover:border-emerald-500/30 transition-colors mt-4">
+                                <div className="flex items-center justify-between mb-4 cursor-pointer" onClick={(e) => { e.stopPropagation(); handleFormChange('enableBreakevenSl', !form.enableBreakevenSl); }}>
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-12 h-6 rounded-full p-1 flex items-center ${form.enableBreakevenSl ? 'bg-emerald-500' : 'bg-gray-700'}`}>
+                                            <div className={`w-4 h-4 bg-white rounded-full transform transition-transform ${form.enableBreakevenSl ? 'translate-x-6' : 'translate-x-0'}`}></div>
+                                        </div>
+                                        <div>
+                                            <span className="text-xs font-black text-white uppercase block">Risk-Free (SL to Breakeven)</span>
+                                            <span className="text-[9px] text-gray-500 uppercase mt-0.5 block">Moves Stop-Loss based on Profit Target</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                {form.enableBreakevenSl && (
+                                    <div className="flex gap-4 items-center animate-fadeIn p-3 bg-black/20 rounded-xl border border-white/5">
+                                        <div className="flex-1">
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Breakeven Trigger (%)</label>
+                                            <input type="number" step="0.1" className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white outline-none focus:border-emerald-500 text-center font-mono text-lg" value={form.breakevenTriggerPct} onChange={(e) => handleFormChange('breakevenTriggerPct', parseFloat(e.target.value))} />
+                                        </div>
+                                        <div className="flex-1">
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Breakeven Target (%)</label>
+                                            <input type="number" step="0.05" className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white outline-none focus:border-emerald-500 text-center font-mono text-lg" value={form.breakevenTargetPct} onChange={(e) => handleFormChange('breakevenTargetPct', parseFloat(e.target.value))} />
                                         </div>
                                     </div>
                                 )}

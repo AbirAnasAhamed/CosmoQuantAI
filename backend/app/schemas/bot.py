@@ -16,6 +16,9 @@ class StrategyConfig(BaseModel):
     sell_order_type: Optional[str] = "market"
     min_wall_lifetime: Optional[float] = 3.0
     partial_tp_pct: Optional[float] = 50.0
+    partial_tp_trigger_pct: Optional[float] = 0.0
+    sl_breakeven_trigger_pct: Optional[float] = 0.0
+    sl_breakeven_target_pct: Optional[float] = 0.0
     vpvr_enabled: Optional[bool] = False
     vpvr_tolerance: Optional[float] = 0.2
     

@@ -214,8 +214,21 @@ class BotManager:
                     adv.append(f"VPVR ({config.get('vpvr_tolerance', 0.2)}%)")
                 if config.get('atr_sl_enabled'):
                     adv.append(f"ATR (P:{config.get('atr_period', 14)})")
+                
+                # Scale-Out logs
                 if config.get('partial_tp_pct', 0) > 0:
-                    adv.append(f"Scale-Out ({config.get('partial_tp_pct')}%)")
+                    trigger_pct = config.get('partial_tp_trigger_pct', 0.0)
+                    if trigger_pct > 0:
+                        adv.append(f"Scale-Out ({config.get('partial_tp_pct')}% at {trigger_pct}%)")
+                    else:
+                        adv.append(f"Scale-Out ({config.get('partial_tp_pct')}%)")
+                        
+                # Breakeven logs
+                if config.get('sl_breakeven_trigger_pct', 0) > 0:
+                    trigger = config.get('sl_breakeven_trigger_pct', 0)
+                    target = config.get('sl_breakeven_target_pct', 0)
+                    adv.append(f"Risk-Free ({trigger}% -> {target}%)")
+                    
                 if config.get('enable_micro_scalp'):
                     adv.append(f"Micro-Scalp")
                 
