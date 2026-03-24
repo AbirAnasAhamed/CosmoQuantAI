@@ -29,6 +29,7 @@ class StrategyConfig(BaseModel):
 
     # --- NEW: Futures Config ---
     trading_mode: Optional[str] = "spot"
+    strategy_mode: Optional[str] = "long"
     margin_mode: Optional[str] = "cross"
     position_direction: Optional[str] = "auto"
     reduce_only: Optional[bool] = True
@@ -39,6 +40,7 @@ class StrategyConfig(BaseModel):
     max_wall_distance_pct: Optional[float] = 1.0
     enable_liq_trigger: Optional[bool] = False
     liq_threshold: Optional[float] = 50000.0
+    liq_target_side: Optional[str] = "auto"
     enable_micro_scalp: Optional[bool] = False
     micro_scalp_profit_ticks: Optional[int] = 2
     micro_scalp_min_wall: Optional[float] = 100000.0

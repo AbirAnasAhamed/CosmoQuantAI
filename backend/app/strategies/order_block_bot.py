@@ -66,6 +66,7 @@ class OrderBlockExecutionEngine:
             self.exchange_id = config.get("exchange").lower()
             
         self.trading_mode = config.get("trading_mode", "spot").lower()
+        self.strategy_mode = config.get("strategy_mode", "long").lower()
         self.margin_mode = config.get("margin_mode", "cross").lower()
         
         # Paper trading state
@@ -135,24 +136,57 @@ class OrderBlockExecutionEngine:
                         return None
         else:
             # Spot Paper Logic
-            if side == "buy":
-                if self.paper_balance_quote >= cost:
-                    self.paper_balance_quote -= cost
-                    self.paper_balance_base += amount
-                    self.active_position = {"side": "long", "entry_price": price, "amount": amount}
-                    logger.debug(f"[PAPER-SPOT] Bought {amount} {self.pair} at {price}. Cost: {cost}")
-                else:
-                    logger.warning(f"[PAPER-SPOT] Insufficient balance for BUY. Need {cost}, have {self.paper_balance_quote}")
-                    return None
-            elif side == "sell":
-                 if self.paper_balance_base >= amount:
-                     self.paper_balance_base -= amount
-                     self.paper_balance_quote += cost
-                     self.active_position = None
-                     logger.debug(f"[PAPER-SPOT] Sold {amount} {self.pair} at {price}. Value: {cost}")
-                 else:
-                     logger.warning(f"[PAPER-SPOT] Insufficient base balance for SELL. Need {amount}, have {self.paper_balance_base}")
-                     return None
+            strategy_mode = getattr(self, 'strategy_mode', 'long')
+            
+            if strategy_mode == 'short':
+                if side == "sell":
+                    # Entry for Accumulation Mode
+                    if not self.active_position:
+                        # Auto-fund base asset from quote asset for the first trade simulation
+                        if self.paper_balance_base < amount:
+                            logger.info(f"[PAPER-SPOT] Auto-funding {amount} base asset for Accumulation Mode.")
+                            cost_to_fund = amount * price
+                            self.paper_balance_quote -= cost_to_fund
+                            self.paper_balance_base += amount
+                            
+                    if self.paper_balance_base >= amount:
+                        self.paper_balance_base -= amount
+                        self.paper_balance_quote += cost
+                        self.active_position = {"side": "short", "entry_price": price, "amount": amount}
+                        logger.debug(f"[PAPER-SPOT] Sold {amount} {self.pair} at {price}. Value: {cost}")
+                    else:
+                        logger.warning(f"[PAPER-SPOT] Insufficient base balance for SELL. Need {amount}, have {self.paper_balance_base}")
+                        return None
+                elif side == "buy":
+                    # Exit for Accumulation Mode
+                    if self.paper_balance_quote >= cost:
+                        self.paper_balance_quote -= cost
+                        self.paper_balance_base += amount
+                        self.active_position = None
+                        logger.debug(f"[PAPER-SPOT] Bought {amount} {self.pair} at {price}. Cost: {cost}")
+                    else:
+                        logger.warning(f"[PAPER-SPOT] Insufficient balance for BUY. Need {cost}, have {self.paper_balance_quote}")
+                        return None
+            else:
+                # Normal Long Mode
+                if side == "buy":
+                    if self.paper_balance_quote >= cost:
+                        self.paper_balance_quote -= cost
+                        self.paper_balance_base += amount
+                        self.active_position = {"side": "long", "entry_price": price, "amount": amount}
+                        logger.debug(f"[PAPER-SPOT] Bought {amount} {self.pair} at {price}. Cost: {cost}")
+                    else:
+                        logger.warning(f"[PAPER-SPOT] Insufficient balance for BUY. Need {cost}, have {self.paper_balance_quote}")
+                        return None
+                elif side == "sell":
+                     if self.paper_balance_base >= amount:
+                         self.paper_balance_base -= amount
+                         self.paper_balance_quote += cost
+                         self.active_position = None
+                         logger.debug(f"[PAPER-SPOT] Sold {amount} {self.pair} at {price}. Value: {cost}")
+                     else:
+                         logger.warning(f"[PAPER-SPOT] Insufficient base balance for SELL. Need {amount}, have {self.paper_balance_base}")
+                         return None
                  
         return {
             "id": trade_id,

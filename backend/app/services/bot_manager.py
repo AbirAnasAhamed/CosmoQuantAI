@@ -125,15 +125,20 @@ class BotManager:
             local_db.commit()
             
             trading_mode = config.get('trading_mode', 'spot').upper()
+            strategy_mode = config.get('strategy_mode', 'long').lower()
+            mode_display = f"{trading_mode}"
+            if trading_mode == 'SPOT':
+                mode_display += " (Accumulate Base/Short)" if strategy_mode == "short" else " (Accumulate Quote/Long)"
+            
             logger.info("="*50)
             logger.info(f"🚀 BOT ACTIVATED: ID {bot_id} | {bot.market} on {bot.exchange}")
-            logger.info(f"🛠️  Trading Mode: {trading_mode}")
+            logger.info(f"🛠️  Trading Mode: {mode_display}")
             
             from app.services.notification import NotificationService
             msg_lines = [
                 f"🚀 *BOT ACTIVATED: ID {bot_id}*",
                 f"💎 Pair: {bot.market} | {bot.exchange}",
-                f"🛠️ Mode: {trading_mode}"
+                f"🛠️ Mode: {mode_display}"
             ]
             
             if bot.strategy == "wall_hunter":
@@ -240,8 +245,15 @@ class BotManager:
                 logger.info(f"⚖️ Risk Pct: {config.get('risk_pct', 0)}% | TSL: {config.get('trailing_stop', 0)}%")
                 msg_lines.append(f"⚖️ Risk: {config.get('risk_pct', 0)}% | TSL: {config.get('trailing_stop', 0)}%")
                 
-                logger.info(f"💰 Trade Amount: {config.get('amount_per_trade', 0)} (Quote Asset)")
-                msg_lines.append(f"💰 Amount: {config.get('amount_per_trade', 0)}")
+                asset_label = "Quote Asset"
+                if bot.market and '/' in bot.market:
+                    if strategy_mode == 'short':
+                        asset_label = f"Base Asset: {bot.market.split('/')[0]}"
+                    else:
+                        asset_label = f"Quote Asset: {bot.market.split('/')[1]}"
+                        
+                logger.info(f"💰 Trade Amount: {config.get('amount_per_trade', 0)} ({asset_label})")
+                msg_lines.append(f"💰 Amount: {config.get('amount_per_trade', 0)} ({asset_label})")
                 
                 logger.info(f"📋 Sell Order: {config.get('sell_order_type', 'market').upper()}")
                 msg_lines.append(f"📋 Sell Order (TP): {config.get('sell_order_type', 'market').upper()}")
