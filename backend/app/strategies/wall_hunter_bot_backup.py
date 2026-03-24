@@ -35,7 +35,6 @@ class WallHunterBot:
         self.tsl_pct = config.get("trailing_stop", 0.2)
         self.sell_order_type = config.get("sell_order_type", "market")
         self.trading_mode = config.get("trading_mode", "spot").lower()
-        self.strategy_mode = config.get("strategy_mode", "long").lower()
         
         # --- NEW FEATURES: Partial TP & Break-Even SL ---
         self.partial_tp_pct = config.get("partial_tp_pct", 50.0) # TP1 এ কত পার্সেন্ট সেল করবে
@@ -59,7 +58,6 @@ class WallHunterBot:
         self.max_wall_distance_pct = config.get("max_wall_distance_pct", 1.0)
         self.enable_liq_trigger = config.get("enable_liq_trigger", False)
         self.liq_threshold = config.get("liq_threshold", 50000.0)
-        self.liq_target_side = config.get("liq_target_side", "auto").lower()
         self.enable_micro_scalp = config.get("enable_micro_scalp", False)
         self.micro_scalp_profit_ticks = config.get("micro_scalp_profit_ticks", 2)
         self.micro_scalp_min_wall = config.get("micro_scalp_min_wall", 100000.0)
@@ -122,9 +120,6 @@ class WallHunterBot:
         
         if "trading_mode" in new_config:
             self.trading_mode = new_config["trading_mode"].lower()
-            
-        if "strategy_mode" in new_config:
-            self.strategy_mode = new_config["strategy_mode"].lower()
         
         # Keep track of old values for logging
         updates = []
@@ -208,10 +203,6 @@ class WallHunterBot:
         if "liq_threshold" in new_config and new_config["liq_threshold"] != self.liq_threshold:
             updates.append(f"{self.symbol} Liq Threshold: {self.liq_threshold} -> {new_config['liq_threshold']}")
             self.liq_threshold = new_config.get("liq_threshold")
-            
-        if "liq_target_side" in new_config and new_config["liq_target_side"] != getattr(self, 'liq_target_side', 'auto'):
-            updates.append(f"Liq Target Side: {getattr(self, 'liq_target_side', 'auto')} -> {new_config['liq_target_side']}")
-            self.liq_target_side = new_config.get("liq_target_side").lower()
             
         if "enable_micro_scalp" in new_config and new_config["enable_micro_scalp"] != self.enable_micro_scalp:
             status = "ON" if new_config["enable_micro_scalp"] else "OFF"
@@ -324,14 +315,9 @@ class WallHunterBot:
                 tp_price = self.active_pos.get('tp', 0)
                 
                 amount = self.active_pos.get('amount', 0)
-                if getattr(self, 'strategy_mode', 'long') == 'short':
-                    pnl_val = (entry_price - current_price) * amount
-                    if entry_price > 0:
-                        pnl_pct = ((entry_price - current_price) / entry_price) * 100
-                else:
-                    pnl_val = (current_price - entry_price) * amount
-                    if entry_price > 0:
-                        pnl_pct = ((current_price - entry_price) / entry_price) * 100
+                pnl_val = (current_price - entry_price) * amount
+                if entry_price > 0:
+                    pnl_pct = ((current_price - entry_price) / entry_price) * 100
 
             status_payload = {
                 "id": self.bot_id,
@@ -484,17 +470,16 @@ class WallHunterBot:
 
                     # 1. বর্তমান অর্ডার বুকের ওয়ালগুলো ফিল্টার করা
                     current_walls = {}
-                    if getattr(self, 'strategy_mode', 'long') != 'short' or self.trading_mode == 'futures':
-                        for level in orderbook['bids']:
-                            price, vol = level[0], level[1]
-                            if vol >= self.vol_threshold:
-                                # Validate distance from current mid_price
-                                distance_pct = abs(price - mid_price) / mid_price * 100.0
-                                if distance_pct <= self.max_wall_distance_pct:
-                                    current_walls[price] = {'vol': vol, 'type': 'buy'}
+                    for level in orderbook['bids']:
+                        price, vol = level[0], level[1]
+                        if vol >= self.vol_threshold:
+                            # Validate distance from current mid_price
+                            distance_pct = abs(price - mid_price) / mid_price * 100.0
+                            if distance_pct <= self.max_wall_distance_pct:
+                                current_walls[price] = {'vol': vol, 'type': 'buy'}
 
-                    # Scan SELL walls for Futures mode OR Spot Short mode
-                    if self.trading_mode == 'futures' or getattr(self, 'strategy_mode', 'long') == 'short':
+                    # Only scan SELL walls if we are in Futures mode (to open SHORT)
+                    if self.trading_mode == 'futures':
                         for level in orderbook['asks']:
                             price, vol = level[0], level[1]
                             if vol >= self.vol_threshold:
@@ -658,13 +643,12 @@ class WallHunterBot:
             # --- UPDATED: Position tracking for TP1 and TP2 ---
             if self.enable_micro_scalp:
                 tick_profit_pct = self.micro_scalp_profit_ticks * 0.0001
-                tp_price = actual_entry * (1 - tick_profit_pct) if getattr(self, 'strategy_mode', 'long') == 'short' else actual_entry * (1 + tick_profit_pct)
-                sl_price = actual_entry * (1 + (self.initial_risk_pct / 100)) if getattr(self, 'strategy_mode', 'long') == 'short' else actual_entry * (1 - (self.initial_risk_pct / 100))
+                tp_price = actual_entry * (1 + tick_profit_pct)
                 
                 self.active_pos = {
                     "entry": actual_entry,
                     "amount": base_amount,
-                    "sl": sl_price,
+                    "sl": actual_entry * (1 - (self.initial_risk_pct / 100)),
                     "tp1": tp_price,
                     "tp": tp_price,
                     "tp1_hit": True, # Ignore partial TP
@@ -673,12 +657,8 @@ class WallHunterBot:
                     "micro_scalp": True
                 }
                 self.highest_price = actual_entry
-                self.lowest_price = actual_entry
                 
-                close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
-                close_amount = (base_amount * actual_entry * 0.995) / tp_price if getattr(self, 'strategy_mode', 'long') == "short" else base_amount
-                
-                limit_res = await self.engine.execute_trade(close_side, close_amount, tp_price, order_type="limit")
+                limit_res = await self.engine.execute_trade("sell", base_amount, tp_price, order_type="limit")
                 if limit_res and 'id' in limit_res:
                     self.active_pos['limit_order_id'] = limit_res['id']
                     logger.info(f"⚡ Micro-Scalp: Placed Limit TP Order {limit_res['id']} at {tp_price}")
@@ -686,34 +666,24 @@ class WallHunterBot:
                 await self._send_telegram(f"⚡ Micro-Scalp Entered!\nPair: {self.symbol}\nEntry: {actual_entry:.6f}\nTick Target: {tp_price:.6f}\nSL: {self.active_pos['sl']:.6f}")
                 
             else:
-                if getattr(self, 'strategy_mode', 'long') == 'short':
-                    tp1_price = actual_entry * (1 - (getattr(self, 'partial_tp_trigger_pct', 0.0) / 100)) if getattr(self, 'partial_tp_trigger_pct', 0.0) > 0 else actual_entry - (self.target_spread * 0.5)
-                    tp_price = actual_entry - self.target_spread
-                    sl_price = actual_entry * (1 + (self.initial_risk_pct / 100))
-                else:
-                    tp1_price = actual_entry * (1 + (getattr(self, 'partial_tp_trigger_pct', 0.0) / 100)) if getattr(self, 'partial_tp_trigger_pct', 0.0) > 0 else actual_entry + (self.target_spread * 0.5)
-                    tp_price = actual_entry + self.target_spread
-                    sl_price = actual_entry * (1 - (self.initial_risk_pct / 100))
+                tp1_price = actual_entry * (1 + (getattr(self, 'partial_tp_trigger_pct', 0.0) / 100)) if getattr(self, 'partial_tp_trigger_pct', 0.0) > 0 else actual_entry + (self.target_spread * 0.5)
 
                 self.active_pos = {
                     "entry": actual_entry,
                     "amount": base_amount,
-                    "sl": sl_price,
+                    "sl": actual_entry * (1 - (self.initial_risk_pct / 100)),
                     "tp1": tp1_price,
-                    "tp": tp_price,          # Final TP
+                    "tp": actual_entry + self.target_spread,          # Final TP
                     "tp1_hit": False,
                     "breakeven_hit": False,
                     "limit_order_id": None,
                     "micro_scalp": False
                 }
                 self.highest_price = actual_entry
-                self.lowest_price = actual_entry
                 
                 # Place Limit Order immediately if configured
                 if self.sell_order_type == 'limit':
-                    close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
-                    close_amount = (base_amount * actual_entry * 0.995) / self.active_pos['tp'] if getattr(self, 'strategy_mode', 'long') == "short" else base_amount
-                    limit_res = await self.engine.execute_trade(close_side, close_amount, self.active_pos['tp'], order_type="limit")
+                    limit_res = await self.engine.execute_trade("sell", base_amount, self.active_pos['tp'], order_type="limit")
                     if limit_res and 'id' in limit_res:
                         self.active_pos['limit_order_id'] = limit_res['id']
                         logger.info(f"Placed Limit TP Order {limit_res['id']} at {self.active_pos['tp']}")
@@ -748,26 +718,16 @@ class WallHunterBot:
                 # Recalculate SL/TP targets based on exact price
                 if self.active_pos.get('micro_scalp'):
                     tick_profit_pct = self.micro_scalp_profit_ticks * 0.0001
-                    if getattr(self, 'strategy_mode', 'long') == 'short':
-                        tp_price = actual_entry * (1 - tick_profit_pct)
-                        self.active_pos['sl'] = actual_entry * (1 + (self.initial_risk_pct / 100))
-                    else:
-                        tp_price = actual_entry * (1 + tick_profit_pct)
-                        self.active_pos['sl'] = actual_entry * (1 - (self.initial_risk_pct / 100))
+                    tp_price = actual_entry * (1 + tick_profit_pct)
+                    self.active_pos['sl'] = actual_entry * (1 - (self.initial_risk_pct / 100))
                     self.active_pos['tp'] = tp_price
                     self.active_pos['tp1'] = tp_price
                 else:
-                    if getattr(self, 'strategy_mode', 'long') == 'short':
-                        self.active_pos['sl'] = actual_entry * (1 + (self.initial_risk_pct / 100))
-                        self.active_pos['tp1'] = actual_entry - (self.target_spread * 0.5)
-                        self.active_pos['tp'] = actual_entry - self.target_spread
-                    else:
-                        self.active_pos['sl'] = actual_entry * (1 - (self.initial_risk_pct / 100))
-                        self.active_pos['tp1'] = actual_entry + (self.target_spread * 0.5)
-                        self.active_pos['tp'] = actual_entry + self.target_spread
+                    self.active_pos['sl'] = actual_entry * (1 - (self.initial_risk_pct / 100))
+                    self.active_pos['tp1'] = actual_entry + (self.target_spread * 0.5)
+                    self.active_pos['tp'] = actual_entry + self.target_spread
                     
                 self.highest_price = actual_entry
-                self.lowest_price = actual_entry
                 logger.info(f"🔄 Entry precision updated in background: {old_entry:.6f} -> {actual_entry:.6f}")
                 
                 # If there's an active limit order, we might need to adjust it
@@ -776,9 +736,7 @@ class WallHunterBot:
                     # Cancel the old limit order and replace it with the precise one
                     try:
                         await self.engine.cancel_order(active_limit_id)
-                        close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
-                        close_amount = (self.active_pos['amount'] * actual_entry * 0.995) / self.active_pos['tp'] if getattr(self, 'strategy_mode', 'long') == "short" else self.active_pos['amount']
-                        limit_res = await self.engine.execute_trade(close_side, close_amount, self.active_pos['tp'], order_type="limit")
+                        limit_res = await self.engine.execute_trade("sell", self.active_pos['amount'], self.active_pos['tp'], order_type="limit")
                         if limit_res and 'id' in limit_res:
                             self.active_pos['limit_order_id'] = limit_res['id']
                             logger.info(f"🔄 Adjusted Limit TP Order to exact price {self.active_pos['tp']}")
@@ -814,73 +772,45 @@ class WallHunterBot:
             except Exception as e:
                 logger.warning(f"Error checking limit order status: {e}")
 
-        if getattr(self, 'strategy_mode', 'long') == 'short':
-            if not hasattr(self, 'lowest_price') or self.lowest_price == 0:
-                self.lowest_price = current_price
-            if current_price < self.lowest_price:
-                self.lowest_price = current_price
-                if self.atr_sl_enabled and getattr(self, 'current_atr', 0) > 0:
-                    new_sl = self.lowest_price + (self.current_atr * self.atr_multiplier)
-                    self.active_pos['sl'] = min(self.active_pos['sl'], new_sl)
-                elif getattr(self, 'tsl_pct', 0.0) > 0:
-                    new_sl = self.lowest_price * (1 + (self.tsl_pct / 100))
-                    self.active_pos['sl'] = min(self.active_pos['sl'], new_sl)
+        if current_price > self.highest_price:
+            self.highest_price = current_price
+            # Update Trailing SL
+            if self.atr_sl_enabled and getattr(self, 'current_atr', 0) > 0:
+                new_sl = self.highest_price - (self.current_atr * self.atr_multiplier)
+                self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
+            elif getattr(self, 'tsl_pct', 0.0) > 0:
+                new_sl = self.highest_price * (1 - (self.tsl_pct / 100))
+                self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
 
-            if getattr(self, 'sl_breakeven_trigger_pct', 0.0) > 0 and not self.active_pos.get('breakeven_hit'):
-                trigger_price = self.active_pos['entry'] * (1 - (self.sl_breakeven_trigger_pct / 100))
-                if current_price <= trigger_price:
-                    new_breakeven_sl = self.active_pos['entry'] * (1 - (self.sl_breakeven_target_pct / 100))
-                    if new_breakeven_sl < self.active_pos['sl']:
-                        self.active_pos['sl'] = new_breakeven_sl
-                        self.active_pos['breakeven_hit'] = True
-                        logger.info(f"🛡️ Set SL to Risk-Free Breakeven at {new_breakeven_sl:.6f}")
-                        asyncio.create_task(self._send_telegram(f"🛡️ Stop-Loss moved to Risk-Free!\nPair: {self.symbol}\nNew SL: {new_breakeven_sl:.6f}"))
-        else:
-            if current_price > self.highest_price:
-                self.highest_price = current_price
-                # Update Trailing SL
-                if self.atr_sl_enabled and getattr(self, 'current_atr', 0) > 0:
-                    new_sl = self.highest_price - (self.current_atr * self.atr_multiplier)
-                    self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
-                elif getattr(self, 'tsl_pct', 0.0) > 0:
-                    new_sl = self.highest_price * (1 - (self.tsl_pct / 100))
-                    self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
-
-            # --- NEW: Independent Breakeven SL Logic ---
-            if getattr(self, 'sl_breakeven_trigger_pct', 0.0) > 0 and not self.active_pos.get('breakeven_hit'):
-                trigger_price = self.active_pos['entry'] * (1 + (self.sl_breakeven_trigger_pct / 100))
-                if current_price >= trigger_price:
-                    new_breakeven_sl = self.active_pos['entry'] * (1 + (self.sl_breakeven_target_pct / 100))
-                    # Only move if the new breakeven SL is higher than current SL AND current max price
-                    if new_breakeven_sl > self.active_pos['sl']:
-                        self.active_pos['sl'] = new_breakeven_sl
-                        self.active_pos['breakeven_hit'] = True
-                        logger.info(f"🛡️ Set SL to Risk-Free Breakeven at {new_breakeven_sl:.6f}")
-                        asyncio.create_task(self._send_telegram(f"🛡️ Stop-Loss moved to Risk-Free!\nPair: {self.symbol}\nNew SL: {new_breakeven_sl:.6f}"))
+        # --- NEW: Independent Breakeven SL Logic ---
+        if getattr(self, 'sl_breakeven_trigger_pct', 0.0) > 0 and not self.active_pos.get('breakeven_hit'):
+            trigger_price = self.active_pos['entry'] * (1 + (self.sl_breakeven_trigger_pct / 100))
+            if current_price >= trigger_price:
+                new_breakeven_sl = self.active_pos['entry'] * (1 + (self.sl_breakeven_target_pct / 100))
+                # Only move if the new breakeven SL is higher than current SL AND current max price
+                if new_breakeven_sl > self.active_pos['sl']:
+                    self.active_pos['sl'] = new_breakeven_sl
+                    self.active_pos['breakeven_hit'] = True
+                    logger.info(f"🛡️ Set SL to Risk-Free Breakeven at {new_breakeven_sl:.6f}")
+                    asyncio.create_task(self._send_telegram(f"🛡️ Stop-Loss moved to Risk-Free!\nPair: {self.symbol}\nNew SL: {new_breakeven_sl:.6f}"))
 
         # --- Partial TP Logic ---
         # Only execute TP1 logic if partial_tp_pct > 0
-        hit_tp1 = current_price <= self.active_pos['tp1'] if getattr(self, 'strategy_mode', 'long') == 'short' else current_price >= self.active_pos['tp1']
-        
-        if not self.active_pos.get('micro_scalp') and self.partial_tp_pct > 0 and not self.active_pos.get('tp1_hit') and hit_tp1:
+        if not self.active_pos.get('micro_scalp') and self.partial_tp_pct > 0 and not self.active_pos.get('tp1_hit') and current_price >= self.active_pos['tp1']:
             logger.info("🟢 TP1 Hit! Executing Partial Close.")
             sell_amount_raw = self.active_pos['amount'] * (self.partial_tp_pct / 100)
-            
-            close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
-            close_amount_raw = (sell_amount_raw * self.active_pos['entry'] * 0.995) / self.active_pos['tp1'] if getattr(self, 'strategy_mode', 'long') == "short" else sell_amount_raw
-            
-            sell_amount = float(self.engine.exchange.amount_to_precision(self.symbol, close_amount_raw))
+            sell_amount = float(self.engine.exchange.amount_to_precision(self.symbol, sell_amount_raw))
             
             res = None
             if self.sell_order_type == 'limit':
-                res = await self.engine.execute_trade(close_side, sell_amount, self.active_pos['tp1'], order_type="limit")
+                res = await self.engine.execute_trade("sell", sell_amount, self.active_pos['tp1'], order_type="limit")
                 if res:
                     logger.info(f"Placed Limit Order for Partial TP at {self.active_pos['tp1']}")
                 if res and self.is_paper_trading:
                     # Instantly filled in simulation: Finalize paper balance
-                    await self.engine.execute_trade(close_side, sell_amount, self.active_pos['tp1'])
+                    await self.engine.execute_trade("sell", sell_amount, self.active_pos['tp1'])
             else:
-                res = await self.engine.execute_trade(close_side, sell_amount, current_price)
+                res = await self.engine.execute_trade("sell", sell_amount, current_price)
                 if res:
                     logger.info(f"Executed Market Order for Partial TP at {current_price}")
             
@@ -888,44 +818,35 @@ class WallHunterBot:
             if res and self.sell_order_type == 'limit' and self.active_pos.get('limit_order_id'):
                 try:
                     await self.engine.cancel_order(self.active_pos['limit_order_id'])
-                    remaining_raw = self.active_pos['amount'] - sell_amount_raw
-                    rem_close_amount_raw = (remaining_raw * self.active_pos['entry'] * 0.995) / self.active_pos['tp'] if getattr(self, 'strategy_mode', 'long') == "short" else remaining_raw
-                    limit_res = await self.engine.execute_trade(close_side, rem_close_amount_raw, self.active_pos['tp'], order_type="limit")
+                    limit_res = await self.engine.execute_trade("sell", self.active_pos['amount'] - sell_amount, self.active_pos['tp'], order_type="limit")
                     if limit_res and 'id' in limit_res:
                         self.active_pos['limit_order_id'] = limit_res['id']
                 except Exception as e:
                     logger.error(f"Failed to update limit order after TP1: {e}")
             
             if res:
-                remaining_raw = self.active_pos['amount'] - sell_amount_raw
+                remaining_raw = self.active_pos['amount'] - sell_amount
                 self.active_pos['amount'] = float(self.engine.exchange.amount_to_precision(self.symbol, remaining_raw))
                 self.active_pos['tp1_hit'] = True
                 
                 exit_price = self.active_pos['tp1'] if self.sell_order_type == 'limit' else current_price
-                if getattr(self, 'strategy_mode', 'long') == "short":
-                    pnl_val = (self.active_pos['entry'] - exit_price) * sell_amount_raw
-                else:
-                    pnl_val = (exit_price - self.active_pos['entry']) * sell_amount_raw
+                pnl_val = (exit_price - self.active_pos['entry']) * sell_amount
                 self.total_realized_pnl += pnl_val
-                await self._send_telegram(f"🔓 Partial TP Hit!\nPair: {self.symbol}\nMode: {getattr(self, 'strategy_mode', 'long').upper()}\nLocked Profit: ${pnl_val:.2f}")
+                await self._send_telegram(f"🔓 Partial TP Hit!\nPair: {self.symbol}\nLocked Profit: ${pnl_val:.2f}")
             else:
                 logger.warning("❌ Partial TP execution failed on exchange. Skipping partial TP size reduction to stay in sync with exchange.")
                 self.active_pos['tp1_hit'] = True
 
-        elif (current_price >= self.active_pos['sl'] if getattr(self, 'strategy_mode', 'long') == 'short' else current_price <= self.active_pos['sl']):
-            logger.info(f"⚠️ Triggering SL: Current Price ({current_price:.6f}) hit SL ({self.active_pos['sl']:.6f})")
-            
-            sell_amount_raw = self.active_pos['amount']
-            close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
-            close_amount_raw = (sell_amount_raw * self.active_pos['entry'] * 0.995) / current_price if getattr(self, 'strategy_mode', 'long') == "short" else sell_amount_raw
-            sell_amount = float(self.engine.exchange.amount_to_precision(self.symbol, close_amount_raw))
+        elif current_price <= self.active_pos['sl']:
+            logger.info(f"⚠️ Triggering SL: Current Price ({current_price:.6f}) <= SL ({self.active_pos['sl']:.6f})")
+            sell_amount = self.active_pos['amount']
             
             # Cancel open limit order if SL/TSL hits (handles both limit sell orders and micro_scalp)
             if (self.sell_order_type == 'limit' or self.active_pos.get('micro_scalp')) and self.active_pos.get('limit_order_id'):
                 canceled = False
                 for attempt in range(3):
                     try:
-                        logger.info(f"Attempting to cancel Limit TP Order {self.active_pos['limit_order_id']} before SL market order (Attempt {attempt+1}/3)")
+                        logger.info(f"Attempting to cancel Limit TP Order {self.active_pos['limit_order_id']} before SL market sell (Attempt {attempt+1}/3)")
                         await self.engine.cancel_order(self.active_pos['limit_order_id'])
                         canceled = True
                         break
@@ -939,58 +860,47 @@ class WallHunterBot:
                 else:
                     logger.error("COULD NOT CANCEL LIMIT TP ORDER! SL Market order might fail with Insufficient Balance.")
                 
-            await self.engine.execute_trade(close_side, sell_amount, current_price)
+            await self.engine.execute_trade("sell", sell_amount, current_price)
             self.total_executed_orders += 1
             
-            if getattr(self, 'strategy_mode', 'long') == "short":
-                pnl_val = (self.active_pos['entry'] - current_price) * sell_amount_raw
-            else:
-                pnl_val = (current_price - self.active_pos['entry']) * sell_amount_raw
-                
             if self.active_pos.get('tp1_hit'):
+                 pnl_val = (current_price - self.active_pos['entry']) * sell_amount
                  self.total_realized_pnl += pnl_val
                  self.total_wins += 1
-                 await self._send_telegram(f"🛡️ WallHunter EXIT - Stopped out at Profitable Break-even!\nPair: {self.symbol}\nMode: {getattr(self, 'strategy_mode', 'long').upper()}\nExit Price: {current_price:.6f}\nSecured PnL: ${pnl_val:.2f}")
+                 await self._send_telegram(f"🛡️ WallHunter EXIT - Stopped out at Profitable Break-even!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nSecured PnL: ${pnl_val:.2f}")
             else:
+                 pnl_val = (current_price - self.active_pos['entry']) * sell_amount
                  self.total_realized_pnl += pnl_val
-                 if pnl_val > 0:
+                 if current_price > self.active_pos['entry']:
                      self.total_wins += 1
-                     await self._send_telegram(f"🛡️ WallHunter EXIT - Stopped out in Profit!\nPair: {self.symbol}\nMode: {getattr(self, 'strategy_mode', 'long').upper()}\nExit Price: {current_price:.6f}\nSecured PnL: ${pnl_val:.2f}")
+                     await self._send_telegram(f"🛡️ WallHunter EXIT - Stopped out in Profit!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nSecured PnL: ${pnl_val:.2f}")
                  else:
                      self.total_losses += 1
-                     await self._send_telegram(f"🛑 WallHunter EXIT - Stopped Out!\nPair: {self.symbol}\nMode: {getattr(self, 'strategy_mode', 'long').upper()}\nExit Price: {current_price:.6f}\nPnL: ${pnl_val:.2f}")
+                     await self._send_telegram(f"🛑 WallHunter EXIT - Stopped Out!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nPnL: ${pnl_val:.2f}")
             self.active_pos = None
             logger.info("Exit: Stop Loss / TSL Hit")
             
-        elif (current_price <= self.active_pos['tp'] if getattr(self, 'strategy_mode', 'long') == 'short' else current_price >= self.active_pos['tp']):
-            logger.info(f"✅ Triggering Final TP: Current Price ({current_price:.6f}) hit TP ({self.active_pos['tp']:.6f})")
-            
-            sell_amount_raw = self.active_pos['amount']
-            close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
-            close_amount_raw = (sell_amount_raw * self.active_pos['entry'] * 0.995) / current_price if getattr(self, 'strategy_mode', 'long') == "short" else sell_amount_raw
-            sell_amount = float(self.engine.exchange.amount_to_precision(self.symbol, close_amount_raw))
+        elif current_price >= self.active_pos['tp']:
+            logger.info(f"✅ Triggering Final TP: Current Price ({current_price:.6f}) >= TP ({self.active_pos['tp']:.6f})")
+            sell_amount = self.active_pos['amount']
             
             if self.sell_order_type == 'market':
-                await self.engine.execute_trade(close_side, sell_amount, current_price)
+                await self.engine.execute_trade("sell", sell_amount, current_price)
             else:
                 logger.info(f"Target Profit {self.active_pos['tp']} reached. Assuming Limit Order {self.active_pos.get('limit_order_id', 'Unknown')} is filled.")
                 if self.is_paper_trading:
                     # Finalize the initial limit order mock by executing a market sell at the TP price
-                    await self.engine.execute_trade(close_side, sell_amount, self.active_pos['tp'])
+                    await self.engine.execute_trade("sell", sell_amount, self.active_pos['tp'])
             
             # Calculate PnL
-            if getattr(self, 'strategy_mode', 'long') == "short":
-                pnl_val = (self.active_pos['entry'] - current_price) * sell_amount_raw
-            else:
-                pnl_val = (current_price - self.active_pos['entry']) * sell_amount_raw
-                
+            pnl_val = (current_price - self.active_pos['entry']) * sell_amount
             self.total_realized_pnl += pnl_val
             self.total_executed_orders += 1
             if pnl_val > 0:
                 self.total_wins += 1
             else:
                 self.total_losses += 1
-            await self._send_telegram(f"🎯 WallHunter EXIT - Final Take Profit Hit!\nPair: {self.symbol}\nMode: {getattr(self, 'strategy_mode', 'long').upper()}\nExit Price: {current_price:.6f}\nPnL: ${pnl_val:.2f}")
+            await self._send_telegram(f"🎯 WallHunter EXIT - Final Take Profit Hit!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nPnL: ${pnl_val:.2f}")
             self.active_pos = None
             logger.info("Exit: Take Profit Hit")
 
@@ -1229,13 +1139,7 @@ class WallHunterBot:
                             else:
                                 logger.info(f"🔍 [WallHunter {self.bot_id}] Raw Liq Alert: {data}")
                             
-                            custom_side = getattr(self, 'liq_target_side', 'auto')
-                            if custom_side in ["long", "short"]:
-                                target_liq_side = custom_side
-                            else:
-                                target_liq_side = "long" if getattr(self, 'strategy_mode', 'long') == "short" else "short"
-                                
-                            if data.get("side") == target_liq_side:
+                            if data.get("side") == "short":
                                 current_raw_time = time.time()
                                 liq_amount = float(data.get("amount", 0))
                                 
@@ -1265,7 +1169,7 @@ class WallHunterBot:
                                 # 3. Trigger check
                                 if cascade_total >= active_threshold:
                                     triggered_symbol = "BTC/USDT" if self.follow_btc_liq else self.symbol
-                                    logger.info(f"💥 {target_liq_side.capitalize()} Liquidation Triggered! Stream: {triggered_symbol} | Cascade Total: ${cascade_total:.2f} | Threshold: ${active_threshold:.2f}")
+                                    logger.info(f"💥 Short Liquidation Triggered! Stream: {triggered_symbol} | Cascade Total: ${cascade_total:.2f} | Threshold: ${active_threshold:.2f}")
                                     if self.enable_liq_cascade:
                                         self.liq_history.clear() # Reset after triggering
                                     await self._handle_liquidation_trigger(data)
@@ -1304,16 +1208,11 @@ class WallHunterBot:
                     return # No asks, weird state
                 
             # --- 2. Confluence Mode (Wall Check) ---
-            entry_side = "sell" if getattr(self, 'strategy_mode', 'long') == "short" else "buy"
-            target_price = best_ask if entry_side == "sell" else best_bid
-            
             if self.enable_wall_trigger:
-                # Check for walls
+                # Check if there is any bid wall >= micro_scalp_min_wall
                 strong_wall_found = False
                 wall_price = 0
-                search_levels = ob['asks'] if entry_side == "sell" else ob['bids']
-                
-                for level in search_levels:
+                for level in ob['bids']:
                     price, vol = level[0], level[1]
                     if vol >= self.micro_scalp_min_wall:
                         strong_wall_found = True
@@ -1321,14 +1220,14 @@ class WallHunterBot:
                         break
                         
                 if strong_wall_found:
-                    logger.info(f"🔥 Confluence Met: Liquidation + Wall at {wall_price}. Sniping ({entry_side.upper()})!")
-                    await self.execute_snipe(wall_price, entry_side, mid_price)
+                    logger.info(f"🔥 Confluence Met: Liquidation + Wall at {wall_price}. Sniping!")
+                    await self.execute_snipe(wall_price, "buy", mid_price)
                 else:
                     logger.info(f"⏭️ Liquidation ignoring: No supporting wall (Needed >= {self.micro_scalp_min_wall})")
             else:
                 # Only Liquidation mode
-                logger.info(f"🔥 Liquidation Snipe at {target_price}")
-                await self.execute_snipe(target_price, entry_side, mid_price)
+                logger.info(f"🔥 Liquidation Snipe at {best_bid}")
+                await self.execute_snipe(best_bid, "buy", mid_price)
                 
         except Exception as e:
              logger.error(f"Liquidation Handling Error: {e}")

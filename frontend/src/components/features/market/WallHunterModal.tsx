@@ -13,6 +13,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
     
     // --- NEW: Trading Mode State ---
     const [tradingMode, setTradingMode] = useState<'spot' | 'futures'>('spot');
+    const [strategyMode, setStrategyMode] = useState<'long' | 'short'>('long');
     const [availableExchanges, setAvailableExchanges] = useState<string[]>([]);
     const [showAdvancedTSL, setShowAdvancedTSL] = useState(false);
 
@@ -48,7 +49,8 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
         enableWallTrigger: true,        
         maxWallDistancePct: 1.0,        
         enableLiqTrigger: false,        
-        liqThreshold: 50000,            
+        liqThreshold: 50000,
+        liqTargetSide: 'auto',            
         enableMicroScalp: false,        
         microScalpProfitTicks: 2,       
         microScalpMinWall: 100000,      
@@ -107,6 +109,11 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                         } else {
                             setTradingMode('spot');
                         }
+                        if (c.strategy_mode === 'short') {
+                            setStrategyMode('short');
+                        } else {
+                            setStrategyMode('long');
+                        }
 
                         setForm(prev => ({
                             ...prev,
@@ -137,6 +144,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                             maxWallDistancePct: c.max_wall_distance_pct !== undefined ? c.max_wall_distance_pct : 1.0,
                             enableLiqTrigger: c.enable_liq_trigger !== undefined ? c.enable_liq_trigger : false,
                             liqThreshold: c.liq_threshold || 50000,
+                            liqTargetSide: c.liq_target_side || 'auto',
                             enableMicroScalp: c.enable_micro_scalp !== undefined ? c.enable_micro_scalp : false,
                             microScalpProfitTicks: c.micro_scalp_profit_ticks || 2,
                             microScalpMinWall: c.micro_scalp_min_wall || 100000,
@@ -316,6 +324,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                 is_paper_trading: form.isPaper,
                 config: {
                     trading_mode: tradingMode, // Spot vs Futures Isolation Flag
+                    strategy_mode: strategyMode, // Accumulation mode
                     amount_per_trade: form.amount,
                     target_spread: form.spread,
                     trailing_stop: form.enableTsl ? form.tsl : 0.0,
@@ -337,6 +346,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                     max_wall_distance_pct: form.maxWallDistancePct,
                     enable_liq_trigger: form.enableLiqTrigger,
                     liq_threshold: form.liqThreshold,
+                    liq_target_side: form.liqTargetSide,
                     enable_micro_scalp: form.enableMicroScalp,
                     micro_scalp_profit_ticks: form.microScalpProfitTicks,
                     micro_scalp_min_wall: form.microScalpMinWall,
@@ -492,7 +502,9 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                     </select>
                                 </div>
                                 <div className="w-1/3 space-y-1">
-                                    <label className="text-[10px] text-gray-500 font-bold uppercase">Sell Order (TP)</label>
+                                    <label className="text-[10px] text-gray-500 font-bold uppercase">
+                                        {tradingMode === 'spot' && strategyMode === 'short' ? 'Sell Order (Entry)' : 'Sell Order (TP)'}
+                                    </label>
                                     <select className="w-full bg-white/5 border border-white/10 rounded-xl p-2 text-white outline-none focus:border-brand-primary text-sm" value={form.sellOrderType} onChange={(e) => handleFormChange('sellOrderType', e.target.value)}>
                                         <option className="bg-[#0B1120] text-white" value="market">Market</option>
                                         <option className="bg-[#0B1120] text-white" value="limit">Limit</option>
@@ -500,10 +512,30 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                 </div>
                             </div>
                             
+                            {/* --- NEW: SPOT STRATEGY MODE / BASE ACCUMULATION FLAG --- */}
+                            {tradingMode === 'spot' && (
+                                <div className="flex gap-4 p-3 bg-white/5 border border-white/10 rounded-2xl animate-fadeIn">
+                                    <div className="flex flex-col w-full space-y-2">
+                                        <div className="flex justify-between items-center">
+                                            <label className="text-[10px] text-brand-primary font-black uppercase">Spot Strategy Mode</label>
+                                        </div>
+                                        <div className="flex bg-black/40 rounded-lg p-1 border border-white/10">
+                                            <button onClick={() => setStrategyMode('long')} className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded transition-all ${strategyMode === 'long' ? 'bg-brand-primary text-white' : 'text-gray-500 hover:text-white'}`}>Accumulate Quote (Normal)</button>
+                                            <button onClick={() => setStrategyMode('short')} className={`flex-1 py-1.5 text-[10px] font-bold uppercase rounded transition-all flex items-center justify-center gap-1 ${strategyMode === 'short' ? 'bg-yellow-600 text-white shadow-[0_0_10px_rgba(202,138,4,0.3)]' : 'text-gray-500 hover:text-white'}`}>
+                                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" /></svg>
+                                                Accumulate Base (Short)
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             {/* --- NEW: BUY ORDER TYPE & BUFFER --- */}
                             <div className="flex gap-4 p-3 bg-white/5 border border-white/10 rounded-2xl">
                                 <div className="flex-1 space-y-1">
-                                    <label className="text-[10px] text-gray-400 font-black uppercase">Buy Order Type</label>
+                                    <label className="text-[10px] text-gray-400 font-black uppercase">
+                                        {tradingMode === 'spot' && strategyMode === 'short' ? 'Buy Order (TP)' : 'Buy Order Type'}
+                                    </label>
                                     <select 
                                         className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white outline-none focus:border-brand-primary text-sm font-bold" 
                                         value={form.buyOrderType} 
@@ -639,7 +671,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                 </div>
                             </div>
 
-                            <InputField label={`Margin Allocation (${form.symbol ? form.symbol.split('/')[1] || 'USDT' : 'USDT'})`} value={form.amount} onChange={(v: number) => setForm({ ...form, amount: v })} step={10} />
+                            <InputField label={`Margin Allocation (${form.symbol ? (tradingMode === 'spot' && strategyMode === 'short' ? form.symbol.split('/')[0] : (form.symbol.split('/')[1] || 'USDT')) : 'USDT'})`} value={form.amount} onChange={(v: number) => setForm({ ...form, amount: v })} step={10} />
                         </div>
                     )}
 
@@ -729,6 +761,18 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                 </div>
                                 {form.enableLiqTrigger && (
                                     <div className="mt-3 pl-1 space-y-4" onClick={e => e.stopPropagation()}>
+                                        <div className="bg-black/20 p-3 rounded-lg border border-white/5 space-y-2">
+                                            <div className="flex justify-between items-center text-[10px] font-bold text-gray-400 uppercase">
+                                                <span>Target Liquidation Side</span>
+                                            </div>
+                                            <div className="flex bg-black/40 rounded-lg p-1 border border-white/10">
+                                                <button onClick={() => handleFormChange('liqTargetSide', 'auto')} className={`flex-1 py-1.5 text-[9px] font-bold uppercase rounded transition-all ${form.liqTargetSide === 'auto' ? 'bg-brand-primary text-white' : 'text-gray-500 hover:text-white'}`}>Auto</button>
+                                                <button onClick={() => handleFormChange('liqTargetSide', 'long')} className={`flex-1 py-1.5 text-[9px] font-bold uppercase rounded transition-all ${form.liqTargetSide === 'long' ? 'bg-red-500 text-white' : 'text-gray-500 hover:text-white'}`}>Long (Dump)</button>
+                                                <button onClick={() => handleFormChange('liqTargetSide', 'short')} className={`flex-1 py-1.5 text-[9px] font-bold uppercase rounded transition-all ${form.liqTargetSide === 'short' ? 'bg-green-500 text-white' : 'text-gray-500 hover:text-white'}`}>Short (Pump)</button>
+                                            </div>
+                                            <p className="text-[8px] text-gray-500 italic mt-1 leading-tight">Auto: Normal mode snipes Short liqs (pumps). Accumulate Mode snipes Long liqs (dumps).</p>
+                                        </div>
+                                        
                                         <div className={form.followBtcLiq ? 'opacity-30 pointer-events-none grayscale transition-all' : 'transition-all'}>
                                             <div className="flex justify-between items-end mb-1">
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase">Local Asset Liq. Threshold ($) {form.followBtcLiq && '(Ignored)'}</label>
