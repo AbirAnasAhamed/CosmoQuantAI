@@ -909,16 +909,24 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                     </div>
                                 </div>
                                 {form.enableBreakevenSl && (
-                                    <div className="flex gap-4 items-center animate-fadeIn p-3 bg-black/20 rounded-xl border border-white/5">
-                                        <div className="flex-1">
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Breakeven Trigger (%)</label>
-                                            <input type="number" step="0.1" className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white outline-none focus:border-emerald-500 text-center font-mono text-lg" value={form.breakevenTriggerPct} onChange={(e) => handleFormChange('breakevenTriggerPct', parseFloat(e.target.value))} />
+                                    <>
+                                        <div className="flex gap-4 items-center animate-fadeIn p-3 bg-black/20 rounded-xl border border-white/5">
+                                            <div className="flex-1">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Breakeven Trigger (%)</label>
+                                                <input type="number" step="0.1" className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white outline-none focus:border-emerald-500 text-center font-mono text-lg" value={form.breakevenTriggerPct} onChange={(e) => handleFormChange('breakevenTriggerPct', parseFloat(e.target.value))} />
+                                            </div>
+                                            <div className="flex-1">
+                                                <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Breakeven Target (%)</label>
+                                                <input type="number" step="0.05" className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white outline-none focus:border-emerald-500 text-center font-mono text-lg" value={form.breakevenTargetPct} onChange={(e) => handleFormChange('breakevenTargetPct', parseFloat(e.target.value))} />
+                                            </div>
                                         </div>
-                                        <div className="flex-1">
-                                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Breakeven Target (%)</label>
-                                            <input type="number" step="0.05" className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white outline-none focus:border-emerald-500 text-center font-mono text-lg" value={form.breakevenTargetPct} onChange={(e) => handleFormChange('breakevenTargetPct', parseFloat(e.target.value))} />
-                                        </div>
-                                    </div>
+                                        {bids && asks && bids.length > 0 && asks.length > 0 && (
+                                            <div className="mt-2 text-center text-[10px] text-emerald-400/80 font-mono bg-emerald-500/10 py-1.5 px-3 rounded-lg border border-emerald-500/20">
+                                                Current Price: ${( (Number(bids[0].price) + Number(asks[0].price)) / 2 ).toFixed(5)}<br/>
+                                                <span className="text-white">Est. Trigger:</span> ${( ((Number(bids[0].price) + Number(asks[0].price)) / 2) * (1 + form.breakevenTriggerPct / 100) ).toFixed(5)} &nbsp;|&nbsp; <span className="text-white">Est. Target:</span> ${( ((Number(bids[0].price) + Number(asks[0].price)) / 2) * (1 + form.breakevenTargetPct / 100) ).toFixed(5)}
+                                            </div>
+                                        )}
+                                    </>
                                 )}
                             </div>
                         </div>

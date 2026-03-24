@@ -775,11 +775,12 @@ class WallHunterBot:
         if current_price > self.highest_price:
             self.highest_price = current_price
             # Update Trailing SL
-            if self.atr_sl_enabled and self.current_atr > 0:
+            if self.atr_sl_enabled and getattr(self, 'current_atr', 0) > 0:
                 new_sl = self.highest_price - (self.current_atr * self.atr_multiplier)
-            else:
+                self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
+            elif getattr(self, 'tsl_pct', 0.0) > 0:
                 new_sl = self.highest_price * (1 - (self.tsl_pct / 100))
-            self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
+                self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
 
         # --- NEW: Independent Breakeven SL Logic ---
         if getattr(self, 'sl_breakeven_trigger_pct', 0.0) > 0 and not self.active_pos.get('breakeven_hit'):

@@ -558,22 +558,30 @@ class WallHunterFuturesStrategy:
         if side == "long":
             if current_price > self.extreme_price:
                 self.extreme_price = current_price
-                if getattr(self, 'tsl_pct', 0.0) > 0:
-                    new_sl = self.extreme_price * (1 - (self.tsl_pct / 100))
-                    # ATR Support
-                    if self.atr_sl_enabled and self.current_atr > 0:
-                        atr_sl = self.extreme_price - (self.current_atr * self.atr_multiplier)
+                if self.atr_sl_enabled and getattr(self, 'current_atr', 0) > 0:
+                    atr_sl = self.extreme_price - (self.current_atr * self.atr_multiplier)
+                    if getattr(self, 'tsl_pct', 0.0) > 0:
+                        new_sl = self.extreme_price * (1 - (self.tsl_pct / 100))
                         new_sl = max(new_sl, atr_sl)
+                    else:
+                        new_sl = atr_sl
+                    self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
+                elif getattr(self, 'tsl_pct', 0.0) > 0:
+                    new_sl = self.extreme_price * (1 - (self.tsl_pct / 100))
                     self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
         else: # short
             if current_price < self.extreme_price or self.extreme_price == 0:
                 self.extreme_price = current_price
-                if getattr(self, 'tsl_pct', 0.0) > 0:
-                    new_sl = self.extreme_price * (1 + (self.tsl_pct / 100))
-                    # ATR Support
-                    if self.atr_sl_enabled and self.current_atr > 0:
-                        atr_sl = self.extreme_price + (self.current_atr * self.atr_multiplier)
+                if self.atr_sl_enabled and getattr(self, 'current_atr', 0) > 0:
+                    atr_sl = self.extreme_price + (self.current_atr * self.atr_multiplier)
+                    if getattr(self, 'tsl_pct', 0.0) > 0:
+                        new_sl = self.extreme_price * (1 + (self.tsl_pct / 100))
                         new_sl = min(new_sl, atr_sl)
+                    else:
+                        new_sl = atr_sl
+                    self.active_pos['sl'] = min(self.active_pos['sl'], new_sl)
+                elif getattr(self, 'tsl_pct', 0.0) > 0:
+                    new_sl = self.extreme_price * (1 + (self.tsl_pct / 100))
                     self.active_pos['sl'] = min(self.active_pos['sl'], new_sl)
 
         # --- NEW: Independent Breakeven SL Logic ---
