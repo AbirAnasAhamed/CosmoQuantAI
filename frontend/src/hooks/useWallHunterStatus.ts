@@ -17,6 +17,7 @@ export interface WallHunterStatusData {
     total_orders?: number;
     total_wins?: number;
     total_losses?: number;
+    mode?: string;
 }
 
 export const useWallHunterStatus = (botId: number | null) => {

@@ -1046,23 +1046,23 @@ const OrderFlowHeatmap: React.FC = () => {
                                             <span className="text-red-400 font-bold">{formatDisplayPrice(botStatus.sl_price)}</span>
                                         </div>
                                         
-                                        {/* EMERGENCY SELL BLOCKS */}
+                                        {/* EMERGENCY EXIT BLOCKS */}
                                         <div className="mt-2 grid grid-cols-2 gap-2 pointer-events-auto">
                                             <button
                                                 onClick={() => handleEmergencySell('market')}
                                                 disabled={isEmergencySelling}
-                                                className={`py-1.5 px-2 text-[10px] font-bold rounded bg-red-500/20 text-red-400 hover:bg-red-500 hover:text-white border border-red-500/30 transition-colors uppercase flex items-center justify-center gap-1 ${isEmergencySelling ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                className={`py-1.5 px-2 text-[10px] font-bold rounded ${botStatus.mode === 'short' ? 'bg-green-500/20 text-green-400 hover:bg-green-500 border-green-500/30' : 'bg-red-500/20 text-red-400 hover:bg-red-500 border-red-500/30'} hover:text-white border transition-colors uppercase flex items-center justify-center gap-1 ${isEmergencySelling ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             >
                                                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
-                                                Market Sell
+                                                {botStatus.mode === 'short' ? 'Market Buy' : 'Market Sell'}
                                             </button>
                                             <button
                                                 onClick={() => handleEmergencySell('limit')}
                                                 disabled={isEmergencySelling}
-                                                className={`py-1.5 px-2 text-[10px] font-bold rounded bg-blue-500/20 text-blue-400 hover:bg-blue-500 hover:text-white border border-blue-500/30 transition-colors uppercase flex items-center justify-center gap-1 ${isEmergencySelling ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                className={`py-1.5 px-2 text-[10px] font-bold rounded ${botStatus.mode === 'short' ? 'bg-indigo-500/20 text-indigo-400 hover:bg-indigo-500 border-indigo-500/30' : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500 border-blue-500/30'} hover:text-white border transition-colors uppercase flex items-center justify-center gap-1 ${isEmergencySelling ? 'opacity-50 cursor-not-allowed' : ''}`}
                                             >
                                                 <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 6l3 1m0 0l-3 9a5.002 5.002 0 006.001 0M6 7l3 9M6 7l6-2m6 2l3-1m-3 1l-3 9a5.002 5.002 0 006.001 0M18 7l3 9m-3-9l-6-2m0-2v2m0 16V5m0 16H9m3 0h3" /></svg>
-                                                Limit Sell
+                                                {botStatus.mode === 'short' ? 'Limit Buy' : 'Limit Sell'}
                                             </button>
                                         </div>
                                     </>

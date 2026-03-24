@@ -336,6 +336,7 @@ class WallHunterBot:
             status_payload = {
                 "id": self.bot_id,
                 "status": "active" if self.running else "inactive",
+                "mode": getattr(self, 'strategy_mode', 'long'),
                 "pnl": float(f"{pnl_val:.2f}"),
                 "pnl_percent": float(f"{pnl_pct:.2f}"),
                 "total_pnl": float(f"{self.total_realized_pnl:.2f}"),
@@ -614,9 +615,14 @@ class WallHunterBot:
         # mid_price is the most accurate reflection of current cost.
         entry_price = current_mid_price
         
-        # Calculate base asset amount from quote currency amount
-        quote_amount = self.config.get("amount_per_trade", 10.0)
-        base_amount = float(f"{quote_amount / entry_price:.6f}")
+        # Calculate base asset amount
+        input_amount = self.config.get("amount_per_trade", 10.0)
+        if getattr(self, 'strategy_mode', 'long') == 'short':
+            # In Short/Accumulate mode, the UI input is directly the Base Asset amount
+            base_amount = float(f"{input_amount:.6f}")
+        else:
+            # In Long mode, the UI input is Quote Asset, so convert to Base Asset
+            base_amount = float(f"{input_amount / entry_price:.6f}")
         
         # In Paper Trading, simulating a market buy exactly at the bid wall gives an artificial instant PnL advantage (Bid-Ask spread). 
         # Using mid_price prevents instant fake TP triggers.
@@ -1047,32 +1053,40 @@ class WallHunterBot:
             except Exception as e:
                 logger.warning(f"Failed to cancel open limit order during emergency sell: {e}")
                 
+        close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
+        action_name = "BUY" if close_side == "buy" else "SELL"
+        
         if sell_type == "market":
-            logger.info(f"🚨 Executing EMERGENCY MARKET SELL for bot {self.bot_id} at ~{current_price}")
-            await self.engine.execute_trade("sell", sell_amount, current_price)
+            logger.info(f"🚨 Executing EMERGENCY MARKET {action_name} for bot {self.bot_id} at ~{current_price}")
+            await self.engine.execute_trade(close_side, sell_amount, current_price)
             self.total_executed_orders += 1
+            
             # Finalize position and PnL
-            pnl_val = (current_price - self.active_pos['entry']) * sell_amount
+            if getattr(self, 'strategy_mode', 'long') == "short":
+                pnl_val = (self.active_pos['entry'] - current_price) * sell_amount
+            else:
+                pnl_val = (current_price - self.active_pos['entry']) * sell_amount
+                
             self.total_realized_pnl += pnl_val
             if pnl_val > 0:
                 self.total_wins += 1
             else:
                 self.total_losses += 1
-            await self._send_telegram(f"🚨 WallHunter EMERGENCY EXIT - Market Sell!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nPnL: ${pnl_val:.2f}")
+            await self._send_telegram(f"🚨 WallHunter EMERGENCY EXIT - Market {action_name}!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nPnL: ${pnl_val:.2f}")
             self.active_pos = None
             
         elif sell_type == "limit":
-            # For a limit sell, we'll try to place it at the best ask or current market mid-price 
-            sell_price = best_ask if best_ask > 0 else current_price
-            logger.info(f"🎯 Executing EMERGENCY LIMIT SELL for bot {self.bot_id} at {sell_price}")
-            limit_res = await self.engine.execute_trade("sell", sell_amount, sell_price, order_type="limit")
+            # For a limit exit, we'll try to place it at the best ask/bid or current market mid-price 
+            close_price = best_bid if close_side == "buy" and best_bid > 0 else (best_ask if best_ask > 0 else current_price)
+            logger.info(f"🎯 Executing EMERGENCY LIMIT {action_name} for bot {self.bot_id} at {close_price}")
+            limit_res = await self.engine.execute_trade(close_side, sell_amount, close_price, order_type="limit")
             
             if limit_res and 'id' in limit_res:
                 self.active_pos['limit_order_id'] = limit_res['id']
                 # We also update the TP tracking to this new limit price
-                self.active_pos['tp'] = sell_price
+                self.active_pos['tp'] = close_price
                 self.sell_order_type = 'limit' # Force limit mode if it wasn't
-                await self._send_telegram(f"🎯 WallHunter EMERGENCY EXIT - Limit Placed!\nPair: {self.symbol}\nLimit Price: {sell_price:.6f}")
+                await self._send_telegram(f"🎯 WallHunter EMERGENCY EXIT - Limit Placed!\nPair: {self.symbol}\nLimit Price: {close_price:.6f}")
             else:
                 raise Exception("Failed to place emergency limit order.")
         else:
