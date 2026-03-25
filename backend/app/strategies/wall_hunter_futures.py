@@ -865,18 +865,28 @@ class WallHunterFuturesStrategy:
             pass
 
     async def stop(self):
+        """বট স্টপ করার জন্য রিসোর্স ক্লিনআপ"""
         self.running = False
-        if self.public_exchange: await self.public_exchange.close()
-        if self.private_exchange: await self.private_exchange.close()
+        logger.info(f"🛑 [FuturesHunter {self.bot_id}] Stopping...")
         
-        if self._vpvr_task: self._vpvr_task.cancel()
-        if self._atr_task: self._atr_task.cancel()
-        if self._liq_task: self._liq_task.cancel()
-        if self._trades_task: self._trades_task.cancel()
-        if getattr(self, '_btc_task', None): self._btc_task.cancel()
-        
+        # --- FIX: Task Memory Leak / CPU Spike Prevention ---
+        for task_attr in ['_main_task', '_heartbeat_task', '_vpvr_task', '_atr_task', '_liq_task', '_trades_task', '_btc_task']:
+            task = getattr(self, task_attr, None)
+            if task and not task.done():
+                try:
+                    task.cancel()
+                except Exception as e:
+                    logger.error(f"Error cancelling task {task_attr}: {e}")
+                    
         if hasattr(self, 'btc_correlation_tracker') and self.btc_correlation_tracker:
-            await self.btc_correlation_tracker.stop()
+            try:
+                await self.btc_correlation_tracker.stop()
+            except: pass
+            
+        try:
+            if self.public_exchange: await self.public_exchange.close()
+            if self.private_exchange: await self.private_exchange.close()
+        except: pass
         
         logger.info(f"🔴 [FuturesHunter {self.bot_id}] Stopped.")
         await self._send_telegram(f"🔴 Futures Bot [ID: {self.bot_id}] Stopped.")

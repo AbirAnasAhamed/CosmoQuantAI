@@ -436,7 +436,7 @@ class WallHunterBot:
             min_move_pct=self.btc_min_move_pct
         )
 
-        asyncio.create_task(self._run_loop())
+        self._main_task = asyncio.create_task(self._run_loop())
         self._heartbeat_task = asyncio.create_task(self._heartbeat_loop())
         self._vpvr_task = asyncio.create_task(self._vpvr_updater_loop())
         self._atr_task = asyncio.create_task(self._atr_updater_loop())
@@ -1057,25 +1057,28 @@ class WallHunterBot:
             logger.info("Exit: Take Profit Hit")
 
     async def stop(self):
+        """বট স্টপ করার জন্য রিসোর্স ক্লিনআপ"""
         self.running = False
-        if getattr(self, '_heartbeat_task', None):
-            self._heartbeat_task.cancel()
-        if getattr(self, '_vpvr_task', None):
-            self._vpvr_task.cancel()
-        if getattr(self, '_atr_task', None):
-            self._atr_task.cancel()
-        if getattr(self, '_liq_task', None):
-            self._liq_task.cancel()
-        if getattr(self, '_trades_task', None):
-            self._trades_task.cancel()
-        if getattr(self, '_btc_task', None):
-            self._btc_task.cancel()
-            
+        logger.info(f"🛑 [WallHunter {self.bot_id}] Stopping...")
+        
+        # --- FIX: Task Memory Leak / CPU Spike Prevention ---
+        for task_attr in ['_main_task', '_heartbeat_task', '_vpvr_task', '_atr_task', '_liq_task', '_trades_task', '_btc_task']:
+            task = getattr(self, task_attr, None)
+            if task and not task.done():
+                try:
+                    task.cancel()
+                except Exception as e:
+                    logger.error(f"Error cancelling task {task_attr}: {e}")
+                    
         if hasattr(self, 'btc_correlation_tracker') and self.btc_correlation_tracker:
-            await self.btc_correlation_tracker.stop()
+            try:
+                await self.btc_correlation_tracker.stop()
+            except: pass
             
-        if hasattr(self, 'public_exchange') and self.public_exchange:
-            await self.public_exchange.close()
+        try:
+            if hasattr(self, 'public_exchange') and self.public_exchange:
+                await self.public_exchange.close()
+        except: pass
             
         logger.info(f"Bot {self.bot_id} (WallHunter) stopped.")
         await self._send_telegram(f"🔴 WallHunter Bot [ID: {self.bot_id}] Stopped.")
