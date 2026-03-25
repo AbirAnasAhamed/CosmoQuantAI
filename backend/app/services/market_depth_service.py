@@ -206,8 +206,8 @@ class MarketDepthService:
             else:
                 bucket_price = price
                 
-            # Avoid float precision issues for keys
-            bucket_price = round(bucket_price, 2)
+            # Avoid float precision issues for keys, using 8 decimals for altcoins
+            bucket_price = round(bucket_price, 8)
             
             if bucket_price not in buckets:
                 buckets[bucket_price] = 0.0

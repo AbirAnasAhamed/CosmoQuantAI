@@ -217,6 +217,34 @@ class MarketDataStreamer:
                 await asyncio.sleep(5)
 
 
+    async def stop_streaming(self, stream_key: str):
+        """Stops a specific market data stream and cleans up its tasks."""
+        if stream_key not in self._active_streams:
+            return
+
+        logger.info(f"🛑 Stopping stream: {stream_key}")
+        self._active_streams.discard(stream_key)
+
+        # Cancel associated tasks
+        if stream_key in self._tasks:
+            for task in self._tasks[stream_key]:
+                if not task.done():
+                    task.cancel()
+            del self._tasks[stream_key]
+            
+        # Clean up exchange connection if no other streams are active for this exchange
+        try:
+            exchange_id = stream_key.split(':')[0]
+            prefix = f"{exchange_id}:"
+            remaining = any(k.startswith(prefix) for k in self._active_streams)
+            
+            if not remaining and exchange_id in self._exchange_instances:
+                exchange = self._exchange_instances.pop(exchange_id)
+                await exchange.close()
+                logger.info(f"🔌 Closed CCXT exchange instance for {exchange_id} as no streams remain.")
+        except Exception as e:
+            logger.error(f"Error while cleaning up exchange connection for {stream_key}: {e}")
+
     async def stop_all(self):
         """Stops all running streams and closes exchange instances."""
         self._active_streams.clear()
