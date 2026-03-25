@@ -103,6 +103,11 @@ class MarketDataStreamer:
             elif limit <= 10: return 10
             elif limit <= 20: return 20
             else: return 150
+            
+        if 'bitfinex' in exchange_id:
+            if limit <= 25: return 25
+            else: return 100
+            
         return limit
 
     async def _stream_order_book(self, exchange_id: str, symbol: str, stream_key: str):

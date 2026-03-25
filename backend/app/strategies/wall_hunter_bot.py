@@ -301,6 +301,19 @@ class WallHunterBot:
     async def _send_telegram(self, msg: str):
         if not self.owner_id:
             return
+            
+        # Append Performance Summary for Exits
+        if "EXIT" in msg or "Partial TP" in msg:
+            total_closed = getattr(self, 'total_wins', 0) + getattr(self, 'total_losses', 0)
+            pnl = getattr(self, 'total_realized_pnl', 0.0)
+            summary = (
+                f"\n-------------------------\n"
+                f"📊 *Bot {self.bot_id} Report:*\n"
+                f"🔹 Closed Trades: {total_closed}\n"
+                f"✅ Wins: {getattr(self, 'total_wins', 0)} | ❌ Losses: {getattr(self, 'total_losses', 0)}\n"
+                f"💰 Total Net PnL: ${pnl:.2f}"
+            )
+            msg += summary
         try:
             db = SessionLocal()
             await NotificationService.send_message(db, self.owner_id, msg)
