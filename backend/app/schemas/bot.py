@@ -68,6 +68,10 @@ class StrategyConfig(BaseModel):
     btc_time_window: Optional[int] = 15
     btc_min_move_pct: Optional[float] = 0.1
 
+    # --- Buy Order Type Logic ---
+    buy_order_type: Optional[str] = "market"
+    limit_buffer: Optional[float] = 1.0
+
     @validator('stop_loss')
     def validate_stop_loss(cls, v):
         if v is not None and (v < 0 or v > 100):
