@@ -455,20 +455,34 @@ class WallHunterBot:
         
         mode = "Live Trading" if not self.is_paper_trading else "Paper Trading"
         
+        trigger_logs = []
+        if getattr(self, 'enable_wall_trigger', True):
+            trigger_logs.append(f"Vol Threshold: {self.vol_threshold}")
+        if getattr(self, 'enable_liq_trigger', False):
+            trigger_logs.append(f"Liq Threshold: {self.liq_threshold}")
+        trigger_str = "\n".join(trigger_logs)
+        
+        trigger_logs_console = []
+        if getattr(self, 'enable_wall_trigger', True):
+            trigger_logs_console.append(f"- Vol Threshold: {self.vol_threshold}")
+        if getattr(self, 'enable_liq_trigger', False):
+            trigger_logs_console.append(f"- Liq Threshold: {self.liq_threshold}")
+        trigger_console_str = "\n".join(trigger_logs_console)
+
         startup_msg = (
             f"🟢 WallHunter Bot [ID: {self.bot_id}] Started!\n"
             f"Pair: {self.symbol}\n"
             f"Mode: {mode}\n"
             f"Buy Order: {self.buy_order_type.upper()}\n"
             f"Limit Buffer: {self.limit_buffer}%\n"
-            f"Vol Threshold: {self.vol_threshold}"
+            f"{trigger_str}"
         )
         
         logger.info(f"🚀 [WallHunter {self.bot_id}] Booting up with config:\n"
                     f"- Symbol: {self.symbol}\n"
                     f"- Buy Type: {self.buy_order_type}\n"
                     f"- Limit Buffer: {self.limit_buffer}%\n"
-                    f"- Vol Threshold: {self.vol_threshold}")
+                    f"{trigger_console_str}")
         
         await self._send_telegram(startup_msg)
 
