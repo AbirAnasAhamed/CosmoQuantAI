@@ -283,6 +283,7 @@ class WallHunterFuturesStrategy:
                     orderbook = await self.public_exchange.watch_order_book(self.symbol, limit=limit)
                 except Exception as e:
                     logger.warning(f"WS Orderbook error: {e}, falling back to REST")
+                    await asyncio.sleep(1.5) # Rate limit protection for REST fallback
                     # Use exchange service to format symbol for fetch_order_book if needed
                     fetch_symbol = self.symbol
                     orderbook = await self.public_exchange.fetch_order_book(fetch_symbol, limit=limit)

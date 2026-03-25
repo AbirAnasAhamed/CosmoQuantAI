@@ -482,6 +482,7 @@ class WallHunterBot:
                     orderbook = await self.public_exchange.watch_order_book(self.symbol, limit=limit)
                 except Exception as e:
                     logger.warning(f"WebSocket orderbook error: {e}, falling back to REST")
+                    await asyncio.sleep(1.5) # Rate limit protection for REST fallback
                     orderbook = await self.public_exchange.fetch_order_book(self.symbol, limit=limit)
                     
                 if not orderbook['bids'] or not orderbook['asks']:
