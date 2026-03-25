@@ -43,17 +43,6 @@ export const LiquidityHeatmapRenderer: React.FC<LiquidityHeatmapRendererProps> =
         // Sync canvas size to fit the chart pane
         const timeWidth = timeScale.width();
 
-        // Match exact bounding box of chart container to cover the main pane correctly
-        const parent = canvas.parentElement;
-        if (parent) {
-            if (canvas.width !== parent.clientWidth) {
-                canvas.width = parent.clientWidth;
-            }
-            if (canvas.height !== parent.clientHeight) {
-                canvas.height = parent.clientHeight;
-            }
-        }
-
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
         const logicalRange = timeScale.getVisibleLogicalRange();
@@ -78,6 +67,10 @@ export const LiquidityHeatmapRenderer: React.FC<LiquidityHeatmapRendererProps> =
         const len = data.length;
         ctx.globalCompositeOperation = 'source-over';
 
+        // Determine zoom level and thresholds based on exact barSpacing value
+        const isZoomedOut = barSpacing < 2.0;
+        const minIntensityThreshold = isZoomedOut ? 0.2 : 0.05;
+
         for (let i = fromIdx - 5; i <= toIdx + 5; i++) {
             if (i < 0 || i >= len) continue;
 
@@ -86,35 +79,71 @@ export const LiquidityHeatmapRenderer: React.FC<LiquidityHeatmapRendererProps> =
             if (x === null) continue;
 
             const barWidth = Math.max(1.5, barSpacing);
+            const cellHeight = 4;
+            
+            if (x < -barWidth || x > timeWidth + barWidth) continue;
 
-            for (let j = 0; j < pt.levels.length; j++) {
-                const level = pt.levels[j];
-                const y = series.priceToCoordinate(level.price);
-                if (y === null) continue;
-
-                const intensity = level.volume / maxVol;
-                if (intensity < 0.05) continue; // Skip very low liquidity to keep clean
-
-                // Gradient color mapping
-                let r, g, b, a;
-                if (intensity < 0.5) {
-                    r = 239; g = 68; b = 68; // Red
-                    a = intensity * 2 * 0.4; // Max 0.4 opacity for lower half
-                } else if (intensity < 0.8) {
-                    r = 249; g = 115; b = 22; // Orange
-                    a = 0.4 + (intensity - 0.5) * 2 * 0.4; // Max 0.8 opacity
-                } else {
-                    r = 253; g = 224; b = 71; // Yellow
-                    a = 0.8 + (intensity - 0.8) * 5 * 0.2; // Max 1.0 opacity
+            if (isZoomedOut) {
+                // DATA DECIMATION / LEVEL GROUPING
+                // Group volume by Y-coordinate bucket (e.g. 4 pixels) to limit rendering calls 
+                // in heavily zoomed out timeframes
+                const yBuckets = new Map<number, number>();
+                
+                for (let j = 0; j < pt.levels.length; j++) {
+                    const level = pt.levels[j];
+                    const yRaw = series.priceToCoordinate(level.price);
+                    if (yRaw === null) continue;
+                    
+                    const y = Math.floor(yRaw / cellHeight) * cellHeight;
+                    yBuckets.set(y, (yBuckets.get(y) || 0) + level.volume);
                 }
+                
+                yBuckets.forEach((totalVolume, y) => {
+                    const rawIntensity = totalVolume / maxVol;
+                    const intensity = Math.min(1.0, rawIntensity); // normalize if exceeded
+                    
+                    if (intensity < minIntensityThreshold) return;
 
-                ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
+                    let r, g, b, a;
+                    if (intensity < 0.5) {
+                        r = 239; g = 68; b = 68; // Red
+                        a = intensity * 2 * 0.4;
+                    } else if (intensity < 0.8) {
+                        r = 249; g = 115; b = 22; // Orange
+                        a = 0.4 + (intensity - 0.5) * 2 * 0.4;
+                    } else {
+                        r = 253; g = 224; b = 71; // Yellow
+                        a = 0.8 + (intensity - 0.8) * 5 * 0.2;
+                    }
 
-                // Fixed height for better visibility at all scales
-                const cellHeight = 4;
+                    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
+                    ctx.fillRect(Math.floor(x - barWidth / 2), Math.floor(y - cellHeight / 2), Math.ceil(barWidth), cellHeight);
+                });
+                
+            } else {
+                // NORMAL RENDERING
+                for (let j = 0; j < pt.levels.length; j++) {
+                    const level = pt.levels[j];
+                    const y = series.priceToCoordinate(level.price);
+                    if (y === null) continue;
 
-                if (x >= -barWidth && x <= timeWidth) {
-                    // Draw centered exactly on the coordinate x
+                    const intensity = level.volume / maxVol;
+                    if (intensity < minIntensityThreshold) continue; 
+
+                    // Gradient color mapping
+                    let r, g, b, a;
+                    if (intensity < 0.5) {
+                        r = 239; g = 68; b = 68; // Red
+                        a = intensity * 2 * 0.4; // Max 0.4 opacity for lower half
+                    } else if (intensity < 0.8) {
+                        r = 249; g = 115; b = 22; // Orange
+                        a = 0.4 + (intensity - 0.5) * 2 * 0.4; // Max 0.8 opacity
+                    } else {
+                        r = 253; g = 224; b = 71; // Yellow
+                        a = 0.8 + (intensity - 0.8) * 5 * 0.2; // Max 1.0 opacity
+                    }
+
+                    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${a})`;
                     ctx.fillRect(Math.floor(x - barWidth / 2), Math.floor(y - cellHeight / 2), Math.ceil(barWidth), cellHeight);
                 }
             }
@@ -123,6 +152,30 @@ export const LiquidityHeatmapRenderer: React.FC<LiquidityHeatmapRendererProps> =
         console.error("Error in Heatmap drawHeatmap:", error);
     }
 }, [chart, series, data]);
+
+    // Handle Canvas Resizing optimally without Layout Thrashing
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const parent = canvas.parentElement;
+        if (!parent) return;
+
+        // Set initial size
+        canvas.width = parent.clientWidth;
+        canvas.height = parent.clientHeight;
+
+        const observer = new ResizeObserver(() => {
+            if (canvas.width !== parent.clientWidth) canvas.width = parent.clientWidth;
+            if (canvas.height !== parent.clientHeight) canvas.height = parent.clientHeight;
+            requestDraw();
+        });
+
+        observer.observe(parent);
+
+        return () => {
+            observer.disconnect();
+        };
+    }, [requestDraw]);
 
     useEffect(() => {
         if (!chart || !series) return;

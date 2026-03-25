@@ -197,31 +197,20 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
 
                     chart.timeScale().fitContent();
 
-                    // Initial Indicator State for Incremental Updates
+                    // Initialize Indicators immediately after fetching history
                     if (candles.length > 0) {
-                        const emaData = calculateEMA(candles, indicatorSettings.emaPeriod);
-                        const rsiDataFull = calculateRSI(candles, indicatorSettings.rsiPeriod);
-                        
-                        // We need average gains/losses for RSI incremental calculation
-                        // Wilders smoothing: avgGain = (prevAvgGain * (n-1) + currentGain) / n
-                        // Let's estimate them from the last RSI value or just recalculate them once here
-                        const period = indicatorSettings.rsiPeriod;
-                        let upSum = 0;
-                        let downSum = 0;
-                        const rsiStartIdx = Math.max(1, candles.length - period - 1);
-                        for (let i = rsiStartIdx; i < candles.length; i++) {
-                            const diff = candles[i].close - candles[i-1].close;
-                            if (diff > 0) upSum += diff; else downSum -= diff;
+                        if (indicatorSettings.showEMA && emaSeriesRef.current) {
+                            emaSeriesRef.current.setData(calculateEMA(candles, indicatorSettings.emaPeriod) as any);
                         }
-
-                        lastIndicatorStateRef.current = {
-                            prevEMA: emaData.length > 0 ? emaData[emaData.length - 1].value : candles[candles.length - 1].close,
-                            prevRSI: {
-                                avgUp: upSum / period,
-                                avgDown: downSum / period,
-                                prevClose: candles[candles.length - 1].close
-                            }
-                        };
+                        if (indicatorSettings.showBB && bbUpperSeriesRef.current && bbMiddleSeriesRef.current && bbLowerSeriesRef.current) {
+                            const bbData = calculateBollingerBands(candles, indicatorSettings.bbPeriod, indicatorSettings.bbStdDev);
+                            bbUpperSeriesRef.current.setData(bbData.map((d: any) => ({ time: d.time, value: d.upper })) as any);
+                            bbMiddleSeriesRef.current.setData(bbData.map((d: any) => ({ time: d.time, value: d.middle })) as any);
+                            bbLowerSeriesRef.current.setData(bbData.map((d: any) => ({ time: d.time, value: d.lower })) as any);
+                        }
+                        if (indicatorSettings.showRSI && rsiSeriesRef.current) {
+                            rsiSeriesRef.current.setData(calculateRSI(candles, indicatorSettings.rsiPeriod) as any);
+                        }
                     }
                 }
             } catch (err) {
@@ -266,37 +255,38 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         if (!emaSeriesRef.current || !bbUpperSeriesRef.current || !bbMiddleSeriesRef.current || !bbLowerSeriesRef.current || !rsiSeriesRef.current) return;
 
         const data = allCandlesRef.current;
-        if (data.length === 0) return;
 
         emaSeriesRef.current.applyOptions({ visible: indicatorSettings.showEMA });
-        if (indicatorSettings.showEMA) {
-            emaSeriesRef.current.setData(calculateEMA(data, indicatorSettings.emaPeriod) as any);
-        }
-
         const showBB = indicatorSettings.showBB;
         bbUpperSeriesRef.current.applyOptions({ visible: showBB });
         bbMiddleSeriesRef.current.applyOptions({ visible: showBB });
         bbLowerSeriesRef.current.applyOptions({ visible: showBB });
+        rsiSeriesRef.current.applyOptions({ visible: indicatorSettings.showRSI });
+        
+        if (chartRef.current) {
+            chartRef.current.priceScale('left').applyOptions({ visible: indicatorSettings.showRSI });
+        }
+        
+        if (volumeSeriesRef.current) {
+            volumeSeriesRef.current.applyOptions({ visible: indicatorSettings.showVolume });
+        }
+
+        if (data.length === 0) return;
+
+        if (indicatorSettings.showEMA) {
+            emaSeriesRef.current.setData(calculateEMA(data, indicatorSettings.emaPeriod) as any);
+        }
         if (showBB) {
             const bbData = calculateBollingerBands(data, indicatorSettings.bbPeriod, indicatorSettings.bbStdDev);
             bbUpperSeriesRef.current.setData(bbData.map(d => ({ time: d.time, value: d.upper })) as any);
             bbMiddleSeriesRef.current.setData(bbData.map(d => ({ time: d.time, value: d.middle })) as any);
             bbLowerSeriesRef.current.setData(bbData.map(d => ({ time: d.time, value: d.lower })) as any);
         }
-
-        rsiSeriesRef.current.applyOptions({ visible: indicatorSettings.showRSI });
-        if (chartRef.current) {
-            chartRef.current.priceScale('left').applyOptions({ visible: indicatorSettings.showRSI });
-        }
         if (indicatorSettings.showRSI) {
             rsiSeriesRef.current.setData(calculateRSI(data, indicatorSettings.rsiPeriod) as any);
         }
 
-        if (volumeSeriesRef.current) {
-            volumeSeriesRef.current.applyOptions({ visible: indicatorSettings.showVolume });
-        }
-
-    }, [indicatorSettings, allCandlesRef.current]);
+    }, [indicatorSettings]);
 
     // Buffer market data updates
     useEffect(() => {
@@ -370,15 +360,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                 };
                 isNewCandle = true;
 
-                // Update indicator state for the next candle
-                if (lastIndicatorStateRef.current) {
-                    const prevState = lastIndicatorStateRef.current;
-                    // Move to next candle
-                    lastIndicatorStateRef.current = {
-                        prevEMA: prevState.prevEMA, // This will be updated below
-                        prevRSI: { ...prevState.prevRSI, prevClose: lastCandle.close }
-                    };
-                }
+                // No need to track indicator state manually anymore
             } else {
                 updatedCandle = {
                     ...lastCandle,
@@ -414,41 +396,21 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                     allCandlesRef.current[len - 1] = updatedCandle;
                 }
 
-                // --- INCREMENTAL INDICATOR UPDATES ---
-                if (lastIndicatorStateRef.current) {
-                    const state = lastIndicatorStateRef.current;
-
-                    // EMA
+                // --- FULL INDICATOR CALCULATION ON NEW DATA ---
+                // We recalculate fully for perfect sync. It's very fast for 2000 items.
+                const curData = allCandlesRef.current;
+                if (curData.length > 0) {
                     if (indicatorSettings.showEMA && emaSeriesRef.current) {
-                        const emaUpdate = updateEMA(updatedCandle, state.prevEMA, indicatorSettings.emaPeriod);
-                        emaSeriesRef.current.update(emaUpdate as any);
-                        if (isNewCandle) state.prevEMA = emaUpdate.value;
+                        emaSeriesRef.current.setData(calculateEMA(curData, indicatorSettings.emaPeriod) as any);
                     }
-
-                    // BB
                     if (indicatorSettings.showBB && bbUpperSeriesRef.current && bbMiddleSeriesRef.current && bbLowerSeriesRef.current) {
-                        const slice = allCandlesRef.current.slice(-indicatorSettings.bbPeriod);
-                        const bbUpdate = updateBollingerBands(slice, indicatorSettings.bbPeriod, indicatorSettings.bbStdDev);
-                        bbUpperSeriesRef.current.update({ time: bbUpdate.time as any, value: bbUpdate.upper });
-                        bbMiddleSeriesRef.current.update({ time: bbUpdate.time as any, value: bbUpdate.middle });
-                        bbLowerSeriesRef.current.update({ time: bbUpdate.time as any, value: bbUpdate.lower });
+                        const bbData = calculateBollingerBands(curData, indicatorSettings.bbPeriod, indicatorSettings.bbStdDev);
+                        bbUpperSeriesRef.current.setData(bbData.map((d: any) => ({ time: d.time, value: d.upper })) as any);
+                        bbMiddleSeriesRef.current.setData(bbData.map((d: any) => ({ time: d.time, value: d.middle })) as any);
+                        bbLowerSeriesRef.current.setData(bbData.map((d: any) => ({ time: d.time, value: d.lower })) as any);
                     }
-
-                    // RSI
                     if (indicatorSettings.showRSI && rsiSeriesRef.current) {
-                        const rsiResult = updateRSI(
-                            updatedCandle,
-                            state.prevRSI.prevClose,
-                            state.prevRSI.avgUp,
-                            state.prevRSI.avgDown,
-                            indicatorSettings.rsiPeriod
-                        );
-                        rsiSeriesRef.current.update(rsiResult.rsi as any);
-                        if (isNewCandle) {
-                            state.prevRSI.avgUp = rsiResult.avgUp;
-                            state.prevRSI.avgDown = rsiResult.avgDown;
-                            state.prevRSI.prevClose = updatedCandle.close;
-                        }
+                        rsiSeriesRef.current.setData(calculateRSI(curData, indicatorSettings.rsiPeriod) as any);
                     }
                 }
             } catch (e) {

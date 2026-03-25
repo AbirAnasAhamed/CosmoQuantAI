@@ -7,6 +7,7 @@ import ccxt.pro as ccxt_pro
 from app.utils import get_redis_client
 from app.strategies.order_block_bot import OrderBlockExecutionEngine
 from app.strategies.helpers.absorption_tracker import AbsorptionTracker
+from app.services.market_depth_service import market_depth_service
 
 logger = logging.getLogger(__name__)
 
@@ -35,6 +36,7 @@ class WallHunterFuturesStrategy:
         self.min_wall_lifetime = self.config.get("min_wall_lifetime", 3.0)
         self.max_wall_distance_pct = self.config.get("max_wall_distance_pct", 1.0)
         self.amount_per_trade = self.config.get("amount_per_trade", 10.0)
+        self.buy_order_type = self.config.get("buy_order_type", "market")
         self.sell_order_type = self.config.get("sell_order_type", "market")
         
         # --- NEW FEATURES: Partial TP & Triggers ---
@@ -206,6 +208,17 @@ class WallHunterFuturesStrategy:
         """বট স্টপ করার জন্য রিসোর্স ক্লিনআপ"""
         self.running = False
         logger.info(f"🛑 [FuturesHunter {self.bot_id}] Stopping...")
+        
+        # --- FIX: Task Memory Leak / CPU Spike Prevention ---
+        for task_attr in ['_main_task', '_heartbeat_task', '_vpvr_task', '_atr_task', '_liq_task', '_trades_task', '_btc_task']:
+            task = getattr(self, task_attr, None)
+            if task and not task.done():
+                try:
+                    task.cancel()
+                except Exception as e:
+                    logger.error(f"Error cancelling task {task_attr}: {e}")
+        # ----------------------------------------------------
+        
         try:
             if self.public_exchange:
                 await self.public_exchange.close()
@@ -265,13 +278,14 @@ class WallHunterFuturesStrategy:
         while self.running:
             try:
                 # WebSocket এর মাধ্যমে অর্ডারবুক ওয়াচ করা
+                limit = market_depth_service._normalize_order_book_limit(self.exchange_id, 20)
                 try:
-                    orderbook = await self.public_exchange.watch_order_book(self.symbol, limit=20)
+                    orderbook = await self.public_exchange.watch_order_book(self.symbol, limit=limit)
                 except Exception as e:
                     logger.warning(f"WS Orderbook error: {e}, falling back to REST")
                     # Use exchange service to format symbol for fetch_order_book if needed
                     fetch_symbol = self.symbol
-                    orderbook = await self.public_exchange.fetch_order_book(fetch_symbol, limit=20)
+                    orderbook = await self.public_exchange.fetch_order_book(fetch_symbol, limit=limit)
                 
                 if not orderbook['bids'] or not orderbook['asks']:
                     await asyncio.sleep(1)
@@ -360,7 +374,12 @@ class WallHunterFuturesStrategy:
                         potential_triggers.sort(key=lambda x: x['vol'], reverse=True)
                         
                         # Apply Imbalance check if enabled
-                        imbalance_ratio = (bid_vol_total / ask_vol_total) if ask_vol_total > 0 else 10.0
+                        if ask_vol_total == 0 and bid_vol_total == 0:
+                            imbalance_ratio = 1.0 # Neutral (prevents fakeout)
+                        elif ask_vol_total == 0:
+                            imbalance_ratio = 10.0
+                        else:
+                            imbalance_ratio = bid_vol_total / ask_vol_total
                         
                         best_wall = None
                         for wall in potential_triggers:
@@ -458,7 +477,11 @@ class WallHunterFuturesStrategy:
             logger.info(f"⚡ [FuturesHunter] Entering {pos_side} at {entry_price} (Amount: {base_amount} contracts)")
             logger.info(f"📝 Reason: {reason}")
             
-            res = await self.engine.execute_trade(side, base_amount, entry_price)
+            entry_order_type = self.buy_order_type
+            if entry_order_type == "marketable_limit":
+                entry_order_type = "market"
+                
+            res = await self.engine.execute_trade(side, base_amount, entry_price, order_type=entry_order_type)
             if res:
                 actual_entry = res.get('average') or res.get('price') or entry_price
                 
@@ -649,7 +672,14 @@ class WallHunterFuturesStrategy:
             # ফিউচার ক্লোজের জন্য বিপরীত অর্ডার
             exit_side = "sell" if side == "long" else "buy"
             
-            res = await self.engine.execute_trade(exit_side, self.active_pos['amount'], current_price)
+            exit_order_type = self.sell_order_type
+            if exit_order_type == "marketable_limit":
+                exit_order_type = "market"
+
+            # TP/SL/TSL are always market-type execution unless explicit limit
+            actual_type = exit_order_type if exit_order_type != "limit" else "market"
+            
+            res = await self.engine.execute_trade(exit_side, self.active_pos['amount'], current_price, order_type=actual_type)
             if res:
                 logger.info(f"✅ {side.upper()} Position Closed: {reason}")
                 await self._send_telegram(f"🏁 *{side.upper()} Closed* ({reason})\nPrice: {current_price}\nPair: {self.symbol}")
@@ -663,12 +693,25 @@ class WallHunterFuturesStrategy:
         
         sell_amount_raw = amount * (self.partial_tp_pct / 100)
         
-        # Determine precision based on minimum contract size
+        # Determine precision and limits based on market config
         min_amount = 1.0
+        min_cost = 0.0
+        contract_size = 1.0
         if self.public_exchange and getattr(self.public_exchange, 'markets', None):
             market = self.public_exchange.markets.get(self.symbol, {})
             min_amount = market.get('limits', {}).get('amount', {}).get('min', 1.0)
             if min_amount is None: min_amount = 1.0
+            min_cost = market.get('limits', {}).get('cost', {}).get('min', 0.0)
+            contract_size = market.get('contractSize', 1.0)
+
+        # --- Min Notional Check (Dust Position Preventer) ---
+        remaining_raw = amount - sell_amount_raw
+        if min_cost and min_cost > 0:
+            remaining_value = remaining_raw * contract_size * current_price
+            if remaining_value < min_cost:
+                logger.warning(f"Dust Prevented: Remaining value ${remaining_value:.2f} < Min Notional ${min_cost:.2f}. Partial TP upgrading to 100% close.")
+                sell_amount_raw = amount
+        # ----------------------------------------------------
 
         if min_amount >= 1.0:
             sell_amount = float(int(sell_amount_raw))
@@ -680,7 +723,7 @@ class WallHunterFuturesStrategy:
             self.active_pos['tp1_hit'] = True
             return
             
-        logger.info(f"🔓 [PARTIAL TP] Closing {self.partial_tp_pct}% ({sell_amount} contracts) of {side.upper()} at {current_price}")
+        logger.info(f"🔓 [PARTIAL TP] Closing {sell_amount} contracts ({self.partial_tp_pct}% logic) of {side.upper()} at {current_price}")
         
         exit_side = "sell" if side == "long" else "buy"
         res = None
@@ -692,25 +735,35 @@ class WallHunterFuturesStrategy:
                 # Mock instant fill for paper trade limit at current price
                 await self.engine.execute_trade(exit_side, sell_amount, current_price)
         else:
-            res = await self.engine.execute_trade(exit_side, sell_amount, current_price)
-            if res: logger.info(f"Executed Market Order for Partial TP at {current_price}")
+            exit_order_type = self.sell_order_type
+            if exit_order_type == "marketable_limit":
+                exit_order_type = "market"
+            res = await self.engine.execute_trade(exit_side, sell_amount, current_price, order_type=exit_order_type)
+            if res: logger.info(f"Executed {exit_order_type.upper()} Order for Partial TP at {current_price}")
             
         # Update Limit order to prevent over-selling
         if res and self.sell_order_type == 'limit' and self.active_pos.get('limit_order_id'):
             try:
                 await self.engine.cancel_order(self.active_pos['limit_order_id'])
                 remain_amount = self.active_pos['amount'] - sell_amount
-                limit_res = await self.engine.execute_trade(exit_side, remain_amount, self.active_pos['tp'], order_type="limit")
-                if limit_res and 'id' in limit_res:
-                    self.active_pos['limit_order_id'] = limit_res['id']
+                if remain_amount > 0.00000001:
+                    limit_res = await self.engine.execute_trade(exit_side, remain_amount, self.active_pos['tp'], order_type="limit")
+                    if limit_res and 'id' in limit_res:
+                        self.active_pos['limit_order_id'] = limit_res['id']
             except Exception as e:
                 logger.error(f"Failed to update Limit order after TP1: {e}")
         
         if res:
             self.active_pos['amount'] -= sell_amount
-            self.active_pos['tp1_hit'] = True
-            logger.info(f"✅ Partial TP Completed. Remaining: {self.active_pos['amount']}, SL: {self.active_pos['sl']}")
-            await self._send_telegram(f"🔓 *Partial TP1 Hit!* ({self.partial_tp_pct}%)\nRemaining amount running.")
+            
+            if self.active_pos['amount'] <= 0.00000001:
+                logger.info(f"✅ TP1 Full Output Completed. Dust position was prevented.")
+                await self._send_telegram(f"🎯 *Full TP Hit at TP1!* (Dust Prevented)")
+                self.active_pos = None
+            else:
+                self.active_pos['tp1_hit'] = True
+                logger.info(f"✅ Partial TP Completed. Remaining: {self.active_pos['amount']}, SL: {self.active_pos['sl']}")
+                await self._send_telegram(f"🔓 *Partial TP1 Hit!* ({self.partial_tp_pct}%)\nRemaining amount running.")
         else:
             logger.warning("❌ Partial TP execution failed. Marking tp1_hit as True to prevent infinite loop spam, position size unchanged.")
             self.active_pos['tp1_hit'] = True
@@ -776,7 +829,8 @@ class WallHunterFuturesStrategy:
         
         # Determine current market price
         try:
-            ob = await self.public_exchange.fetch_order_book(self.symbol, limit=5)
+            limit = market_depth_service._normalize_order_book_limit(self.exchange_id, 5)
+            ob = await self.public_exchange.fetch_order_book(self.symbol, limit=limit)
             best_bid = ob['bids'][0][0] if ob['bids'] else 0
             best_ask = ob['asks'][0][0] if ob['asks'] else 0
             current_price = (best_bid + best_ask) / 2 if best_bid and best_ask else best_bid or best_ask
@@ -797,7 +851,11 @@ class WallHunterFuturesStrategy:
         
         logger.info(f"🚨 [EMERGENCY] Closing {side.upper()} position for bot {self.bot_id} via {sell_type.upper()}")
         
-        res = await self.engine.execute_trade(exit_side, amount, current_price, order_type=sell_type)
+        actual_type = sell_type
+        if actual_type == "marketable_limit":
+            actual_type = "market"
+            
+        res = await self.engine.execute_trade(exit_side, amount, current_price, order_type=actual_type)
         if res:
             pnl_val = (current_price - self.active_pos['entry']) * amount if side == "long" else (self.active_pos['entry'] - current_price) * amount
             await self._send_telegram(f"🚨 *EMERGENCY EXIT* triggered!\nPair: {self.symbol}\nSide: {side.upper()}\nExit Price: {current_price}\nPnL: ${pnl_val:.2f}")

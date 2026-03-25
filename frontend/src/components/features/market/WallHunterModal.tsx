@@ -505,9 +505,10 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                     <label className="text-[10px] text-gray-500 font-bold uppercase">
                                         {tradingMode === 'spot' && strategyMode === 'short' ? 'Sell Order (Entry)' : 'Sell Order (TP)'}
                                     </label>
-                                    <select className="w-full bg-white/5 border border-white/10 rounded-xl p-2 text-white outline-none focus:border-brand-primary text-sm" value={form.sellOrderType} onChange={(e) => handleFormChange('sellOrderType', e.target.value)}>
-                                        <option className="bg-[#0B1120] text-white" value="market">Market</option>
-                                        <option className="bg-[#0B1120] text-white" value="limit">Limit</option>
+                                    <select className="w-full bg-white/5 border border-white/10 rounded-xl p-2.5 text-white outline-none focus:border-brand-primary text-sm font-bold" value={form.sellOrderType} onChange={(e) => handleFormChange('sellOrderType', e.target.value)}>
+                                        <option className="bg-[#0B1120] text-white" value="market">Market (Normal)</option>
+                                        <option className="bg-[#0B1120] text-white" value="limit">Limit (Maker)</option>
+                                        <option className="bg-[#0B1120] text-white" value="marketable_limit">Marketable Limit (MEXC)</option>
                                     </select>
                                 </div>
                             </div>
@@ -546,7 +547,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                         <option className="bg-[#0B1120]" value="marketable_limit">Marketable Limit (Recommended for MEXC)</option>
                                     </select>
                                 </div>
-                                {form.buyOrderType === 'marketable_limit' && (
+                                {(form.buyOrderType === 'marketable_limit' || form.sellOrderType === 'marketable_limit') && (
                                     <div className="w-1/3 space-y-1 animate-fadeIn">
                                         <label className="text-[10px] text-orange-400 font-black uppercase">Limit Buffer (%)</label>
                                         <input 

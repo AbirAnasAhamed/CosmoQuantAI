@@ -9,6 +9,7 @@ from app.strategies.order_block_bot import OrderBlockExecutionEngine
 from app.services.notification import NotificationService
 from app.db.session import SessionLocal
 from app.strategies.helpers.absorption_tracker import AbsorptionTracker
+from app.services.market_depth_service import market_depth_service
 
 try:
     from app.core.security import decrypt_key
@@ -476,11 +477,12 @@ class WallHunterBot:
         while self.running:
             try:
                 # Real-time L2 Data Fetching via WebSocket
+                limit = market_depth_service._normalize_order_book_limit(self.exchange_id, 20)
                 try:
-                    orderbook = await self.public_exchange.watch_order_book(self.symbol, limit=20)
+                    orderbook = await self.public_exchange.watch_order_book(self.symbol, limit=limit)
                 except Exception as e:
                     logger.warning(f"WebSocket orderbook error: {e}, falling back to REST")
-                    orderbook = await self.public_exchange.fetch_order_book(self.symbol, limit=20)
+                    orderbook = await self.public_exchange.fetch_order_book(self.symbol, limit=limit)
                     
                 if not orderbook['bids'] or not orderbook['asks']:
                     await asyncio.sleep(1)
@@ -885,13 +887,33 @@ class WallHunterBot:
             logger.info("🟢 TP1 Hit! Executing Partial Close.")
             sell_amount_raw = self.active_pos['amount'] * (self.partial_tp_pct / 100)
             
+            # --- Min Notional Check (Dust Position Preventer) ---
+            remaining_amount = self.active_pos['amount'] - sell_amount_raw
+            try:
+                min_cost = 0.0
+                if self.engine.exchange and hasattr(self.engine.exchange, 'markets') and self.symbol in self.engine.exchange.markets:
+                    min_cost = self.engine.exchange.markets[self.symbol].get('limits', {}).get('cost', {}).get('min', 0.0)
+                
+                if min_cost and min_cost > 0:
+                    remaining_value = remaining_amount * current_price
+                    if remaining_value < min_cost:
+                        logger.warning(f"Dust Position Prevented: Remaining value ${remaining_value:.2f} < Min Notional ${min_cost:.2f}. Executing 100% close at TP1.")
+                        sell_amount_raw = self.active_pos['amount']
+            except Exception as e:
+                logger.error(f"Error checking min notional for TP1: {e}")
+            # ----------------------------------------------------
+
             close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
             close_amount_raw = (sell_amount_raw * self.active_pos['entry'] * 0.995) / self.active_pos['tp1'] if getattr(self, 'strategy_mode', 'long') == "short" else sell_amount_raw
             
             sell_amount = float(self.engine.exchange.amount_to_precision(self.symbol, close_amount_raw))
             
+            sell_order_type = self.sell_order_type
+            if sell_order_type == 'marketable_limit':
+                sell_order_type = 'market'
+
             res = None
-            if self.sell_order_type == 'limit':
+            if sell_order_type == 'limit':
                 res = await self.engine.execute_trade(close_side, sell_amount, self.active_pos['tp1'], order_type="limit")
                 if res:
                     logger.info(f"Placed Limit Order for Partial TP at {self.active_pos['tp1']}")
@@ -908,25 +930,34 @@ class WallHunterBot:
                 try:
                     await self.engine.cancel_order(self.active_pos['limit_order_id'])
                     remaining_raw = self.active_pos['amount'] - sell_amount_raw
-                    rem_close_amount_raw = (remaining_raw * self.active_pos['entry'] * 0.995) / self.active_pos['tp'] if getattr(self, 'strategy_mode', 'long') == "short" else remaining_raw
-                    limit_res = await self.engine.execute_trade(close_side, rem_close_amount_raw, self.active_pos['tp'], order_type="limit")
-                    if limit_res and 'id' in limit_res:
-                        self.active_pos['limit_order_id'] = limit_res['id']
+                    # Only replace limit if not fully closed
+                    if remaining_raw > 0.00000001:
+                        rem_close_amount_raw = (remaining_raw * self.active_pos['entry'] * 0.995) / self.active_pos['tp'] if getattr(self, 'strategy_mode', 'long') == "short" else remaining_raw
+                        limit_res = await self.engine.execute_trade(close_side, rem_close_amount_raw, self.active_pos['tp'], order_type="limit")
+                        if limit_res and 'id' in limit_res:
+                            self.active_pos['limit_order_id'] = limit_res['id']
                 except Exception as e:
                     logger.error(f"Failed to update limit order after TP1: {e}")
             
             if res:
                 remaining_raw = self.active_pos['amount'] - sell_amount_raw
-                self.active_pos['amount'] = float(self.engine.exchange.amount_to_precision(self.symbol, remaining_raw))
-                self.active_pos['tp1_hit'] = True
-                
                 exit_price = self.active_pos['tp1'] if self.sell_order_type == 'limit' else current_price
                 if getattr(self, 'strategy_mode', 'long') == "short":
                     pnl_val = (self.active_pos['entry'] - exit_price) * sell_amount_raw
                 else:
                     pnl_val = (exit_price - self.active_pos['entry']) * sell_amount_raw
+                
                 self.total_realized_pnl += pnl_val
-                await self._send_telegram(f"🔓 Partial TP Hit!\nPair: {self.symbol}\nMode: {getattr(self, 'strategy_mode', 'long').upper()}\nLocked Profit: ${pnl_val:.2f}")
+                
+                if remaining_raw <= 0.00000001:  # 100% close
+                    self.total_wins += 1
+                    self.total_executed_orders += 1
+                    await self._send_telegram(f"🎯 WallHunter EXIT - Full TP Hit (Dust Prevented)!\nPair: {self.symbol}\nMode: {getattr(self, 'strategy_mode', 'long').upper()}\nLocked Profit: ${pnl_val:.2f}")
+                    self.active_pos = None
+                else:
+                    self.active_pos['amount'] = float(self.engine.exchange.amount_to_precision(self.symbol, remaining_raw))
+                    self.active_pos['tp1_hit'] = True
+                    await self._send_telegram(f"🔓 Partial TP Hit!\nPair: {self.symbol}\nMode: {getattr(self, 'strategy_mode', 'long').upper()}\nLocked Profit: ${pnl_val:.2f}")
             else:
                 logger.warning("❌ Partial TP execution failed on exchange. Skipping partial TP size reduction to stay in sync with exchange.")
                 self.active_pos['tp1_hit'] = True
@@ -958,7 +989,12 @@ class WallHunterBot:
                 else:
                     logger.error("COULD NOT CANCEL LIMIT TP ORDER! SL Market order might fail with Insufficient Balance.")
                 
-            await self.engine.execute_trade(close_side, sell_amount, current_price)
+            sell_order_type = self.sell_order_type
+            if sell_order_type == 'marketable_limit':
+                sell_order_type = 'market'
+            
+            # SL/TSL is always market-type execution (or converted by engine)
+            await self.engine.execute_trade(close_side, sell_amount, current_price, order_type=sell_order_type if sell_order_type != "limit" else "market")
             self.total_executed_orders += 1
             
             if getattr(self, 'strategy_mode', 'long') == "short":
@@ -989,7 +1025,11 @@ class WallHunterBot:
             close_amount_raw = (sell_amount_raw * self.active_pos['entry'] * 0.995) / current_price if getattr(self, 'strategy_mode', 'long') == "short" else sell_amount_raw
             sell_amount = float(self.engine.exchange.amount_to_precision(self.symbol, close_amount_raw))
             
-            if self.sell_order_type == 'market':
+            sell_order_type = self.sell_order_type
+            if sell_order_type == 'marketable_limit':
+                sell_order_type = 'market'
+
+            if sell_order_type == 'market':
                 await self.engine.execute_trade(close_side, sell_amount, current_price)
             else:
                 logger.info(f"Target Profit {self.active_pos['tp']} reached. Assuming Limit Order {self.active_pos.get('limit_order_id', 'Unknown')} is filled.")
@@ -1047,7 +1087,8 @@ class WallHunterBot:
         
         # Determine the execution price
         try:
-            ob = await self.public_exchange.fetch_order_book(self.symbol, limit=5)
+            limit = market_depth_service._normalize_order_book_limit(self.exchange_id, 5)
+            ob = await self.public_exchange.fetch_order_book(self.symbol, limit=limit)
             best_bid = ob['bids'][0][0] if ob['bids'] else 0
             best_ask = ob['asks'][0][0] if ob['asks'] else 0
             current_price = (best_bid + best_ask) / 2 if best_bid and best_ask else best_bid or best_ask
@@ -1069,9 +1110,10 @@ class WallHunterBot:
         close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
         action_name = "BUY" if close_side == "buy" else "SELL"
         
-        if sell_type == "market":
-            logger.info(f"🚨 Executing EMERGENCY MARKET {action_name} for bot {self.bot_id} at ~{current_price}")
-            await self.engine.execute_trade(close_side, sell_amount, current_price)
+        if sell_type in ["market", "marketable_limit"]:
+            actual_type = "market" # Engine will convert to marketable limit if needed
+            logger.info(f"🚨 Executing EMERGENCY {sell_type.upper()} {action_name} for bot {self.bot_id} at ~{current_price}")
+            await self.engine.execute_trade(close_side, sell_amount, current_price, order_type=actual_type)
             self.total_executed_orders += 1
             
             # Finalize position and PnL
@@ -1085,7 +1127,7 @@ class WallHunterBot:
                 self.total_wins += 1
             else:
                 self.total_losses += 1
-            await self._send_telegram(f"🚨 WallHunter EMERGENCY EXIT - Market {action_name}!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nPnL: ${pnl_val:.2f}")
+            await self._send_telegram(f"🚨 WallHunter EMERGENCY EXIT - {sell_type.upper()} {action_name}!\nPair: {self.symbol}\nExit Price: {current_price:.6f}\nPnL: ${pnl_val:.2f}")
             self.active_pos = None
             
         elif sell_type == "limit":
@@ -1307,7 +1349,8 @@ class WallHunterBot:
         if self.active_pos: return
         
         try:
-            ob = await self.public_exchange.fetch_order_book(self.symbol, limit=20)
+            limit = market_depth_service._normalize_order_book_limit(self.exchange_id, 20)
+            ob = await self.public_exchange.fetch_order_book(self.symbol, limit=limit)
             if not ob['bids'] or not ob['asks']: return
             
             best_bid = ob['bids'][0][0]
