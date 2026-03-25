@@ -423,8 +423,14 @@ class WallHunterFuturesStrategy:
                             await self.execute_snipe(best_wall['price'], "buy" if best_wall['type'] == 'buy' else "sell", mid_price, reason=reason)
                             self.tracked_walls.clear()
                     
-                    # ৪. ভ্যানিশ হওয়া ওয়ালগুলো সরানো
-                    spoofed = [p for p in self.tracked_walls if p not in current_walls]
+                    # ৪. ভ্যানিশ হওয়া ওয়ালগুলো সরানো (Grace Period: 2 Seconds)
+                    spoofed = []
+                    for p, data in self.tracked_walls.items():
+                        if p not in current_walls:
+                            # Allow a 2-second grace period for network lag or partial fills
+                            if current_time - data['last_seen'] > 2.0:
+                                spoofed.append(p)
+                                
                     for p in spoofed:
                         del self.tracked_walls[p]
                 

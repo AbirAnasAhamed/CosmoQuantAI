@@ -603,11 +603,13 @@ class WallHunterBot:
                                 "last_seen": current_time
                             }
                     
-                    # 3. ফেইক বা স্পুফ করা ওয়ালগুলো রিমুভ করা
+                    # 3. ফেইক বা স্পুফ করা ওয়ালগুলো রিমুভ করা (Grace Period: 2 Seconds)
                     spoofed_prices = []
                     for price, data in self.tracked_walls.items():
                         if price not in current_walls:
-                            spoofed_prices.append(price)
+                            # Allow a 2-second grace period for network lag or partial fills
+                            if current_time - data['last_seen'] > 2.0:
+                                spoofed_prices.append(price)
                     
                     for p in spoofed_prices:
                         time_alive = current_time - self.tracked_walls[p]['first_seen']
