@@ -38,6 +38,7 @@ class WallHunterFuturesStrategy:
         self.amount_per_trade = self.config.get("amount_per_trade", 10.0)
         self.buy_order_type = self.config.get("buy_order_type", "market")
         self.sell_order_type = self.config.get("sell_order_type", "market")
+        self.tsl_activation_pct = self.config.get("tsl_activation_pct", 0.0)
         
         # --- NEW FEATURES: Partial TP & Triggers ---
         self.partial_tp_pct = self.config.get("partial_tp_pct", 50.0)
@@ -499,7 +500,8 @@ class WallHunterFuturesStrategy:
                         "sl": actual_entry * (1 - (self.initial_risk_pct / 100)),
                         "tp": actual_entry + self.target_spread,
                         "side": "long",
-                        "breakeven_hit": False
+                        "breakeven_hit": False,
+                        "tsl_activated": False
                     }
                 else: # SHORT
                     self.active_pos = {
@@ -508,7 +510,8 @@ class WallHunterFuturesStrategy:
                         "sl": actual_entry * (1 + (self.initial_risk_pct / 100)),
                         "tp": actual_entry - self.target_spread,
                         "side": "short",
-                        "breakeven_hit": False
+                        "breakeven_hit": False,
+                        "tsl_activated": False
                     }
                 
                 self.extreme_price = actual_entry
@@ -601,31 +604,51 @@ class WallHunterFuturesStrategy:
         if side == "long":
             if current_price > self.extreme_price:
                 self.extreme_price = current_price
-                if self.atr_sl_enabled and getattr(self, 'current_atr', 0) > 0:
-                    atr_sl = self.extreme_price - (self.current_atr * self.atr_multiplier)
-                    if getattr(self, 'tsl_pct', 0.0) > 0:
+                
+                # Check TSL Activation
+                activation_pct = getattr(self, 'tsl_activation_pct', 0.0)
+                if activation_pct > 0 and not self.active_pos.get('tsl_activated'):
+                    trigger = self.active_pos['entry'] * (1 + (activation_pct / 100))
+                    if current_price >= trigger:
+                        self.active_pos['tsl_activated'] = True
+                        logger.info(f"🚀 Trailing SL Activated for LONG at {current_price:.6f}!")
+                
+                if activation_pct == 0.0 or self.active_pos.get('tsl_activated'):
+                    if self.atr_sl_enabled and getattr(self, 'current_atr', 0) > 0:
+                        atr_sl = self.extreme_price - (self.current_atr * self.atr_multiplier)
+                        if getattr(self, 'tsl_pct', 0.0) > 0:
+                            new_sl = self.extreme_price * (1 - (self.tsl_pct / 100))
+                            new_sl = max(new_sl, atr_sl)
+                        else:
+                            new_sl = atr_sl
+                        self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
+                    elif getattr(self, 'tsl_pct', 0.0) > 0:
                         new_sl = self.extreme_price * (1 - (self.tsl_pct / 100))
-                        new_sl = max(new_sl, atr_sl)
-                    else:
-                        new_sl = atr_sl
-                    self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
-                elif getattr(self, 'tsl_pct', 0.0) > 0:
-                    new_sl = self.extreme_price * (1 - (self.tsl_pct / 100))
-                    self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
+                        self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
         else: # short
             if current_price < self.extreme_price or self.extreme_price == 0:
                 self.extreme_price = current_price
-                if self.atr_sl_enabled and getattr(self, 'current_atr', 0) > 0:
-                    atr_sl = self.extreme_price + (self.current_atr * self.atr_multiplier)
-                    if getattr(self, 'tsl_pct', 0.0) > 0:
+                
+                # Check TSL Activation
+                activation_pct = getattr(self, 'tsl_activation_pct', 0.0)
+                if activation_pct > 0 and not self.active_pos.get('tsl_activated'):
+                    trigger = self.active_pos['entry'] * (1 - (activation_pct / 100))
+                    if current_price <= trigger:
+                        self.active_pos['tsl_activated'] = True
+                        logger.info(f"🚀 Trailing SL Activated for SHORT at {current_price:.6f}!")
+                
+                if activation_pct == 0.0 or self.active_pos.get('tsl_activated'):
+                    if self.atr_sl_enabled and getattr(self, 'current_atr', 0) > 0:
+                        atr_sl = self.extreme_price + (self.current_atr * self.atr_multiplier)
+                        if getattr(self, 'tsl_pct', 0.0) > 0:
+                            new_sl = self.extreme_price * (1 + (self.tsl_pct / 100))
+                            new_sl = min(new_sl, atr_sl)
+                        else:
+                            new_sl = atr_sl
+                        self.active_pos['sl'] = min(self.active_pos['sl'], new_sl)
+                    elif getattr(self, 'tsl_pct', 0.0) > 0:
                         new_sl = self.extreme_price * (1 + (self.tsl_pct / 100))
-                        new_sl = min(new_sl, atr_sl)
-                    else:
-                        new_sl = atr_sl
-                    self.active_pos['sl'] = min(self.active_pos['sl'], new_sl)
-                elif getattr(self, 'tsl_pct', 0.0) > 0:
-                    new_sl = self.extreme_price * (1 + (self.tsl_pct / 100))
-                    self.active_pos['sl'] = min(self.active_pos['sl'], new_sl)
+                        self.active_pos['sl'] = min(self.active_pos['sl'], new_sl)
 
         # --- NEW: Independent Breakeven SL Logic ---
         if getattr(self, 'sl_breakeven_trigger_pct', 0.0) > 0 and not self.active_pos.get('breakeven_hit'):
@@ -974,6 +997,10 @@ class WallHunterFuturesStrategy:
         if "trailing_stop" in new_config:
             updates.append(f"TSL: {self.tsl_pct}% -> {new_config['trailing_stop']}%")
             self.tsl_pct = new_config["trailing_stop"]
+
+        if "tsl_activation_pct" in new_config and new_config["tsl_activation_pct"] != getattr(self, "tsl_activation_pct", 0.0):
+            updates.append(f"TSL Activation: {getattr(self, 'tsl_activation_pct', 0.0)}% -> {new_config['tsl_activation_pct']}%")
+            self.tsl_activation_pct = new_config.get("tsl_activation_pct")
 
         if "leverage" in new_config:
             updates.append(f"Leverage: {self.leverage}x -> {new_config['leverage']}x")

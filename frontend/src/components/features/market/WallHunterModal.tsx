@@ -27,6 +27,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
         risk: 0.5,
         enableTsl: true,
         tsl: 0.03,
+        tslActivationPct: 0.0,
         amount: 100,
         sellOrderType: 'market',
         spoofTime: 3.0,
@@ -125,6 +126,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                             risk: c.risk_pct || 0.5,
                             enableTsl: c.trailing_stop !== undefined ? c.trailing_stop > 0 : true,
                             tsl: c.trailing_stop !== undefined && c.trailing_stop > 0 ? c.trailing_stop : 0.03,
+                            tslActivationPct: c.tsl_activation_pct !== undefined ? c.tsl_activation_pct : 0.0,
                             amount: c.amount_per_trade || 100,
                             sellOrderType: c.sell_order_type || 'market',
                             spoofTime: c.min_wall_lifetime !== undefined ? c.min_wall_lifetime : 3.0,
@@ -328,6 +330,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                     amount_per_trade: form.amount,
                     target_spread: form.spread,
                     trailing_stop: form.enableTsl ? form.tsl : 0.0,
+                    tsl_activation_pct: form.tslActivationPct,
                     vol_threshold: form.vol,
                     risk_pct: form.risk,
                     sell_order_type: form.sellOrderType,
@@ -908,7 +911,16 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                         </div>
                                     </div>
                                     {form.enableTsl ? (
-                                        <input type="number" step="0.1" className="w-full bg-black/40 border border-white/10 rounded-lg p-2 text-white outline-none focus:border-brand-primary text-center font-mono text-sm" value={form.tsl} onChange={(e) => handleFormChange('tsl', parseFloat(e.target.value))} />
+                                        <div className="space-y-2">
+                                            <div className="flex items-center justify-between bg-black/40 border border-white/10 rounded-lg p-1.5 focus-within:border-brand-primary">
+                                                <span className="text-[9px] text-gray-500 px-1">Step (%)</span>
+                                                <input type="number" step="0.1" className="w-16 bg-transparent text-white outline-none text-right font-mono text-xs" value={form.tsl} onChange={(e) => handleFormChange('tsl', parseFloat(e.target.value))} />
+                                            </div>
+                                            <div className="flex items-center justify-between bg-black/40 border border-white/10 rounded-lg p-1.5 focus-within:border-brand-primary cursor-help" title="Profit needed to activate TSL">
+                                                <span className="text-[9px] text-gray-500 px-1">Start At (%)</span>
+                                                <input type="number" step="0.1" className="w-16 bg-transparent text-white outline-none text-right font-mono text-xs" value={form.tslActivationPct} onChange={(e) => handleFormChange('tslActivationPct', parseFloat(e.target.value))} />
+                                            </div>
+                                        </div>
                                     ) : (
                                         <div className="text-xs text-gray-500 text-center py-2 font-mono">Disabled</div>
                                     )}

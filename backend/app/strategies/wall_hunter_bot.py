@@ -104,6 +104,7 @@ class WallHunterBot:
         # --- NEW: Custom Buy Order Type & Buffer ---
         self.buy_order_type = config.get("buy_order_type", "market")
         self.limit_buffer = config.get("limit_buffer", 1.0)
+        self.tsl_activation_pct = config.get("tsl_activation_pct", 0.0)
         # ----------------------------------------
         
         self.engine = OrderBlockExecutionEngine(config)
@@ -141,6 +142,10 @@ class WallHunterBot:
         if "trailing_stop" in new_config and new_config["trailing_stop"] != self.tsl_pct:
             updates.append(f"Trailing SL: {self.tsl_pct}% -> {new_config['trailing_stop']}%")
             self.tsl_pct = new_config.get("trailing_stop")
+            
+        if "tsl_activation_pct" in new_config and new_config["tsl_activation_pct"] != getattr(self, "tsl_activation_pct", 0.0):
+            updates.append(f"TSL Activation: {getattr(self, 'tsl_activation_pct', 0.0)}% -> {new_config['tsl_activation_pct']}%")
+            self.tsl_activation_pct = new_config.get("tsl_activation_pct")
             
         if "risk_pct" in new_config and new_config["risk_pct"] != self.initial_risk_pct:
             updates.append(f"Risk Pct: {self.initial_risk_pct}% -> {new_config['risk_pct']}%")
@@ -693,6 +698,7 @@ class WallHunterBot:
                     "tp": tp_price,
                     "tp1_hit": True, # Ignore partial TP
                     "breakeven_hit": False,
+                    "tsl_activated": False,
                     "limit_order_id": None,
                     "micro_scalp": True
                 }
@@ -727,6 +733,7 @@ class WallHunterBot:
                     "tp": tp_price,          # Final TP
                     "tp1_hit": False,
                     "breakeven_hit": False,
+                    "tsl_activated": False,
                     "limit_order_id": None,
                     "micro_scalp": False
                 }
@@ -843,12 +850,22 @@ class WallHunterBot:
                 self.lowest_price = current_price
             if current_price < self.lowest_price:
                 self.lowest_price = current_price
-                if self.atr_sl_enabled and getattr(self, 'current_atr', 0) > 0:
-                    new_sl = self.lowest_price + (self.current_atr * self.atr_multiplier)
-                    self.active_pos['sl'] = min(self.active_pos['sl'], new_sl)
-                elif getattr(self, 'tsl_pct', 0.0) > 0:
-                    new_sl = self.lowest_price * (1 + (self.tsl_pct / 100))
-                    self.active_pos['sl'] = min(self.active_pos['sl'], new_sl)
+                
+                # Check TSL Activation
+                activation_pct = getattr(self, 'tsl_activation_pct', 0.0)
+                if activation_pct > 0 and not self.active_pos.get('tsl_activated'):
+                    trigger = self.active_pos['entry'] * (1 - (activation_pct / 100))
+                    if current_price <= trigger:
+                        self.active_pos['tsl_activated'] = True
+                        logger.info(f"🚀 Trailing SL Activated for SHORT at {current_price:.6f}!")
+                
+                if activation_pct == 0.0 or self.active_pos.get('tsl_activated'):
+                    if self.atr_sl_enabled and getattr(self, 'current_atr', 0) > 0:
+                        new_sl = self.lowest_price + (self.current_atr * self.atr_multiplier)
+                        self.active_pos['sl'] = min(self.active_pos['sl'], new_sl)
+                    elif getattr(self, 'tsl_pct', 0.0) > 0:
+                        new_sl = self.lowest_price * (1 + (self.tsl_pct / 100))
+                        self.active_pos['sl'] = min(self.active_pos['sl'], new_sl)
 
             if getattr(self, 'sl_breakeven_trigger_pct', 0.0) > 0 and not self.active_pos.get('breakeven_hit'):
                 trigger_price = self.active_pos['entry'] * (1 - (self.sl_breakeven_trigger_pct / 100))
@@ -862,13 +879,23 @@ class WallHunterBot:
         else:
             if current_price > self.highest_price:
                 self.highest_price = current_price
+                
+                # Check TSL Activation
+                activation_pct = getattr(self, 'tsl_activation_pct', 0.0)
+                if activation_pct > 0 and not self.active_pos.get('tsl_activated'):
+                    trigger = self.active_pos['entry'] * (1 + (activation_pct / 100))
+                    if current_price >= trigger:
+                        self.active_pos['tsl_activated'] = True
+                        logger.info(f"🚀 Trailing SL Activated for LONG at {current_price:.6f}!")
+                
                 # Update Trailing SL
-                if self.atr_sl_enabled and getattr(self, 'current_atr', 0) > 0:
-                    new_sl = self.highest_price - (self.current_atr * self.atr_multiplier)
-                    self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
-                elif getattr(self, 'tsl_pct', 0.0) > 0:
-                    new_sl = self.highest_price * (1 - (self.tsl_pct / 100))
-                    self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
+                if activation_pct == 0.0 or self.active_pos.get('tsl_activated'):
+                    if self.atr_sl_enabled and getattr(self, 'current_atr', 0) > 0:
+                        new_sl = self.highest_price - (self.current_atr * self.atr_multiplier)
+                        self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
+                    elif getattr(self, 'tsl_pct', 0.0) > 0:
+                        new_sl = self.highest_price * (1 - (self.tsl_pct / 100))
+                        self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
 
             # --- NEW: Independent Breakeven SL Logic ---
             if getattr(self, 'sl_breakeven_trigger_pct', 0.0) > 0 and not self.active_pos.get('breakeven_hit'):
