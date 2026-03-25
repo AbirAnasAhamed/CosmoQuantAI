@@ -535,8 +535,21 @@ class WallHunterFuturesStrategy:
                         "tp1": tp1_price,
                         "tp1_hit": False,
                         "breakeven_hit": False,
-                        "limit_order_id": None
+                        "limit_order_id": None,
+                        "sl_order_id": None
                     })
+
+                # --- PLACE NATIVE SL ORDER ---
+                exit_side = "sell" if side == "buy" else "buy"
+                try:
+                    sl_params = {'reduceOnly': True, 'stopPrice': self.active_pos['sl']}
+                    # CCXT unified stop order
+                    sl_res = await self.engine.execute_trade(exit_side, base_amount, self.active_pos['sl'], order_type="stop_market", params=sl_params)
+                    if sl_res and 'id' in sl_res:
+                        self.active_pos['sl_order_id'] = sl_res['id']
+                        logger.info(f"Placed Native Stop-Loss Order {sl_res['id']} at {self.active_pos['sl']}")
+                except Exception as e:
+                    logger.error(f"Failed to place Native Stop-Loss order: {e}")
 
                 # --- PLACE LIMIT ORDER ---
                 if self.sell_order_type == 'limit':
@@ -619,6 +632,17 @@ class WallHunterFuturesStrategy:
                         self.active_pos['sl'] = new_breakeven_sl
                         self.active_pos['breakeven_hit'] = True
                         logger.info(f"🛡️ Set LONG SL to Risk-Free Breakeven at {new_breakeven_sl:.6f}")
+                        
+                        # UPDATE NATIVE SL ORDER
+                        if self.active_pos.get('sl_order_id'):
+                            try:
+                                await self.engine.cancel_order(self.active_pos['sl_order_id'])
+                                sl_params = {'reduceOnly': True, 'stopPrice': new_breakeven_sl}
+                                sl_res = await self.engine.execute_trade("sell", self.active_pos['amount'], new_breakeven_sl, order_type="stop_market", params=sl_params)
+                                if sl_res and 'id' in sl_res:
+                                    self.active_pos['sl_order_id'] = sl_res['id']
+                            except Exception as e: pass
+                            
                         asyncio.create_task(self._send_telegram(f"🛡️ Stop-Loss moved to Risk-Free!\nPair: {self.symbol}\nNew SL: {new_breakeven_sl:.6f}"))
             else: # short
                 trigger_price = entry * (1 - (self.sl_breakeven_trigger_pct / 100))
@@ -628,6 +652,17 @@ class WallHunterFuturesStrategy:
                         self.active_pos['sl'] = new_breakeven_sl
                         self.active_pos['breakeven_hit'] = True
                         logger.info(f"🛡️ Set SHORT SL to Risk-Free Breakeven at {new_breakeven_sl:.6f}")
+                        
+                        # UPDATE NATIVE SL ORDER
+                        if self.active_pos.get('sl_order_id'):
+                            try:
+                                await self.engine.cancel_order(self.active_pos['sl_order_id'])
+                                sl_params = {'reduceOnly': True, 'stopPrice': new_breakeven_sl}
+                                sl_res = await self.engine.execute_trade("buy", self.active_pos['amount'], new_breakeven_sl, order_type="stop_market", params=sl_params)
+                                if sl_res and 'id' in sl_res:
+                                    self.active_pos['sl_order_id'] = sl_res['id']
+                            except Exception as e: pass
+                            
                         asyncio.create_task(self._send_telegram(f"🛡️ Stop-Loss moved to Risk-Free!\nPair: {self.symbol}\nNew SL: {new_breakeven_sl:.6f}"))
 
         # TP / SL চেক
@@ -669,6 +704,14 @@ class WallHunterFuturesStrategy:
                     logger.info("Successfully cancelled Limit TP Order due to Stop Loss hit/Emergency Sell.")
                 except Exception as e:
                     logger.warning(f"Failed to cancel Limit TP Order: {e}")
+
+            # Cancel open Native SL order if SL/TSL hits manually
+            if self.active_pos.get('sl_order_id'):
+                try:
+                    await self.engine.cancel_order(self.active_pos['sl_order_id'])
+                    logger.info("Successfully cancelled Native SL Order.")
+                except Exception as e:
+                    pass
             
             # ফিউচার ক্লোজের জন্য বিপরীত অর্ডার
             exit_side = "sell" if side == "long" else "buy"
@@ -680,7 +723,7 @@ class WallHunterFuturesStrategy:
             # TP/SL/TSL are always market-type execution unless explicit limit
             actual_type = exit_order_type if exit_order_type != "limit" else "market"
             
-            res = await self.engine.execute_trade(exit_side, self.active_pos['amount'], current_price, order_type=actual_type)
+            res = await self.engine.execute_trade(exit_side, self.active_pos['amount'], current_price, order_type=actual_type, params={'reduceOnly': True})
             if res:
                 logger.info(f"✅ {side.upper()} Position Closed: {reason}")
                 await self._send_telegram(f"🏁 *{side.upper()} Closed* ({reason})\nPrice: {current_price}\nPair: {self.symbol}")
@@ -730,7 +773,7 @@ class WallHunterFuturesStrategy:
         res = None
         
         if self.sell_order_type == 'limit':
-            res = await self.engine.execute_trade(exit_side, sell_amount, current_price, order_type="limit")
+            res = await self.engine.execute_trade(exit_side, sell_amount, current_price, order_type="limit", params={'reduceOnly': True})
             if res: logger.info(f"Placed Limit Order for Partial TP at {current_price}")
             if res and self.is_paper_trading:
                 # Mock instant fill for paper trade limit at current price
@@ -739,7 +782,7 @@ class WallHunterFuturesStrategy:
             exit_order_type = self.sell_order_type
             if exit_order_type == "marketable_limit":
                 exit_order_type = "market"
-            res = await self.engine.execute_trade(exit_side, sell_amount, current_price, order_type=exit_order_type)
+            res = await self.engine.execute_trade(exit_side, sell_amount, current_price, order_type=exit_order_type, params={'reduceOnly': True})
             if res: logger.info(f"Executed {exit_order_type.upper()} Order for Partial TP at {current_price}")
             
         # Update Limit order to prevent over-selling
@@ -748,11 +791,24 @@ class WallHunterFuturesStrategy:
                 await self.engine.cancel_order(self.active_pos['limit_order_id'])
                 remain_amount = self.active_pos['amount'] - sell_amount
                 if remain_amount > 0.00000001:
-                    limit_res = await self.engine.execute_trade(exit_side, remain_amount, self.active_pos['tp'], order_type="limit")
+                    limit_res = await self.engine.execute_trade(exit_side, remain_amount, self.active_pos['tp'], order_type="limit", params={'reduceOnly': True})
                     if limit_res and 'id' in limit_res:
                         self.active_pos['limit_order_id'] = limit_res['id']
             except Exception as e:
                 logger.error(f"Failed to update Limit order after TP1: {e}")
+
+        # Update Native Stop-Loss order
+        if res and self.active_pos.get('sl_order_id'):
+            try:
+                await self.engine.cancel_order(self.active_pos['sl_order_id'])
+                remain_amount = self.active_pos['amount'] - sell_amount
+                if remain_amount > 0.00000001:
+                    sl_params = {'reduceOnly': True, 'stopPrice': self.active_pos['sl']}
+                    sl_res = await self.engine.execute_trade(exit_side, remain_amount, self.active_pos['sl'], order_type="stop_market", params=sl_params)
+                    if sl_res and 'id' in sl_res:
+                        self.active_pos['sl_order_id'] = sl_res['id']
+            except Exception as e:
+                logger.error(f"Failed to update Native SL order after TP1: {e}")
         
         if res:
             self.active_pos['amount'] -= sell_amount
