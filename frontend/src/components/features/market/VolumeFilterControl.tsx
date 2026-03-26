@@ -3,6 +3,8 @@ import React, { useState, useEffect } from 'react';
 interface VolumeFilterControlProps {
     threshold: number;
     onThresholdChange: (value: number) => void;
+    mode: 'base' | 'quote';
+    onModeChange: (mode: 'base' | 'quote') => void;
 }
 
 const formatSize = (s: number) => {
@@ -27,7 +29,7 @@ const parseSize = (val: string): number => {
     return isNaN(num) ? 0 : num;
 };
 
-export const VolumeFilterControl: React.FC<VolumeFilterControlProps> = ({ threshold, onThresholdChange }) => {
+export const VolumeFilterControl: React.FC<VolumeFilterControlProps> = ({ threshold, onThresholdChange, mode, onModeChange }) => {
     const min = 1000;
     const max = 100000000;
     const [inputValue, setInputValue] = useState<string>(formatSize(threshold));
@@ -76,9 +78,23 @@ export const VolumeFilterControl: React.FC<VolumeFilterControlProps> = ({ thresh
 
     return (
         <div className="flex items-center gap-3 bg-gray-100 dark:bg-white/5 px-3 py-1.5 rounded-lg border border-gray-200 dark:border-white/10">
-            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap">
+            <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 whitespace-nowrap hidden sm:inline-block">
                 Min Vol:
             </span>
+            <div className="flex items-center bg-gray-200 dark:bg-black/30 rounded p-0.5">
+                <button
+                    className={`px-2 py-0.5 text-[10px] font-bold rounded transition-colors ${mode === 'base' ? 'bg-white dark:bg-gray-700 text-brand-primary shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                    onClick={() => onModeChange('base')}
+                >
+                    BASE
+                </button>
+                <button
+                    className={`px-2 py-0.5 text-[10px] font-bold rounded transition-colors ${mode === 'quote' ? 'bg-white dark:bg-gray-700 text-brand-primary shadow-sm' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                    onClick={() => onModeChange('quote')}
+                >
+                    QUOTE
+                </button>
+            </div>
             <input
                 type="range"
                 min="0"

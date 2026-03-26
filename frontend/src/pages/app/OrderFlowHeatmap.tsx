@@ -856,7 +856,7 @@ const OrderFlowHeatmap: React.FC = () => {
     const [isEmergencySelling, setIsEmergencySelling] = useState(false); // NEW STATE
     const [isFullscreen, setIsFullscreen] = useState(false); // NEW STATE
     const { bids, asks, walls, currentPrice, tradeEvent } = useLevel2MarketData(symbol, exchange);
-    const { volumeThreshold, setVolumeThreshold } = useVolumeFilter(1000);
+    const { volumeThreshold, setVolumeThreshold, volumeMode, setVolumeMode } = useVolumeFilter(1000);
     const { statusData: botStatus, isConnected: botWsConnected } = useWallHunterStatus(activeWallHunterId);
 
     const filteredWalls = useMemo(() => {
@@ -864,17 +864,19 @@ const OrderFlowHeatmap: React.FC = () => {
 
         const newWalls: { price: number; type: 'buy' | 'sell'; size: number }[] = [];
         asks.forEach(ask => {
-            if (ask.size >= volumeThreshold) {
+            const comparisonValue = volumeMode === 'quote' ? ask.size * ask.price : ask.size;
+            if (comparisonValue >= volumeThreshold) {
                 newWalls.push({ price: ask.price, type: 'sell', size: ask.size });
             }
         });
         bids.forEach(bid => {
-            if (bid.size >= volumeThreshold) {
+            const comparisonValue = volumeMode === 'quote' ? bid.size * bid.price : bid.size;
+            if (comparisonValue >= volumeThreshold) {
                 newWalls.push({ price: bid.price, type: 'buy', size: bid.size });
             }
         });
         return newWalls;
-    }, [walls, bids, asks, volumeThreshold]);
+    }, [walls, bids, asks, volumeThreshold, volumeMode]);
 
     const maxTotal = useMemo(() => {
         const maxBid = bids.length > 0 ? bids[bids.length - 1].total : 0;
@@ -905,7 +907,7 @@ const OrderFlowHeatmap: React.FC = () => {
                     <HeatmapSymbolSelector symbol={symbol} exchange={exchange} onSymbolChange={setSymbol} onExchangeChange={setExchange} />
                     <TimeframeSelector interval={interval} onIntervalChange={setInterval} />
                     <IndicatorSelector settings={indicatorSettings} onSettingsChange={setIndicatorSettings} />
-                    <VolumeFilterControl threshold={volumeThreshold} onThresholdChange={setVolumeThreshold} />
+                    <VolumeFilterControl threshold={volumeThreshold} onThresholdChange={setVolumeThreshold} mode={volumeMode} onModeChange={setVolumeMode} />
                     <span className="text-lg font-mono font-bold text-gray-800 dark:text-white">
                         {formatDisplayPrice(currentPrice)}
                     </span>
