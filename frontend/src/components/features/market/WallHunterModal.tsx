@@ -3,6 +3,7 @@ import { fetchApiKeys } from '../../../services/settings';
 import { botService } from '../../../services/botService';
 import { marketDataService } from '../../../services/marketData';
 import { marketDepthService } from '../../../services/marketDepthService';
+import { portfolioService } from '../../../services/portfolioService';
 import { calculateATR } from '../../../utils/indicators';
 
 export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol: string; bids?: any[]; asks?: any[]; onDeploySuccess?: (botId: number) => void }> = ({ isOpen, onClose, symbol, bids = [], asks = [], onDeploySuccess }) => {
@@ -11,6 +12,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
     const [errorMsg, setErrorMsg] = useState('');
     const [activeTab, setActiveTab] = useState('basic');
     const [useNativeTokenFee, setUseNativeTokenFee] = useState(false);
+    const [liveFeeRate, setLiveFeeRate] = useState<number | null>(null);
     
     // --- NEW: Trading Mode State ---
     const [tradingMode, setTradingMode] = useState<'spot' | 'futures'>('spot');
@@ -93,7 +95,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
     }, [symbol]);
 
     useEffect(() => {
-        if (form.exchange !== 'binance' && form.exchange !== 'mexc') {
+        if (form.exchange !== 'binance' && form.exchange !== 'mexc' && form.exchange !== 'kucoin') {
             setUseNativeTokenFee(false);
         }
     }, [form.exchange]);
@@ -219,6 +221,23 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
             // 2. Fetch OHLCV for ATR Calculation (1h timeframe, 30 candles)
             const ohlcv = await marketDepthService.getOHLCV(form.symbol.toUpperCase(), form.exchange.toLowerCase(), '1h', 30);
             
+            // 3. Fetch Real Trading Fee (if API Key attached)
+            if (!form.isPaper && form.apiKeyId) {
+                try {
+                    const feeData = await portfolioService.fetchTradingFee(form.apiKeyId, form.symbol);
+                    if (feeData) {
+                        const rtFee = feeData.maker + feeData.taker;
+                        setLiveFeeRate(rtFee);
+                        console.log("Live account fees fetched:", feeData, "RT fee:", rtFee);
+                    }
+                } catch (e) {
+                    console.error("Warning: Failed to fetch live fee", e);
+                    setLiveFeeRate(null);
+                }
+            } else {
+                setLiveFeeRate(null);
+            }
+
             let optimalVol = form.vol;
             let optimalSpread = form.spread;
             let optimalAmount = form.amount;
@@ -443,8 +462,10 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
 
     // --- FEE ESTIMATION LOGIC ---
     const getBaseFeeRate = () => {
+        if (liveFeeRate !== null) return liveFeeRate;
         if (form.exchange === 'binance') return useNativeTokenFee ? 0.0015 : 0.002;
         if (form.exchange === 'mexc') return useNativeTokenFee ? 0.0008 : 0.001; 
+        if (form.exchange === 'kucoin') return useNativeTokenFee ? 0.0032 : 0.004; // Altcoins often 0.2% M/T -> 0.4% RT (20% KCS discount = 0.32%)
         return 0.002; // default 0.2% RT
     };
 
@@ -702,7 +723,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                             <InputField label={`Margin Allocation (${form.symbol ? (tradingMode === 'spot' && strategyMode === 'short' ? form.symbol.split('/')[0] : (form.symbol.split('/')[1] || 'USDT')) : 'USDT'})`} value={form.amount} onChange={(v: number) => setForm({ ...form, amount: v })} step={10} />
 
                             {/* --- NATIVE TOKEN FEE TOGGLE --- */}
-                            {(form.exchange === 'binance' || form.exchange === 'mexc') && (
+                            {(form.exchange === 'binance' || form.exchange === 'mexc' || form.exchange === 'kucoin') && (
                                 <div className="flex items-center gap-2 mt-4 px-1">
                                     <button 
                                         onClick={() => setUseNativeTokenFee(!useNativeTokenFee)}
@@ -711,7 +732,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                         {useNativeTokenFee && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
                                     </button>
                                     <span className="text-xs font-bold text-gray-400 cursor-pointer select-none" onClick={() => setUseNativeTokenFee(!useNativeTokenFee)}>
-                                        Pay fees in {form.exchange === 'binance' ? 'BNB (25% Discount)' : 'MX (20% Discount)'}
+                                        Pay fees in {form.exchange === 'binance' ? 'BNB (25% Discount)' : form.exchange === 'mexc' ? 'MX (20% Discount)' : 'KCS (20% Discount)'}
                                     </span>
                                 </div>
                             )}
@@ -732,7 +753,10 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                         <span className="font-mono text-green-400">+${grossProfitUSD.toFixed(2)}</span>
                                     </div>
                                     <div className="flex justify-between items-center text-xs">
-                                        <span className="text-gray-400">Estimated Fees ({(feeRate * 100).toFixed(3)}%)</span>
+                                        <span className="text-gray-400">
+                                            Estimated Fees ({(feeRate * 100).toFixed(3)}%)
+                                            {liveFeeRate !== null && <span className="ml-1 text-[9px] text-green-400 border border-green-500/30 bg-green-500/10 px-1 py-0.5 rounded cursor-help" title="Live VIP/Account fee fetched directly from exchange.">API TIER</span>}
+                                        </span>
                                         <span className="font-mono text-red-400">-${feeUSD.toFixed(3)}</span>
                                     </div>
                                     <div className="pt-2 border-t border-white/5 flex justify-between items-center">

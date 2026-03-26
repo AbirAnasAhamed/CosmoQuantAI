@@ -29,5 +29,12 @@ export const portfolioService = {
 
     async deleteApiKey(id: number): Promise<void> {
         await apiClient.delete(`/users/api-keys/${id}`);
+    },
+
+    async fetchTradingFee(keyId: string | number, symbol: string): Promise<{ maker: number, taker: number }> {
+        const response = await apiClient.get(`/portfolio/fee/${keyId}`, {
+            params: { symbol }
+        });
+        return response.data;
     }
 };

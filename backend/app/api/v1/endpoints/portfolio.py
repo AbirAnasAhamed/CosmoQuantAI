@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from app.api import deps
 from app import crud, models
@@ -131,6 +131,111 @@ async def get_portfolio_balances(
         "total_portfolio_value": round(total_portfolio_value, 2),
         "assets": list(assets.values())
     }
+
+@router.get("/fee/{key_id}")
+async def get_fee(
+    key_id: int,
+    symbol: str,
+    current_user: models.User = Depends(deps.get_current_user),
+    db: Session = Depends(deps.get_db)
+):
+    key_record = crud.get_user_api_keys(db=db, user_id=current_user.id)
+    key_data = next((k for k in key_record if k.id == key_id), None)
+    
+    if not key_data:
+        raise HTTPException(status_code=404, detail="API Key not found")
+        
+    exchange_id = key_data.exchange.lower()
+    if exchange_id not in ccxt.exchanges:
+        raise HTTPException(status_code=400, detail=f"Exchange {exchange_id} not supported")
+        
+    exchange_class = getattr(ccxt, exchange_id)
+    
+    try:
+        decrypted_api_key = security.decrypt_key(key_data.api_key)
+        decrypted_secret = security.decrypt_key(key_data.secret_key)
+        decrypted_passphrase = None
+        if key_data.passphrase:
+            decrypted_passphrase = security.decrypt_key(key_data.passphrase)
+
+        exchange_config = {
+            'apiKey': decrypted_api_key,
+            'secret': decrypted_secret,
+            'enableRateLimit': True,
+        }
+        if decrypted_passphrase:
+            exchange_config['password'] = decrypted_passphrase
+            
+        api = exchange_class(exchange_config)
+    except Exception as e:
+        logger.error(f"Failed to decrypt keys or init exchange: {e}")
+        raise HTTPException(status_code=500, detail="Failed to initialize exchange connection")
+
+    try:
+        await api.load_markets()
+        
+        # Determine base/quote
+        parts = symbol.split('/')
+        if len(parts) == 2:
+            s_symbol = symbol
+        else:
+            s_symbol = f"{symbol}/USDT" # Fallback guess
+            
+        try:
+            fee_info = await api.fetch_trading_fee(s_symbol)
+            maker = fee_info.get('maker')
+            taker = fee_info.get('taker')
+            
+            # Binance Promotional Zero-Fee Overrides
+            if exchange_id == 'binance':
+                # Binance currently has 0 Maker fee for FDUSD pairs
+                if '/FDUSD' in s_symbol:
+                    maker = 0.0
+                    
+            # If CCXT returns None, try to get from markets
+            if maker is None or taker is None:
+                if s_symbol in api.markets:
+                    mkt = api.markets[s_symbol]
+                    if maker is None: maker = mkt.get('maker')
+                    if taker is None: taker = mkt.get('taker')
+                    
+            # Apply heuristics if STILL None (mostly for MEXC parsing failures)
+            if maker is None or taker is None:
+                if exchange_id == 'mexc':
+                    maker = 0.0
+                    taker = 0.0 if '/USDC' in s_symbol else 0.001
+                else:
+                    if maker is None: maker = 0.001
+                    if taker is None: taker = 0.001
+                    
+            return {"maker": float(maker), "taker": float(taker)}
+            
+        except Exception as inner_e:
+            logger.warning(f"fetch_trading_fee failed for {exchange_id}: {inner_e}")
+            maker, taker = None, None
+            if s_symbol in api.markets:
+                market = api.markets[s_symbol]
+                maker = market.get('maker')
+                taker = market.get('taker')
+                
+            # Fallback heuristics
+            if exchange_id == 'binance' and '/FDUSD' in s_symbol:
+                maker = 0.0
+                
+            if maker is None or taker is None:
+                if exchange_id == 'mexc':
+                    maker = 0.0
+                    taker = 0.0 if '/USDC' in s_symbol else 0.001
+                else:
+                    maker = maker if maker is not None else 0.001
+                    taker = taker if taker is not None else 0.001
+                    
+            return {"maker": float(maker), "taker": float(taker)}
+    except Exception as e:
+        logger.error(f"Error fetching fee: {e}")
+        return {"maker": 0.001, "taker": 0.001}
+    finally:
+        await api.close()
 
 @router.websocket("/ws/prices")
 async def portfolio_websocket_prices(websocket: WebSocket):
