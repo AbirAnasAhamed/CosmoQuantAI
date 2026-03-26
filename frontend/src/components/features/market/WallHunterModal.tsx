@@ -10,6 +10,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
     const [isLoading, setIsLoading] = useState(false);
     const [errorMsg, setErrorMsg] = useState('');
     const [activeTab, setActiveTab] = useState('basic');
+    const [useNativeTokenFee, setUseNativeTokenFee] = useState(false);
     
     // --- NEW: Trading Mode State ---
     const [tradingMode, setTradingMode] = useState<'spot' | 'futures'>('spot');
@@ -90,6 +91,12 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
     useEffect(() => {
         setForm(prev => ({ ...prev, symbol }));
     }, [symbol]);
+
+    useEffect(() => {
+        if (form.exchange !== 'binance' && form.exchange !== 'mexc') {
+            setUseNativeTokenFee(false);
+        }
+    }, [form.exchange]);
 
     useEffect(() => {
         if (isOpen) {
@@ -434,6 +441,23 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
 
     const dynamicMax = dynamicStep * 500; 
 
+    // --- FEE ESTIMATION LOGIC ---
+    const getBaseFeeRate = () => {
+        if (form.exchange === 'binance') return useNativeTokenFee ? 0.0015 : 0.002;
+        if (form.exchange === 'mexc') return useNativeTokenFee ? 0.0008 : 0.001; 
+        return 0.002; // default 0.2% RT
+    };
+
+    const feeRate = getBaseFeeRate();
+    const isFutures = tradingMode === 'futures';
+    // Calculate PnL based on Amount and Spread
+    const tradeValue = isFutures ? form.amount * form.leverage : form.amount;
+    const spreadPct = currentPrice > 0 ? (form.spread / currentPrice) : 0;
+    const grossProfitUSD = tradeValue * spreadPct;
+    const feeUSD = tradeValue * feeRate;
+    const netProfitUSD = grossProfitUSD - feeUSD;
+    const netProfitPct = form.amount > 0 ? ((netProfitUSD / form.amount) * 100) : 0; 
+
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
             <div className="w-[600px] bg-[#0B1120] border-2 border-yellow-500/30 rounded-[2rem] p-6 shadow-[0_0_50px_rgba(59,130,246,0.2)] max-h-[90vh] flex flex-col">
@@ -676,6 +700,49 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                             </div>
 
                             <InputField label={`Margin Allocation (${form.symbol ? (tradingMode === 'spot' && strategyMode === 'short' ? form.symbol.split('/')[0] : (form.symbol.split('/')[1] || 'USDT')) : 'USDT'})`} value={form.amount} onChange={(v: number) => setForm({ ...form, amount: v })} step={10} />
+
+                            {/* --- NATIVE TOKEN FEE TOGGLE --- */}
+                            {(form.exchange === 'binance' || form.exchange === 'mexc') && (
+                                <div className="flex items-center gap-2 mt-4 px-1">
+                                    <button 
+                                        onClick={() => setUseNativeTokenFee(!useNativeTokenFee)}
+                                        className={`w-4 h-4 flex-shrink-0 rounded border flex items-center justify-center transition-colors ${useNativeTokenFee ? 'bg-brand-primary border-brand-primary' : 'border-gray-500'}`}
+                                    >
+                                        {useNativeTokenFee && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>}
+                                    </button>
+                                    <span className="text-xs font-bold text-gray-400 cursor-pointer select-none" onClick={() => setUseNativeTokenFee(!useNativeTokenFee)}>
+                                        Pay fees in {form.exchange === 'binance' ? 'BNB (25% Discount)' : 'MX (20% Discount)'}
+                                    </span>
+                                </div>
+                            )}
+
+                            {/* --- ESTIMATED PROFIT ANALYSIS --- */}
+                            <div className="mt-4 bg-[#050B14] p-4 rounded-xl border border-brand-primary/20 shadow-[0_0_15px_rgba(59,130,246,0.05)]">
+                                <h4 className="text-[10px] font-black uppercase text-gray-500 mb-3 flex items-center gap-2">
+                                    <svg className="w-3 h-3 text-brand-primary" fill="currentColor" viewBox="0 0 20 20"><path d="M2 11a1 1 0 011-1h2a1 1 0 011 1v5a1 1 0 01-1 1H3a1 1 0 01-1-1v-5zM8 7a1 1 0 011-1h2a1 1 0 011 1v9a1 1 0 01-1 1H9a1 1 0 01-1-1V7zM14 4a1 1 0 011-1h2a1 1 0 011 1v12a1 1 0 01-1 1h-2a1 1 0 01-1-1V4z" /></svg>
+                                    Estimated Profit Analysis
+                                </h4>
+                                <div className="space-y-2">
+                                    <div className="flex justify-between items-center text-xs">
+                                        <span className="text-gray-400">Trade Value {isFutures && '(Leveraged)'}</span>
+                                        <span className="font-mono text-gray-300">${tradeValue.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-xs">
+                                        <span className="text-gray-400">Gross Profit ({(spreadPct * 100).toFixed(2)}%)</span>
+                                        <span className="font-mono text-green-400">+${grossProfitUSD.toFixed(2)}</span>
+                                    </div>
+                                    <div className="flex justify-between items-center text-xs">
+                                        <span className="text-gray-400">Estimated Fees ({(feeRate * 100).toFixed(3)}%)</span>
+                                        <span className="font-mono text-red-400">-${feeUSD.toFixed(3)}</span>
+                                    </div>
+                                    <div className="pt-2 border-t border-white/5 flex justify-between items-center">
+                                        <span className="text-sm font-bold text-gray-300">Net Profit</span>
+                                        <span className={`text-sm font-mono font-bold ${netProfitUSD > 0 ? 'text-green-500' : 'text-red-500'}`}>
+                                            {netProfitUSD > 0 ? '+' : ''}${netProfitUSD.toFixed(2)} ({netProfitPct > 0 ? '+' : ''}{netProfitPct.toFixed(2)}%)
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     )}
 
