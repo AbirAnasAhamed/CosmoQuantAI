@@ -903,7 +903,6 @@ const OrderFlowHeatmap: React.FC = () => {
         <div className="flex flex-col h-full bg-brand-light dark:bg-brand-darkest text-slate-900 dark:text-white overflow-hidden rounded-xl border border-gray-200 dark:border-white/10">
             <header className="relative z-40 flex-shrink-0 p-4 border-b border-gray-200 dark:border-white/10 flex justify-between items-center bg-white dark:bg-[#0B1120]">
                 <div className="flex items-center gap-4">
-                    <h2 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-brand-primary to-purple-500">Order Flow Heatmap</h2>
                     <HeatmapSymbolSelector symbol={symbol} exchange={exchange} onSymbolChange={setSymbol} onExchangeChange={setExchange} />
                     <TimeframeSelector interval={interval} onIntervalChange={setInterval} />
                     <IndicatorSelector settings={indicatorSettings} onSettingsChange={setIndicatorSettings} />
