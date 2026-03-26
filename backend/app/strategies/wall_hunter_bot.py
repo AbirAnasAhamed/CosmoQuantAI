@@ -677,6 +677,36 @@ class WallHunterBot:
         res = await self.engine.execute_trade(side, base_amount, execution_price, order_type=snipe_order_type)
         if res:
             logger.info(f"✅ [WallHunter {self.bot_id}] Trade executed successfully. Order ID: {res.get('id')}")
+            
+            # --- NEW: Partial Fill Management for Entry ---
+            if self.buy_order_type in ['limit', 'marketable_limit'] and res.get('id') and not self.is_paper_trading:
+                try:
+                    await asyncio.sleep(1.0)
+                    order_status = await self.engine.exchange.fetch_order(res['id'], self.symbol)
+                    
+                    if order_status and order_status.get('status') == 'open':
+                        logger.warning(f"⚠️ Entry order {res['id']} is still open! Cancelling remainder...")
+                        await self.engine.cancel_order(res['id'])
+                        await asyncio.sleep(0.5)
+                        
+                        final_status = await self.engine.exchange.fetch_order(res['id'], self.symbol)
+                        filled = final_status.get('filled', 0.0)
+                        
+                        if filled <= 0:
+                            logger.error(f"❌ Entry order was completely unfilled before cancellation. Aborting snipe.")
+                            return
+                            
+                        logger.info(f"🔄 Partial Fill Detected! Requested: {base_amount}, Filled: {filled}. Adjusting position size.")
+                        # Parse precision natively so exchange math doesn't break later
+                        base_amount_raw = float(self.engine.exchange.amount_to_precision(self.symbol, filled)) if hasattr(self.engine.exchange, 'amount_to_precision') else filled
+                        base_amount = base_amount_raw
+                        
+                        res['average'] = final_status.get('average') or res.get('average')
+                        res['price'] = final_status.get('price') or res.get('price')
+                except Exception as e:
+                    logger.error(f"Error handling partial fill verification on entry: {e}")
+            # ---------------------------------------------
+            
             # Safely extract average fill price. Fallback to requested entry_price if not provided or 0
             avg_price = res.get('average')
             fill_price = res.get('price')
@@ -1028,8 +1058,35 @@ class WallHunterBot:
                         await asyncio.sleep(0.2)
                 
                 if canceled:
-                    logger.info("Successfully cancelled Limit TP Order due to Stop Loss hit. Waiting for funds to unlock...")
+                    logger.info("Successfully cancelled Limit TP Order due to Stop Loss hit. Extracting remaining position...")
                     await asyncio.sleep(0.5) # Wait for exchange to release the locked base asset balance
+                    
+                    # --- NEW: Extract remaining balance from the cancelled Limit Order ---
+                    try:
+                        if not self.is_paper_trading:
+                            cancelled_status = await self.engine.exchange.fetch_order(self.active_pos['limit_order_id'], self.symbol)
+                            filled = cancelled_status.get('filled', 0.0)
+                            if filled > 0:
+                                logger.info(f"🔄 Open Limit Order was partially filled ({filled}). Adjusting SL Market Sweep amount.")
+                                filled_proper = float(self.engine.exchange.amount_to_precision(self.symbol, filled)) if hasattr(self.engine.exchange, 'amount_to_precision') else filled
+                                sell_amount_raw = max(0.0, self.active_pos['amount'] - filled_proper)
+                                
+                                if sell_amount_raw <= 0:
+                                    logger.info("✅ Partial fill actually completely closed out the remaining position. SL sweep aborted.")
+                                    
+                                    pnl_val = 0
+                                    # Fallback simple PNL
+                                    self.total_wins += 1
+                                    await self._send_telegram(f"🛡️ WallHunter EXIT - Stopped out via Partial Fill Sweep!\nPair: {self.symbol}")
+                                    self.active_pos = None
+                                    return
+                                    
+                                # Re-calculate correct sizing
+                                close_amount_raw = (sell_amount_raw * self.active_pos['entry'] * 0.995) / current_price if getattr(self, 'strategy_mode', 'long') == "short" else sell_amount_raw
+                                sell_amount = float(self.engine.exchange.amount_to_precision(self.symbol, close_amount_raw))
+                    except Exception as e:
+                        logger.error(f"Error fetching filled status of cancelled limit order: {e}")
+                    # -------------------------------------------------------------
                 else:
                     logger.error("COULD NOT CANCEL LIMIT TP ORDER! SL Market order might fail with Insufficient Balance.")
                 
@@ -1038,7 +1095,35 @@ class WallHunterBot:
                 sell_order_type = 'market'
             
             # SL/TSL is always market-type execution (or converted by engine)
-            await self.engine.execute_trade(close_side, sell_amount, current_price, order_type=sell_order_type if sell_order_type != "limit" else "market")
+            res = await self.engine.execute_trade(close_side, sell_amount, current_price, order_type=sell_order_type if sell_order_type != "limit" else "market")
+            
+            # --- NEW: Partial Fill Management for Active SL Exits ---
+            if res and res.get('id') and not self.is_paper_trading:
+                try:
+                    await asyncio.sleep(1.0)
+                    order_status = await self.engine.exchange.fetch_order(res['id'], self.symbol)
+                    
+                    if order_status and order_status.get('status') == 'open':
+                        logger.warning(f"⚠️ Exit SL order {res['id']} is hanging open! Cancelling remainder...")
+                        await self.engine.cancel_order(res['id'])
+                        await asyncio.sleep(0.5)
+                        
+                        final_status = await self.engine.exchange.fetch_order(res['id'], self.symbol)
+                        filled = final_status.get('filled', 0.0)
+                        
+                        filled_proper = float(self.engine.exchange.amount_to_precision(self.symbol, filled)) if hasattr(self.engine.exchange, 'amount_to_precision') else filled
+                        remaining_base = max(0.0, sell_amount_raw - filled_proper)
+                        
+                        if remaining_base > 0:
+                            logger.info(f"🧹 Sweeping SL remainder at Pure Market: {remaining_base} {self.symbol}")
+                            sweep_amount_raw = (remaining_base * self.active_pos['entry'] * 0.995) / current_price if getattr(self, 'strategy_mode', 'long') == "short" else remaining_base
+                            sweep_amount = float(self.engine.exchange.amount_to_precision(self.symbol, sweep_amount_raw))
+                            
+                            await self.engine.execute_trade(close_side, sweep_amount, current_price, order_type="market")
+                            logger.info("✅ Market sweep completed.")
+                except Exception as e:
+                    logger.error(f"Error checking SL partial fill sweep: {e}")
+            # --------------------------------------------------------
             self.total_executed_orders += 1
             
             if getattr(self, 'strategy_mode', 'long') == "short":
@@ -1074,7 +1159,35 @@ class WallHunterBot:
                 sell_order_type = 'market'
 
             if sell_order_type == 'market':
-                await self.engine.execute_trade(close_side, sell_amount, current_price)
+                res = await self.engine.execute_trade(close_side, sell_amount, current_price)
+                
+                # --- NEW: Partial Fill Management for Active TP Exits ---
+                if res and res.get('id') and not self.is_paper_trading:
+                    try:
+                        await asyncio.sleep(1.0)
+                        order_status = await self.engine.exchange.fetch_order(res['id'], self.symbol)
+                        
+                        if order_status and order_status.get('status') == 'open':
+                            logger.warning(f"⚠️ Exit Final TP order {res['id']} is hanging open! Cancelling remainder...")
+                            await self.engine.cancel_order(res['id'])
+                            await asyncio.sleep(0.5)
+                            
+                            final_status = await self.engine.exchange.fetch_order(res['id'], self.symbol)
+                            filled = final_status.get('filled', 0.0)
+                            
+                            filled_proper = float(self.engine.exchange.amount_to_precision(self.symbol, filled)) if hasattr(self.engine.exchange, 'amount_to_precision') else filled
+                            remaining_base = max(0.0, sell_amount_raw - filled_proper)
+                            
+                            if remaining_base > 0:
+                                logger.info(f"🧹 Sweeping Final TP remainder at Pure Market: {remaining_base} {self.symbol}")
+                                sweep_amount_raw = (remaining_base * self.active_pos['entry'] * 0.995) / current_price if getattr(self, 'strategy_mode', 'long') == "short" else remaining_base
+                                sweep_amount = float(self.engine.exchange.amount_to_precision(self.symbol, sweep_amount_raw))
+                                
+                                await self.engine.execute_trade(close_side, sweep_amount, current_price, order_type="market")
+                                logger.info("✅ Market sweep for Final TP completed.")
+                    except Exception as e:
+                        logger.error(f"Error checking Final TP partial fill sweep: {e}")
+                # --------------------------------------------------------
             else:
                 logger.info(f"Target Profit {self.active_pos['tp']} reached. Assuming Limit Order {self.active_pos.get('limit_order_id', 'Unknown')} is filled.")
                 if self.is_paper_trading:

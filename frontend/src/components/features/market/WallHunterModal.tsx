@@ -45,7 +45,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
         
         // --- NEW: Custom Buy Order Type & Buffer ---
         buyOrderType: 'market',
-        limitBuffer: 0.5,
+        limitBuffer: 0.05,
 
         enableWallTrigger: true,        
         maxWallDistancePct: 1.0,        
@@ -179,7 +179,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                             
                             // Load custom buy order settings
                             buyOrderType: c.buy_order_type || 'market',
-                            limitBuffer: c.limit_buffer !== undefined ? c.limit_buffer : 0.5
+                            limitBuffer: c.limit_buffer !== undefined ? c.limit_buffer : 0.05
                         }));
                     } else {
                         setExistingBot(null);
