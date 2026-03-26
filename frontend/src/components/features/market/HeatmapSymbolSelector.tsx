@@ -121,7 +121,7 @@ export const HeatmapSymbolSelector: React.FC<HeatmapSymbolSelectorProps> = ({ sy
 
             {/* The Dropdown Menu (Positioned Below) */}
             <div
-                className={`absolute top-[calc(100%+0.75rem)] lg:right-0 mt-0 w-[420px] max-w-[90vw] bg-white/95 dark:bg-[#080D17]/95 backdrop-blur-2xl border border-gray-200 dark:border-white/10 rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)] dark:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.6)] z-[100] overflow-hidden origin-top transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${isDropdownOpen
+                className={`absolute top-[calc(100%+0.75rem)] left-0 mt-0 w-[420px] max-w-[90vw] bg-white/95 dark:bg-[#080D17]/95 backdrop-blur-2xl border border-gray-200 dark:border-white/10 rounded-2xl shadow-[0_25px_50px_-12px_rgba(0,0,0,0.15)] dark:shadow-[0_25px_50px_-12px_rgba(0,0,0,0.6)] z-[100] overflow-hidden origin-top-left transition-all duration-300 ease-[cubic-bezier(0.16,1,0.3,1)] ${isDropdownOpen
                     ? 'opacity-100 scale-100 pointer-events-auto translate-y-0'
                     : 'opacity-0 scale-95 pointer-events-none -translate-y-4'
                     }`}
