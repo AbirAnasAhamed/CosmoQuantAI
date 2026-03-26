@@ -5,14 +5,36 @@ interface VolumeFilterControlProps {
     onThresholdChange: (value: number) => void;
 }
 
+const formatSize = (s: number) => {
+    if (isNaN(s)) return '0';
+    if (s >= 1_000_000_000) return parseFloat((s / 1_000_000_000).toFixed(2)) + 'B';
+    if (s >= 1_000_000) return parseFloat((s / 1_000_000).toFixed(2)) + 'M';
+    if (s >= 1_000) return parseFloat((s / 1_000).toFixed(2)) + 'k';
+    return parseFloat(s.toFixed(2)).toString();
+};
+
+const parseSize = (val: string): number => {
+    if (!val) return 0;
+    const str = val.toString().trim().toLowerCase();
+    const numMatch = str.match(/[\d.]+/);
+    if (!numMatch) return 0;
+    let num = parseFloat(numMatch[0]);
+    
+    if (str.endsWith('b')) num *= 1_000_000_000;
+    else if (str.endsWith('m')) num *= 1_000_000;
+    else if (str.endsWith('k')) num *= 1_000;
+    
+    return isNaN(num) ? 0 : num;
+};
+
 export const VolumeFilterControl: React.FC<VolumeFilterControlProps> = ({ threshold, onThresholdChange }) => {
     const min = 1000;
     const max = 100000000;
-    const [inputValue, setInputValue] = useState<string>(threshold.toString());
+    const [inputValue, setInputValue] = useState<string>(formatSize(threshold));
 
     // Sync external threshold changes (like from slider interactions) into the input box
     useEffect(() => {
-        setInputValue(threshold.toString());
+        setInputValue(formatSize(threshold));
     }, [threshold]);
 
     // Logarithmic slider mapping for better UX across huge range
@@ -36,12 +58,13 @@ export const VolumeFilterControl: React.FC<VolumeFilterControlProps> = ({ thresh
     };
 
     const handleInputBlur = () => {
-        const parsed = parseFloat(inputValue);
-        if (!isNaN(parsed) && parsed >= 0) {
+        const parsed = parseSize(inputValue);
+        if (parsed >= 0) {
             onThresholdChange(parsed);
+            setInputValue(formatSize(parsed));
         } else {
             // Revert on invalid input
-            setInputValue(threshold.toString());
+            setInputValue(formatSize(threshold));
         }
     };
 
@@ -66,9 +89,7 @@ export const VolumeFilterControl: React.FC<VolumeFilterControlProps> = ({ thresh
                 className="w-24 h-1.5 bg-gray-300 dark:bg-gray-600 rounded-lg appearance-none cursor-pointer accent-blue-500"
             />
             <input
-                type="number"
-                min="0"
-                step="1000"
+                type="text"
                 value={inputValue}
                 onChange={handleInputChange}
                 onBlur={handleInputBlur}
