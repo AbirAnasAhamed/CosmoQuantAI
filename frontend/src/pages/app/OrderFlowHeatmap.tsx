@@ -775,7 +775,12 @@ const OrderBook: React.FC<{ bids: any[], asks: any[], maxTotal: number }> = ({ b
         if (price < 10) return price.toFixed(4);
         return price.toFixed(2);
     };
-    const formatSize = (s: number) => s.toFixed(2);
+    const formatSize = (s: number) => {
+        if (s >= 1000000000) return parseFloat((s / 1000000000).toFixed(2)) + 'B';
+        if (s >= 1000000) return parseFloat((s / 1000000).toFixed(2)) + 'M';
+        if (s >= 1000) return parseFloat((s / 1000).toFixed(2)) + 'k';
+        return parseFloat(s.toFixed(2)).toString();
+    };
 
     const reversedAsks = useMemo(() => asks.slice().reverse(), [asks]);
 
