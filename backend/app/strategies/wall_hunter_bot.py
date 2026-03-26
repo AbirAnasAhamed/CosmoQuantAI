@@ -679,7 +679,8 @@ class WallHunterBot:
             logger.info(f"✅ [WallHunter {self.bot_id}] Trade executed successfully. Order ID: {res.get('id')}")
             
             # --- NEW: Partial Fill Management for Entry ---
-            if self.buy_order_type in ['limit', 'marketable_limit'] and res.get('id') and not self.is_paper_trading:
+            entry_type = self.sell_order_type if getattr(self, 'strategy_mode', 'long') == "short" else self.buy_order_type
+            if entry_type in ['limit', 'marketable_limit'] and res.get('id') and not self.is_paper_trading:
                 try:
                     await asyncio.sleep(1.0)
                     order_status = await self.engine.exchange.fetch_order(res['id'], self.symbol)
@@ -785,7 +786,8 @@ class WallHunterBot:
                 self.lowest_price = actual_entry
                 
                 # Place Limit Order immediately if configured
-                if self.sell_order_type == 'limit':
+                exit_order_type = self.buy_order_type if getattr(self, 'strategy_mode', 'long') == "short" else self.sell_order_type
+                if exit_order_type == 'limit':
                     close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
                     close_amount = (base_amount * actual_entry * 0.995) / self.active_pos['tp'] if getattr(self, 'strategy_mode', 'long') == "short" else base_amount
                     limit_res = await self.engine.execute_trade(close_side, close_amount, self.active_pos['tp'], order_type="limit")
@@ -865,9 +867,11 @@ class WallHunterBot:
 
     async def manage_risk(self, current_price: float):
         if not self.active_pos: return
+        
+        exit_order_type = self.buy_order_type if getattr(self, 'strategy_mode', 'long') == "short" else self.sell_order_type
 
         # 1. Check if the limit TP order has already been filled by the exchange
-        if (self.sell_order_type == 'limit' or self.active_pos.get('micro_scalp')) and self.active_pos.get('limit_order_id') and not self.is_paper_trading:
+        if (exit_order_type == 'limit' or self.active_pos.get('micro_scalp')) and self.active_pos.get('limit_order_id') and not self.is_paper_trading:
             try:
                 order_status = await self.engine.exchange.fetch_order(self.active_pos['limit_order_id'], self.symbol)
                 if order_status and order_status.get('status') == 'closed':
@@ -982,12 +986,12 @@ class WallHunterBot:
             
             sell_amount = float(self.engine.exchange.amount_to_precision(self.symbol, close_amount_raw))
             
-            sell_order_type = self.sell_order_type
-            if sell_order_type == 'marketable_limit':
-                sell_order_type = 'market'
+            exit_order_type_actual = exit_order_type
+            if exit_order_type_actual == 'marketable_limit':
+                exit_order_type_actual = 'market'
 
             res = None
-            if sell_order_type == 'limit':
+            if exit_order_type_actual == 'limit':
                 res = await self.engine.execute_trade(close_side, sell_amount, self.active_pos['tp1'], order_type="limit")
                 if res:
                     logger.info(f"Placed Limit Order for Partial TP at {self.active_pos['tp1']}")
@@ -1000,7 +1004,7 @@ class WallHunterBot:
                     logger.info(f"Executed Market Order for Partial TP at {current_price}")
             
             # Update Limit order to prevent over-selling
-            if res and self.sell_order_type == 'limit' and self.active_pos.get('limit_order_id'):
+            if res and exit_order_type == 'limit' and self.active_pos.get('limit_order_id'):
                 try:
                     await self.engine.cancel_order(self.active_pos['limit_order_id'])
                     remaining_raw = self.active_pos['amount'] - sell_amount_raw
@@ -1015,7 +1019,7 @@ class WallHunterBot:
             
             if res:
                 remaining_raw = self.active_pos['amount'] - sell_amount_raw
-                exit_price = self.active_pos['tp1'] if self.sell_order_type == 'limit' else current_price
+                exit_price = self.active_pos['tp1'] if exit_order_type == 'limit' else current_price
                 if getattr(self, 'strategy_mode', 'long') == "short":
                     pnl_val = (self.active_pos['entry'] - exit_price) * sell_amount_raw
                 else:
@@ -1045,7 +1049,7 @@ class WallHunterBot:
             sell_amount = float(self.engine.exchange.amount_to_precision(self.symbol, close_amount_raw))
             
             # Cancel open limit order if SL/TSL hits (handles both limit sell orders and micro_scalp)
-            if (self.sell_order_type == 'limit' or self.active_pos.get('micro_scalp')) and self.active_pos.get('limit_order_id'):
+            if (exit_order_type == 'limit' or self.active_pos.get('micro_scalp')) and self.active_pos.get('limit_order_id'):
                 canceled = False
                 for attempt in range(3):
                     try:
@@ -1090,12 +1094,12 @@ class WallHunterBot:
                 else:
                     logger.error("COULD NOT CANCEL LIMIT TP ORDER! SL Market order might fail with Insufficient Balance.")
                 
-            sell_order_type = self.sell_order_type
-            if sell_order_type == 'marketable_limit':
-                sell_order_type = 'market'
+            exit_order_type_actual = exit_order_type
+            if exit_order_type_actual == 'marketable_limit':
+                exit_order_type_actual = 'market'
             
             # SL/TSL is always market-type execution (or converted by engine)
-            res = await self.engine.execute_trade(close_side, sell_amount, current_price, order_type=sell_order_type if sell_order_type != "limit" else "market")
+            res = await self.engine.execute_trade(close_side, sell_amount, current_price, order_type=exit_order_type_actual if exit_order_type_actual != "limit" else "market")
             
             # --- NEW: Partial Fill Management for Active SL Exits ---
             if res and res.get('id') and not self.is_paper_trading:

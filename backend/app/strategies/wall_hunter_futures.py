@@ -485,7 +485,7 @@ class WallHunterFuturesStrategy:
             logger.info(f"⚡ [FuturesHunter] Entering {pos_side} at {entry_price} (Amount: {base_amount} contracts)")
             logger.info(f"📝 Reason: {reason}")
             
-            entry_order_type = self.buy_order_type
+            entry_order_type = self.buy_order_type if side == "buy" else self.sell_order_type
             if entry_order_type == "marketable_limit":
                 entry_order_type = "market"
                 
@@ -589,7 +589,8 @@ class WallHunterFuturesStrategy:
                     logger.error(f"Failed to place Native Stop-Loss order: {e}")
 
                 # --- PLACE LIMIT ORDER ---
-                if self.sell_order_type == 'limit':
+                exit_order_type = self.sell_order_type if side == "buy" else self.buy_order_type
+                if exit_order_type == 'limit':
                     exit_side = "sell" if side == "buy" else "buy"
                     limit_res = await self.engine.execute_trade(exit_side, base_amount, self.active_pos['tp'], order_type="limit")
                     if limit_res and 'id' in limit_res:
@@ -607,9 +608,10 @@ class WallHunterFuturesStrategy:
         if not self.active_pos: return
         
         side = self.active_pos['side']
+        exit_order_type = self.sell_order_type if side == "long" else self.buy_order_type
 
         # 1. Check if the limit TP order has already been filled by the exchange
-        if self.sell_order_type == 'limit' and self.active_pos.get('limit_order_id') and not self.is_paper_trading:
+        if exit_order_type == 'limit' and self.active_pos.get('limit_order_id') and not self.is_paper_trading:
             try:
                 order_status = await self.private_exchange.fetch_order(self.active_pos['limit_order_id'], self.symbol)
                 if order_status and order_status.get('status') == 'closed':
@@ -757,7 +759,7 @@ class WallHunterFuturesStrategy:
             sell_amount_raw = self.active_pos['amount']
             
             # Cancel open limit order if SL/TSL hits
-            if self.sell_order_type == 'limit' and self.active_pos.get('limit_order_id'):
+            if exit_order_type == 'limit' and self.active_pos.get('limit_order_id'):
                 try:
                     await self.engine.cancel_order(self.active_pos['limit_order_id'])
                     logger.info("Successfully cancelled Limit TP Order due to Stop Loss hit/Emergency Sell.")
@@ -790,12 +792,12 @@ class WallHunterFuturesStrategy:
             # ফিউচার ক্লোজের জন্য বিপরীত অর্ডার
             exit_side = "sell" if side == "long" else "buy"
             
-            exit_order_type = self.sell_order_type
-            if exit_order_type == "marketable_limit":
-                exit_order_type = "market"
+            exit_order_type_actual = exit_order_type
+            if exit_order_type_actual == "marketable_limit":
+                exit_order_type_actual = "market"
 
             # TP/SL/TSL are always market-type execution unless explicit limit
-            actual_type = exit_order_type if exit_order_type != "limit" else "market"
+            actual_type = exit_order_type_actual if exit_order_type_actual != "limit" else "market"
             
             res = await self.engine.execute_trade(exit_side, sell_amount_raw, current_price, order_type=actual_type, params={'reduceOnly': True})
             
@@ -872,22 +874,23 @@ class WallHunterFuturesStrategy:
         
         exit_side = "sell" if side == "long" else "buy"
         res = None
+        exit_order_type = self.sell_order_type if side == "long" else self.buy_order_type
         
-        if self.sell_order_type == 'limit':
+        if exit_order_type == 'limit':
             res = await self.engine.execute_trade(exit_side, sell_amount, current_price, order_type="limit", params={'reduceOnly': True})
             if res: logger.info(f"Placed Limit Order for Partial TP at {current_price}")
             if res and self.is_paper_trading:
                 # Mock instant fill for paper trade limit at current price
                 await self.engine.execute_trade(exit_side, sell_amount, current_price)
         else:
-            exit_order_type = self.sell_order_type
-            if exit_order_type == "marketable_limit":
-                exit_order_type = "market"
-            res = await self.engine.execute_trade(exit_side, sell_amount, current_price, order_type=exit_order_type, params={'reduceOnly': True})
-            if res: logger.info(f"Executed {exit_order_type.upper()} Order for Partial TP at {current_price}")
+            exit_order_type_actual = exit_order_type
+            if exit_order_type_actual == "marketable_limit":
+                exit_order_type_actual = "market"
+            res = await self.engine.execute_trade(exit_side, sell_amount, current_price, order_type=exit_order_type_actual, params={'reduceOnly': True})
+            if res: logger.info(f"Executed {exit_order_type_actual.upper()} Order for Partial TP at {current_price}")
             
         # Update Limit order to prevent over-selling
-        if res and self.sell_order_type == 'limit' and self.active_pos.get('limit_order_id'):
+        if res and exit_order_type == 'limit' and self.active_pos.get('limit_order_id'):
             try:
                 await self.engine.cancel_order(self.active_pos['limit_order_id'])
                 remain_amount = self.active_pos['amount'] - sell_amount
