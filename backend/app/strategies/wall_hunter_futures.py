@@ -100,6 +100,12 @@ class WallHunterFuturesStrategy:
         self.tracked_walls = {} # {price: {first_seen, last_seen, vol, type}}
         self.last_debug_log_time = 0
         
+        # Performance Tracking
+        self.total_executed_orders = 0
+        self.total_realized_pnl = 0.0
+        self.total_wins = 0
+        self.total_losses = 0
+        
         # Tasks
         self._main_task = None
         self._heartbeat_task = None
@@ -197,6 +203,29 @@ class WallHunterFuturesStrategy:
             else:
                 self._btc_task = None
             
+            mode_str = "Paper Trading (Future)" if self.is_paper_trading else "Live Trading (Future)"
+            
+            trigger_logs = []
+            if getattr(self, 'enable_wall_trigger', True):
+                trigger_logs.append(f"Vol Threshold: {self.vol_threshold}")
+            if getattr(self, 'enable_liq_trigger', False):
+                trigger_logs.append(f"Liq Threshold: {self.liq_threshold}")
+            trigger_str = "\n".join(trigger_logs)
+            
+            # Optional Limit Buffer: Only show if the order type is not Market
+            limit_buffer = self.config.get("limit_buffer", 0.05)
+            limit_buffer_str = f"Limit Buffer: {limit_buffer}%\n" if self.buy_order_type.lower() != "market" else ""
+
+            startup_msg = (
+                f"🟢 WallHunter Bot [ID {self.bot_id}] Started!\n"
+                f"Pair: {self.symbol}\n"
+                f"Mode: {mode_str}\n"
+                f"Buy Order: {self.buy_order_type.upper()}\n"
+                f"{limit_buffer_str}"
+                f"{trigger_str}"
+            )
+            
+            await self._send_telegram(startup_msg)
             logger.info(f"✅ [FuturesHunter {self.bot_id}] Initialization Complete")
             
         except Exception as e:
@@ -611,7 +640,14 @@ class WallHunterFuturesStrategy:
                         logger.info(f"Placed Limit TP Order {limit_res['id']} at {self.active_pos['tp']}")
 
                 logger.info(f"✅ Position Opened: {pos_side} | Entry {actual_entry}, SL {self.active_pos['sl']}, TP {self.active_pos['tp']}")
-                asyncio.create_task(self._send_telegram(f"🚀 *{pos_side} Opened*\nPair: {self.symbol}\nEntry: {actual_entry}\nReason: {reason}"))
+                asyncio.create_task(self._send_telegram(
+                    f"⚡ WallHunter Entered!\n"
+                    f"Pair: {self.symbol}\n"
+                    f"Entry {actual_entry:.6f}\n"
+                    f"TP1: {self.active_pos['tp1']:.6f}\n"
+                    f"Final TP: {self.active_pos['tp']:.6f}\n"
+                    f"SL: {self.active_pos['sl']:.6f}"
+                ))
                 
         except Exception as e:
             logger.error(f"Snipe Execution Error: {e}")
@@ -635,6 +671,13 @@ class WallHunterFuturesStrategy:
                         pnl_val = (filled_price - self.active_pos['entry']) * executed_amount
                     else:
                         pnl_val = (self.active_pos['entry'] - filled_price) * executed_amount
+                        
+                    self.total_realized_pnl += pnl_val
+                    self.total_executed_orders += 1
+                    if pnl_val > 0:
+                        self.total_wins += 1
+                    else:
+                        self.total_losses += 1
                         
                     await self._send_telegram(f"🎯 Futures EXIT - Limit TP Filled!\nPair: {self.symbol}\nExit Price: {filled_price:.6f}\nPnL: ${pnl_val:.2f}")
                     logger.info(f"✅ Limit TP Order {self.active_pos['limit_order_id']} was filled by exchange at {filled_price}")
@@ -883,8 +926,16 @@ class WallHunterFuturesStrategy:
             # ----------------------------------------------------
             
             if res:
+                pnl_val = (current_price - self.active_pos['entry']) * sell_amount_raw if side == "long" else (self.active_pos['entry'] - current_price) * sell_amount_raw
+                self.total_realized_pnl += pnl_val
+                self.total_executed_orders += 1
+                if pnl_val > 0:
+                    self.total_wins += 1
+                else:
+                    self.total_losses += 1
+                
                 logger.info(f"✅ {side.upper()} Position Closed: {reason}")
-                await self._send_telegram(f"🏁 *{side.upper()} Closed* ({reason})\nPrice: {current_price}\nPair: {self.symbol}")
+                await self._send_telegram(f"🏁 *{side.upper()} Closed* ({reason})\nPrice: {current_price}\nPair: {self.symbol}\nPnL: ${pnl_val:.2f}")
                 self.active_pos = None
 
     async def execute_partial_close(self, current_price: float):
@@ -970,11 +1021,20 @@ class WallHunterFuturesStrategy:
                 logger.error(f"Failed to update Native SL order after TP1: {e}")
         
         if res:
+            pnl_val = (current_price - entry) * sell_amount if side == "long" else (entry - current_price) * sell_amount
+            self.total_realized_pnl += pnl_val
+            
             self.active_pos['amount'] -= sell_amount
             
             if self.active_pos['amount'] <= 0.00000001:
+                self.total_executed_orders += 1
+                if pnl_val > 0:
+                    self.total_wins += 1
+                else:
+                    self.total_losses += 1
+                    
                 logger.info(f"✅ TP1 Full Output Completed. Dust position was prevented.")
-                await self._send_telegram(f"🎯 *Full TP Hit at TP1!* (Dust Prevented)")
+                await self._send_telegram(f"🎯 *Full TP Hit at TP1!* (Dust Prevented)\nPnL: ${pnl_val:.2f}")
                 self.active_pos = None
             else:
                 self.active_pos['tp1_hit'] = True
@@ -1003,6 +1063,10 @@ class WallHunterFuturesStrategy:
                 "status": "active" if self.running else "inactive",
                 "pnl": round(pnl_val, 2),
                 "pnl_percent": round(pnl_pct, 2),
+                "total_pnl": float(f"{self.total_realized_pnl:.2f}"),
+                "total_orders": self.total_executed_orders,
+                "total_wins": self.total_wins,
+                "total_losses": self.total_losses,
                 "price": current_price,
                 "position": self.active_pos is not None,
                 "entry_price": self.active_pos['entry'] if self.active_pos else 0,
@@ -1084,6 +1148,14 @@ class WallHunterFuturesStrategy:
         res = await self.engine.execute_trade(exit_side, amount, current_price, order_type=actual_type)
         if res:
             pnl_val = (current_price - self.active_pos['entry']) * amount if side == "long" else (self.active_pos['entry'] - current_price) * amount
+            
+            self.total_realized_pnl += pnl_val
+            self.total_executed_orders += 1
+            if pnl_val > 0:
+                self.total_wins += 1
+            else:
+                self.total_losses += 1
+                
             await self._send_telegram(f"🚨 *EMERGENCY EXIT* triggered!\nPair: {self.symbol}\nSide: {side.upper()}\nExit Price: {current_price}\nPnL: ${pnl_val:.2f}")
             self.active_pos = None
             logger.info(f"✅ Emergency exit completed.")
