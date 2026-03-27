@@ -18,6 +18,45 @@ except ImportError:
     def decrypt_key(key):
         return key
 
+
+class WallHunterLogger:
+    def __init__(self, bot_id: int):
+        self.bot_id = bot_id
+        import logging
+        self._logger = logging.getLogger("WallHunter" + str(bot_id))
+
+    def _push_redis(self, log_type: str, message: str):
+        try:
+            import datetime, json, redis
+            from app.core.config import settings
+            r = redis.from_url(settings.REDIS_URL, decode_responses=True)
+            timestamp = datetime.datetime.now().strftime("%H:%M:%S")
+            log_entry = {"time": timestamp, "type": log_type, "message": str(message)}
+            stream_payload = {"channel": f"logs_{self.bot_id}", "data": log_entry}
+            r.publish("bot_logs", json.dumps(stream_payload))
+            r.publish(f"bot_logs:{self.bot_id}", json.dumps(log_entry))
+            list_key = f"bot_logs_list:{self.bot_id}"
+            r.rpush(list_key, json.dumps(log_entry))
+            r.ltrim(list_key, -50, -1)
+        except Exception:
+            pass
+
+    def info(self, msg, *args, **kwargs):
+        self._logger.info(msg, *args, **kwargs)
+        self._push_redis("INFO", (str(msg) % args) if args else str(msg))
+
+    def warning(self, msg, *args, **kwargs):
+        self._logger.warning(msg, *args, **kwargs)
+        self._push_redis("WARNING", (str(msg) % args) if args else str(msg))
+
+    def error(self, msg, *args, **kwargs):
+        self._logger.error(msg, *args, **kwargs)
+        self._push_redis("ERROR", (str(msg) % args) if args else str(msg))
+        
+    def debug(self, msg, *args, **kwargs):
+        self._logger.debug(msg, *args, **kwargs)
+
+
 logger = logging.getLogger(__name__)
 
 class WallHunterBot:
@@ -28,6 +67,7 @@ class WallHunterBot:
         self.symbol = config.get("symbol", "DOGE/USDT")
         self.exchange_id = config.get("exchange", "binance").lower()
         self.is_paper_trading = config.get("is_paper_trading", True)
+        self.logger = WallHunterLogger(self.bot_id)
         
         # Strategy Params
         self.vol_threshold = config.get("vol_threshold", 500000)
@@ -120,7 +160,7 @@ class WallHunterBot:
 
     def update_config(self, new_config: dict):
         """Update strategy parameters dynamically without stopping the bot."""
-        logger.info(f"🔄 [WallHunter {self.bot_id}] Live config update requested: {new_config}")
+        self.logger.info(f"🔄 [WallHunter {self.bot_id}] Live config update requested: {new_config}")
         
         if "trading_mode" in new_config:
             self.trading_mode = new_config["trading_mode"].lower()
@@ -298,11 +338,11 @@ class WallHunterBot:
         
         if updates:
             msg = f"⚡ [WallHunter {self.bot_id}] Live Configuration Updated:\n" + "\n".join([f"- {u}" for u in updates])
-            logger.info(msg)
+            self.logger.info(msg)
             # Fire and forget telegram notification
             asyncio.create_task(self._send_telegram(f"⚙️ *Live Config Update*\n{self.symbol} Bot #{self.bot_id}\n\n" + "\n".join([f"• {u}" for u in updates])))
         else:
-            logger.info(f"⚡ [WallHunter {self.bot_id}] Config update received, but no changes detected.")
+            self.logger.info(f"⚡ [WallHunter {self.bot_id}] Config update received, but no changes detected.")
 
     async def _send_telegram(self, msg: str):
         if not self.owner_id:
@@ -325,7 +365,7 @@ class WallHunterBot:
             await NotificationService.send_message(db, self.owner_id, msg)
             db.close()
         except Exception as e:
-            logger.error(f"Failed to send Telegram in WallHunterBot: {e}")
+            self.logger.error(f"Failed to send Telegram in WallHunterBot: {e}")
 
     def _publish_status(self, current_price: float):
         try:
@@ -425,11 +465,11 @@ class WallHunterBot:
                 try:
                     await self.exchange.load_markets()
                 except Exception as inner_e:
-                    logger.warning(f"Private exchange load_markets skipped/failed (expected on MEXC): {inner_e}")
+                    self.logger.warning(f"Private exchange load_markets skipped/failed (expected on MEXC): {inner_e}")
                     
-            logger.info(f"✅ [WallHunter {self.bot_id}] Markets loaded successfully for {self.symbol}")
+            self.logger.info(f"✅ [WallHunter {self.bot_id}] Markets loaded successfully for {self.symbol}")
         except Exception as e:
-            logger.warning(f"Could not load markets during startup: {e}")
+            self.logger.warning(f"Could not load markets during startup: {e}")
 
         # Initialize BTC Tracker
         from app.strategies.helpers.btc_correlation_tracker import BtcCorrelationTracker
@@ -478,7 +518,7 @@ class WallHunterBot:
             f"{trigger_str}"
         )
         
-        logger.info(f"🚀 [WallHunter {self.bot_id}] Booting up with config:\n"
+        self.logger.info(f"🚀 [WallHunter {self.bot_id}] Booting up with config:\n"
                     f"- Symbol: {self.symbol}\n"
                     f"- Buy Type: {self.buy_order_type}\n"
                     f"- Limit Buffer: {self.limit_buffer}%\n"
@@ -489,7 +529,7 @@ class WallHunterBot:
     async def _heartbeat_loop(self):
         """Prints a friendly heartbeat to the terminal every 5 seconds"""
         while self.running:
-            logger.info(f"💓 [WallHunter {self.bot_id}] active and monitoring Level 2 data on {self.symbol}...")
+            self.logger.info(f"💓 [WallHunter {self.bot_id}] active and monitoring Level 2 data on {self.symbol}...")
             await asyncio.sleep(5)
 
     async def _run_loop(self):
@@ -500,7 +540,7 @@ class WallHunterBot:
                 try:
                     orderbook = await self.public_exchange.watch_order_book(self.symbol, limit=limit)
                 except Exception as e:
-                    logger.warning(f"WebSocket orderbook error: {e}, falling back to REST")
+                    self.logger.warning(f"WebSocket orderbook error: {e}, falling back to REST")
                     await asyncio.sleep(1.5) # Rate limit protection for REST fallback
                     orderbook = await self.public_exchange.fetch_order_book(self.symbol, limit=limit)
                     
@@ -549,25 +589,25 @@ class WallHunterBot:
                             if self.vpvr_enabled and self.top_hvns:
                                 is_hvn_aligned = any(abs(price - hvn) / hvn <= (self.vpvr_tolerance / 100.0) for hvn in self.top_hvns)
                                 if not is_hvn_aligned:
-                                    logger.info(f"🚫 Instant Snipe at {price} rejected: Not near any HVN.")
+                                    self.logger.info(f"🚫 Instant Snipe at {price} rejected: Not near any HVN.")
                                     continue
                             
                             # CVD Absorption Check
                             if self.enable_absorption:
                                 if not self.absorption_tracker.is_absorption_detected(side):
                                     continue
-                                logger.info(f"🔥 [ABSORPTION] Confirmed at {price} for {side.upper()} wall. Delta: {self.absorption_tracker.get_current_delta():.2f}")
+                                self.logger.info(f"🔥 [ABSORPTION] Confirmed at {price} for {side.upper()} wall. Delta: {self.absorption_tracker.get_current_delta():.2f}")
 
                             # BTC Correlation Anti-Fakeout Check
                             if self.enable_btc_correlation and self.btc_correlation_tracker:
                                 if not self.btc_correlation_tracker.is_aligned(side):
                                     metrics = self.btc_correlation_tracker.get_metrics_string()
-                                    logger.info(f"🚫 [BTC Divergence] Snipe at {price} rejected! {metrics}")
+                                    self.logger.info(f"🚫 [BTC Divergence] Snipe at {price} rejected! {metrics}")
                                     continue
                                 else:
-                                    logger.info(f"✅ [BTC Correlation] Aligned for {side.upper()}! {self.btc_correlation_tracker.get_metrics_string()}")
+                                    self.logger.info(f"✅ [BTC Correlation] Aligned for {side.upper()}! {self.btc_correlation_tracker.get_metrics_string()}")
 
-                            logger.info(f"🟢 Instant Snipe at {price} (Spoof Detect is 0s) {'[HVN Confirmed]' if self.vpvr_enabled else ''}. Executing!")
+                            self.logger.info(f"🟢 Instant Snipe at {price} (Spoof Detect is 0s) {'[HVN Confirmed]' if self.vpvr_enabled else ''}. Executing!")
                             await self.execute_snipe(price, side, mid_price)
                             self.tracked_walls.clear()
                             current_walls.clear()
@@ -587,7 +627,7 @@ class WallHunterBot:
                                 if self.vpvr_enabled and self.top_hvns:
                                     is_hvn_aligned = any(abs(price - hvn) / hvn <= (self.vpvr_tolerance / 100.0) for hvn in self.top_hvns)
                                     if not is_hvn_aligned:
-                                        logger.info(f"🚫 Wall at {price} rejected: Not near any HVN (Tolerance: {self.vpvr_tolerance}%).")
+                                        self.logger.info(f"🚫 Wall at {price} rejected: Not near any HVN (Tolerance: {self.vpvr_tolerance}%).")
                                         self.tracked_walls[price]['hvn_rejected'] = True
                                         continue
 
@@ -595,7 +635,7 @@ class WallHunterBot:
                                 if self.enable_absorption:
                                     if not self.absorption_tracker.is_absorption_detected(side):
                                         continue
-                                    logger.info(f"🧬 [ABSORPTION] Confirmed Genuine Wall at {price} for {side.upper()} wall!")
+                                    self.logger.info(f"🧬 [ABSORPTION] Confirmed Genuine Wall at {price} for {side.upper()} wall!")
 
                                 # BTC Correlation Anti-Fakeout Check
                                 if self.enable_btc_correlation and self.btc_correlation_tracker:
@@ -603,13 +643,13 @@ class WallHunterBot:
                                         continue
                                     if not self.btc_correlation_tracker.is_aligned(side):
                                         metrics = self.btc_correlation_tracker.get_metrics_string()
-                                        logger.info(f"🚫 [BTC Divergence] Confirmed Wall at {price} rejected! {metrics}")
+                                        self.logger.info(f"🚫 [BTC Divergence] Confirmed Wall at {price} rejected! {metrics}")
                                         self.tracked_walls[price]['btc_rejected'] = True
                                         continue
                                     else:
-                                        logger.info(f"✅ [BTC Correlation] Aligned for {side.upper()}! {self.btc_correlation_tracker.get_metrics_string()}")
+                                        self.logger.info(f"✅ [BTC Correlation] Aligned for {side.upper()}! {self.btc_correlation_tracker.get_metrics_string()}")
                                         
-                                logger.info(f"🟢 Genuine Wall detected at {price} (Alive for {time_alive:.1f}s) {'[HVN Confirmed]' if self.vpvr_enabled else ''}. Executing Snipe!")
+                                self.logger.info(f"🟢 Genuine Wall detected at {price} (Alive for {time_alive:.1f}s) {'[HVN Confirmed]' if self.vpvr_enabled else ''}. Executing Snipe!")
                                 await self.execute_snipe(price, side, mid_price)
                                 self.tracked_walls.clear() # এন্ট্রি নেওয়ার পর ট্র্যাকিং ক্লিয়ার
                                 break
@@ -632,7 +672,7 @@ class WallHunterBot:
                     
                     for p in spoofed_prices:
                         time_alive = current_time - self.tracked_walls[p]['first_seen']
-                        logger.info(f"⚠️ Spoofing Detected: Wall at {p} disappeared after {time_alive:.1f}s. Ignoring.")
+                        self.logger.info(f"⚠️ Spoofing Detected: Wall at {p} disappeared after {time_alive:.1f}s. Ignoring.")
                         del self.tracked_walls[p]
 
                 else:
@@ -644,7 +684,7 @@ class WallHunterBot:
                 await asyncio.sleep(0.001) 
             
             except Exception as e:
-                logger.error(f"Hunter Loop Error: {e}")
+                self.logger.error(f"Hunter Loop Error: {e}")
                 await asyncio.sleep(1)
 
     async def execute_snipe(self, wall_price: float, side: str, current_mid_price: float):
@@ -665,7 +705,7 @@ class WallHunterBot:
         # Using mid_price prevents instant fake TP triggers.
         execution_price = current_mid_price if self.is_paper_trading else entry_price
         
-        logger.info(f"⚡ [WallHunter {self.bot_id}] Executing Snipe: {side.upper()} {base_amount} {self.symbol} at {execution_price}")
+        self.logger.info(f"⚡ [WallHunter {self.bot_id}] Executing Snipe: {side.upper()} {base_amount} {self.symbol} at {execution_price}")
         
         # Use custom buy order type if provided, otherwise default to market
         snipe_order_type = self.buy_order_type
@@ -676,7 +716,7 @@ class WallHunterBot:
              
         res = await self.engine.execute_trade(side, base_amount, execution_price, order_type=snipe_order_type)
         if res:
-            logger.info(f"✅ [WallHunter {self.bot_id}] Trade executed successfully. Order ID: {res.get('id')}")
+            self.logger.info(f"✅ [WallHunter {self.bot_id}] Trade executed successfully. Order ID: {res.get('id')}")
             
             # --- NEW: Partial Fill Management for Entry ---
             entry_type = self.sell_order_type if getattr(self, 'strategy_mode', 'long') == "short" else self.buy_order_type
@@ -692,7 +732,7 @@ class WallHunterBot:
                         except Exception: pass
                     
                     if order_status and order_status.get('status') == 'open':
-                        logger.warning(f"⚠️ Entry order {res['id']} is still open! Cancelling remainder...")
+                        self.logger.warning(f"⚠️ Entry order {res['id']} is still open! Cancelling remainder...")
                         await self.engine.cancel_order(res['id'])
                         await asyncio.sleep(0.5)
                         
@@ -700,10 +740,10 @@ class WallHunterBot:
                         filled = final_status.get('filled', 0.0)
                         
                         if filled <= 0:
-                            logger.error(f"❌ Entry order was completely unfilled before cancellation. Aborting snipe.")
+                            self.logger.error(f"❌ Entry order was completely unfilled before cancellation. Aborting snipe.")
                             return
                             
-                        logger.info(f"🔄 Partial Fill Detected! Requested: {base_amount}, Filled: {filled}. Adjusting position size.")
+                        self.logger.info(f"🔄 Partial Fill Detected! Requested: {base_amount}, Filled: {filled}. Adjusting position size.")
                         # Parse precision natively so exchange math doesn't break later
                         base_amount_raw = float(self.engine.exchange.amount_to_precision(self.symbol, filled)) if hasattr(self.engine.exchange, 'amount_to_precision') else filled
                         base_amount = base_amount_raw
@@ -711,7 +751,7 @@ class WallHunterBot:
                         res['average'] = final_status.get('average') or res.get('average')
                         res['price'] = final_status.get('price') or res.get('price')
                 except Exception as e:
-                    logger.error(f"Error handling partial fill verification on entry: {e}")
+                    self.logger.error(f"Error handling partial fill verification on entry: {e}")
             # ---------------------------------------------
             
             # Safely extract average fill price. Fallback to requested entry_price if not provided or 0
@@ -721,7 +761,7 @@ class WallHunterBot:
             # If CCXT did not return average price initially, launch a background task
             # We will use current_mid_price (or fill price) temporarily so we can proceed instantly.
             if not self.is_paper_trading and res.get('id') and self.engine.exchange and not (avg_price and avg_price > 0):
-                logger.info(f"⚡ Price not instantly available for {res.get('id')}. Spawning background tracker...")
+                self.logger.info(f"⚡ Price not instantly available for {res.get('id')}. Spawning background tracker...")
                 asyncio.create_task(self._fetch_and_update_entry(res['id'], base_amount, current_mid_price))
                 # For now, we proceed to set up SL/TP using intermediate price
                 pass
@@ -732,7 +772,7 @@ class WallHunterBot:
             # Sanity Check to prevent instant SL logic if CCXT returns an outdated or widely inaccurate fill price
             slippage_pct = abs(actual_entry - current_mid_price) / current_mid_price
             if slippage_pct > 0.02: # If the executed price differs from the mid price by more than 2%
-                logger.warning(f"Suspicious fill price from CCXT: {actual_entry}. Overriding with mid_price: {current_mid_price}")
+                self.logger.warning(f"Suspicious fill price from CCXT: {actual_entry}. Overriding with mid_price: {current_mid_price}")
                 actual_entry = current_mid_price
             
             # --- UPDATED: Position tracking for TP1 and TP2 ---
@@ -762,7 +802,7 @@ class WallHunterBot:
                 limit_res = await self.engine.execute_trade(close_side, close_amount, tp_price, order_type="limit")
                 if limit_res and 'id' in limit_res:
                     self.active_pos['limit_order_id'] = limit_res['id']
-                    logger.info(f"⚡ Micro-Scalp: Placed Limit TP Order {limit_res['id']} at {tp_price}")
+                    self.logger.info(f"⚡ Micro-Scalp: Placed Limit TP Order {limit_res['id']} at {tp_price}")
                     
                 await self._send_telegram(f"⚡ Micro-Scalp Entered!\nPair: {self.symbol}\nEntry: {actual_entry:.6f}\nTick Target: {tp_price:.6f}\nSL: {self.active_pos['sl']:.6f}")
                 
@@ -799,9 +839,9 @@ class WallHunterBot:
                     limit_res = await self.engine.execute_trade(close_side, close_amount, self.active_pos['tp'], order_type="limit")
                     if limit_res and 'id' in limit_res:
                         self.active_pos['limit_order_id'] = limit_res['id']
-                        logger.info(f"Placed Limit TP Order {limit_res['id']} at {self.active_pos['tp']}")
+                        self.logger.info(f"Placed Limit TP Order {limit_res['id']} at {self.active_pos['tp']}")
                 
-                logger.info(f"Entered Trade at {actual_entry}. SL: {self.active_pos['sl']}")
+                self.logger.info(f"Entered Trade at {actual_entry}. SL: {self.active_pos['sl']}")
                 await self._send_telegram(f"⚡ WallHunter Entered!\nPair: {self.symbol}\nEntry {actual_entry:.6f}\nTP1: {self.active_pos['tp1']:.6f}\nFinal TP: {self.active_pos['tp']:.6f}\nSL: {self.active_pos['sl']:.6f}")
 
     async def _fetch_and_update_entry(self, order_id: str, amount: float, mid_price: float):
@@ -820,7 +860,7 @@ class WallHunterBot:
             # Sanity Check
             slippage_pct = abs(actual_entry - mid_price) / mid_price
             if slippage_pct > 0.02:
-                logger.warning(f"Suspicious delayed fill price: {actual_entry}. Keeping previous {mid_price}.")
+                self.logger.warning(f"Suspicious delayed fill price: {actual_entry}. Keeping previous {mid_price}.")
                 return
                 
             # Update only if position is still active
@@ -851,7 +891,7 @@ class WallHunterBot:
                     
                 self.highest_price = actual_entry
                 self.lowest_price = actual_entry
-                logger.info(f"🔄 Entry precision updated in background: {old_entry:.6f} -> {actual_entry:.6f}")
+                self.logger.info(f"🔄 Entry precision updated in background: {old_entry:.6f} -> {actual_entry:.6f}")
                 
                 # If there's an active limit order, we might need to adjust it
                 active_limit_id = self.active_pos.get('limit_order_id')
@@ -864,12 +904,12 @@ class WallHunterBot:
                         limit_res = await self.engine.execute_trade(close_side, close_amount, self.active_pos['tp'], order_type="limit")
                         if limit_res and 'id' in limit_res:
                             self.active_pos['limit_order_id'] = limit_res['id']
-                            logger.info(f"🔄 Adjusted Limit TP Order to exact price {self.active_pos['tp']}")
+                            self.logger.info(f"🔄 Adjusted Limit TP Order to exact price {self.active_pos['tp']}")
                     except Exception as limit_err:
-                        logger.error(f"Failed to adjust limit order in background precision update: {limit_err}")
+                        self.logger.error(f"Failed to adjust limit order in background precision update: {limit_err}")
                         
         except Exception as e:
-            logger.warning(f"Background fetch_order failed for {order_id}: {e}")
+            self.logger.warning(f"Background fetch_order failed for {order_id}: {e}")
 
     async def manage_risk(self, current_price: float):
         if not self.active_pos: return
@@ -893,11 +933,11 @@ class WallHunterBot:
                     else:
                         self.total_losses += 1
                     await self._send_telegram(f"🎯 WallHunter EXIT - Limit TP Filled!\nPair: {self.symbol}\nExit Price: {filled_price:.6f}\nPnL: ${pnl_val:.2f}")
-                    logger.info(f"✅ Limit TP Order {self.active_pos['limit_order_id']} was filled by exchange at {filled_price}")
+                    self.logger.info(f"✅ Limit TP Order {self.active_pos['limit_order_id']} was filled by exchange at {filled_price}")
                     self.active_pos = None
                     return
             except Exception as e:
-                logger.warning(f"Error checking limit order status: {e}")
+                self.logger.warning(f"Error checking limit order status: {e}")
 
         if getattr(self, 'strategy_mode', 'long') == 'short':
             if not hasattr(self, 'lowest_price') or self.lowest_price == 0:
@@ -911,7 +951,7 @@ class WallHunterBot:
                     trigger = self.active_pos['entry'] * (1 - (activation_pct / 100))
                     if current_price <= trigger:
                         self.active_pos['tsl_activated'] = True
-                        logger.info(f"🚀 Trailing SL Activated for SHORT at {current_price:.6f}!")
+                        self.logger.info(f"🚀 Trailing SL Activated for SHORT at {current_price:.6f}!")
                 
                 if activation_pct == 0.0 or self.active_pos.get('tsl_activated'):
                     if self.atr_sl_enabled and getattr(self, 'current_atr', 0) > 0:
@@ -928,7 +968,7 @@ class WallHunterBot:
                     if new_breakeven_sl < self.active_pos['sl']:
                         self.active_pos['sl'] = new_breakeven_sl
                         self.active_pos['breakeven_hit'] = True
-                        logger.info(f"🛡️ Set SL to Risk-Free Breakeven at {new_breakeven_sl:.6f}")
+                        self.logger.info(f"🛡️ Set SL to Risk-Free Breakeven at {new_breakeven_sl:.6f}")
                         asyncio.create_task(self._send_telegram(f"🛡️ Stop-Loss moved to Risk-Free!\nPair: {self.symbol}\nNew SL: {new_breakeven_sl:.6f}"))
         else:
             if current_price > self.highest_price:
@@ -940,7 +980,7 @@ class WallHunterBot:
                     trigger = self.active_pos['entry'] * (1 + (activation_pct / 100))
                     if current_price >= trigger:
                         self.active_pos['tsl_activated'] = True
-                        logger.info(f"🚀 Trailing SL Activated for LONG at {current_price:.6f}!")
+                        self.logger.info(f"🚀 Trailing SL Activated for LONG at {current_price:.6f}!")
                 
                 # Update Trailing SL
                 if activation_pct == 0.0 or self.active_pos.get('tsl_activated'):
@@ -960,7 +1000,7 @@ class WallHunterBot:
                     if new_breakeven_sl > self.active_pos['sl']:
                         self.active_pos['sl'] = new_breakeven_sl
                         self.active_pos['breakeven_hit'] = True
-                        logger.info(f"🛡️ Set SL to Risk-Free Breakeven at {new_breakeven_sl:.6f}")
+                        self.logger.info(f"🛡️ Set SL to Risk-Free Breakeven at {new_breakeven_sl:.6f}")
                         asyncio.create_task(self._send_telegram(f"🛡️ Stop-Loss moved to Risk-Free!\nPair: {self.symbol}\nNew SL: {new_breakeven_sl:.6f}"))
 
         # --- Partial TP Logic ---
@@ -968,7 +1008,7 @@ class WallHunterBot:
         hit_tp1 = current_price <= self.active_pos['tp1'] if getattr(self, 'strategy_mode', 'long') == 'short' else current_price >= self.active_pos['tp1']
         
         if not self.active_pos.get('micro_scalp') and self.partial_tp_pct > 0 and not self.active_pos.get('tp1_hit') and hit_tp1:
-            logger.info("🟢 TP1 Hit! Executing Partial Close.")
+            self.logger.info("🟢 TP1 Hit! Executing Partial Close.")
             sell_amount_raw = self.active_pos['amount'] * (self.partial_tp_pct / 100)
             
             # --- Min Notional Check (Dust Position Preventer) ---
@@ -981,10 +1021,10 @@ class WallHunterBot:
                 if min_cost and min_cost > 0:
                     remaining_value = remaining_amount * current_price
                     if remaining_value < min_cost:
-                        logger.warning(f"Dust Position Prevented: Remaining value ${remaining_value:.2f} < Min Notional ${min_cost:.2f}. Executing 100% close at TP1.")
+                        self.logger.warning(f"Dust Position Prevented: Remaining value ${remaining_value:.2f} < Min Notional ${min_cost:.2f}. Executing 100% close at TP1.")
                         sell_amount_raw = self.active_pos['amount']
             except Exception as e:
-                logger.error(f"Error checking min notional for TP1: {e}")
+                self.logger.error(f"Error checking min notional for TP1: {e}")
             # ----------------------------------------------------
 
             close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
@@ -1000,14 +1040,14 @@ class WallHunterBot:
             if exit_order_type_actual == 'limit':
                 res = await self.engine.execute_trade(close_side, sell_amount, self.active_pos['tp1'], order_type="limit")
                 if res:
-                    logger.info(f"Placed Limit Order for Partial TP at {self.active_pos['tp1']}")
+                    self.logger.info(f"Placed Limit Order for Partial TP at {self.active_pos['tp1']}")
                 if res and self.is_paper_trading:
                     # Instantly filled in simulation: Finalize paper balance
                     await self.engine.execute_trade(close_side, sell_amount, self.active_pos['tp1'])
             else:
                 res = await self.engine.execute_trade(close_side, sell_amount, current_price)
                 if res:
-                    logger.info(f"Executed Market Order for Partial TP at {current_price}")
+                    self.logger.info(f"Executed Market Order for Partial TP at {current_price}")
             
             # Update Limit order to prevent over-selling
             if res and exit_order_type == 'limit' and self.active_pos.get('limit_order_id'):
@@ -1021,7 +1061,7 @@ class WallHunterBot:
                         if limit_res and 'id' in limit_res:
                             self.active_pos['limit_order_id'] = limit_res['id']
                 except Exception as e:
-                    logger.error(f"Failed to update limit order after TP1: {e}")
+                    self.logger.error(f"Failed to update limit order after TP1: {e}")
             
             if res:
                 remaining_raw = self.active_pos['amount'] - sell_amount_raw
@@ -1043,11 +1083,11 @@ class WallHunterBot:
                     self.active_pos['tp1_hit'] = True
                     await self._send_telegram(f"🔓 Partial TP Hit!\nPair: {self.symbol}\nMode: {getattr(self, 'strategy_mode', 'long').upper()}\nLocked Profit: ${pnl_val:.2f}")
             else:
-                logger.warning("❌ Partial TP execution failed on exchange. Skipping partial TP size reduction to stay in sync with exchange.")
+                self.logger.warning("❌ Partial TP execution failed on exchange. Skipping partial TP size reduction to stay in sync with exchange.")
                 self.active_pos['tp1_hit'] = True
 
         elif (current_price >= self.active_pos['sl'] if getattr(self, 'strategy_mode', 'long') == 'short' else current_price <= self.active_pos['sl']):
-            logger.info(f"⚠️ Triggering SL: Current Price ({current_price:.6f}) hit SL ({self.active_pos['sl']:.6f})")
+            self.logger.info(f"⚠️ Triggering SL: Current Price ({current_price:.6f}) hit SL ({self.active_pos['sl']:.6f})")
             
             sell_amount_raw = self.active_pos['amount']
             close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
@@ -1059,16 +1099,16 @@ class WallHunterBot:
                 canceled = False
                 for attempt in range(3):
                     try:
-                        logger.info(f"Attempting to cancel Limit TP Order {self.active_pos['limit_order_id']} before SL market order (Attempt {attempt+1}/3)")
+                        self.logger.info(f"Attempting to cancel Limit TP Order {self.active_pos['limit_order_id']} before SL market order (Attempt {attempt+1}/3)")
                         await self.engine.cancel_order(self.active_pos['limit_order_id'])
                         canceled = True
                         break
                     except Exception as e:
-                        logger.warning(f"Failed to cancel Limit TP Order on attempt {attempt+1}: {e}")
+                        self.logger.warning(f"Failed to cancel Limit TP Order on attempt {attempt+1}: {e}")
                         await asyncio.sleep(0.2)
                 
                 if canceled:
-                    logger.info("Successfully cancelled Limit TP Order due to Stop Loss hit. Extracting remaining position...")
+                    self.logger.info("Successfully cancelled Limit TP Order due to Stop Loss hit. Extracting remaining position...")
                     await asyncio.sleep(0.5) # Wait for exchange to release the locked base asset balance
                     
                     # --- NEW: Extract remaining balance from the cancelled Limit Order ---
@@ -1077,12 +1117,12 @@ class WallHunterBot:
                             cancelled_status = await self.engine.exchange.fetch_order(self.active_pos['limit_order_id'], self.symbol)
                             filled = cancelled_status.get('filled', 0.0)
                             if filled > 0:
-                                logger.info(f"🔄 Open Limit Order was partially filled ({filled}). Adjusting SL Market Sweep amount.")
+                                self.logger.info(f"🔄 Open Limit Order was partially filled ({filled}). Adjusting SL Market Sweep amount.")
                                 filled_proper = float(self.engine.exchange.amount_to_precision(self.symbol, filled)) if hasattr(self.engine.exchange, 'amount_to_precision') else filled
                                 sell_amount_raw = max(0.0, self.active_pos['amount'] - filled_proper)
                                 
                                 if sell_amount_raw <= 0:
-                                    logger.info("✅ Partial fill actually completely closed out the remaining position. SL sweep aborted.")
+                                    self.logger.info("✅ Partial fill actually completely closed out the remaining position. SL sweep aborted.")
                                     
                                     pnl_val = 0
                                     # Fallback simple PNL
@@ -1095,10 +1135,10 @@ class WallHunterBot:
                                 close_amount_raw = (sell_amount_raw * self.active_pos['entry'] * 0.995) / current_price if getattr(self, 'strategy_mode', 'long') == "short" else sell_amount_raw
                                 sell_amount = float(self.engine.exchange.amount_to_precision(self.symbol, close_amount_raw))
                     except Exception as e:
-                        logger.error(f"Error fetching filled status of cancelled limit order: {e}")
+                        self.logger.error(f"Error fetching filled status of cancelled limit order: {e}")
                     # -------------------------------------------------------------
                 else:
-                    logger.error("COULD NOT CANCEL LIMIT TP ORDER! SL Market order might fail with Insufficient Balance.")
+                    self.logger.error("COULD NOT CANCEL LIMIT TP ORDER! SL Market order might fail with Insufficient Balance.")
                 
             exit_order_type_actual = exit_order_type
             if exit_order_type_actual == 'marketable_limit':
@@ -1120,7 +1160,7 @@ class WallHunterBot:
                         except Exception: pass
                     
                     if order_status and order_status.get('status') == 'open':
-                        logger.warning(f"⚠️ Exit SL order {res['id']} is hanging open! Cancelling remainder...")
+                        self.logger.warning(f"⚠️ Exit SL order {res['id']} is hanging open! Cancelling remainder...")
                         await self.engine.cancel_order(res['id'])
                         await asyncio.sleep(0.5)
                         
@@ -1131,14 +1171,14 @@ class WallHunterBot:
                         remaining_base = max(0.0, sell_amount_raw - filled_proper)
                         
                         if remaining_base > 0:
-                            logger.info(f"🧹 Sweeping SL remainder at Pure Market: {remaining_base} {self.symbol}")
+                            self.logger.info(f"🧹 Sweeping SL remainder at Pure Market: {remaining_base} {self.symbol}")
                             sweep_amount_raw = (remaining_base * self.active_pos['entry'] * 0.995) / current_price if getattr(self, 'strategy_mode', 'long') == "short" else remaining_base
                             sweep_amount = float(self.engine.exchange.amount_to_precision(self.symbol, sweep_amount_raw))
                             
                             await self.engine.execute_trade(close_side, sweep_amount, current_price, order_type="market")
-                            logger.info("✅ Market sweep completed.")
+                            self.logger.info("✅ Market sweep completed.")
                 except Exception as e:
-                    logger.error(f"Error checking SL partial fill sweep: {e}")
+                    self.logger.error(f"Error checking SL partial fill sweep: {e}")
             # --------------------------------------------------------
             self.total_executed_orders += 1
             
@@ -1160,10 +1200,10 @@ class WallHunterBot:
                      self.total_losses += 1
                      await self._send_telegram(f"🛑 WallHunter EXIT - Stopped Out!\nPair: {self.symbol}\nMode: {getattr(self, 'strategy_mode', 'long').upper()}\nExit Price: {current_price:.6f}\nPnL: ${pnl_val:.2f}")
             self.active_pos = None
-            logger.info("Exit: Stop Loss / TSL Hit")
+            self.logger.info("Exit: Stop Loss / TSL Hit")
             
         elif (current_price <= self.active_pos['tp'] if getattr(self, 'strategy_mode', 'long') == 'short' else current_price >= self.active_pos['tp']):
-            logger.info(f"✅ Triggering Final TP: Current Price ({current_price:.6f}) hit TP ({self.active_pos['tp']:.6f})")
+            self.logger.info(f"✅ Triggering Final TP: Current Price ({current_price:.6f}) hit TP ({self.active_pos['tp']:.6f})")
             
             sell_amount_raw = self.active_pos['amount']
             close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
@@ -1190,7 +1230,7 @@ class WallHunterBot:
                             except Exception: pass
                         
                         if order_status and order_status.get('status') == 'open':
-                            logger.warning(f"⚠️ Exit Final TP order {res['id']} is hanging open! Cancelling remainder...")
+                            self.logger.warning(f"⚠️ Exit Final TP order {res['id']} is hanging open! Cancelling remainder...")
                             await self.engine.cancel_order(res['id'])
                             await asyncio.sleep(0.5)
                             
@@ -1201,17 +1241,17 @@ class WallHunterBot:
                             remaining_base = max(0.0, sell_amount_raw - filled_proper)
                             
                             if remaining_base > 0:
-                                logger.info(f"🧹 Sweeping Final TP remainder at Pure Market: {remaining_base} {self.symbol}")
+                                self.logger.info(f"🧹 Sweeping Final TP remainder at Pure Market: {remaining_base} {self.symbol}")
                                 sweep_amount_raw = (remaining_base * self.active_pos['entry'] * 0.995) / current_price if getattr(self, 'strategy_mode', 'long') == "short" else remaining_base
                                 sweep_amount = float(self.engine.exchange.amount_to_precision(self.symbol, sweep_amount_raw))
                                 
                                 await self.engine.execute_trade(close_side, sweep_amount, current_price, order_type="market")
-                                logger.info("✅ Market sweep for Final TP completed.")
+                                self.logger.info("✅ Market sweep for Final TP completed.")
                     except Exception as e:
-                        logger.error(f"Error checking Final TP partial fill sweep: {e}")
+                        self.logger.error(f"Error checking Final TP partial fill sweep: {e}")
                 # --------------------------------------------------------
             else:
-                logger.info(f"Target Profit {self.active_pos['tp']} reached. Assuming Limit Order {self.active_pos.get('limit_order_id', 'Unknown')} is filled.")
+                self.logger.info(f"Target Profit {self.active_pos['tp']} reached. Assuming Limit Order {self.active_pos.get('limit_order_id', 'Unknown')} is filled.")
                 if self.is_paper_trading:
                     # Finalize the initial limit order mock by executing a market sell at the TP price
                     await self.engine.execute_trade(close_side, sell_amount, self.active_pos['tp'])
@@ -1230,12 +1270,12 @@ class WallHunterBot:
                 self.total_losses += 1
             await self._send_telegram(f"🎯 WallHunter EXIT - Final Take Profit Hit!\nPair: {self.symbol}\nMode: {getattr(self, 'strategy_mode', 'long').upper()}\nExit Price: {current_price:.6f}\nPnL: ${pnl_val:.2f}")
             self.active_pos = None
-            logger.info("Exit: Take Profit Hit")
+            self.logger.info("Exit: Take Profit Hit")
 
     async def stop(self):
         """বট স্টপ করার জন্য রিসোর্স ক্লিনআপ"""
         self.running = False
-        logger.info(f"🛑 [WallHunter {self.bot_id}] Stopping...")
+        self.logger.info(f"🛑 [WallHunter {self.bot_id}] Stopping...")
         
         # --- FIX: Task Memory Leak / CPU Spike Prevention ---
         for task_attr in ['_main_task', '_heartbeat_task', '_vpvr_task', '_atr_task', '_liq_task', '_trades_task', '_btc_task']:
@@ -1244,7 +1284,7 @@ class WallHunterBot:
                 try:
                     task.cancel()
                 except Exception as e:
-                    logger.error(f"Error cancelling task {task_attr}: {e}")
+                    self.logger.error(f"Error cancelling task {task_attr}: {e}")
                     
         if hasattr(self, 'btc_correlation_tracker') and self.btc_correlation_tracker:
             try:
@@ -1256,13 +1296,13 @@ class WallHunterBot:
                 await self.public_exchange.close()
         except: pass
             
-        logger.info(f"Bot {self.bot_id} (WallHunter) stopped.")
+        self.logger.info(f"Bot {self.bot_id} (WallHunter) stopped.")
         await self._send_telegram(f"🔴 WallHunter Bot [ID: {self.bot_id}] Stopped.")
 
     async def emergency_sell(self, sell_type: str):
         """Emergency liquidate the active position."""
         if not self.active_pos:
-            logger.info(f"No active position to emergency sell for bot {self.bot_id}")
+            self.logger.info(f"No active position to emergency sell for bot {self.bot_id}")
             return
             
         sell_amount = self.active_pos['amount']
@@ -1275,7 +1315,7 @@ class WallHunterBot:
             best_ask = ob['asks'][0][0] if ob['asks'] else 0
             current_price = (best_bid + best_ask) / 2 if best_bid and best_ask else best_bid or best_ask
         except Exception as e:
-            logger.warning(f"Could not fetch precise market price for emergency sell: {e}")
+            self.logger.warning(f"Could not fetch precise market price for emergency sell: {e}")
             current_price = self.active_pos['entry'] # Fallback
             
         if current_price <= 0:
@@ -1285,16 +1325,16 @@ class WallHunterBot:
         if self.active_pos.get('limit_order_id'):
             try:
                 await self.engine.cancel_order(self.active_pos['limit_order_id'])
-                logger.info(f"Cancelled open limit order {self.active_pos['limit_order_id']} for emergency sell.")
+                self.logger.info(f"Cancelled open limit order {self.active_pos['limit_order_id']} for emergency sell.")
             except Exception as e:
-                logger.warning(f"Failed to cancel open limit order during emergency sell: {e}")
+                self.logger.warning(f"Failed to cancel open limit order during emergency sell: {e}")
                 
         close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
         action_name = "BUY" if close_side == "buy" else "SELL"
         
         if sell_type in ["market", "marketable_limit"]:
             actual_type = "market" # Engine will convert to marketable limit if needed
-            logger.info(f"🚨 Executing EMERGENCY {sell_type.upper()} {action_name} for bot {self.bot_id} at ~{current_price}")
+            self.logger.info(f"🚨 Executing EMERGENCY {sell_type.upper()} {action_name} for bot {self.bot_id} at ~{current_price}")
             await self.engine.execute_trade(close_side, sell_amount, current_price, order_type=actual_type)
             self.total_executed_orders += 1
             
@@ -1315,7 +1355,7 @@ class WallHunterBot:
         elif sell_type == "limit":
             # For a limit exit, we'll try to place it at the best ask/bid or current market mid-price 
             close_price = best_bid if close_side == "buy" and best_bid > 0 else (best_ask if best_ask > 0 else current_price)
-            logger.info(f"🎯 Executing EMERGENCY LIMIT {action_name} for bot {self.bot_id} at {close_price}")
+            self.logger.info(f"🎯 Executing EMERGENCY LIMIT {action_name} for bot {self.bot_id} at {close_price}")
             limit_res = await self.engine.execute_trade(close_side, sell_amount, close_price, order_type="limit")
             
             if limit_res and 'id' in limit_res:
@@ -1370,16 +1410,16 @@ class WallHunterBot:
                 top_3 = sorted_bins[:3]
                 
                 self.top_hvns = [min_price + (idx * bin_size) + (bin_size / 2) for vol, idx in top_3]
-                logger.info(f"📊 [WallHunter {self.bot_id}] VPVR Updated. Top 3 HVNs: {[f'{h:.6f}' for h in self.top_hvns]}")
+                self.logger.info(f"📊 [WallHunter {self.bot_id}] VPVR Updated. Top 3 HVNs: {[f'{h:.6f}' for h in self.top_hvns]}")
                 
             except Exception as e:
-                logger.error(f"VPVR Update Error: {e}")
+                self.logger.error(f"VPVR Update Error: {e}")
                 
             await asyncio.sleep(300) # Every 5 minutes
 
     async def _trades_listener(self):
         """Background task to watch trades and feed the AbsorptionTracker."""
-        logger.info(f"📣 [WallHunter {self.bot_id}] Starting Trades Listener for CVD Absorption...")
+        self.logger.info(f"📣 [WallHunter {self.bot_id}] Starting Trades Listener for CVD Absorption...")
         while self.running:
             try:
                 # We use public exchange for trades as it's typically faster/unthrottled
@@ -1397,7 +1437,7 @@ class WallHunterBot:
                     
             except Exception as e:
                 if self.running:
-                    logger.warning(f"Trade Listener Error: {e}")
+                    self.logger.warning(f"Trade Listener Error: {e}")
                 await asyncio.sleep(1)
 
     async def _atr_updater_loop(self):
@@ -1429,15 +1469,15 @@ class WallHunterBot:
                     if len(tr_list) >= self.atr_period:
                         recent_trs = tr_list[-self.atr_period:]
                         self.current_atr = sum(recent_trs) / self.atr_period
-                        logger.info(f"📈 [WallHunter {self.bot_id}] ATR Updated: {self.current_atr:.6f} (Period: {self.atr_period})")
+                        self.logger.info(f"📈 [WallHunter {self.bot_id}] ATR Updated: {self.current_atr:.6f} (Period: {self.atr_period})")
             except Exception as e:
-                logger.error(f"ATR Update Error: {e}")
+                self.logger.error(f"ATR Update Error: {e}")
                 
             await asyncio.sleep(60) # Update every minute
 
     async def _liquidation_listener(self):
         """Listen to global Redis stream for liquidations"""
-        logger.info(f"🎧 [WallHunter {self.bot_id}] Starting Liquidation Listener for {self.symbol}...")
+        self.logger.info(f"🎧 [WallHunter {self.bot_id}] Starting Liquidation Listener for {self.symbol}...")
         if not self.redis:
             await asyncio.sleep(5)
             self.redis = get_redis_client()
@@ -1455,10 +1495,10 @@ class WallHunterBot:
                     if current_channel != target_channel:
                         if current_channel:
                             pubsub.unsubscribe(current_channel)
-                            logger.info(f"🎧 [WallHunter {self.bot_id}] Unsubscribed from {current_channel}")
+                            self.logger.info(f"🎧 [WallHunter {self.bot_id}] Unsubscribed from {current_channel}")
                         pubsub.subscribe(target_channel)
                         current_channel = target_channel
-                        logger.info(f"🎧 [WallHunter {self.bot_id}] Subscribed to {current_channel}")
+                        self.logger.info(f"🎧 [WallHunter {self.bot_id}] Subscribed to {current_channel}")
                         
                     message = pubsub.get_message(ignore_subscribe_messages=True)
                     if message and message['type'] == 'message':
@@ -1474,11 +1514,11 @@ class WallHunterBot:
                             liq_amount_raw = float(data.get("amount", 0))
                             
                             if self.follow_btc_liq:
-                                logger.info(f"\n==============================================")
-                                logger.info(f"🔥 [BTC LIQUIDATION] {liq_side} | Amount: ${liq_amount_raw:,.2f}")
-                                logger.info(f"==============================================\n")
+                                self.logger.info(f"\n==============================================")
+                                self.logger.info(f"🔥 [BTC LIQUIDATION] {liq_side} | Amount: ${liq_amount_raw:,.2f}")
+                                self.logger.info(f"==============================================\n")
                             else:
-                                logger.info(f"🔍 [WallHunter {self.bot_id}] Raw Liq Alert: {data}")
+                                self.logger.info(f"🔍 [WallHunter {self.bot_id}] Raw Liq Alert: {data}")
                             
                             custom_side = getattr(self, 'liq_target_side', 'auto')
                             if custom_side in ["long", "short"]:
@@ -1514,15 +1554,15 @@ class WallHunterBot:
                                 # 3. Trigger check
                                 if cascade_total >= active_threshold:
                                     triggered_symbol = "BTC/USDT" if self.follow_btc_liq else self.symbol
-                                    logger.info(f"💥 {target_liq_side.capitalize()} Liquidation Triggered! Stream: {triggered_symbol} | Cascade Total: ${cascade_total:.2f} | Threshold: ${active_threshold:.2f}")
+                                    self.logger.info(f"💥 {target_liq_side.capitalize()} Liquidation Triggered! Stream: {triggered_symbol} | Cascade Total: ${cascade_total:.2f} | Threshold: ${active_threshold:.2f}")
                                     if self.enable_liq_cascade:
                                         self.liq_history.clear() # Reset after triggering
                                     await self._handle_liquidation_trigger(data)
                                     
                         except json.JSONDecodeError:
-                            logger.error(f"Failed to decode Redis liquidation message: {message['data']}")
+                            self.logger.error(f"Failed to decode Redis liquidation message: {message['data']}")
             except Exception as e:
-                logger.error(f"Liquidation Listener Error: {e}")
+                self.logger.error(f"Liquidation Listener Error: {e}")
             await asyncio.sleep(0.1)
 
     async def _handle_liquidation_trigger(self, liq_data):
@@ -1546,10 +1586,10 @@ class WallHunterBot:
                 if ask_vol > 0:
                     current_ratio = bid_vol / ask_vol
                     if current_ratio < self.ob_imbalance_ratio:
-                        logger.info(f"⏭️ Liquidation ignoring: OB Imbalance Ratio too low ({current_ratio:.2f} < {self.ob_imbalance_ratio})")
+                        self.logger.info(f"⏭️ Liquidation ignoring: OB Imbalance Ratio too low ({current_ratio:.2f} < {self.ob_imbalance_ratio})")
                         return
                     else:
-                        logger.info(f"✅ OB Imbalance check passed ({current_ratio:.2f} >= {self.ob_imbalance_ratio})")
+                        self.logger.info(f"✅ OB Imbalance check passed ({current_ratio:.2f} >= {self.ob_imbalance_ratio})")
                 else:
                     return # No asks, weird state
                 
@@ -1571,14 +1611,14 @@ class WallHunterBot:
                         break
                         
                 if strong_wall_found:
-                    logger.info(f"🔥 Confluence Met: Liquidation + Wall at {wall_price}. Sniping ({entry_side.upper()})!")
+                    self.logger.info(f"🔥 Confluence Met: Liquidation + Wall at {wall_price}. Sniping ({entry_side.upper()})!")
                     await self.execute_snipe(wall_price, entry_side, mid_price)
                 else:
-                    logger.info(f"⏭️ Liquidation ignoring: No supporting wall (Needed >= {self.micro_scalp_min_wall})")
+                    self.logger.info(f"⏭️ Liquidation ignoring: No supporting wall (Needed >= {self.micro_scalp_min_wall})")
             else:
                 # Only Liquidation mode
-                logger.info(f"🔥 Liquidation Snipe at {target_price}")
+                self.logger.info(f"🔥 Liquidation Snipe at {target_price}")
                 await self.execute_snipe(target_price, entry_side, mid_price)
                 
         except Exception as e:
-             logger.error(f"Liquidation Handling Error: {e}")
+             self.logger.error(f"Liquidation Handling Error: {e}")

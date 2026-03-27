@@ -356,29 +356,52 @@ async def websocket_bot_logs(
     list_key = f"bot_logs_list:{bot_id}"
     
     # 🟢 Send Recent History First
+    print(f"[WS LOGS] Connecting Bot {bot_id}...")
     try:
         # Use pool to get history
         recent_logs = await redis.lrange(list_key, 0, -1)
-        for log_json in recent_logs:
-             await websocket.send_text(log_json)
+        print(f"[WS LOGS] Found {len(recent_logs)} historical logs for {bot_id}")
+        for log_data in recent_logs:
+             # Ensure string payload
+             if isinstance(log_data, bytes):
+                 log_text = log_data.decode("utf-8")
+             else:
+                 log_text = str(log_data)
+             await websocket.send_text(log_text)
+        print(f"[WS LOGS] Finished sending historical logs.")
     except Exception as e:
         logger.error(f"⚠️ History Log Error: {e}")
+        print(f"[WS LOGS] History Error: {e}")
 
+    print(f"[WS LOGS] Subscribing to channel {channel_name}...")
     await pubsub.subscribe(channel_name)
     
     try:
         # ✅ Start Heartbeat Task
         pinger_task = asyncio.create_task(send_heartbeat(websocket))
 
+        print(f"[WS LOGS] Waiting for pubsub messages...")
         # Redis থেকে মেসেজ আসার জন্য অপেক্ষা এবং ফ্রন্টএন্ডে পাঠানো
         async for message in pubsub.listen():
             if message["type"] == "message":
-                await websocket.send_text(message["data"])
+                msg_data = message["data"]
+                if isinstance(msg_data, bytes):
+                    msg_text = msg_data.decode("utf-8")
+                else:
+                    msg_text = str(msg_data)
+                
+                await websocket.send_text(msg_text)
+                print(f"[WS LOGS] Pushed Live Message.")
+        
+        print(f"[WS LOGS] pubsub.listen() exited loop unexpectedly!")
     except WebSocketDisconnect:
         logger.debug(f"🔌 Client disconnected from bot {bot_id} logs")
+        print(f"[WS LOGS] Client disconnected normally.")
     except Exception as e:
         logger.error(f"⚠️ WebSocket Error: {e}")
+        print(f"[WS LOGS] Fatal Error: {e}")
     finally:
+        print(f"[WS LOGS] Cleaning up socket resources...")
         # কানেকশন বন্ধ হলে ক্লিনআপ - Just unsubscribe, do NOT close the shared redis pool!
         if 'pinger_task' in locals():
             pinger_task.cancel()
