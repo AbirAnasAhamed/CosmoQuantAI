@@ -85,7 +85,7 @@ const BotDetailsModal: React.FC<BotDetailsModalProps> = ({ bot, onClose }) => {
     useEffect(() => {
         if (activeTab === 'logs') {
             const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const host = 'localhost:8000'; // TODO: Use Env Variable
+            const host = window.location.host; // Use dynamic host
             const wsUrl = `${protocol}//${host}/api/v1/bots/${bot.id}/ws/logs`;
 
             const ws = new WebSocket(wsUrl);

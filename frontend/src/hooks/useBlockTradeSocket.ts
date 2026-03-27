@@ -14,9 +14,8 @@ export const useBlockTradeSocket = () => {
         let reconnectTimeout: NodeJS.Timeout;
 
         // Correct WS URL based on environment (assuming localhost for dev or relative for prod)
-        const wsUrl = process.env.NODE_ENV === 'production'
-            ? `wss://${window.location.host}/ws/block_trades`
-            : 'ws://localhost:8000/ws/block_trades';
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const wsUrl = `${wsProtocol}//${window.location.host}/ws/block_trades`;
 
         const connect = () => {
             if (!isMounted) return;

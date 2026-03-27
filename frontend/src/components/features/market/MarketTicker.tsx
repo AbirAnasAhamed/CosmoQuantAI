@@ -78,8 +78,8 @@ const MarketTicker: React.FC<MarketTickerProps> = ({ variant = 'default', onCoin
         const connect = () => {
             // Robust WebSocket URL construction
             const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            // Use hostname dynamically (e.g., localhost or 192.168.x.x) but default to port 8000 for backend
-            const wsUrl = `${wsProtocol}//${window.location.hostname}:8000/ws`;
+            // Robust WebSocket URL construction: Use window.location.host to leverage the Vite proxy (port 3000)
+            const wsUrl = `${wsProtocol}//${window.location.host}/ws`;
 
             socket = new WebSocket(wsUrl);
 

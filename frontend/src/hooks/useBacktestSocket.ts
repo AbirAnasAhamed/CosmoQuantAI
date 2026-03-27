@@ -2,7 +2,8 @@ import { useEffect, useRef, useState, useCallback } from 'react';
 
 // WebSocket URL Configuration
 // Adjust the port if necessary. In production this should be environment driven.
-const WS_URL = 'ws://localhost:8000/ws/backtest';
+const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+const WS_URL = `${wsProtocol}//${window.location.host}/ws/backtest`;
 
 interface SocketMessage {
     type: 'BACKTEST' | 'DOWNLOAD' | 'OPTIMIZE' | 'BATCH' | 'Task';

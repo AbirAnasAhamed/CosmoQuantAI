@@ -16,7 +16,7 @@ const ExchangeFlowWidget: React.FC = () => {
         const fetchData = async () => {
             try {
                 // Adjust base URL as needed
-                const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/on-chain/exchange-flow`);
+                const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/v1/on-chain/exchange-flow`);
                 if (response.ok) {
                     const result = await response.json();
                     setData(result);

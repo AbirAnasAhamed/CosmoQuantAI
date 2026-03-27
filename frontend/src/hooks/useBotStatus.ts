@@ -65,25 +65,7 @@ export const useBotStatus = (bot: ActiveBot) => {
         }
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        // TODO: Use env variable for host
-        const host = 'localhost:8000';
-        const wsUrl = `${protocol}//${host}/api/v1/bots/${bot.id}/ws/status`; // ✅ Corrected URL structure if needed, depends on backend router prefix. 
-        // Backend router is at /api/v1/bots, so router.websocket("/{bot_id}...") becomes /api/v1/bots/{bot_id}...
-        // Previous code had `${protocol}//${host}/ws/status/${bot.id}` which might be wrong if router prefix is used?
-        // Let's check backend router mounting. 
-        // Assuming standard FastAPI structure usually /api/v1/bots include prefix. 
-        // Let's keep original URL structure if it was working, but wait, the view_file showed:
-        // URL: ws://localhost:8000/api/v1/bots/{bot_id}/ws/logs (in docstring)
-        // AND router is likely mounted at /api/v1/bots
-        // So endpoint path `/{bot_id}/ws/status` becomes `/api/v1/bots/{bot_id}/ws/status`
-
-        // The original code was: `${protocol}//${host}/ws/status/${bot.id}`;
-        // This looks like it MIGHT be wrong if the router is prefixed.
-        // Let's assume the previous code WAS working or I should fix it now.
-        // Given I am "fixing" things, I should probably align with the docstring in bots.py which says:
-        // URL: ws://localhost:8000/api/v1/bots/{bot_id}/ws/logs
-        // So status should be .../api/v1/bots/{bot_id}/ws/status
-
+        const host = window.location.host;
         const finalUrl = `${protocol}//${host}/api/v1/bots/${bot.id}/ws/status`;
 
         const connect = () => {

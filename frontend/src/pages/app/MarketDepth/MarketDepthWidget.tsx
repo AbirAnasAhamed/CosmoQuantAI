@@ -105,7 +105,7 @@ const MarketDepthWidget: React.FC = () => {
     const { theme } = useTheme();
 
     // API Config
-    const API_BASE = 'http://localhost:8000/api/v1/market-depth';
+    const API_BASE = '/api/v1/market-depth';
 
     // State - Selection
     const { globalExchange: selectedExchange, setGlobalExchange: setSelectedExchange, globalSymbol: selectedSymbol, setGlobalSymbol: setSelectedSymbol, globalInterval: selectedTimeframe, setGlobalInterval: setSelectedTimeframe } = useMarketStore();

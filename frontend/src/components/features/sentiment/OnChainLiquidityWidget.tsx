@@ -22,7 +22,7 @@ const OnChainLiquidityWidget: React.FC<{ symbol: string }> = ({ symbol }) => {
                 // Adjust base URL as needed, assuming proxy or env set up
                 // Extract base symbol (e.g. "BTC" from "BTC/USDT") to avoid slash routing issues
                 const baseSymbol = symbol.includes('/') ? symbol.split('/')[0] : symbol;
-                const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000'}/api/v1/on-chain/${baseSymbol}`);
+                const response = await fetch(`${import.meta.env.VITE_API_URL || ''}/api/v1/on-chain/${baseSymbol}`);
                 if (response.ok) {
                     const result = await response.json();
                     setData(result);

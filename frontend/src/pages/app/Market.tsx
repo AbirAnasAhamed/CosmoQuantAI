@@ -474,7 +474,7 @@ const Market: React.FC = () => {
         const connect = () => {
             // Using implicit host logic for robustness
             const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-            const wsHost = 'localhost:8000'; // Or generic logic
+            const wsHost = window.location.host; // Use proxied host
             socket = new WebSocket(`${wsProtocol}//${wsHost}/ws/market-data/${activePair.replace('/', '')}`);
 
             ws.current = socket;

@@ -28,7 +28,7 @@ interface DarkPoolWidgetProps {
 export const DarkPoolWidget: React.FC<DarkPoolWidgetProps> = ({ symbol = 'BTC' }) => {
     const [data, setData] = useState<InstitutionalData | null>(null);
     const [loading, setLoading] = useState(true);
-    const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+    const API_URL = import.meta.env.VITE_API_URL || '/api/v1';
 
     // Mock data for chart
     const mockChartData = [
@@ -172,9 +172,9 @@ export const DarkPoolWidget: React.FC<DarkPoolWidgetProps> = ({ symbol = 'BTC' }
                                     <div className="flex items-center gap-3">
                                         <div className={`p-1.5 rounded bg-opacity-10 ${trade.side === 'BUY' ? 'bg-emerald-500' : 'bg-rose-500'}`}>
                                             {trade.side === 'BUY' ? (
-                                                <TrendingUp className={`h-3.5 w-3.5 ${trade.side === 'BUY' ? 'text-emerald-400' : 'text-rose-400'}`} />
+                                                <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
                                             ) : (
-                                                <TrendingDown className={`h-3.5 w-3.5 ${trade.side === 'BUY' ? 'text-emerald-400' : 'text-rose-400'}`} />
+                                                <TrendingDown className="h-3.5 w-3.5 text-rose-400" />
                                             )}
                                         </div>
                                         <div>

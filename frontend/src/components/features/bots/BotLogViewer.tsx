@@ -41,7 +41,7 @@ const BotLogViewer: React.FC<BotLogViewerProps> = ({ botId, botName, className =
     // WebSocket Connection
     useEffect(() => {
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = 'localhost:8000'; // TODO: Use env variable for production
+        const host = window.location.host; // Use dynamic host
         const wsUrl = `${protocol}//${host}/ws/logs/${botId}`;
 
         console.log("Connecting into the Matrix...", wsUrl);

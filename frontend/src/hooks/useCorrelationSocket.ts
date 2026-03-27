@@ -21,7 +21,7 @@ export const useCorrelationSocket = (
         const host = window.location.host; // e.g. localhost:5173
         // Backend typically on port 8000 if not proxying, assuming proxy setup or direct:
         // Use environment variable or default to standard convention
-        const wsUrl = `ws://localhost:8000/api/v1/analytics/ws/correlation`;
+        const wsUrl = `${protocol}//${host}/api/v1/analytics/ws/correlation`;
 
         console.log(`Connecting to WS: ${wsUrl}`);
 

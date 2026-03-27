@@ -37,7 +37,7 @@ const LiquidationBubbleChart: React.FC<LiquidationBubbleChartProps> = ({ data, a
                 // Fetch last 50 candles (15m interval) from Binance
                 // Fetch last 50 candles (15m interval) from Backend Proxy
                 const symbol = activePair.replace('/', '');
-                const response = await fetch(`http://localhost:8000/api/v1/liquidation/candles?symbol=${symbol}&interval=15m&limit=50`);
+                const response = await fetch(`/api/v1/liquidation/candles?symbol=${symbol}&interval=15m&limit=50`);
                 const formatted: CandleData[] = await response.json();
                 setCandles(formatted);
             } catch (error) {

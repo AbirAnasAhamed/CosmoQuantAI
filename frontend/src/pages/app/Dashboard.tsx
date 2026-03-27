@@ -185,7 +185,8 @@ const Dashboard: React.FC = () => {
 
     // Websocket Connection
     useEffect(() => {
-        const ws = new WebSocket('ws://localhost:8000/api/v1/dashboard/ws');
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const ws = new WebSocket(`${protocol}//${window.location.host}/api/v1/dashboard/ws`);
 
         ws.onopen = () => {
             console.log('Connected to Dashboard WS');

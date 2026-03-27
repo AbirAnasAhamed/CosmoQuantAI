@@ -63,7 +63,7 @@ const UnusualOptionsActivity: React.FC = () => {
         if (!isLive) return;
 
         // Use environment variable for WebSocket URL
-        const backendUrl = import.meta.env.VITE_BACKEND_URL || 'http://localhost:8000';
+        const backendUrl = import.meta.env.VITE_BACKEND_URL || window.location.origin;
         // Convert http/https to ws/wss
         const wsUrl = backendUrl.replace(/^http/, 'ws') + '/api/v1/options/live';
 

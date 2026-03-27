@@ -43,8 +43,9 @@ const EventDrivenSimulator: React.FC = () => {
     const connect = useCallback(() => {
         if (socketRef.current?.readyState === WebSocket.OPEN) return;
 
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsParams = isRunning ? `?symbol=${symbol}` : "";
-        const ws = new WebSocket(`ws://localhost:8000/api/v1/simulation/ws/simulation${wsParams}`);
+        const ws = new WebSocket(`${protocol}//${window.location.host}/api/v1/simulation/ws/simulation${wsParams}`);
 
         ws.onopen = () => {
             addLog("System: Connected to Simulation Server", 'INFO');
