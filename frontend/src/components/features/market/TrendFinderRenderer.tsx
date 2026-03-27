@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { IChartApi, ISeriesApi, LineSeries } from 'lightweight-charts';
 import { TrendFinderResult } from '../../../utils/indicators';
 
@@ -14,6 +14,10 @@ export const TrendFinderRenderer: React.FC<TrendFinderRendererProps> = ({ chart,
     const upperLineRef = useRef<ISeriesApi<'Line'> | null>(null);
     const lowerLineRef = useRef<ISeriesApi<'Line'> | null>(null);
     const initedRef = useRef(false);
+    
+    // Canvas variables for Cloud Fill
+    const canvasRef = useRef<HTMLCanvasElement>(null);
+    const drawRequested = useRef<boolean>(false);
 
     useEffect(() => {
         if (!chart || !series) return;
@@ -117,5 +121,100 @@ export const TrendFinderRenderer: React.FC<TrendFinderRendererProps> = ({ chart,
 
     }, [data, visible]);
 
-    return null; // This is a virtual component that renders on canvas
+    // --- CANVAS CLOUD FILL LOGIC ---
+    
+    const drawCloud = useCallback(() => {
+        if (!canvasRef.current) return;
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return;
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        if (!chart || !series || !visible || !data || data.points.length === 0) return;
+
+        const timeScale = chart.timeScale();
+        const priceScale = series.priceScale();
+        if (!timeScale || !priceScale) return;
+
+        const parent = canvas.parentElement;
+        if (parent) {
+            if (canvas.width !== parent.clientWidth) canvas.width = parent.clientWidth;
+            if (canvas.height !== parent.clientHeight) canvas.height = parent.clientHeight;
+        }
+
+        const logicalRange = timeScale.getVisibleLogicalRange();
+        if (!logicalRange) return;
+
+        const isBearish = data.trendDirection === 'bearish';
+        ctx.fillStyle = isBearish ? 'rgba(239, 68, 68, 0.1)' : 'rgba(34, 197, 94, 0.1)';
+
+        ctx.beginPath();
+        let started = false;
+        
+        // 1. Draw top band going FORWARDS
+        for (let i = 0; i < data.points.length; i++) {
+            const pt = data.points[i];
+            const x = timeScale.timeToCoordinate(pt.time as any);
+            const yTop = series.priceToCoordinate(pt.upper);
+            if (x !== null && yTop !== null) {
+                if (!started) {
+                    ctx.moveTo(x, yTop);
+                    started = true;
+                } else {
+                    ctx.lineTo(x, yTop);
+                }
+            }
+        }
+        
+        // 2. Draw bottom band going BACKWARDS
+        for (let i = data.points.length - 1; i >= 0; i--) {
+            const pt = data.points[i];
+            const x = timeScale.timeToCoordinate(pt.time as any);
+            const yBot = series.priceToCoordinate(pt.lower);
+            if (x !== null && yBot !== null) {
+                ctx.lineTo(x, yBot);
+            }
+        }
+        
+        if (started) {
+            ctx.closePath();
+            ctx.fill();
+        }
+    }, [chart, series, data, visible]);
+
+    const requestDraw = useCallback(() => {
+        if (!drawRequested.current) {
+            drawRequested.current = true;
+            requestAnimationFrame(() => {
+                drawRequested.current = false;
+                drawCloud();
+            });
+        }
+    }, [drawCloud]);
+
+    useEffect(() => {
+        if (!chart || !series || !visible) {
+            if (canvasRef.current) {
+                const ctx = canvasRef.current.getContext('2d');
+                if (ctx) ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+            }
+            return;
+        }
+        requestDraw();
+        const timeScale = chart.timeScale();
+        timeScale.subscribeVisibleTimeRangeChange(requestDraw);
+        chart.subscribeCrosshairMove(requestDraw);
+        return () => {
+            timeScale.unsubscribeVisibleTimeRangeChange(requestDraw);
+            chart.unsubscribeCrosshairMove(requestDraw);
+        };
+    }, [chart, series, requestDraw, visible]);
+
+    return (
+        <canvas
+            ref={canvasRef}
+            className="absolute top-0 left-0 pointer-events-none"
+            style={{ zIndex: 1,  width: '100%', height: '100%' }}
+        />
+    );
 };
