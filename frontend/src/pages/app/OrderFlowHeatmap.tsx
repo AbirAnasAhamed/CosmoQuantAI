@@ -396,21 +396,27 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                     allCandlesRef.current[len - 1] = updatedCandle;
                 }
 
-                // --- FULL INDICATOR CALCULATION ON NEW DATA ---
-                // We recalculate fully for perfect sync. It's very fast for 2000 items.
+                // --- ACCELERATED INDICATOR INJECTION ON NEW DATA ---
+                // Fetch the latest processed indicators and update the Canvas using O(1) point updates 
+                // Instead of completely destroying and remounting the entire visual line chart every 300ms.
                 const curData = allCandlesRef.current;
                 if (curData.length > 0) {
                     if (indicatorSettings.showEMA && emaSeriesRef.current) {
-                        emaSeriesRef.current.setData(calculateEMA(curData, indicatorSettings.emaPeriod) as any);
+                        const emaData = calculateEMA(curData, indicatorSettings.emaPeriod);
+                        if (emaData.length > 0) emaSeriesRef.current.update(emaData[emaData.length - 1] as any);
                     }
                     if (indicatorSettings.showBB && bbUpperSeriesRef.current && bbMiddleSeriesRef.current && bbLowerSeriesRef.current) {
                         const bbData = calculateBollingerBands(curData, indicatorSettings.bbPeriod, indicatorSettings.bbStdDev);
-                        bbUpperSeriesRef.current.setData(bbData.map((d: any) => ({ time: d.time, value: d.upper })) as any);
-                        bbMiddleSeriesRef.current.setData(bbData.map((d: any) => ({ time: d.time, value: d.middle })) as any);
-                        bbLowerSeriesRef.current.setData(bbData.map((d: any) => ({ time: d.time, value: d.lower })) as any);
+                        if (bbData.length > 0) {
+                            const lastBB = bbData[bbData.length - 1];
+                            bbUpperSeriesRef.current.update({ time: lastBB.time, value: lastBB.upper } as any);
+                            bbMiddleSeriesRef.current.update({ time: lastBB.time, value: lastBB.middle } as any);
+                            bbLowerSeriesRef.current.update({ time: lastBB.time, value: lastBB.lower } as any);
+                        }
                     }
                     if (indicatorSettings.showRSI && rsiSeriesRef.current) {
-                        rsiSeriesRef.current.setData(calculateRSI(curData, indicatorSettings.rsiPeriod) as any);
+                        const rsiData = calculateRSI(curData, indicatorSettings.rsiPeriod);
+                        if (rsiData.length > 0) rsiSeriesRef.current.update(rsiData[rsiData.length - 1] as any);
                     }
                 }
             } catch (e) {
