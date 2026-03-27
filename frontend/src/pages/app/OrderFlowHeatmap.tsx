@@ -1080,7 +1080,7 @@ const OrderFlowHeatmap: React.FC = () => {
                                 </button>
                             </div>
                             <div className="flex-1 overflow-y-auto custom-scrollbar relative">
-                                <BotLogsTab />
+                                <BotLogsTab botId={activeWallHunterId} />
                             </div>
                         </div>
                     </div>

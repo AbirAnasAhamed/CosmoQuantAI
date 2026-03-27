@@ -207,6 +207,9 @@ class LiveBotEngine:
             # 1. Publish to Pub/Sub (Firehose)
             redis_log_client.publish("bot_logs", json.dumps(stream_payload))
             
+            # ✅ Directly publish to the specific Bot's Channel for the WebSocket endpoint
+            redis_log_client.publish(f"bot_logs:{self.bot.id}", json.dumps(log_payload))
+            
             # 2. Store in Redis List for History
             list_key = f"bot_logs_list:{self.bot.id}"
             redis_log_client.rpush(list_key, json.dumps(log_payload))
@@ -430,10 +433,37 @@ class LiveBotEngine:
                              # For now, let's update state so scalp loop picks it up instantly
                         
                     elif side == 'SELL':
+                        sell_qty_var = qty
                         self.position['amount'] -= qty
+                        
+                        # ✅ FIX: Sync WS Execution with Database
+                        try:
+                            open_trade = self.db.query(Trade).filter(
+                                Trade.bot_id == self.bot.id,
+                                Trade.status == "OPEN"
+                            ).first()
+                            
+                            if open_trade:
+                                if self.position['amount'] < 0.00001:
+                                    open_trade.status = "CLOSED"
+                                    open_trade.exit_price = price
+                                    open_trade.closed_at = datetime.utcnow()
+                                
+                                if open_trade.entry_price:
+                                    pnl = (price - open_trade.entry_price) * sell_qty_var
+                                    open_trade.pnl = (open_trade.pnl or 0.0) + pnl
+                                    open_trade.pnl_percent = ((price - open_trade.entry_price) / open_trade.entry_price) * 100
+                                
+                                self.db.commit()
+                                self.log(f"💾 Trade DB Sync (Stream). Incremental PnL: {pnl:.2f}", "SYSTEM")
+                        except Exception as db_err:
+                            self.log(f"⚠️ Failed to sync DB from stream: {db_err}", "WARNING")
+                            self.db.rollback()
+
                         if self.position['amount'] < 0.00001: 
                             self.position['amount'] = 0
                             self.active_scalp_order = None # Reset Scalp Flag
+                            self.position['trade_id'] = None
                             self.log("✅ Position Closed (Stream).", "INFO")
             
             # --- KUCOIN ---
@@ -885,20 +915,21 @@ class LiveBotEngine:
                      ).first()
                      
                      if open_trade:
-                         open_trade.status = "CLOSED"
-                         open_trade.exit_price = price
-                         open_trade.closed_at = datetime.utcnow()
+                         # ✅ FIX: Only strict close if position is fully zeroed out
+                         if self.position["amount"] <= 0:
+                             open_trade.status = "CLOSED"
+                             open_trade.exit_price = price
+                             open_trade.closed_at = datetime.utcnow()
                          
-                         # Calculate PnL
+                         # ✅ Calculate PnL incrementally for partial scaling Out
                          if open_trade.entry_price:
-                             # Simple PnL: (Exit - Entry) * Qty
                              pnl = (price - open_trade.entry_price) * sell_amount
                              pnl_pct = ((price - open_trade.entry_price) / open_trade.entry_price) * 100
-                             open_trade.pnl = pnl
+                             open_trade.pnl = (open_trade.pnl or 0.0) + pnl
                              open_trade.pnl_percent = pnl_pct
                          
                          self.db.commit()
-                         self.log(f"💾 Trade Closed in DB. PnL: {open_trade.pnl}", "SYSTEM")
+                         self.log(f"💾 Trade DB Updated. Incremental PnL: {pnl}", "SYSTEM")
                 except Exception as db_err:
                     self.log(f"⚠️ Failed to update trade in DB: {db_err}", "WARNING")
                     self.db.rollback()
@@ -982,12 +1013,28 @@ class LiveBotEngine:
             self.log(f"❌ Emergency Close Critical Error: {e}", "ERROR")
 
 
+    async def _sync_exchange_state(self):
+        """ ✅ Fix: Recovers ghost limit orders on bot restart for scalp mode """
+        if self.position["amount"] > 0 and self.mode == 'scalp' and self.exchange:
+            try:
+                if hasattr(self.exchange, 'fetch_open_orders'):
+                    open_orders = await self.exchange.fetch_open_orders(self.symbol)
+                    has_sell = any(o['side'] == 'sell' for o in open_orders)
+                    if has_sell:
+                        self.active_scalp_order = True
+                        self.log("✅ Ghost Limit Order Recovered from Exchange", "SYSTEM")
+            except Exception as e:
+                self.log(f"⚠️ Exchange Sync Failed: {e}", "WARNING")
+
     async def run_loop(self):
         task_key = f"bot_task:{self.bot.id}"
         self.log(f"🚀 Bot Started | Mode: {self.mode.upper()} | {self.symbol}", "SYSTEM")
         
         if self.deployment_target == 'future':
             self.setup_futures_settings()
+            
+        # ✅ Synchronize local RAM state with active Exchange Orders to prevent duplicate logic
+        await self._sync_exchange_state()
 
         # ১. শুরুতে কিছু হিস্টোরিকাল ডাটা লোড করে নেওয়া
         self.df = await self.fetch_market_data(limit=100)
@@ -1097,10 +1144,10 @@ class LiveBotEngine:
                                 if time.time() - last_keep_alive > 1800: # 30 mins
                                     if self.deployment_target == 'future':
                                          if hasattr(self.exchange, 'fapiPrivatePutListenKey'):
-                                             self.exchange.fapi_private_put_listen_key()
+                                             await getattr(self.exchange, 'fapiPrivatePutListenKey')()
                                     else:
                                          if hasattr(self.exchange, 'privatePutUserDataStream'):
-                                             self.exchange.private_put_user_data_stream({'listenKey': self.listen_key})
+                                             await getattr(self.exchange, 'privatePutUserDataStream')({'listenKey': self.listen_key})
                                     last_keep_alive = time.time()
                                     # self.log("🔄 ListenKey Refreshed", "SYSTEM")
 
