@@ -310,8 +310,13 @@ class BotManager:
                             del self.streams[stream_key]
 
                 # Stop Bot Internals
-                await bot_instance.stop()
-                del self.active_bots[bot_id]
+                try:
+                    await bot_instance.stop()
+                except Exception as stop_e:
+                    logger.error(f"Error inside bot_instance.stop() for bot {bot_id}: {stop_e}")
+                finally:
+                    if bot_id in self.active_bots:
+                        del self.active_bots[bot_id]
             else:
                 logger.warning(f"⚠️ Bot {bot_id} not found in memory. Checking DB for zombie state...")
 

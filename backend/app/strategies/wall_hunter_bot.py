@@ -682,8 +682,14 @@ class WallHunterBot:
             entry_type = self.sell_order_type if getattr(self, 'strategy_mode', 'long') == "short" else self.buy_order_type
             if entry_type in ['limit', 'marketable_limit'] and res.get('id') and not self.is_paper_trading:
                 try:
-                    await asyncio.sleep(1.0)
-                    order_status = await self.engine.exchange.fetch_order(res['id'], self.symbol)
+                    order_status = None
+                    for _ in range(5):
+                        await asyncio.sleep(0.4)
+                        try:
+                            order_status = await self.engine.exchange.fetch_order(res['id'], self.symbol)
+                            if order_status and order_status.get('status') != 'open':
+                                break
+                        except Exception: pass
                     
                     if order_status and order_status.get('status') == 'open':
                         logger.warning(f"⚠️ Entry order {res['id']} is still open! Cancelling remainder...")
@@ -1104,8 +1110,14 @@ class WallHunterBot:
             # --- NEW: Partial Fill Management for Active SL Exits ---
             if res and res.get('id') and not self.is_paper_trading:
                 try:
-                    await asyncio.sleep(1.0)
-                    order_status = await self.engine.exchange.fetch_order(res['id'], self.symbol)
+                    order_status = None
+                    for _ in range(5):
+                        await asyncio.sleep(0.4)
+                        try:
+                            order_status = await self.engine.exchange.fetch_order(res['id'], self.symbol)
+                            if order_status and order_status.get('status') != 'open':
+                                break
+                        except Exception: pass
                     
                     if order_status and order_status.get('status') == 'open':
                         logger.warning(f"⚠️ Exit SL order {res['id']} is hanging open! Cancelling remainder...")
@@ -1168,8 +1180,14 @@ class WallHunterBot:
                 # --- NEW: Partial Fill Management for Active TP Exits ---
                 if res and res.get('id') and not self.is_paper_trading:
                     try:
-                        await asyncio.sleep(1.0)
-                        order_status = await self.engine.exchange.fetch_order(res['id'], self.symbol)
+                        order_status = None
+                        for _ in range(5):
+                            await asyncio.sleep(0.4)
+                            try:
+                                order_status = await self.engine.exchange.fetch_order(res['id'], self.symbol)
+                                if order_status and order_status.get('status') != 'open':
+                                    break
+                            except Exception: pass
                         
                         if order_status and order_status.get('status') == 'open':
                             logger.warning(f"⚠️ Exit Final TP order {res['id']} is hanging open! Cancelling remainder...")
@@ -1486,13 +1504,11 @@ class WallHunterBot:
                                 active_threshold = base_threshold
                                 
                                 if self.enable_dynamic_liq and self.current_atr > 0 and not self.follow_btc_liq:
-                                    # Example dynamic calculation: Use ATR value * Multiplier * Contract Size Heuristics
-                                    # (Needs refinement based on asset class, but serves as a base)
-                                    # A safer approach for crypto: Threshold = Current Price * ATR * Multiplier
                                     try:
                                         current_price = float(data.get("price", 0))
                                         if current_price > 0:
-                                           active_threshold = current_price * self.current_atr * self.dynamic_liq_multiplier
+                                           atr_pct = self.current_atr / current_price
+                                           active_threshold = base_threshold * (1 + (atr_pct * 10 * self.dynamic_liq_multiplier))
                                     except: pass
                                 
                                 # 3. Trigger check

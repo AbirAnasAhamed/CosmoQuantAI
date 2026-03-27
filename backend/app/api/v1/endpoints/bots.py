@@ -206,13 +206,21 @@ async def delete_bot(
                 # 1. Cancel Open Orders (if bot is currently running in memory)
                 if bot_id in manager.active_bots:
                     bot_instance = manager.active_bots[bot_id]
-                    if bot_instance.exchange:
+                    
+                    # 🛡️ Institutional-Grade Exchange Locator (Handles Basic & WallHunter Architectures)
+                    target_exchange = getattr(bot_instance, 'exchange', None)
+                    if not target_exchange and hasattr(bot_instance, 'engine'):
+                        target_exchange = getattr(bot_instance.engine, 'exchange', None)
+                        
+                    if target_exchange:
                         logger.info(f"🛑 specific-cancel: Cancelling orders for bot {bot_id} before deletion...")
                         try:
-                            await bot_instance.exchange.cancel_all_orders(bot_instance.symbol)
+                            # Use getattr to safely fetch symbol (Spot/Futures might use 'symbol' or 'bot.market')
+                            target_symbol = getattr(bot_instance, 'symbol', bot_instance.bot.market)
+                            await target_exchange.cancel_all_orders(target_symbol)
                         except Exception as ex_cancel:
                             logger.error(f"❌ Failed to cancel orders for bot {bot_id}: {ex_cancel}")
-                            raise ex_cancel # Re-raise to trigger the abort
+                            logger.warning(f"⚠️ Proceeding with deletion despite order cancellation failure (Possible revoked API keys).")
                 
                 # 2. Force Stop
                 await manager.stop_bot(bot_id, db)

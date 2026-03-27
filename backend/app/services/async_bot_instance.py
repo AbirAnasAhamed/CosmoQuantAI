@@ -264,15 +264,18 @@ class AsyncBotInstance(LiveBotEngine):
                     last_alive = time.time()
                     while self.is_running:
                         try:
-                            # Keep Alive Logic (Binance)
+                            # 🛡️ Institutional-Grade Keep-Alive Logic (Binance)
                             if 'binance' in (self.bot.exchange or '').lower():
                                 if time.time() - last_alive > 1800:
-                                    # Refresh listenKey... (Copied from parent)
-                                    if self.deployment_target == 'future' and hasattr(self.exchange, 'fapiPrivatePutListenKey'):
-                                         self.exchange.fapi_private_put_listen_key()
-                                    elif hasattr(self.exchange, 'privatePutUserDataStream'):
-                                         self.exchange.private_put_user_data_stream({'listenKey': self.listen_key})
-                                    last_alive = time.time()
+                                    try:
+                                        if self.deployment_target == 'future' and hasattr(self.exchange, 'fapiPrivatePutListenKey'):
+                                            await getattr(self.exchange, 'fapi_private_put_listen_key')()
+                                        elif hasattr(self.exchange, 'privatePutUserDataStream'):
+                                            await getattr(self.exchange, 'private_put_user_data_stream')({'listenKey': self.listen_key})
+                                        last_alive = time.time()
+                                        self.log("🔄 User Data Stream ListenKey refreshed successfully.", "SYSTEM")
+                                    except Exception as refresh_err:
+                                        self.log(f"⚠️ Failed to refresh ListenKey: {refresh_err}", "ERROR")
 
                             msg = await asyncio.wait_for(ws.recv(), timeout=5.0)
                             await self._process_user_stream_message(msg)

@@ -465,12 +465,19 @@ class WallHunterFuturesStrategy:
             
             # Fetch minimum contract size from CCXT (usually 1.0)
             min_amount = 1.0
+            min_cost = 0.0
             if self.public_exchange and getattr(self.public_exchange, 'markets', None):
                 market = self.public_exchange.markets.get(self.symbol, {})
                 limits = market.get('limits', {})
                 min_amount = limits.get('amount', {}).get('min', 1.0)
+                min_cost = limits.get('cost', {}).get('min', 0.0)
                 if min_amount is None:
                     min_amount = 1.0
+                    
+            target_notional = contracts * contract_size * entry_price
+            if min_cost and min_cost > 0 and target_notional < min_cost:
+                logger.error(f"❌ [FuturesHunter] Snipe Aborted: Target notional ${target_notional:.2f} < Exchange Min Notional ${min_cost:.2f}.")
+                return
             
             # Integer rounding for Kucoin/MEXC futures if min_amount is integer-like
             if min_amount >= 1.0:
@@ -494,9 +501,15 @@ class WallHunterFuturesStrategy:
                 # --- NEW: Partial Fill Management for Entry ---
                 if self.buy_order_type in ['limit', 'marketable_limit'] and res.get('id') and not self.is_paper_trading:
                     try:
-                        await asyncio.sleep(1.0)
-                        order_status = await self.engine.exchange.fetch_order(res['id'], self.symbol)
-                        
+                        order_status = None
+                        for _ in range(5):
+                            await asyncio.sleep(0.4)
+                            try:
+                                order_status = await self.engine.exchange.fetch_order(res['id'], self.symbol)
+                                if order_status and order_status.get('status') != 'open':
+                                    break
+                            except Exception: pass
+                            
                         if order_status and order_status.get('status') == 'open':
                             logger.warning(f"⚠️ Entry order {res['id']} is still open! Cancelling remainder...")
                             await self.engine.cancel_order(res['id'])
@@ -625,6 +638,15 @@ class WallHunterFuturesStrategy:
                         
                     await self._send_telegram(f"🎯 Futures EXIT - Limit TP Filled!\nPair: {self.symbol}\nExit Price: {filled_price:.6f}\nPnL: ${pnl_val:.2f}")
                     logger.info(f"✅ Limit TP Order {self.active_pos['limit_order_id']} was filled by exchange at {filled_price}")
+                    
+                    # CANCEL DANGLING NATIVE SL
+                    if self.active_pos.get('sl_order_id'):
+                        try:
+                            await self.engine.cancel_order(self.active_pos['sl_order_id'])
+                            logger.info(f"🧹 Cleaned up hanging Native SL Order {self.active_pos['sl_order_id']} after TP Fill.")
+                        except Exception as e:
+                            logger.warning(f"Failed to clean up Native SL Order: {e}")
+                            
                     self.active_pos = None
                     return
             except Exception as e:
@@ -644,6 +666,7 @@ class WallHunterFuturesStrategy:
                         logger.info(f"🚀 Trailing SL Activated for LONG at {current_price:.6f}!")
                 
                 if activation_pct == 0.0 or self.active_pos.get('tsl_activated'):
+                    old_sl = self.active_pos['sl']
                     if self.atr_sl_enabled and getattr(self, 'current_atr', 0) > 0:
                         atr_sl = self.extreme_price - (self.current_atr * self.atr_multiplier)
                         if getattr(self, 'tsl_pct', 0.0) > 0:
@@ -655,6 +678,19 @@ class WallHunterFuturesStrategy:
                     elif getattr(self, 'tsl_pct', 0.0) > 0:
                         new_sl = self.extreme_price * (1 - (self.tsl_pct / 100))
                         self.active_pos['sl'] = max(self.active_pos['sl'], new_sl)
+                        
+                    # Update Exchange Native SL if moved by at least 0.2%
+                    if self.active_pos['sl'] > old_sl and self.active_pos.get('sl_order_id'):
+                        pct_change = (self.active_pos['sl'] - old_sl) / old_sl * 100
+                        if pct_change >= 0.2:
+                            try:
+                                await self.engine.cancel_order(self.active_pos['sl_order_id'])
+                                sl_params = {'reduceOnly': True, 'stopPrice': self.active_pos['sl']}
+                                sl_res = await self.engine.execute_trade("sell", self.active_pos['amount'], self.active_pos['sl'], order_type="stop_market", params=sl_params)
+                                if sl_res and 'id' in sl_res:
+                                    self.active_pos['sl_order_id'] = sl_res['id']
+                                    logger.info(f"🔄 Native TSL Exchange Update: LONG SL moved to {self.active_pos['sl']:.6f}")
+                            except Exception as e: pass
         else: # short
             if current_price < self.extreme_price or self.extreme_price == 0:
                 self.extreme_price = current_price
@@ -668,6 +704,7 @@ class WallHunterFuturesStrategy:
                         logger.info(f"🚀 Trailing SL Activated for SHORT at {current_price:.6f}!")
                 
                 if activation_pct == 0.0 or self.active_pos.get('tsl_activated'):
+                    old_sl = self.active_pos['sl']
                     if self.atr_sl_enabled and getattr(self, 'current_atr', 0) > 0:
                         atr_sl = self.extreme_price + (self.current_atr * self.atr_multiplier)
                         if getattr(self, 'tsl_pct', 0.0) > 0:
@@ -679,6 +716,19 @@ class WallHunterFuturesStrategy:
                     elif getattr(self, 'tsl_pct', 0.0) > 0:
                         new_sl = self.extreme_price * (1 + (self.tsl_pct / 100))
                         self.active_pos['sl'] = min(self.active_pos['sl'], new_sl)
+                        
+                    # Update Exchange Native SL if moved by at least 0.2%
+                    if self.active_pos['sl'] < old_sl and self.active_pos.get('sl_order_id'):
+                        pct_change = (old_sl - self.active_pos['sl']) / old_sl * 100
+                        if pct_change >= 0.2:
+                            try:
+                                await self.engine.cancel_order(self.active_pos['sl_order_id'])
+                                sl_params = {'reduceOnly': True, 'stopPrice': self.active_pos['sl']}
+                                sl_res = await self.engine.execute_trade("buy", self.active_pos['amount'], self.active_pos['sl'], order_type="stop_market", params=sl_params)
+                                if sl_res and 'id' in sl_res:
+                                    self.active_pos['sl_order_id'] = sl_res['id']
+                                    logger.info(f"🔄 Native TSL Exchange Update: SHORT SL moved to {self.active_pos['sl']:.6f}")
+                            except Exception as e: pass
 
         # --- NEW: Independent Breakeven SL Logic ---
         if getattr(self, 'sl_breakeven_trigger_pct', 0.0) > 0 and not self.active_pos.get('breakeven_hit'):
@@ -804,9 +854,14 @@ class WallHunterFuturesStrategy:
             # --- NEW: Partial Fill Management for Active Exits ---
             if res and res.get('id') and not self.is_paper_trading:
                 try:
-                    await asyncio.sleep(1.0)
-                    order_status = await self.engine.exchange.fetch_order(res['id'], self.symbol)
-                    
+                    order_status = None
+                    for _ in range(5):
+                        await asyncio.sleep(0.4)
+                        try:
+                            order_status = await self.engine.exchange.fetch_order(res['id'], self.symbol)
+                            if order_status and order_status.get('status') != 'open': break
+                        except Exception: pass
+                        
                     if order_status and order_status.get('status') == 'open':
                         logger.warning(f"⚠️ Exit Futures order {res['id']} is hanging open! Cancelling remainder...")
                         await self.engine.cancel_order(res['id'])
@@ -1262,12 +1317,16 @@ class WallHunterFuturesStrategy:
                     active_threshold = base_threshold
                     
                     if self.enable_dynamic_liq and self.current_atr > 0 and not self.follow_btc_liq:
-                        # Threshold = Multiplier * ATR * Side-specific heuristics
-                        # A simple effective one: Price * ATR_PCT * Multiplier
+                        # Convert ATR to a percentage of current price
                         try:
-                            # Use ATR as volatility proxy
-                            active_threshold = base_threshold * (1 + (self.current_atr * self.dynamic_liq_multiplier))
-                        except: pass
+                            ob_limit = market_depth_service._normalize_order_book_limit(self.exchange_id, 5)
+                            ob = await self.public_exchange.fetch_order_book(self.symbol, limit=ob_limit)
+                            current_mid = (ob['bids'][0][0] + ob['asks'][0][0]) / 2 if ob['bids'] and ob['asks'] else 0
+                            if current_mid > 0:
+                                atr_pct = self.current_atr / current_mid
+                                active_threshold = base_threshold * (1 + (atr_pct * 10 * self.dynamic_liq_multiplier))
+                        except Exception as e:
+                            logger.warning(f"Could not calculate active liq threshold, fallback to base: {e}")
 
                     # 3. Trigger Decision
                     if active_amount >= active_threshold:
