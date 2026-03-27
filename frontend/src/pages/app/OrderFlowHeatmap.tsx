@@ -15,7 +15,8 @@ import { FootprintRenderer, FootprintCandleData, FootprintDataTick } from '../..
 import { FibonacciCloudRenderer, FibonacciData } from '../../components/features/market/FibonacciCloudRenderer';
 import { IchimokuRenderer } from '../../components/features/market/IchimokuRenderer';
 import { IndicatorSelector, IndicatorSettings } from '../../components/features/market/IndicatorSelector';
-import { calculateEMA, calculateBollingerBands, calculateRSI, updateEMA, updateBollingerBands, updateRSI, calculateIchimoku, IchimokuDataPoint } from '../../utils/indicators';
+import { calculateEMA, calculateBollingerBands, calculateRSI, updateEMA, updateBollingerBands, updateRSI, calculateIchimoku, IchimokuDataPoint, calculateAdaptiveTrendFinder, TrendFinderResult } from '../../utils/indicators';
+import { TrendFinderRenderer } from '../../components/features/market/TrendFinderRenderer';
 import { HeatmapSubNav } from '../../components/features/market/HeatmapSubNav';
 import { BotSettingsTab } from '../../components/features/market/BotSettingsTab';
 import { BotLogsTab } from '../../components/features/market/BotLogsTab';
@@ -64,6 +65,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
     const [countdownFormatted, setCountdownFormatted] = useState<string>('');
     const [fiboData, setFiboData] = useState<FibonacciData | null>(null);
     const [ichimokuData, setIchimokuData] = useState<IchimokuDataPoint[]>([]);
+    const [trendFinderData, setTrendFinderData] = useState<TrendFinderResult | null>(null);
     const { vpvrData, cvdData, footprintData } = useOrderFlowData(symbol, exchange, interval);
     const { heatmapData: realHeatmapData } = useHeatmapData(symbol, exchange);
 
@@ -510,6 +512,27 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         currentPrice
     ]);
 
+    // Adaptive Trend Finder Calculation
+    useEffect(() => {
+        if (!indicatorSettings.showTrendFinder || allCandlesRef.current.length === 0) {
+            setTrendFinderData(null);
+            return;
+        }
+
+        const result = calculateAdaptiveTrendFinder(
+            allCandlesRef.current,
+            indicatorSettings.trendFinderMode,
+            indicatorSettings.trendFinderDev
+        );
+        setTrendFinderData(result);
+    }, [
+        indicatorSettings.showTrendFinder,
+        indicatorSettings.trendFinderMode,
+        indicatorSettings.trendFinderDev,
+        allCandlesRef.current.length,
+        currentPrice
+    ]);
+
     // Update horizontal price lines for walls intelligently without blindly clearing
     useEffect(() => {
         if (!candlestickSeriesRef.current || !chartRef.current) return;
@@ -737,6 +760,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                     <LiquidityHeatmapRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={realHeatmapData} />
                     <FibonacciCloudRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={fiboData} />
                     <IchimokuRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={ichimokuData} displacement={indicatorSettings.displacement} />
+                    <TrendFinderRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={trendFinderData} visible={indicatorSettings.showTrendFinder} />
                     {showFootprint && <FootprintRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={footprintData} visible={showFootprint} />}
                 </div>
                 <VolumeProfileWidget chart={chartRef.current} series={candlestickSeriesRef.current} data={vpvrData} />

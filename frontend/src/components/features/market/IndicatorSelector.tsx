@@ -7,6 +7,7 @@ export interface IndicatorSettings {
     showVolume: boolean;
     showAutoFibo: boolean;
     showIchimoku: boolean;
+    showTrendFinder: boolean;
     emaPeriod: number;
     bbPeriod: number;
     bbStdDev: number;
@@ -16,6 +17,8 @@ export interface IndicatorSettings {
     kijunPeriod: number;
     senkouBPeriod: number;
     displacement: number;
+    trendFinderMode: 'short' | 'long';
+    trendFinderDev: number;
 }
 
 interface IndicatorSelectorProps {
@@ -244,6 +247,40 @@ export const IndicatorSelector: React.FC<IndicatorSelectorProps> = ({ settings, 
                                 </div>
                            </div>
                         </div>
+
+                        <div className="flex flex-col gap-2 p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-colors group">
+                           <div className="flex items-center justify-between">
+                            <label className="flex items-center cursor-pointer flex-1">
+                                <input
+                                    type="checkbox"
+                                    checked={settings.showTrendFinder}
+                                    onChange={() => toggleIndicator('showTrendFinder')}
+                                    className="w-4 h-4 text-brand-primary bg-gray-100 border-gray-300 rounded focus:ring-brand-primary dark:focus:ring-brand-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                />
+                                <span className="ml-3 text-sm font-medium text-gray-900 dark:text-gray-200 group-hover:text-brand-primary transition-colors">Adaptive Trend Finder</span>
+                            </label>
+                           </div>
+                           <div className="flex items-center gap-2 mt-1">
+                                <select
+                                    value={settings.trendFinderMode}
+                                    onChange={(e) => onSettingsChange({ ...settings, trendFinderMode: e.target.value as 'short' | 'long' })}
+                                    className="bg-gray-100 dark:bg-white/10 text-xs text-gray-700 dark:text-gray-300 rounded px-2 py-1 focus:outline-none"
+                                >
+                                    <option value="short">Short Term</option>
+                                    <option value="long">Long Term</option>
+                                </select>
+                                <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/10 px-1.5 py-1 rounded">
+                                    <span className="text-gray-500 text-[10px]">Dev:</span>
+                                    <input
+                                        type="number"
+                                        value={settings.trendFinderDev}
+                                        onChange={(e) => updateSetting('trendFinderDev', Number(e.target.value))}
+                                        className="w-10 bg-transparent text-gray-700 dark:text-gray-300 focus:outline-none focus:text-brand-primary text-[10px]"
+                                        min={0.1} max={5.0} step={0.1}
+                                    />
+                                </div>
+                           </div>
+                         </div>
                     </div>
                 </div>
             )}

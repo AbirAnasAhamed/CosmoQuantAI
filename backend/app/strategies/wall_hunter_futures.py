@@ -7,6 +7,7 @@ import ccxt.pro as ccxt_pro
 from app.utils import get_redis_client
 from app.strategies.order_block_bot import OrderBlockExecutionEngine
 from app.strategies.helpers.absorption_tracker import AbsorptionTracker
+from app.strategies.helpers.trend_finder import AdaptiveTrendFinder
 from app.services.market_depth_service import market_depth_service
 
 logger = logging.getLogger(__name__)
@@ -91,6 +92,15 @@ class WallHunterFuturesStrategy:
         self.btc_time_window = self.config.get("btc_time_window", 15)
         self.btc_min_move_pct = self.config.get("btc_min_move_pct", 0.1)
         self.btc_correlation_tracker = None
+        
+        # --- NEW: Adaptive Trend Filter ---
+        self.enable_trend_filter = self.config.get("enable_trend_filter", False)
+        self.trend_filter_mode = self.config.get("trend_filter_mode", "short")
+        self.trend_filter_threshold = self.config.get("trend_filter_threshold", "Strong")
+        self.trend_finder = AdaptiveTrendFinder(
+            mode=self.trend_filter_mode, 
+            threshold=self.trend_filter_threshold
+        ) if self.enable_trend_filter else None
         
         # State
         self.running = False
@@ -448,6 +458,28 @@ class WallHunterFuturesStrategy:
                                 if not self.btc_correlation_tracker.is_aligned(target_side):
                                     metrics = self.btc_correlation_tracker.get_metrics_string()
                                     logger.info(f"🚫 [BTC Divergence] Wall at {best_wall['price']} rejected! {metrics}")
+                                    continue
+                                    
+                            # Adaptive Trend Filter Check
+                            if self.enable_trend_filter and self.trend_finder:
+                                target_side = "buy" if best_wall['type'] == 'buy' else "sell"
+                                
+                                # Fetch recent klines to evaluate trend instantly before snipe
+                                try:
+                                    klines = await market_depth_service.getOHLCV(self.symbol, self.exchange_id, '1m', 1200)
+                                    if klines:
+                                        close_prices = [float(k['close']) for k in klines]
+                                        trend_analysis = self.trend_finder.analyze_trend(close_prices)
+                                        is_acceptable, tb_reason = self.trend_finder.is_trend_acceptable(trend_analysis, target_side)
+                                        if not is_acceptable:
+                                            logger.info(f"🚫 [Trend Filter] Wall at {best_wall['price']} rejected! {tb_reason}")
+                                            continue
+                                        else:
+                                            logger.info(f"📈 [Trend Filter] {tb_reason}")
+                                            reason += f" ({tb_reason})"
+                                except Exception as e:
+                                    logger.error(f"Failed to execute trend filter check: {e}")
+                                    # If filter fails to fetch data, conservatively reject the trade
                                     continue
                             
                             await self.execute_snipe(best_wall['price'], "buy" if best_wall['type'] == 'buy' else "sell", mid_price, reason=reason)

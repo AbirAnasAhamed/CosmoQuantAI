@@ -85,7 +85,12 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
         enableBtcCorrelation: false,
         btcCorrelationThreshold: 0.5,
         btcTimeWindow: 15,
-        btcMinMovePct: 0.025
+        btcMinMovePct: 0.025,
+
+        // --- NEW: Adaptive Trend Filter ---
+        enableTrendFilter: false,
+        trendFilterMode: 'short',
+        trendFilterThreshold: 'Strong'
     });
 
     const [existingBot, setExistingBot] = useState<any>(null);
@@ -185,6 +190,10 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                             btcCorrelationThreshold: c.btc_correlation_threshold || 0.7,
                             btcTimeWindow: c.btc_time_window || 15,
                             btcMinMovePct: c.btc_min_move_pct || 0.1,
+                            
+                            enableTrendFilter: c.enable_trend_filter !== undefined ? c.enable_trend_filter : false,
+                            trendFilterMode: c.trend_filter_mode || 'short',
+                            trendFilterThreshold: c.trend_filter_threshold || 'Strong',
                             
                             // Load custom buy order settings
                             buyOrderType: c.buy_order_type || 'market',
@@ -409,6 +418,11 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                     btc_correlation_threshold: form.btcCorrelationThreshold,
                     btc_time_window: form.btcTimeWindow,
                     btc_min_move_pct: form.btcMinMovePct,
+
+                    // Adaptive Trend Filter
+                    enable_trend_filter: form.enableTrendFilter,
+                    trend_filter_mode: form.trendFilterMode,
+                    trend_filter_threshold: form.trendFilterThreshold,
 
                     // New Buy Order Logic
                     buy_order_type: form.buyOrderType,
@@ -1136,6 +1150,50 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                             <input type="number" step="0.05" className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white text-center font-mono" value={form.btcMinMovePct} onChange={(e) => handleFormChange('btcMinMovePct', parseFloat(e.target.value))} />
                                         </div>
                                         <p className="col-span-2 text-[9px] text-gray-500 mt-1 italic">Only enter trades if BTC aligns with the target asset's direction and has moved the minimum %.</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* --- ADAPTIVE TREND FILTER SECTION --- */}
+                            <div className={`border rounded-xl p-4 transition-colors cursor-pointer ${form.enableTrendFilter ? 'bg-indigo-500/5 border-indigo-500/50' : 'bg-transparent border-white/10 hover:border-white/30'}`} onClick={() => handleFormChange('enableTrendFilter', !form.enableTrendFilter)}>
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-10 h-5 rounded-full p-1 transition-colors duration-200 flex items-center ${form.enableTrendFilter ? 'bg-indigo-500' : 'bg-gray-700'}`}>
+                                            <div className={`w-3 h-3 bg-white rounded-full shadow-md transform transition-transform duration-200 ${form.enableTrendFilter ? 'translate-x-5' : 'translate-x-0'}`}></div>
+                                        </div>
+                                        <span className="text-sm font-black text-white uppercase tracking-wider">Adaptive Trend Filter</span>
+                                    </div>
+                                </div>
+                                {form.enableTrendFilter && (
+                                    <div className="mt-3 pl-1 grid grid-cols-2 gap-4 animate-fadeIn" onClick={e => e.stopPropagation()}>
+                                        <div>
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Mode</label>
+                                            <select 
+                                                className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white outline-none focus:border-indigo-500 text-sm font-bold" 
+                                                value={form.trendFilterMode} 
+                                                onChange={(e) => handleFormChange('trendFilterMode', e.target.value)}
+                                            >
+                                                <option className="bg-[#0B1120]" value="short">Short (20-200)</option>
+                                                <option className="bg-[#0B1120]" value="long">Long (300-1200)</option>
+                                            </select>
+                                        </div>
+                                        <div>
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Min. Confidence</label>
+                                            <select 
+                                                className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white outline-none focus:border-indigo-500 text-sm font-bold" 
+                                                value={form.trendFilterThreshold} 
+                                                onChange={(e) => handleFormChange('trendFilterThreshold', e.target.value)}
+                                            >
+                                                <option className="bg-[#0B1120]" value="Moderate">Moderate (0.7+)</option>
+                                                <option className="bg-[#0B1120]" value="Moderately Strong">Moderately Strong (0.8+)</option>
+                                                <option className="bg-[#0B1120]" value="Mostly Strong">Mostly Strong (0.9+)</option>
+                                                <option className="bg-[#0B1120]" value="Strong">Strong (0.92+)</option>
+                                                <option className="bg-[#0B1120]" value="Very Strong">Very Strong (0.94+)</option>
+                                                <option className="bg-[#0B1120]" value="Exceptionally Strong">Exceptionally Strong (0.96+)</option>
+                                                <option className="bg-[#0B1120]" value="Ultra Strong">Ultra Strong (0.98+)</option>
+                                            </select>
+                                        </div>
+                                        <p className="col-span-2 text-[9px] text-gray-500 mt-1 italic">Only enter trades if log-scaled linear regression trend supports the trade direction.</p>
                                     </div>
                                 )}
                             </div>

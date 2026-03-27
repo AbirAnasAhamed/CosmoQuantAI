@@ -10,6 +10,7 @@ from app.services.notification import NotificationService
 from app.db.session import SessionLocal
 from app.strategies.helpers.absorption_tracker import AbsorptionTracker
 from app.services.market_depth_service import market_depth_service
+from app.strategies.helpers.trend_finder import AdaptiveTrendFinder
 
 try:
     from app.core.security import decrypt_key
@@ -140,6 +141,15 @@ class WallHunterBot:
         self.btc_time_window = config.get("btc_time_window", 15)
         self.btc_min_move_pct = config.get("btc_min_move_pct", 0.1)
         self.btc_correlation_tracker = None
+        
+        # --- NEW: Adaptive Trend Filter ---
+        self.enable_trend_filter = config.get("enable_trend_filter", False)
+        self.trend_filter_mode = config.get("trend_filter_mode", "short")
+        self.trend_filter_threshold = config.get("trend_filter_threshold", "Strong")
+        self.trend_finder = AdaptiveTrendFinder(
+            mode=self.trend_filter_mode, 
+            threshold=self.trend_filter_threshold
+        ) if self.enable_trend_filter else None
         
         # --- NEW: Custom Buy Order Type & Buffer ---
         self.buy_order_type = config.get("buy_order_type", "market")
@@ -322,6 +332,27 @@ class WallHunterBot:
             self.btc_min_move_pct = new_config.get("btc_min_move_pct")
             if self.btc_correlation_tracker:
                 self.btc_correlation_tracker.update_params(min_move_pct=self.btc_min_move_pct)
+                
+        if "enable_trend_filter" in new_config and new_config["enable_trend_filter"] != self.enable_trend_filter:
+            status = "ON" if new_config["enable_trend_filter"] else "OFF"
+            updates.append(f"Adaptive Trend Filter: {status}")
+            self.enable_trend_filter = new_config.get("enable_trend_filter")
+            if self.enable_trend_filter and not self.trend_finder:
+                self.trend_finder = AdaptiveTrendFinder(mode=self.trend_filter_mode, threshold=self.trend_filter_threshold)
+            elif not self.enable_trend_filter:
+                self.trend_finder = None
+                
+        if "trend_filter_mode" in new_config and new_config["trend_filter_mode"] != self.trend_filter_mode:
+            updates.append(f"Trend Mode: {self.trend_filter_mode} -> {new_config['trend_filter_mode']}")
+            self.trend_filter_mode = new_config.get("trend_filter_mode")
+            if self.trend_finder:
+                self.trend_finder.mode = self.trend_filter_mode
+                
+        if "trend_filter_threshold" in new_config and new_config["trend_filter_threshold"] != self.trend_filter_threshold:
+            updates.append(f"Trend Threshold: {self.trend_filter_threshold} -> {new_config['trend_filter_threshold']}")
+            self.trend_filter_threshold = new_config.get("trend_filter_threshold")
+            if self.trend_finder:
+                self.trend_finder.threshold = self.trend_filter_threshold
             
         if "buy_order_type" in new_config and new_config["buy_order_type"] != self.buy_order_type:
             updates.append(f"Buy Order Type: {self.buy_order_type} -> {new_config['buy_order_type']}")
@@ -607,6 +638,24 @@ class WallHunterBot:
                                 else:
                                     self.logger.info(f"✅ [BTC Correlation] Aligned for {side.upper()}! {self.btc_correlation_tracker.get_metrics_string()}")
 
+                            # Adaptive Trend Filter Check
+                            if self.enable_trend_filter and self.trend_finder:
+                                target_trade_dir = "buy" if getattr(self, 'strategy_mode', 'long') == 'long' else "sell" 
+                                try:
+                                    klines = await market_depth_service.getOHLCV(self.symbol, self.exchange_id, '1m', 1200)
+                                    if klines:
+                                        close_prices = [float(k['close']) for k in klines]
+                                        trend_analysis = self.trend_finder.analyze_trend(close_prices)
+                                        is_acceptable, tb_reason = self.trend_finder.is_trend_acceptable(trend_analysis, target_trade_dir)
+                                        if not is_acceptable:
+                                            self.logger.info(f"🚫 [Trend Filter] Instant Snipe at {price} rejected! {tb_reason}")
+                                            continue
+                                        else:
+                                            self.logger.info(f"📈 [Trend Filter] {tb_reason}")
+                                except Exception as e:
+                                    self.logger.error(f"Failed to execute trend filter check: {e}")
+                                    continue
+
                             self.logger.info(f"🟢 Instant Snipe at {price} (Spoof Detect is 0s) {'[HVN Confirmed]' if self.vpvr_enabled else ''}. Executing!")
                             await self.execute_snipe(price, side, mid_price)
                             self.tracked_walls.clear()
@@ -648,6 +697,27 @@ class WallHunterBot:
                                         continue
                                     else:
                                         self.logger.info(f"✅ [BTC Correlation] Aligned for {side.upper()}! {self.btc_correlation_tracker.get_metrics_string()}")
+                                        
+                                # Adaptive Trend Filter Check
+                                if self.enable_trend_filter and self.trend_finder:
+                                    if self.tracked_walls[price].get('trend_rejected'):
+                                        continue
+                                    target_trade_dir = "buy" if getattr(self, 'strategy_mode', 'long') == 'long' else "sell" 
+                                    try:
+                                        klines = await market_depth_service.getOHLCV(self.symbol, self.exchange_id, '1m', 1200)
+                                        if klines:
+                                            close_prices = [float(k['close']) for k in klines]
+                                            trend_analysis = self.trend_finder.analyze_trend(close_prices)
+                                            is_acceptable, tb_reason = self.trend_finder.is_trend_acceptable(trend_analysis, target_trade_dir)
+                                            if not is_acceptable:
+                                                self.logger.info(f"🚫 [Trend Filter] Confirmed Snipe at {price} rejected! {tb_reason}")
+                                                self.tracked_walls[price]['trend_rejected'] = True
+                                                continue
+                                            else:
+                                                self.logger.info(f"📈 [Trend Filter] {tb_reason}")
+                                    except Exception as e:
+                                        self.logger.error(f"Failed to execute trend filter check: {e}")
+                                        continue
                                         
                                 self.logger.info(f"🟢 Genuine Wall detected at {price} (Alive for {time_alive:.1f}s) {'[HVN Confirmed]' if self.vpvr_enabled else ''}. Executing Snipe!")
                                 await self.execute_snipe(price, side, mid_price)

@@ -292,3 +292,169 @@ export const calculateIchimoku = (
 
     return result;
 };
+
+// --- Adaptive Trend Finder (Log) ---
+export interface TrendFinderDataPoint {
+    time: string | number;
+    value: number; // Midline value
+    upper: number;
+    lower: number;
+}
+
+export interface TrendFinderResult {
+    period: number;
+    stdDev: number;
+    pearsonR: number;
+    slope: number;
+    intercept: number;
+    confidence: string;
+    points: TrendFinderDataPoint[];
+    trendDirection: 'bullish' | 'bearish' | 'neutral';
+}
+
+const PERIODS_LONG = [300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000, 1050, 1100, 1150, 1200];
+const PERIODS_SHORT = [20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200];
+
+export const getTrendConfidence = (pearsonR: number): string => {
+    const p = Math.abs(pearsonR);
+    if (p < 0.2) return 'Extremely Weak';
+    if (p < 0.3) return 'Very Weak';
+    if (p < 0.4) return 'Weak';
+    if (p < 0.5) return 'Mostly Weak';
+    if (p < 0.6) return 'Somewhat Weak';
+    if (p < 0.7) return 'Moderately Weak';
+    if (p < 0.8) return 'Moderate';
+    if (p < 0.9) return 'Moderately Strong';
+    if (p < 0.92) return 'Mostly Strong';
+    if (p < 0.94) return 'Strong';
+    if (p < 0.96) return 'Very Strong';
+    if (p < 0.98) return 'Exceptionally Strong';
+    return 'Ultra Strong';
+};
+
+export const calculateAdaptiveTrendFinder = (
+    data: { time: any; close: number }[],
+    mode: 'short' | 'long' = 'short',
+    devMultiplier: number = 2.0
+): TrendFinderResult | null => {
+    const periods = mode === 'long' ? PERIODS_LONG : PERIODS_SHORT;
+    
+    if (data.length < 20) return null; // Need minimum data
+
+    let bestPeriod = periods[0];
+    let bestPearsonR = -1; // We compare absolute values, so start negative
+    let bestStdDev = 0;
+    let MathLogStr: { [key: number]: number } = {};
+    
+    // Cache logarithms to speed up calculation
+    for (let i = 0; i < data.length; i++) {
+        MathLogStr[i] = Math.log(data[i].close);
+    }
+
+    let detectedSlope = 0;
+    let detectedIntercept = 0;
+    let actualPearsonRSigned = 0;
+
+    for (const length of periods) {
+        if (data.length < length) continue;
+        
+        let sumX = 0;
+        let sumXX = 0;
+        let sumYX = 0;
+        let sumY = 0;
+        
+        // PineScript backward loop logic: i=1 to length, logSource[i-1]
+        // This means it takes the last `length` items from the array, in reverse order
+        for (let i = 1; i <= length; i++) {
+            const idx = data.length - i;
+            const lSrc = MathLogStr[idx];
+            sumX += i;
+            sumXX += i * i;
+            sumYX += i * lSrc;
+            sumY += lSrc;
+        }
+
+        const denominator = (length * sumXX - sumX * sumX);
+        const slope = denominator === 0 ? 0 : (length * sumYX - sumX * sumY) / denominator;
+        const average = sumY / length;
+        const intercept = average - slope * sumX / length + slope;
+        
+        const period_1 = length - 1;
+        const regres = intercept + slope * period_1 * 0.5;
+        let sumSlp = intercept;
+        
+        let sumDxx = 0;
+        let sumDyy = 0;
+        let sumDyx = 0;
+        let sumDev = 0;
+        
+        for (let i = 0; i <= period_1; i++) {
+            const idx = data.length - 1 - i;
+            let lSrc = MathLogStr[idx];
+            const dxt = lSrc - average;
+            const dyt = sumSlp - regres;
+            
+            lSrc = lSrc - sumSlp;
+            sumSlp += slope;
+            
+            sumDxx += dxt * dxt;
+            sumDyy += dyt * dyt;
+            sumDyx += dxt * dyt;
+            sumDev += lSrc * lSrc;
+        }
+        
+        const unStdDev = Math.sqrt(sumDev / period_1);
+        const divisor = sumDxx * sumDyy;
+        const pearsonR = divisor === 0 ? 0 : sumDyx / Math.sqrt(divisor);
+        
+        // Find the highest absolute pearsonR
+        if (bestPearsonR === -1 || Math.abs(pearsonR) > Math.abs(bestPearsonR)) {
+            bestPearsonR = Math.abs(pearsonR);
+            actualPearsonRSigned = pearsonR;
+            bestPeriod = length;
+            bestStdDev = unStdDev;
+            detectedSlope = slope;
+            detectedIntercept = intercept;
+        }
+    }
+
+    if (bestPearsonR === -1 || bestStdDev === 0) return null;
+
+    // Generate the projection points
+    const points: TrendFinderDataPoint[] = [];
+    const pointsLength = Math.min(bestPeriod, data.length);
+    
+    // slope > 0 in PineScript means DOWN trend over time since index 0 is latest and i grows backwards
+    // So if slope is positive, older bars had higher log prices, so trend is DOWN
+    
+    for (let i = 0; i < pointsLength; i++) {
+        const idx = data.length - 1 - i;
+        // Pine formula: line at idx i is `intercept + slope * i`
+        const midLog = detectedIntercept + detectedSlope * i;
+        const midVal = Math.exp(midLog);
+        
+        const upperVal = midVal * Math.exp(devMultiplier * bestStdDev);
+        const lowerVal = midVal / Math.exp(devMultiplier * bestStdDev);
+        
+        points.push({
+            time: data[idx].time,
+            value: midVal,
+            upper: upperVal,
+            lower: lowerVal
+        });
+    }
+    
+    // We generated points from latest (index 0) to oldest. Reverse to match data order.
+    points.reverse();
+
+    return {
+        period: bestPeriod,
+        stdDev: bestStdDev,
+        pearsonR: actualPearsonRSigned,
+        slope: detectedSlope,
+        intercept: detectedIntercept,
+        confidence: getTrendConfidence(bestPearsonR),
+        points,
+        trendDirection: detectedSlope > 0 ? 'bearish' : detectedSlope < 0 ? 'bullish' : 'neutral'
+    };
+};
