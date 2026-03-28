@@ -260,7 +260,10 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                 // Determine dynamic precision based on price
                 let dynamicStep = 0.01;
                 let displayDigits = 2;
-                if (currentPrice < 0.000001) { dynamicStep = 0.00000001; displayDigits = 8; }
+                if (currentPrice < 0.000000001) { dynamicStep = 0.00000000001; displayDigits = 11; }
+                else if (currentPrice < 0.00000001) { dynamicStep = 0.0000000001; displayDigits = 10; }
+                else if (currentPrice < 0.0000001) { dynamicStep = 0.000000001; displayDigits = 9; }
+                else if (currentPrice < 0.000001) { dynamicStep = 0.00000001; displayDigits = 8; }
                 else if (currentPrice < 0.00001) { dynamicStep = 0.0000001; displayDigits = 7; }
                 else if (currentPrice < 0.0001) { dynamicStep = 0.000001; displayDigits = 6; }
                 else if (currentPrice < 0.001) { dynamicStep = 0.00001; displayDigits = 5; }
@@ -462,7 +465,10 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
     
     let dynamicStep = 0.01;
     let displayDigits = 2;
-    if (currentPrice < 0.000001) { dynamicStep = 0.00000001; displayDigits = 8; }
+    if (currentPrice < 0.000000001) { dynamicStep = 0.00000000001; displayDigits = 11; }
+    else if (currentPrice < 0.00000001) { dynamicStep = 0.0000000001; displayDigits = 10; }
+    else if (currentPrice < 0.0000001) { dynamicStep = 0.000000001; displayDigits = 9; }
+    else if (currentPrice < 0.000001) { dynamicStep = 0.00000001; displayDigits = 8; }
     else if (currentPrice < 0.00001) { dynamicStep = 0.0000001; displayDigits = 7; }
     else if (currentPrice < 0.0001) { dynamicStep = 0.000001; displayDigits = 6; }
     else if (currentPrice < 0.001) { dynamicStep = 0.00001; displayDigits = 5; }
@@ -1084,8 +1090,8 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                         </div>
                                         {bids && asks && bids.length > 0 && asks.length > 0 && (
                                             <div className="mt-2 text-center text-[10px] text-emerald-400/80 font-mono bg-emerald-500/10 py-1.5 px-3 rounded-lg border border-emerald-500/20">
-                                                Current Price: ${( (Number(bids[0].price) + Number(asks[0].price)) / 2 ).toFixed(5)}<br/>
-                                                <span className="text-white">Est. Trigger:</span> ${( ((Number(bids[0].price) + Number(asks[0].price)) / 2) * (1 + form.breakevenTriggerPct / 100) ).toFixed(5)} &nbsp;|&nbsp; <span className="text-white">Est. Target:</span> ${( ((Number(bids[0].price) + Number(asks[0].price)) / 2) * (1 + form.breakevenTargetPct / 100) ).toFixed(5)}
+                                                Current Price: ${( (Number(bids[0].price) + Number(asks[0].price)) / 2 ).toFixed(Math.max(6, displayDigits + 2))}<br/>
+                                                <span className="text-white">Est. Trigger:</span> ${( ((Number(bids[0].price) + Number(asks[0].price)) / 2) * (1 + form.breakevenTriggerPct / 100) ).toFixed(Math.max(6, displayDigits + 2))} &nbsp;|&nbsp; <span className="text-white">Est. Target:</span> ${( ((Number(bids[0].price) + Number(asks[0].price)) / 2) * (1 + form.breakevenTargetPct / 100) ).toFixed(Math.max(6, displayDigits + 2))}
                                             </div>
                                         )}
                                     </>
