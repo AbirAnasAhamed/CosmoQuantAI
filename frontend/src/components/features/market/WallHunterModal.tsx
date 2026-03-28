@@ -94,10 +94,38 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
     });
 
     const [existingBot, setExistingBot] = useState<any>(null);
+    const [lastInitializedSymbol, setLastInitializedSymbol] = useState('');
 
     useEffect(() => {
         setForm(prev => ({ ...prev, symbol }));
     }, [symbol]);
+
+    // Smart default calculation on first load
+    useEffect(() => {
+        if (isOpen && symbol !== lastInitializedSymbol && (bids.length > 0 || asks.length > 0) && !existingBot) {
+            const initialPrice = bids.length > 0 ? Number(bids[0].price) : Number(asks[0].price);
+            let dynamicStep = 0.01;
+            let displayDigits = 2;
+            if (initialPrice < 0.000000001) { dynamicStep = 0.00000000001; displayDigits = 11; }
+            else if (initialPrice < 0.00000001) { dynamicStep = 0.0000000001; displayDigits = 10; }
+            else if (initialPrice < 0.0000001) { dynamicStep = 0.000000001; displayDigits = 9; }
+            else if (initialPrice < 0.000001) { dynamicStep = 0.00000001; displayDigits = 8; }
+            else if (initialPrice < 0.00001) { dynamicStep = 0.0000001; displayDigits = 7; }
+            else if (initialPrice < 0.0001) { dynamicStep = 0.000001; displayDigits = 6; }
+            else if (initialPrice < 0.001) { dynamicStep = 0.00001; displayDigits = 5; }
+            else if (initialPrice < 1) { dynamicStep = 0.0001; displayDigits = 4; }
+            else if (initialPrice < 10) { dynamicStep = 0.001; displayDigits = 3; }
+            else if (initialPrice < 100) { dynamicStep = 0.01; displayDigits = 2; }
+            else if (initialPrice < 1000) { dynamicStep = 0.1; displayDigits = 1; }
+            
+            // Set default ~0.1% or minimum 2 steps
+            const idealSpread = Math.max(dynamicStep * 2, initialPrice * 0.001);
+            const defaultSpread = parseFloat(idealSpread.toFixed(displayDigits));
+
+            setForm(prev => ({ ...prev, spread: defaultSpread }));
+            setLastInitializedSymbol(symbol);
+        }
+    }, [isOpen, symbol, bids, asks, existingBot, lastInitializedSymbol]);
 
     useEffect(() => {
         if (form.exchange !== 'binance' && form.exchange !== 'mexc' && form.exchange !== 'kucoin') {
@@ -314,7 +342,13 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                     // Amount based on 10% of typical depth size for safety
                     const avgSize = allSizes.reduce((s, a) => s + a, 0) / allSizes.length;
                     const avgQuoteValue = avgSize * currentPrice;
-                    optimalAmount = parseFloat(Math.max(10, avgQuoteValue * 0.2).toFixed(2));
+                    const targetUsdVal = Math.max(10, avgQuoteValue * 0.2);
+                    
+                    if (tradingMode === 'spot' && strategyMode === 'short') {
+                        optimalAmount = parseFloat((targetUsdVal / currentPrice).toFixed(displayDigits > 0 ? displayDigits : 2));
+                    } else {
+                        optimalAmount = parseFloat(targetUsdVal.toFixed(2));
+                    }
                 }
             }
 
@@ -498,6 +532,12 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
     const feeUSD = tradeValue * feeRate;
     const netProfitUSD = grossProfitUSD - feeUSD;
     const netProfitPct = form.amount > 0 ? ((netProfitUSD / form.amount) * 100) : 0; 
+
+    // --- CURRENCY DISPLAY LOGIC ---
+    const isShortMode = tradingMode === 'spot' && strategyMode === 'short';
+    const baseCurrency = form.symbol ? form.symbol.split('/')[0] : '';
+    const currencyPrefix = isShortMode ? '' : '$';
+    const currencySuffix = isShortMode ? ` ${baseCurrency}` : '';
 
     return (
         <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
@@ -732,11 +772,11 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                             <div>
                                 <div className="flex justify-between items-end mb-1">
                                     <label className="text-[10px] font-bold text-gray-500 uppercase">Target Spread Profit</label>
-                                    <span className="text-xs font-mono font-bold text-brand-primary">{form.spread.toFixed(displayDigits)}</span>
+                                    <span className="text-xs font-mono font-bold text-brand-primary">{form.spread.toString().includes('e') ? form.spread.toFixed(12).replace(/\.?0+$/, '') : form.spread}</span>
                                 </div>
                                 <div className="flex gap-3 items-center">
-                                    <input type="range" min="0" max={dynamicMax} step={dynamicStep} className="flex-1 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-brand-primary" value={form.spread} onChange={(e) => setForm({ ...form, spread: parseFloat(e.target.value) })} />
-                                    <input type="number" min="0" step={dynamicStep} className="w-24 bg-black/40 border border-white/10 rounded-xl p-1.5 text-white outline-none focus:border-brand-primary text-center font-mono text-sm" value={form.spread} onChange={(e) => setForm({ ...form, spread: parseFloat(e.target.value) })} />
+                                    <input type="range" min="0" max={dynamicMax} step={dynamicStep} className="flex-1 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-brand-primary" value={form.spread} onChange={(e) => setForm({ ...form, spread: parseFloat(e.target.value) || 0 })} />
+                                    <input type="number" min="0" step={dynamicStep} className="w-24 bg-black/40 border border-white/10 rounded-xl p-1.5 text-white outline-none focus:border-brand-primary text-center font-mono text-sm" value={form.spread.toString().includes('e') ? form.spread.toFixed(12).replace(/\.?0+$/, '') : form.spread} onChange={(e) => setForm({ ...form, spread: e.target.value === '' ? 0 : parseFloat(e.target.value) })} />
                                 </div>
                             </div>
 
@@ -766,23 +806,23 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                 <div className="space-y-2">
                                     <div className="flex justify-between items-center text-xs">
                                         <span className="text-gray-400">Trade Value {isFutures && '(Leveraged)'}</span>
-                                        <span className="font-mono text-gray-300">${tradeValue.toFixed(2)}</span>
+                                        <span className="font-mono text-gray-300">{currencyPrefix}{tradeValue.toFixed(isShortMode ? Math.max(2, displayDigits - 2) : 2)}{currencySuffix}</span>
                                     </div>
                                     <div className="flex justify-between items-center text-xs">
                                         <span className="text-gray-400">Gross Profit ({(spreadPct * 100).toFixed(2)}%)</span>
-                                        <span className="font-mono text-green-400">+${grossProfitUSD.toFixed(2)}</span>
+                                        <span className="font-mono text-green-400">+{currencyPrefix}{grossProfitUSD.toFixed(isShortMode ? Math.max(2, displayDigits) : 2)}{currencySuffix}</span>
                                     </div>
                                     <div className="flex justify-between items-center text-xs">
                                         <span className="text-gray-400">
                                             Estimated Fees ({(feeRate * 100).toFixed(3)}%)
                                             {liveFeeRate !== null && <span className="ml-1 text-[9px] text-green-400 border border-green-500/30 bg-green-500/10 px-1 py-0.5 rounded cursor-help" title="Live VIP/Account fee fetched directly from exchange.">API TIER</span>}
                                         </span>
-                                        <span className="font-mono text-red-400">-${feeUSD.toFixed(3)}</span>
+                                        <span className="font-mono text-red-400">-{currencyPrefix}{feeUSD.toFixed(isShortMode ? Math.max(3, displayDigits + 1) : 3)}{currencySuffix}</span>
                                     </div>
                                     <div className="pt-2 border-t border-white/5 flex justify-between items-center">
                                         <span className="text-sm font-bold text-gray-300">Net Profit</span>
                                         <span className={`text-sm font-mono font-bold ${netProfitUSD > 0 ? 'text-green-500' : 'text-red-500'}`}>
-                                            {netProfitUSD > 0 ? '+' : ''}${netProfitUSD.toFixed(2)} ({netProfitPct > 0 ? '+' : ''}{netProfitPct.toFixed(2)}%)
+                                            {netProfitUSD > 0 ? '+' : ''}{currencyPrefix}{netProfitUSD.toFixed(isShortMode ? Math.max(2, displayDigits) : 2)}{currencySuffix} ({netProfitPct > 0 ? '+' : ''}{netProfitPct.toFixed(2)}%)
                                         </span>
                                     </div>
                                 </div>

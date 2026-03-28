@@ -657,7 +657,7 @@ class WallHunterBot:
                                     continue
 
                             self.logger.info(f"🟢 Instant Snipe at {price} (Spoof Detect is 0s) {'[HVN Confirmed]' if self.vpvr_enabled else ''}. Executing!")
-                            await self.execute_snipe(price, side, mid_price)
+                            await self.execute_snipe(price, side, mid_price, best_bid, best_ask)
                             self.tracked_walls.clear()
                             current_walls.clear()
                             break
@@ -720,7 +720,7 @@ class WallHunterBot:
                                         continue
                                         
                                 self.logger.info(f"🟢 Genuine Wall detected at {price} (Alive for {time_alive:.1f}s) {'[HVN Confirmed]' if self.vpvr_enabled else ''}. Executing Snipe!")
-                                await self.execute_snipe(price, side, mid_price)
+                                await self.execute_snipe(price, side, mid_price, best_bid, best_ask)
                                 self.tracked_walls.clear() # এন্ট্রি নেওয়ার পর ট্র্যাকিং ক্লিয়ার
                                 break
                         else:
@@ -757,10 +757,15 @@ class WallHunterBot:
                 self.logger.error(f"Hunter Loop Error: {e}")
                 await asyncio.sleep(1)
 
-    async def execute_snipe(self, wall_price: float, side: str, current_mid_price: float):
-        # Allow a dynamic tick size for entry if we wanted to limit order, but since we market order, 
-        # mid_price is the most accurate reflection of current cost.
-        entry_price = current_mid_price
+    async def execute_snipe(self, wall_price: float, side: str, current_mid_price: float, best_bid: float = None, best_ask: float = None):
+        # We must base our marketable execution on the opposing side of the orderbook
+        # to ensure it crosses the spread and gets filled as a Taker.
+        if side == "buy":
+            base_limit_price = best_ask if best_ask else current_mid_price
+        else:
+            base_limit_price = best_bid if best_bid else current_mid_price
+            
+        entry_price = base_limit_price
         
         # Calculate base asset amount
         input_amount = self.config.get("amount_per_trade", 10.0)
@@ -777,8 +782,8 @@ class WallHunterBot:
         
         self.logger.info(f"⚡ [WallHunter {self.bot_id}] Executing Snipe: {side.upper()} {base_amount} {self.symbol} at {execution_price}")
         
-        # Use custom buy order type if provided, otherwise default to market
-        snipe_order_type = self.buy_order_type
+        # Select correct entry order type depending on the strategy mode
+        snipe_order_type = self.sell_order_type if getattr(self, 'strategy_mode', 'long') == 'short' else self.buy_order_type
         if snipe_order_type == "marketable_limit":
              # "marketable_limit" is a special instruction for our engine to use LIMIT with buffer on MEXC
              # but we pass "market" to it so it knows to apply the conversion logic if it's MEXC
@@ -1098,8 +1103,14 @@ class WallHunterBot:
             # ----------------------------------------------------
 
             close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
-            close_amount_raw = (sell_amount_raw * self.active_pos['entry'] * 0.995) / self.active_pos['tp1'] if getattr(self, 'strategy_mode', 'long') == "short" else sell_amount_raw
             
+            if getattr(self, 'strategy_mode', 'long') == "short":
+                calc_price = self.active_pos['tp1']
+                if exit_order_type == 'market' or exit_order_type == 'marketable_limit':
+                    calc_price = current_price * (1 + (self.config.get("limit_buffer", 1.0) / 100.0))
+                close_amount_raw = (sell_amount_raw * self.active_pos['entry'] * 0.99) / calc_price
+            else:
+                close_amount_raw = sell_amount_raw
             sell_amount = float(self.engine.exchange.amount_to_precision(self.symbol, close_amount_raw))
             
             exit_order_type_actual = exit_order_type
@@ -1126,7 +1137,7 @@ class WallHunterBot:
                     remaining_raw = self.active_pos['amount'] - sell_amount_raw
                     # Only replace limit if not fully closed
                     if remaining_raw > 0.00000001:
-                        rem_close_amount_raw = (remaining_raw * self.active_pos['entry'] * 0.995) / self.active_pos['tp'] if getattr(self, 'strategy_mode', 'long') == "short" else remaining_raw
+                        rem_close_amount_raw = (remaining_raw * self.active_pos['entry'] * 0.99) / self.active_pos['tp'] if getattr(self, 'strategy_mode', 'long') == "short" else remaining_raw
                         limit_res = await self.engine.execute_trade(close_side, rem_close_amount_raw, self.active_pos['tp'], order_type="limit")
                         if limit_res and 'id' in limit_res:
                             self.active_pos['limit_order_id'] = limit_res['id']
@@ -1161,7 +1172,12 @@ class WallHunterBot:
             
             sell_amount_raw = self.active_pos['amount']
             close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
-            close_amount_raw = (sell_amount_raw * self.active_pos['entry'] * 0.995) / current_price if getattr(self, 'strategy_mode', 'long') == "short" else sell_amount_raw
+            
+            if getattr(self, 'strategy_mode', 'long') == "short":
+                calc_price = current_price * (1 + (self.config.get("limit_buffer", 1.0) / 100.0))
+                close_amount_raw = (sell_amount_raw * self.active_pos['entry'] * 0.99) / calc_price
+            else:
+                close_amount_raw = sell_amount_raw
             sell_amount = float(self.engine.exchange.amount_to_precision(self.symbol, close_amount_raw))
             
             # Cancel open limit order if SL/TSL hits (handles both limit sell orders and micro_scalp)
@@ -1242,7 +1258,17 @@ class WallHunterBot:
                         
                         if remaining_base > 0:
                             self.logger.info(f"🧹 Sweeping SL remainder at Pure Market: {remaining_base} {self.symbol}")
-                            sweep_amount_raw = (remaining_base * self.active_pos['entry'] * 0.995) / current_price if getattr(self, 'strategy_mode', 'long') == "short" else remaining_base
+                            if getattr(self, 'strategy_mode', 'long') == "short":
+                                # Calculate exact remaining USDC budget from the sold amount to prevent Insufficient Balance
+                                padded_price = current_price * (1 + (self.config.get("limit_buffer", 1.0) / 100.0))
+                                total_usd_budget = self.active_pos['amount'] * self.active_pos['entry'] * 0.99
+                                avg_fill = final_status.get('average') or final_status.get('price') or current_price
+                                spent_usd = filled_proper * avg_fill
+                                remaining_usd = max(0.0, total_usd_budget - spent_usd)
+                                sweep_amount_raw = remaining_usd / padded_price
+                            else:
+                                sweep_amount_raw = remaining_base
+
                             sweep_amount = float(self.engine.exchange.amount_to_precision(self.symbol, sweep_amount_raw))
                             
                             await self.engine.execute_trade(close_side, sweep_amount, current_price, order_type="market")
@@ -1277,8 +1303,15 @@ class WallHunterBot:
             
             sell_amount_raw = self.active_pos['amount']
             close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
-            close_amount_raw = (sell_amount_raw * self.active_pos['entry'] * 0.995) / current_price if getattr(self, 'strategy_mode', 'long') == "short" else sell_amount_raw
-            sell_amount = float(self.engine.exchange.amount_to_precision(self.symbol, close_amount_raw))
+            
+            if getattr(self, 'strategy_mode', 'long') == "short":
+                sell_order_type = getattr(self, 'sell_order_type', 'market')
+                calc_price = self.active_pos['tp']
+                if sell_order_type == 'market' or sell_order_type == 'marketable_limit':
+                     calc_price = current_price * (1 + (self.config.get("limit_buffer", 1.0) / 100.0))
+                close_amount_raw = (sell_amount_raw * self.active_pos['entry'] * 0.99) / calc_price
+            else:
+                close_amount_raw = sell_amount_raw
             
             sell_order_type = self.sell_order_type
             if sell_order_type == 'marketable_limit':
