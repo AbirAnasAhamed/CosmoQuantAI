@@ -219,8 +219,10 @@ class NewsService:
                 if new_resources:
                     print(f"✅ Market News Fetch Completed. {count} new items. Sending notifications...")
                     from app.services.notification import NotificationService
-                    # Notify Admin (User ID 1)
-                    target_user_id = 1 
+                    from app.models.notification import NotificationSettings
+                    
+                    # Fetch all users with enabled notifications
+                    active_notifications = db.query(NotificationSettings).filter(NotificationSettings.is_enabled == True).all()
                     
                     for r in new_resources:
                         # Default Message
@@ -230,7 +232,8 @@ class NewsService:
                         if r.impact_level == 'HIGH':
                             msg = f"🚨 *BREAKING NEWS* 🚨\n\n**{r.title}**\n\n🔥 Impact Score: {r.impact_score}/100\n🔗 {r.link}\n\n#HighImpact #{r.category}"
                         
-                        await NotificationService.send_message(db, target_user_id, msg)
+                        for setting in active_notifications:
+                            await NotificationService.send_message(db, setting.user_id, msg)
                 
                 print(f"✅ Market News Fetch Completed. {count} new items.")
                 return count
