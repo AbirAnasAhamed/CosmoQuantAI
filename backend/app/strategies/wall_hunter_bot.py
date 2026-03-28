@@ -144,10 +144,10 @@ class WallHunterBot:
         
         # --- NEW: Adaptive Trend Filter ---
         self.enable_trend_filter = config.get("enable_trend_filter", False)
-        self.trend_filter_mode = config.get("trend_filter_mode", "short")
+        self.trend_filter_lookback = config.get("trend_filter_lookback", 200)
         self.trend_filter_threshold = config.get("trend_filter_threshold", "Strong")
         self.trend_finder = AdaptiveTrendFinder(
-            mode=self.trend_filter_mode, 
+            lookback=self.trend_filter_lookback, 
             threshold=self.trend_filter_threshold
         ) if self.enable_trend_filter else None
         
@@ -342,11 +342,11 @@ class WallHunterBot:
             elif not self.enable_trend_filter:
                 self.trend_finder = None
                 
-        if "trend_filter_mode" in new_config and new_config["trend_filter_mode"] != self.trend_filter_mode:
-            updates.append(f"Trend Mode: {self.trend_filter_mode} -> {new_config['trend_filter_mode']}")
-            self.trend_filter_mode = new_config.get("trend_filter_mode")
+        if "trend_filter_lookback" in new_config and new_config["trend_filter_lookback"] != self.trend_filter_lookback:
+            updates.append(f"Trend Lookback: {self.trend_filter_lookback} -> {new_config['trend_filter_lookback']}")
+            self.trend_filter_lookback = new_config.get("trend_filter_lookback")
             if self.trend_finder:
-                self.trend_finder.mode = self.trend_filter_mode
+                self.trend_finder.lookback = self.trend_filter_lookback
                 
         if "trend_filter_threshold" in new_config and new_config["trend_filter_threshold"] != self.trend_filter_threshold:
             updates.append(f"Trend Threshold: {self.trend_filter_threshold} -> {new_config['trend_filter_threshold']}")

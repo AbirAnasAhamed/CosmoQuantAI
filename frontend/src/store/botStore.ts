@@ -28,7 +28,7 @@ export const useBotStore = create<BotState>((set) => ({
         kijunPeriod: 26,
         senkouBPeriod: 52,
         displacement: 26,
-        trendFinderMode: 'short',
+        trendFinderLookback: 200,
         trendFinderDev: 2.0,
     },
     setIndicatorSettings: (settings) => set({ indicatorSettings: settings }),

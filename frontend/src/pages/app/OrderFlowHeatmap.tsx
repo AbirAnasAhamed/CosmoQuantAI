@@ -521,13 +521,13 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
 
         const result = calculateAdaptiveTrendFinder(
             allCandlesRef.current,
-            indicatorSettings.trendFinderMode,
+            indicatorSettings.trendFinderLookback,
             indicatorSettings.trendFinderDev
         );
         setTrendFinderData(result);
     }, [
         indicatorSettings.showTrendFinder,
-        indicatorSettings.trendFinderMode,
+        indicatorSettings.trendFinderLookback,
         indicatorSettings.trendFinderDev,
         allCandlesRef.current.length,
         currentPrice

@@ -89,7 +89,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
 
         // --- NEW: Adaptive Trend Filter ---
         enableTrendFilter: false,
-        trendFilterMode: 'short',
+        trendFilterLookback: 200,
         trendFilterThreshold: 'Strong'
     });
 
@@ -192,7 +192,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                             btcMinMovePct: c.btc_min_move_pct || 0.1,
                             
                             enableTrendFilter: c.enable_trend_filter !== undefined ? c.enable_trend_filter : false,
-                            trendFilterMode: c.trend_filter_mode || 'short',
+                            trendFilterLookback: c.trend_filter_lookback || 200,
                             trendFilterThreshold: c.trend_filter_threshold || 'Strong',
                             
                             // Load custom buy order settings
@@ -421,7 +421,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
 
                     // Adaptive Trend Filter
                     enable_trend_filter: form.enableTrendFilter,
-                    trend_filter_mode: form.trendFilterMode,
+                    trend_filter_lookback: form.trendFilterLookback,
                     trend_filter_threshold: form.trendFilterThreshold,
 
                     // New Buy Order Logic
@@ -1167,15 +1167,16 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                 {form.enableTrendFilter && (
                                     <div className="mt-3 pl-1 grid grid-cols-2 gap-4 animate-fadeIn" onClick={e => e.stopPropagation()}>
                                         <div>
-                                            <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Mode</label>
-                                            <select 
-                                                className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white outline-none focus:border-indigo-500 text-sm font-bold" 
-                                                value={form.trendFilterMode} 
-                                                onChange={(e) => handleFormChange('trendFilterMode', e.target.value)}
-                                            >
-                                                <option className="bg-[#0B1120]" value="short">Short (20-200)</option>
-                                                <option className="bg-[#0B1120]" value="long">Long (300-1200)</option>
-                                            </select>
+                                            <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Lookback Period</label>
+                                            <input 
+                                                type="number"
+                                                className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white outline-none focus:border-indigo-500 text-sm font-bold text-center font-mono" 
+                                                value={form.trendFilterLookback} 
+                                                onChange={(e) => handleFormChange('trendFilterLookback', parseInt(e.target.value))}
+                                                min={20}
+                                                max={2000}
+                                                step={10}
+                                            />
                                         </div>
                                         <div>
                                             <label className="text-[10px] font-bold text-gray-400 uppercase mb-1 block">Min. Confidence</label>

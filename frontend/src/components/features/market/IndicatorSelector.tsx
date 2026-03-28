@@ -17,7 +17,7 @@ export interface IndicatorSettings {
     kijunPeriod: number;
     senkouBPeriod: number;
     displacement: number;
-    trendFinderMode: 'short' | 'long';
+    trendFinderLookback: number;
     trendFinderDev: number;
 }
 
@@ -260,15 +260,17 @@ export const IndicatorSelector: React.FC<IndicatorSelectorProps> = ({ settings, 
                                 <span className="ml-3 text-sm font-medium text-gray-900 dark:text-gray-200 group-hover:text-brand-primary transition-colors">Adaptive Trend Finder</span>
                             </label>
                            </div>
-                           <div className="flex items-center gap-2 mt-1">
-                                <select
-                                    value={settings.trendFinderMode}
-                                    onChange={(e) => onSettingsChange({ ...settings, trendFinderMode: e.target.value as 'short' | 'long' })}
-                                    className="bg-gray-100 dark:bg-white/10 text-xs text-gray-700 dark:text-gray-300 rounded px-2 py-1 focus:outline-none"
-                                >
-                                    <option value="short">Short Term</option>
-                                    <option value="long">Long Term</option>
-                                </select>
+                            <div className="flex items-center gap-2 mt-1">
+                                <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/10 px-1.5 py-1 rounded">
+                                    <span className="text-gray-500 text-[10px]">Lookback:</span>
+                                    <input
+                                        type="number"
+                                        value={settings.trendFinderLookback}
+                                        onChange={(e) => updateSetting('trendFinderLookback', Number(e.target.value))}
+                                        className="w-12 bg-transparent text-gray-700 dark:text-gray-300 focus:outline-none focus:text-brand-primary text-[10px]"
+                                        min={20} max={2000} step={10}
+                                    />
+                                </div>
                                 <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/10 px-1.5 py-1 rounded">
                                     <span className="text-gray-500 text-[10px]">Dev:</span>
                                     <input

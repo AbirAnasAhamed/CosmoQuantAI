@@ -4,12 +4,12 @@ import logging
 logger = logging.getLogger(__name__)
 
 class AdaptiveTrendFinder:
-    def __init__(self, mode='short', threshold='Strong'):
+    def __init__(self, lookback=200, threshold='Strong'):
         """
-        mode: 'short' or 'long'
+        lookback: amount of candles to look back
         threshold: minimum confidence level required to allow trades
         """
-        self.mode = mode
+        self.lookback = lookback
         self.threshold = threshold
         
         # Confidence mapping for numerical comparison
@@ -30,10 +30,7 @@ class AdaptiveTrendFinder:
         }
         
     def _get_periods(self):
-        if self.mode == 'long':
-            return [300, 350, 400, 450, 500, 550, 600, 650, 700, 750, 800, 850, 900, 950, 1000, 1050, 1100, 1150, 1200]
-        else:
-            return [20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200]
+        return [self.lookback]
             
     def _get_confidence(self, pearson_r):
         p = abs(pearson_r)

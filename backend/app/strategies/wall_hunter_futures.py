@@ -95,10 +95,10 @@ class WallHunterFuturesStrategy:
         
         # --- NEW: Adaptive Trend Filter ---
         self.enable_trend_filter = self.config.get("enable_trend_filter", False)
-        self.trend_filter_mode = self.config.get("trend_filter_mode", "short")
+        self.trend_filter_lookback = self.config.get("trend_filter_lookback", 200)
         self.trend_filter_threshold = self.config.get("trend_filter_threshold", "Strong")
         self.trend_finder = AdaptiveTrendFinder(
-            mode=self.trend_filter_mode, 
+            lookback=self.trend_filter_lookback, 
             threshold=self.trend_filter_threshold
         ) if self.enable_trend_filter else None
         
