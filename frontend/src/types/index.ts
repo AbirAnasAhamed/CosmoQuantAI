@@ -42,6 +42,7 @@ export interface ActiveBot {
   apiKeyId?: string; // ✅ নতুন
   pnl: number;
   pnlPercent: number;
+  totalPnl?: number;
   status: 'active' | 'inactive' | 'paused';
   isRegimeAware?: boolean;
   regimeStrategies?: Partial<Record<MarketRegime, string>>;

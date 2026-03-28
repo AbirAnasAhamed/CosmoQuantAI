@@ -55,11 +55,17 @@ const BotDetailsModal: React.FC<BotDetailsModalProps> = ({ bot: initialBot, onCl
                     {/* Overview Tab */}
                     {activeTab === 'overview' && (
                         <div className="p-8 space-y-6 overflow-y-auto animate-in slide-in-from-bottom-2 duration-300">
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
                                 <div className="bg-white/5 p-5 rounded-2xl border border-white/5">
-                                    <p className="text-[10px] text-gray-500 uppercase font-bold mb-2">Total PnL</p>
+                                    <p className="text-[10px] text-gray-500 uppercase font-bold mb-2">Unrealized PnL</p>
                                     <p className={`text-3xl font-bold font-mono ${bot.pnl >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
                                         {bot.pnl >= 0 ? '+' : ''}${Math.abs(bot.pnl).toFixed(2)}
+                                    </p>
+                                </div>
+                                <div className="bg-white/5 p-5 rounded-2xl border border-white/5">
+                                    <p className="text-[10px] text-emerald-500/80 uppercase font-bold mb-2">Total Realized</p>
+                                    <p className={`text-3xl font-bold font-mono ${(bot.totalPnl ?? 0) >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                        {(bot.totalPnl ?? 0) >= 0 ? '+' : ''}${Math.abs(bot.totalPnl ?? 0).toFixed(2)}
                                     </p>
                                 </div>
                                 <div className="bg-white/5 p-5 rounded-2xl border border-white/5">

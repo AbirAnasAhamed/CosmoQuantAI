@@ -6,6 +6,7 @@ interface BotStatusUpdate {
     status: 'active' | 'inactive' | 'paused';
     pnl: number;
     pnl_percent: number;
+    total_pnl?: number;
     price: number;
     position: boolean;
 }
@@ -96,6 +97,7 @@ export const useBotStatus = (bot: ActiveBot) => {
                         status: data.status,
                         pnl: data.pnl,
                         pnlPercent: data.pnl_percent,
+                        totalPnl: data.total_pnl !== undefined ? data.total_pnl : prev.totalPnl,
                         // Update market price if available in bot object (optional)
                         // Market price is usually global, but pnl is specific
                     }));
