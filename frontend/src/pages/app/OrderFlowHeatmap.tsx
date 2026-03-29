@@ -769,6 +769,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                         data={trendFinderData} 
                         visible={indicatorSettings.showTrendFinder} 
                         threshold={indicatorSettings.trendFinderThreshold}
+                        hideLowConfidenceTrend={indicatorSettings.hideLowConfidenceTrend}
                     />
                     {showFootprint && <FootprintRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={footprintData} visible={showFootprint} />}
                 </div>

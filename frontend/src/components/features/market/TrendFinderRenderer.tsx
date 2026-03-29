@@ -8,9 +8,10 @@ interface TrendFinderRendererProps {
     data: TrendFinderResult | null;
     visible: boolean;
     threshold: string;
+    hideLowConfidenceTrend: boolean;
 }
 
-export const TrendFinderRenderer: React.FC<TrendFinderRendererProps> = ({ chart, series, data, visible, threshold }) => {
+export const TrendFinderRenderer: React.FC<TrendFinderRendererProps> = ({ chart, series, data, visible, threshold, hideLowConfidenceTrend }) => {
     const midlineRef = useRef<ISeriesApi<'Line'> | null>(null);
     const upperLineRef = useRef<ISeriesApi<'Line'> | null>(null);
     const lowerLineRef = useRef<ISeriesApi<'Line'> | null>(null);
@@ -168,6 +169,15 @@ export const TrendFinderRenderer: React.FC<TrendFinderRendererProps> = ({ chart,
         const currentConf = confidence_levels[data.confidence] || 0.1;
         const targetConf = confidence_levels[threshold] || 0.92;
         const isMet = currentConf >= targetConf;
+        
+        // --- NEW: Hiding logic ---
+        if (hideLowConfidenceTrend && !isMet) {
+            // Clean up lines if they exist
+            if (midlineRef.current) midlineRef.current.setData([]);
+            if (upperLineRef.current) upperLineRef.current.setData([]);
+            if (lowerLineRef.current) lowerLineRef.current.setData([]);
+            return;
+        }
         
         // --- DRAW TOP TREND BADGE ---
         const badgeX = 20;

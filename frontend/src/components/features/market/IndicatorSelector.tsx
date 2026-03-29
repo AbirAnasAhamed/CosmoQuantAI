@@ -22,6 +22,7 @@ export interface IndicatorSettings {
     trendFinderThreshold: string;
     enableTrendFinderVolumeFilter: boolean;
     trendFinderVolumeMultiplier: number;
+    hideLowConfidenceTrend: boolean;
 }
 
 interface IndicatorSelectorProps {
@@ -305,6 +306,17 @@ export const IndicatorSelector: React.FC<IndicatorSelectorProps> = ({ settings, 
                                     <option className="bg-white dark:bg-[#0B1120]" value="Exceptionally Strong">Exceptionally Strong (0.96+)</option>
                                     <option className="bg-white dark:bg-[#0B1120]" value="Ultra Strong">Ultra Strong (0.98+)</option>
                                 </select>
+                           </div>
+                           <div className="flex flex-col gap-1 mt-1">
+                                <label className="flex items-center cursor-pointer group">
+                                    <input
+                                        type="checkbox"
+                                        checked={settings.hideLowConfidenceTrend}
+                                        onChange={() => onSettingsChange({ ...settings, hideLowConfidenceTrend: !settings.hideLowConfidenceTrend })}
+                                        className="w-3.5 h-3.5 text-brand-primary bg-gray-100 border-gray-300 rounded focus:ring-brand-primary dark:focus:ring-brand-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                    />
+                                    <span className="ml-2 text-[10px] font-bold text-gray-500 uppercase group-hover:text-brand-primary transition-colors italic">Hide Below Min. Conf.</span>
+                                </label>
                            </div>
                            <div className="flex flex-col gap-2 mt-2 pt-2 border-t dark:border-white/5">
                                 <label className="flex items-center cursor-pointer group">
