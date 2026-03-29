@@ -25,6 +25,7 @@ class LiquidationService:
         
         # Track active subscriptions and exchanges
         self._active_subscriptions: Dict[str, asyncio.Task] = {}
+        self._sub_counts: Dict[str, int] = {} # Track number of subscribers per sub_id
         self._exchanges: Dict[str, ccxtpro.Exchange] = {}
         self._lock = asyncio.Lock()
 
@@ -146,14 +147,30 @@ class LiquidationService:
             logger.info(f"Stopped CCXT watch_liquidations loop for {exchange.id} {sym}")
 
         async with self._lock:
+            # Update counter
+            self._sub_counts[sub_id] = self._sub_counts.get(sub_id, 0) + 1
+            
             if sub_id not in self._active_subscriptions:
                 try:
                     exchange = await self._get_exchange(exchange_id)
+                    
+                    # Validate symbol exists on the exchange
+                    await exchange.load_markets()
+                    if symbol not in exchange.markets:
+                        logger.error(f"Symbol {symbol} not found on {exchange_id}")
+                        self._sub_counts[sub_id] -= 1 # Rollback counter
+                        return
+
                     task = asyncio.create_task(watch_loop(exchange, symbol))
                     self._active_subscriptions[sub_id] = task
-                    logger.info(f"Subscribed to: {sub_id}")
+                    logger.info(f"Subscribed to: {sub_id} (New task started)")
                 except Exception as e:
                     logger.error(f"Failed to subscribe to {sub_id}: {e}")
+                    # Rollback counter if task failed to start
+                    if sub_id in self._sub_counts:
+                        self._sub_counts[sub_id] -= 1
+                        if self._sub_counts[sub_id] <= 0:
+                            self._sub_counts.pop(sub_id)
 
     async def unsubscribe(self, exchange_id: str, symbol: str):
         """
@@ -164,11 +181,16 @@ class LiquidationService:
 
         sub_id = f"{exchange_id}:{symbol}"
         async with self._lock:
-            if sub_id in self._active_subscriptions:
-                task = self._active_subscriptions.pop(sub_id, None)
-                if task:
-                    task.cancel()
-                logger.info(f"Unsubscribed from: {sub_id}")
+            if sub_id in self._sub_counts:
+                self._sub_counts[sub_id] -= 1
+                logger.info(f"Unsubscribed listener from {sub_id}. Remaining: {self._sub_counts[sub_id]}")
+                
+                if self._sub_counts[sub_id] <= 0:
+                    self._sub_counts.pop(sub_id, None)
+                    task = self._active_subscriptions.pop(sub_id, None)
+                    if task:
+                        task.cancel()
+                        logger.info(f"Stopped background task for: {sub_id}")
 
     async def get_klines(self, symbol: str, interval: str = '15m', limit: int = 50) -> list[Dict[str, Any]]:
         """

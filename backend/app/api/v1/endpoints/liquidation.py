@@ -54,8 +54,10 @@ async def websocket_liquidation_stream(websocket: WebSocket, exchange: str = "bi
         logger.info(f"Client disconnected from Liquidation Stream ({target_exchange}:{target_symbol})")
         if send_to_client in liquidation_service._callbacks:
             liquidation_service._callbacks.remove(send_to_client)
+        await liquidation_service.unsubscribe(target_exchange, target_symbol)
             
     except Exception as e:
         logger.error(f"WebSocket Error: {e}")
         if send_to_client in liquidation_service._callbacks:
             liquidation_service._callbacks.remove(send_to_client)
+        await liquidation_service.unsubscribe(target_exchange, target_symbol)
