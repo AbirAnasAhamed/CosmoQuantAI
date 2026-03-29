@@ -12,7 +12,7 @@ def get_config():
     return block_trade_monitor.get_config()
 
 @router.post("/config", response_model=Dict[str, Any])
-def update_config(payload: Dict[str, Any] = Body(...)):
+async def update_config(payload: Dict[str, Any] = Body(...)):
     """
     Update Block Trade Monitor configuration.
     
@@ -24,7 +24,7 @@ def update_config(payload: Dict[str, Any] = Body(...)):
     }
     """
     try:
-        updated_config = block_trade_monitor.update_config(payload)
+        updated_config = await block_trade_monitor.update_config(payload)
         return updated_config
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))

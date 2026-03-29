@@ -13,9 +13,18 @@ export const useBlockTradeSocket = () => {
         let isMounted = true;
         let reconnectTimeout: NodeJS.Timeout;
 
-        // Correct WS URL based on environment (assuming localhost for dev or relative for prod)
+        // Correct WS URL based on environment
         const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const wsUrl = `${wsProtocol}//${window.location.host}/ws/block_trades`;
+        let host = window.location.host;
+        
+        // If we are in development (localhost:5173), we need to connect to backend on :8000
+        // Unless there is a proxy configured in Vite.
+        // Given the previous analysis, we'll try to guess if we're in dev.
+        if (host.includes('localhost:5173') || host.includes('127.0.0.1:5173')) {
+            host = host.replace('5173', '8000');
+        }
+        
+        const wsUrl = `${wsProtocol}//${host}/ws/block_trades`;
 
         const connect = () => {
             if (!isMounted) return;

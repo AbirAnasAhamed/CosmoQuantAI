@@ -316,15 +316,17 @@ const BlockTradeDetector: React.FC = () => {
                                         Waiting for block trades...
                                     </div>
                                 ) : (
-                                    liveTrades.map((trade, index) => (
-                                        // Using index as part of key because timestamp might collide, but ideally use unique ID from backend
-                                        <TradeRow
-                                            key={`${trade.exchange}-${trade.timestamp}-${index}`}
-                                            trade={trade}
-                                            maxTradeValue={maxTradeValue}
-                                            isNew={index === 0}
-                                        />
-                                    ))
+                                    liveTrades.map((trade, index) => {
+                                        const tradeKey = `${trade.exchange}-${trade.symbol}-${trade.timestamp}-${trade.price}-${trade.amount}-${index}`;
+                                        return (
+                                            <TradeRow
+                                                key={tradeKey}
+                                                trade={trade}
+                                                maxTradeValue={maxTradeValue}
+                                                isNew={index === 0}
+                                            />
+                                        );
+                                    })
                                 )}
                             </div>
                         </div>
@@ -350,9 +352,10 @@ const BlockTradeDetector: React.FC = () => {
                             {whaleTrades.length === 0 ? (
                                 <div className="text-center text-gray-500 text-sm mt-10">No recent whales detected.</div>
                             ) : (
-                                whaleTrades.map((trade, index) => (
-                                    <WhaleMovementRow key={`${trade.exchange}-${trade.timestamp}-${index}`} trade={trade} isNew={index === 0} />
-                                ))
+                                whaleTrades.map((trade, index) => {
+                                    const tradeKey = `whale-${trade.exchange}-${trade.symbol}-${trade.timestamp}-${trade.price}-${trade.amount}-${index}`;
+                                    return <WhaleMovementRow key={tradeKey} trade={trade} isNew={index === 0} />;
+                                })
                             )}
                         </div>
                     </Card>

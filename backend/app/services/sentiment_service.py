@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import or_, and_
 from fastapi import HTTPException, status
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from app.models.sentiment import SentimentPoll
 from app.services.on_chain_service import on_chain_service
 from app.services.websocket_manager import manager
@@ -32,7 +32,7 @@ class SentimentService:
         Casts a sentiment vote with rate limiting (1 vote per user/IP per asset per 24h).
         Broadcasts udpated stats via WebSocket.
         """
-        cutoff_time = datetime.utcnow() - timedelta(hours=24)
+        cutoff_time = datetime.now(timezone.utc) - timedelta(hours=24)
 
         # Build query filters
         # Check against user_id (if logged in) OR ip_address
@@ -71,7 +71,7 @@ class SentimentService:
         
         # Broadcast updated stats
         try:
-            stats = self.get_poll_stats(db)
+            stats = self.get_poll_stats(db, symbol=symbol)
             await manager.broadcast_to_symbol(symbol, {
                 "type": "VOTE_UPDATE", 
                 "data": stats
@@ -81,16 +81,22 @@ class SentimentService:
 
         return new_vote
 
-    def get_poll_stats(self, db: Session) -> dict:
+    def get_poll_stats(self, db: Session, symbol: str | None = None) -> dict:
         """
         Get percentage of Bullish vs Bearish votes for the last 24h.
+        If symbol is provided, filter by that symbol.
         """
-        last_24h = datetime.utcnow() - timedelta(hours=24)
+        last_24h = datetime.now(timezone.utc) - timedelta(hours=24)
         
+        # Base filters
+        filters = [SentimentPoll.timestamp >= last_24h]
+        if symbol:
+            filters.append(SentimentPoll.symbol == symbol)
+            
         # Count votes
-        total_votes = db.query(SentimentPoll).filter(SentimentPoll.timestamp >= last_24h).count()
+        total_votes = db.query(SentimentPoll).filter(and_(*filters)).count()
         bullish_votes = db.query(SentimentPoll).filter(
-            SentimentPoll.timestamp >= last_24h, 
+            and_(*filters), 
             SentimentPoll.vote_type == 'bullish'
         ).count()
         

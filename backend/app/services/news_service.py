@@ -2,7 +2,7 @@ import httpx
 import asyncio
 import feedparser
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 import pandas as pd
 import random
@@ -202,7 +202,7 @@ class NewsService:
                         source=item['source'],
                         link=item['url'],
                         image_url="",
-                        published_at=item.get('published_at', datetime.now()),
+                        published_at=item.get('published_at', datetime.now(timezone.utc)),
                         impact_level=impact_data['level'],
                         impact_score=impact_data['score']
                     )
@@ -432,8 +432,14 @@ class NewsService:
             score = analysis_result['score']
             label = analysis_result['label']
             
+            # --- NEW STABLE ID ---
+            # abs(hash(title)) is unstable in Python 3.3+ (hash randomization)
+            # Using SHA256 of the link or title for persistence.
+            item_id_source = link if link else title
+            stable_id = hashlib.sha256(item_id_source.encode('utf-8')).hexdigest()[:12]
+            
             news_item = {
-                "id": f"gn_{abs(hash(title))}",
+                "id": f"gn_{stable_id}",
                 "source": source,
                 "content": title, 
                 "translated_content": title_en if is_translated else None,
@@ -542,7 +548,7 @@ class NewsService:
                 "content": "Bitcoin shows resilience above $95k despite global uncertainty.",
                 "url": "#",
                 "sentiment": "Positive",
-                "timestamp": datetime.now().strftime("%a, %d %b %Y %H:%M:%S GMT"),
+                "timestamp": datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT"),
                 "type": "news"
             },
             {
@@ -551,7 +557,7 @@ class NewsService:
                 "content": "Ethereum network activity surges to new highs.",
                 "url": "#",
                 "sentiment": "Positive",
-                "timestamp": datetime.now().strftime("%a, %d %b %Y %H:%M:%S GMT"),
+                "timestamp": datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT"),
                 "type": "news"
             },
             {
@@ -560,7 +566,7 @@ class NewsService:
                 "content": "Analysts warn of potential short-term volatility in altcoins.",
                 "url": "#",
                 "sentiment": "Negative",
-                "timestamp": datetime.now().strftime("%a, %d %b %Y %H:%M:%S GMT"),
+                "timestamp": datetime.now(timezone.utc).strftime("%a, %d %b %Y %H:%M:%S GMT"),
                 "type": "news"
             }
         ]
@@ -568,7 +574,7 @@ class NewsService:
     # And fix the pandas freq
     def _get_mock_historical_data(self, days):
         """Returns dummy historical sentiment for charts"""
-        dates = pd.date_range(end=datetime.now(), periods=days*24, freq='h')
+        dates = pd.date_range(end=datetime.now(timezone.utc), periods=days*24, freq='h')
         data = [random.uniform(-0.5, 0.5) for _ in range(len(dates))]
         df = pd.DataFrame(data, index=dates, columns=['score'])
         return df

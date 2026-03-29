@@ -4,7 +4,7 @@ from pydantic import BaseModel
 
 # SentimentPoll Schemas
 class SentimentPollBase(BaseModel):
-    user_id: int
+    user_id: Optional[int] = None
     symbol: str = "BTC/USDT" # Default to BTC/USDT if not provided to avoid breaking existing frontend
     vote_type: str  # 'bullish' or 'bearish'
 

@@ -18,7 +18,7 @@ class BlockTradeMonitor:
         self.config = self._load_config()
         self.exchanges = {}
         self.error_counts = {}
-        self._initialize_exchanges()
+        # Exchanges initialization will happen on first fetch or worker start
 
     def _load_config(self) -> Dict:
         """Loads configuration from a JSON file or sets defaults."""
@@ -48,8 +48,11 @@ class BlockTradeMonitor:
         except Exception as e:
             logger.error(f"Error saving config: {e}")
 
-    def _initialize_exchanges(self):
-        """Initializes CCXT exchange instances based on configuration."""
+    async def initialize_exchanges(self):
+        """Initializes CCXT exchange instances based on configuration (Async)."""
+        # Close existing first to avoid leaks
+        await self.close_exchanges()
+        
         self.exchanges = {}
         for exchange_id in self.config.get("active_exchanges", []):
             try:
@@ -77,18 +80,14 @@ class BlockTradeMonitor:
             except Exception as e:
                 logger.error(f"Error closing {name}: {e}")
 
-    def update_config(self, new_config: Dict):
+    async def update_config(self, new_config: Dict):
         """Updates the configuration and re-initializes exchanges if needed."""
         self.config.update(new_config)
         self._save_config(self.config)
         
         # Re-initialize only if active_exchanges changed
         if "active_exchanges" in new_config:
-            # We need to close existing ones first, but since this is sync and they are async,
-            # we might leave dangling sessions if we just overwrite.
-            # ideally this method should be async or schedule a close task.
-            # For now, we will just re-init (old objects will be GC'd but might leave open connections)
-             self._initialize_exchanges()
+             await self.initialize_exchanges()
             
         return self.config
 
@@ -111,18 +110,15 @@ class BlockTradeMonitor:
 
     async def fetch_recent_trades(self, symbol: str, limit: int = 100) -> Dict[str, List[Dict]]:
         """
-        Fetches recent trades from all active exchanges for a given symbol.
+        Fetches recent trades from all active exchanges for a given symbol in parallel.
         Filters trades based on min_block_value.
         """
-        all_block_trades = {}
+        if not self.exchanges:
+            await self.initialize_exchanges()
 
-        for exchange_id, exchange in self.exchanges.items():
-            # logger.info(f"Fetching trades from {exchange_id} for {symbol}...")
+        async def fetch_from_exchange(exchange_id, exchange):
             try:
-                # CCXT Unified API (Async)
                 trades = await exchange.fetch_trades(symbol, limit=limit)
-                
-                # Reset error count on success
                 self.error_counts[exchange_id] = 0
                 
                 block_trades = []
@@ -134,11 +130,9 @@ class BlockTradeMonitor:
                     if cost is None or cost == 0:
                         cost = price * amount
 
-                    # Filter Logic
                     if cost >= self.config["min_block_value"]:
                         is_whale = cost >= self.config["whale_value"]
-                        
-                        trade_data = {
+                        block_trades.append({
                             "exchange": exchange_id,
                             "symbol": symbol,
                             "price": price,
@@ -148,15 +142,17 @@ class BlockTradeMonitor:
                             "timestamp": trade.get('timestamp'),
                             "datetime": trade.get('datetime'),
                             "is_whale": is_whale
-                        }
-                        block_trades.append(trade_data)
-                
-                if block_trades:
-                    all_block_trades[exchange_id] = block_trades
-                    
+                        })
+                return exchange_id, block_trades
             except Exception as e:
                 self._handle_exchange_error(exchange_id, e)
-                
+                return exchange_id, []
+
+        # Use gather for parallel fetching
+        tasks = [fetch_from_exchange(id, ex) for id, ex in self.exchanges.items()]
+        results = await asyncio.gather(*tasks)
+        
+        all_block_trades = {id: trades for id, trades in results if trades}
         return all_block_trades
 
 block_trade_monitor = BlockTradeMonitor()

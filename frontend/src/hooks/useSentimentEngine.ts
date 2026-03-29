@@ -171,7 +171,10 @@ export const useSentimentEngine = () => {
             localStorage.setItem('sentiment_heatmap', JSON.stringify(hData));
 
             // --- E. Fetch New Features ---
-            const pollRes = await api.get('/sentiment/poll-stats', { signal });
+            const pollRes = await api.get('/sentiment/poll-stats', { 
+                params: { symbol: activePair },
+                signal 
+            });
             setPollStats(pollRes.data);
 
             const inflRes = await api.get('/sentiment/influencers', { signal });
@@ -236,9 +239,10 @@ export const useSentimentEngine = () => {
 
     const handleVote = async (type: 'bullish' | 'bearish') => {
         try {
-            await api.post('/sentiment/poll', { user_id: 1, vote_type: type });
+            // user_id is now optional (Guest Mode supported by backend)
+            await api.post('/sentiment/poll', { symbol: activePair, vote_type: type });
             showToast('Vote Registered!', 'success');
-            const pollRes = await api.get('/sentiment/poll-stats');
+            const pollRes = await api.get('/sentiment/poll-stats', { params: { symbol: activePair } });
             setPollStats(pollRes.data);
         } catch (error) {
             console.error("Vote error:", error);
