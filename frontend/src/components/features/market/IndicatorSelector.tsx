@@ -19,6 +19,9 @@ export interface IndicatorSettings {
     displacement: number;
     trendFinderLookback: number;
     trendFinderDev: number;
+    trendFinderThreshold: string;
+    enableTrendFinderVolumeFilter: boolean;
+    trendFinderVolumeMultiplier: number;
 }
 
 interface IndicatorSelectorProps {
@@ -28,7 +31,12 @@ interface IndicatorSelectorProps {
 
 export const IndicatorSelector: React.FC<IndicatorSelectorProps> = ({ settings, onSettingsChange }) => {
     const [isOpen, setIsOpen] = useState(false);
+    const [multiplierLocal, setMultiplierLocal] = useState(settings.trendFinderVolumeMultiplier?.toString() || '1.5');
     const dropdownRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        setMultiplierLocal(settings.trendFinderVolumeMultiplier?.toString() || '1.5');
+    }, [settings.trendFinderVolumeMultiplier]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -281,6 +289,54 @@ export const IndicatorSelector: React.FC<IndicatorSelectorProps> = ({ settings, 
                                         min={0.1} max={5.0} step={0.1}
                                     />
                                 </div>
+                           </div>
+                           <div className="flex flex-col gap-1 mt-1">
+                                <label className="text-gray-500 text-[10px] font-bold uppercase">Min. Confidence:</label>
+                                <select 
+                                    className="w-full bg-gray-100 dark:bg-white/10 border border-transparent dark:border-white/5 rounded p-1 text-gray-700 dark:text-gray-200 text-[10px] focus:outline-none focus:border-brand-primary"
+                                    value={settings.trendFinderThreshold || 'Strong'}
+                                    onChange={(e) => onSettingsChange({ ...settings, trendFinderThreshold: e.target.value })}
+                                >
+                                    <option className="bg-white dark:bg-[#0B1120]" value="Moderate">Moderate (0.7+)</option>
+                                    <option className="bg-white dark:bg-[#0B1120]" value="Moderately Strong">Moderately Strong (0.8+)</option>
+                                    <option className="bg-white dark:bg-[#0B1120]" value="Mostly Strong">Mostly Strong (0.9+)</option>
+                                    <option className="bg-white dark:bg-[#0B1120]" value="Strong">Strong (0.92+)</option>
+                                    <option className="bg-white dark:bg-[#0B1120]" value="Very Strong">Very Strong (0.94+)</option>
+                                    <option className="bg-white dark:bg-[#0B1120]" value="Exceptionally Strong">Exceptionally Strong (0.96+)</option>
+                                    <option className="bg-white dark:bg-[#0B1120]" value="Ultra Strong">Ultra Strong (0.98+)</option>
+                                </select>
+                           </div>
+                           <div className="flex flex-col gap-2 mt-2 pt-2 border-t dark:border-white/5">
+                                <label className="flex items-center cursor-pointer group">
+                                    <input
+                                        type="checkbox"
+                                        checked={settings.enableTrendFinderVolumeFilter}
+                                        onChange={() => onSettingsChange({ ...settings, enableTrendFinderVolumeFilter: !settings.enableTrendFinderVolumeFilter })}
+                                        className="w-3.5 h-3.5 text-brand-primary bg-gray-100 border-gray-300 rounded focus:ring-brand-primary dark:focus:ring-brand-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                    />
+                                    <span className="ml-2 text-[10px] font-bold text-gray-500 uppercase group-hover:text-brand-primary transition-colors italic">Volume Filter (Confirmation)</span>
+                                </label>
+                                {settings.enableTrendFinderVolumeFilter && (
+                                    <div className="flex items-center justify-between bg-gray-100 dark:bg-white/5 p-1.5 rounded animate-fadeIn">
+                                        <span className="text-[10px] text-gray-500">Multiplier:</span>
+                                        <input
+                                            type="text"
+                                            value={multiplierLocal}
+                                            onChange={(e) => {
+                                                const val = e.target.value;
+                                                if (val === '' || /^\d*\.?\d*$/.test(val)) {
+                                                    setMultiplierLocal(val);
+                                                    const num = parseFloat(val);
+                                                    if (!isNaN(num)) {
+                                                        onSettingsChange({ ...settings, trendFinderVolumeMultiplier: num });
+                                                    }
+                                                }
+                                            }}
+                                            className="w-12 bg-transparent text-gray-700 dark:text-gray-200 focus:outline-none text-[10px] text-right font-mono"
+                                            placeholder="1.5"
+                                        />
+                                    </div>
+                                )}
                            </div>
                          </div>
                     </div>

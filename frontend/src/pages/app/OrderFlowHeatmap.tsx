@@ -522,7 +522,10 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         const result = calculateAdaptiveTrendFinder(
             allCandlesRef.current,
             indicatorSettings.trendFinderLookback,
-            indicatorSettings.trendFinderDev
+            indicatorSettings.trendFinderDev,
+            indicatorSettings.trendFinderThreshold,
+            indicatorSettings.enableTrendFinderVolumeFilter,
+            indicatorSettings.trendFinderVolumeMultiplier
         );
         setTrendFinderData(result);
     }, [
@@ -760,7 +763,13 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                     <LiquidityHeatmapRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={realHeatmapData} />
                     <FibonacciCloudRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={fiboData} />
                     <IchimokuRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={ichimokuData} displacement={indicatorSettings.displacement} />
-                    <TrendFinderRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={trendFinderData} visible={indicatorSettings.showTrendFinder} />
+                    <TrendFinderRenderer 
+                        chart={chartRef.current} 
+                        series={candlestickSeriesRef.current} 
+                        data={trendFinderData} 
+                        visible={indicatorSettings.showTrendFinder} 
+                        threshold={indicatorSettings.trendFinderThreshold}
+                    />
                     {showFootprint && <FootprintRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={footprintData} visible={showFootprint} />}
                 </div>
                 <VolumeProfileWidget chart={chartRef.current} series={candlestickSeriesRef.current} data={vpvrData} />

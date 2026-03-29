@@ -310,6 +310,9 @@ export interface TrendFinderResult {
     confidence: string;
     points: TrendFinderDataPoint[];
     trendDirection: 'bullish' | 'bearish' | 'neutral';
+    volumeConfirmed: boolean;
+    currentVolume: number;
+    requiredVolume: number;
 }
 
 export const getTrendConfidence = (pearsonR: number): string => {
@@ -330,9 +333,12 @@ export const getTrendConfidence = (pearsonR: number): string => {
 };
 
 export const calculateAdaptiveTrendFinder = (
-    data: { time: any; close: number }[],
+    data: { time: any; close: number; volume?: number }[],
     lookback: number = 200,
-    devMultiplier: number = 2.0
+    devMultiplier: number = 2.0,
+    threshold: string = 'Strong',
+    enableVolumeFilter: boolean = false,
+    volumeMultiplier: number = 1.5
 ): TrendFinderResult | null => {
     const periods = [lookback];
     
@@ -444,6 +450,22 @@ export const calculateAdaptiveTrendFinder = (
     // We generated points from latest (index 0) to oldest. Reverse to match data order.
     points.reverse();
 
+    // --- VOLUME CONFIRMATION LOGIC ---
+    let volumeConfirmed = true;
+    let currentVol = 0;
+    let avgVol = 0;
+
+    if (data.length >= 1) {
+        currentVol = data[data.length - 1].volume || 0;
+    }
+
+    if (enableVolumeFilter && data.length >= 2) {
+        // Calculate average volume over the lookback period
+        const volSamples = data.slice(-bestPeriod);
+        avgVol = volSamples.reduce((sum, p) => sum + (p.volume || 0), 0) / bestPeriod;
+        volumeConfirmed = currentVol >= (avgVol * volumeMultiplier);
+    }
+
     return {
         period: bestPeriod,
         stdDev: bestStdDev,
@@ -452,6 +474,9 @@ export const calculateAdaptiveTrendFinder = (
         intercept: detectedIntercept,
         confidence: getTrendConfidence(bestPearsonR),
         points,
-        trendDirection: detectedSlope > 0 ? 'bearish' : detectedSlope < 0 ? 'bullish' : 'neutral'
+        trendDirection: detectedSlope > 0 ? 'bearish' : detectedSlope < 0 ? 'bullish' : 'neutral',
+        volumeConfirmed,
+        currentVolume: currentVol,
+        requiredVolume: avgVol * (volumeMultiplier || 1.5)
     };
 };
