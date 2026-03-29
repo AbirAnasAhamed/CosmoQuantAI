@@ -758,12 +758,22 @@ class WallHunterBot:
                 await asyncio.sleep(1)
 
     async def execute_snipe(self, wall_price: float, side: str, current_mid_price: float, best_bid: float = None, best_ask: float = None):
-        # We must base our marketable execution on the opposing side of the orderbook
-        # to ensure it crosses the spread and gets filled as a Taker.
-        if side == "buy":
-            base_limit_price = best_ask if best_ask else current_mid_price
+        # Select correct entry order type depending on the strategy mode
+        snipe_order_type = self.sell_order_type if getattr(self, 'strategy_mode', 'long') == 'short' else self.buy_order_type
+        
+        # Determine Maker vs Taker pricing based on the chosen entry order type
+        if snipe_order_type == "limit":
+            # True Maker Limit Order: stay on the same side of the book
+            if side == "buy":
+                base_limit_price = best_bid if best_bid else current_mid_price
+            else:
+                base_limit_price = best_ask if best_ask else current_mid_price
         else:
-            base_limit_price = best_bid if best_bid else current_mid_price
+            # Taker Execution (Market or Marketable Limit): cross the spread
+            if side == "buy":
+                base_limit_price = best_ask if best_ask else current_mid_price
+            else:
+                base_limit_price = best_bid if best_bid else current_mid_price
             
         entry_price = base_limit_price
         
@@ -780,10 +790,8 @@ class WallHunterBot:
         # Using mid_price prevents instant fake TP triggers.
         execution_price = current_mid_price if self.is_paper_trading else entry_price
         
-        self.logger.info(f"⚡ [WallHunter {self.bot_id}] Executing Snipe: {side.upper()} {base_amount} {self.symbol} at {execution_price}")
+        self.logger.info(f"⚡ [WallHunter {self.bot_id}] Executing Snipe: {side.upper()} {base_amount} {self.symbol} at {execution_price} (Order Type: {snipe_order_type.upper()})")
         
-        # Select correct entry order type depending on the strategy mode
-        snipe_order_type = self.sell_order_type if getattr(self, 'strategy_mode', 'long') == 'short' else self.buy_order_type
         if snipe_order_type == "marketable_limit":
              # "marketable_limit" is a special instruction for our engine to use LIMIT with buffer on MEXC
              # but we pass "market" to it so it knows to apply the conversion logic if it's MEXC
@@ -798,12 +806,18 @@ class WallHunterBot:
             if entry_type in ['limit', 'marketable_limit'] and res.get('id') and not self.is_paper_trading:
                 try:
                     order_status = None
-                    for _ in range(5):
-                        await asyncio.sleep(0.4)
+                    # For Maker Limit, wait 30 seconds (60 * 0.5s). For Marketable Limit, wait 2 seconds (5 * 0.4s).
+                    max_attempts = 60 if snipe_order_type == "limit" else 5
+                    sleep_time = 0.5 if snipe_order_type == "limit" else 0.4
+                    
+                    for attempt in range(max_attempts):
+                        await asyncio.sleep(sleep_time)
                         try:
-                            order_status = await self.engine.exchange.fetch_order(res['id'], self.symbol)
-                            if order_status and order_status.get('status') != 'open':
-                                break
+                            # To avoid CCXT rate limits on long 30s waits, only fetch every ~1.5 seconds
+                            if attempt % 3 == 0 or max_attempts <= 5:
+                                order_status = await self.engine.exchange.fetch_order(res['id'], self.symbol)
+                                if order_status and order_status.get('status') != 'open':
+                                    break
                         except Exception: pass
                     
                     if order_status and order_status.get('status') == 'open':
@@ -872,7 +886,8 @@ class WallHunterBot:
                 self.lowest_price = actual_entry
                 
                 close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
-                close_amount = (base_amount * actual_entry * 0.995) / tp_price if getattr(self, 'strategy_mode', 'long') == "short" else base_amount
+                # For long spot mode, we multiply by 0.998 to leave a small buffer for Binance trading fees (0.1%) to prevent Insufficient Balance errors
+                close_amount = (base_amount * actual_entry * 0.995) / tp_price if getattr(self, 'strategy_mode', 'long') == "short" else (base_amount * 0.998)
                 
                 limit_res = await self.engine.execute_trade(close_side, close_amount, tp_price, order_type="limit")
                 if limit_res and 'id' in limit_res:
@@ -910,7 +925,7 @@ class WallHunterBot:
                 exit_order_type = self.buy_order_type if getattr(self, 'strategy_mode', 'long') == "short" else self.sell_order_type
                 if exit_order_type == 'limit':
                     close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
-                    close_amount = (base_amount * actual_entry * 0.995) / self.active_pos['tp'] if getattr(self, 'strategy_mode', 'long') == "short" else base_amount
+                    close_amount = (base_amount * actual_entry * 0.995) / self.active_pos['tp'] if getattr(self, 'strategy_mode', 'long') == "short" else (base_amount * 0.998)
                     limit_res = await self.engine.execute_trade(close_side, close_amount, self.active_pos['tp'], order_type="limit")
                     if limit_res and 'id' in limit_res:
                         self.active_pos['limit_order_id'] = limit_res['id']
