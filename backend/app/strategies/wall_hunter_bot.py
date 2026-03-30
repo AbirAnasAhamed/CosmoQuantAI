@@ -886,8 +886,7 @@ class WallHunterBot:
                 self.lowest_price = actual_entry
                 
                 close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
-                # For long spot mode, we multiply by 0.998 to leave a small buffer for Binance trading fees (0.1%) to prevent Insufficient Balance errors
-                close_amount = (base_amount * actual_entry * 0.995) / tp_price if getattr(self, 'strategy_mode', 'long') == "short" else (base_amount * 0.998)
+                close_amount = (base_amount * actual_entry * 0.995) / tp_price if getattr(self, 'strategy_mode', 'long') == "short" else base_amount
                 
                 limit_res = await self.engine.execute_trade(close_side, close_amount, tp_price, order_type="limit")
                 if limit_res and 'id' in limit_res:
@@ -925,7 +924,7 @@ class WallHunterBot:
                 exit_order_type = self.buy_order_type if getattr(self, 'strategy_mode', 'long') == "short" else self.sell_order_type
                 if exit_order_type == 'limit':
                     close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
-                    close_amount = (base_amount * actual_entry * 0.995) / self.active_pos['tp'] if getattr(self, 'strategy_mode', 'long') == "short" else (base_amount * 0.998)
+                    close_amount = (base_amount * actual_entry * 0.995) / self.active_pos['tp'] if getattr(self, 'strategy_mode', 'long') == "short" else base_amount
                     limit_res = await self.engine.execute_trade(close_side, close_amount, self.active_pos['tp'], order_type="limit")
                     if limit_res and 'id' in limit_res:
                         self.active_pos['limit_order_id'] = limit_res['id']
