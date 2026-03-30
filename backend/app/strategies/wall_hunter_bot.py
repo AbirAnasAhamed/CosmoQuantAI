@@ -797,7 +797,9 @@ class WallHunterBot:
              # but we pass "market" to it so it knows to apply the conversion logic if it's MEXC
              snipe_order_type = "market"
              
-        res = await self.engine.execute_trade(side, base_amount, execution_price, order_type=snipe_order_type)
+        order_params = {"postOnly": True} if snipe_order_type == "limit" else {}
+             
+        res = await self.engine.execute_trade(side, base_amount, execution_price, order_type=snipe_order_type, params=order_params)
         if res:
             self.logger.info(f"✅ [WallHunter {self.bot_id}] Trade executed successfully. Order ID: {res.get('id')}")
             
@@ -888,7 +890,7 @@ class WallHunterBot:
                 close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
                 close_amount = (base_amount * actual_entry * 0.995) / tp_price if getattr(self, 'strategy_mode', 'long') == "short" else base_amount
                 
-                limit_res = await self.engine.execute_trade(close_side, close_amount, tp_price, order_type="limit")
+                limit_res = await self.engine.execute_trade(close_side, close_amount, tp_price, order_type="limit", params={"postOnly": True})
                 if limit_res and 'id' in limit_res:
                     self.active_pos['limit_order_id'] = limit_res['id']
                     self.logger.info(f"⚡ Micro-Scalp: Placed Limit TP Order {limit_res['id']} at {tp_price}")
@@ -925,7 +927,7 @@ class WallHunterBot:
                 if exit_order_type == 'limit':
                     close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"
                     close_amount = (base_amount * actual_entry * 0.995) / self.active_pos['tp'] if getattr(self, 'strategy_mode', 'long') == "short" else base_amount
-                    limit_res = await self.engine.execute_trade(close_side, close_amount, self.active_pos['tp'], order_type="limit")
+                    limit_res = await self.engine.execute_trade(close_side, close_amount, self.active_pos['tp'], order_type="limit", params={"postOnly": True})
                     if limit_res and 'id' in limit_res:
                         self.active_pos['limit_order_id'] = limit_res['id']
                         self.logger.info(f"Placed Limit TP Order {limit_res['id']} at {self.active_pos['tp']}")
@@ -1133,7 +1135,7 @@ class WallHunterBot:
 
             res = None
             if exit_order_type_actual == 'limit':
-                res = await self.engine.execute_trade(close_side, sell_amount, self.active_pos['tp1'], order_type="limit")
+                res = await self.engine.execute_trade(close_side, sell_amount, self.active_pos['tp1'], order_type="limit", params={"postOnly": True})
                 if res:
                     self.logger.info(f"Placed Limit Order for Partial TP at {self.active_pos['tp1']}")
                 if res and self.is_paper_trading:
@@ -1152,7 +1154,7 @@ class WallHunterBot:
                     # Only replace limit if not fully closed
                     if remaining_raw > 0.00000001:
                         rem_close_amount_raw = (remaining_raw * self.active_pos['entry'] * 0.99) / self.active_pos['tp'] if getattr(self, 'strategy_mode', 'long') == "short" else remaining_raw
-                        limit_res = await self.engine.execute_trade(close_side, rem_close_amount_raw, self.active_pos['tp'], order_type="limit")
+                        limit_res = await self.engine.execute_trade(close_side, rem_close_amount_raw, self.active_pos['tp'], order_type="limit", params={"postOnly": True})
                         if limit_res and 'id' in limit_res:
                             self.active_pos['limit_order_id'] = limit_res['id']
                 except Exception as e:
