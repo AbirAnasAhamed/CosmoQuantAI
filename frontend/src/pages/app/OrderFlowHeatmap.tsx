@@ -122,7 +122,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
     const [wickSRData, setWickSRData] = useState<WickSRResult | null>(null);
     const [wickSRCandles, setWickSRCandles] = useState<any[]>([]);
     const [bbData, setBbData] = useState<BollingerBandsDataPoint[]>([]);
-    
+
     // Default to the right side (rough estimate, can be adjusted by screen size)
     const [quantumAiHudPos, setQuantumAiHudPos] = useState(() => {
         const savedPos = localStorage.getItem('quantumAiHudPos');
@@ -247,7 +247,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         const bbLowerSeries = chart.addSeries(LineSeries, { color: 'rgba(56, 189, 248, 0.5)', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceScaleId: 'right' });
         const utBotSeries = chart.addSeries(LineSeries, { color: '#00ffff', lineWidth: 1, lineStyle: LineStyle.Solid, crosshairMarkerVisible: false, lastValueVisible: false, priceScaleId: 'right' });
         const rsiSeries = chart.addSeries(LineSeries, { color: '#db2777', lineWidth: 2, priceScaleId: 'left', crosshairMarkerVisible: false, lastValueVisible: false });
-        
+
         const volumeSeries = chart.addSeries(HistogramSeries, {
             color: '#26a69a',
             priceFormat: {
@@ -286,7 +286,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                     interval,
                     200
                 );
-                
+
                 if (!isMounted) return;
 
                 const candles = data.map((k: any) => ({
@@ -335,7 +335,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                         if (indicatorSettings.showUTBot && utBotSeriesRef.current) {
                             const utData = calculateUTBotAlerts(candles, indicatorSettings.utBotSensitivity, indicatorSettings.utBotAtrPeriod, indicatorSettings.utBotUseHeikinAshi);
                             utBotSeriesRef.current.setData(utData.map(d => ({ time: d.time, value: d.trailingStop })) as any);
-                            
+
                             // Apply default colors
                             const newCandles = candles.map(c => {
                                 const utPoint = utData.find(d => d.time === c.time);
@@ -347,7 +347,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                             });
                             candlestickSeriesRef.current.setData(newCandles);
                             allCandlesRef.current = newCandles;
-                            
+
                             utBotMarkersRef.current = utData.filter(d => d.isBuy || d.isSell).map(d => ({
                                 time: d.time,
                                 position: d.isBuy ? 'belowBar' : 'aboveBar',
@@ -412,11 +412,11 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         bbLowerSeriesRef.current.applyOptions({ visible: showBB });
         rsiSeriesRef.current.applyOptions({ visible: indicatorSettings.showRSI });
         if (utBotSeriesRef.current) utBotSeriesRef.current.applyOptions({ visible: indicatorSettings.showUTBot });
-        
+
         if (chartRef.current) {
             chartRef.current.priceScale('left').applyOptions({ visible: indicatorSettings.showRSI || indicatorSettings.showMACD });
         }
-        
+
         if (volumeSeriesRef.current) {
             volumeSeriesRef.current.applyOptions({ visible: indicatorSettings.showVolume });
         }
@@ -436,38 +436,38 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         if (indicatorSettings.showRSI) {
             rsiSeriesRef.current.setData(calculateRSI(data, indicatorSettings.rsiPeriod) as any);
         }
-        
+
         if (indicatorSettings.showUTBot && utBotSeriesRef.current) {
-           const utData = calculateUTBotAlerts(data, indicatorSettings.utBotSensitivity, indicatorSettings.utBotAtrPeriod, indicatorSettings.utBotUseHeikinAshi);
-           utBotSeriesRef.current.setData(utData.map(d => ({ time: d.time, value: d.trailingStop })) as any);
-           
-           const newCandles = data.map(c => {
-               const utPoint = utData.find(d => d.time === c.time);
-               if (utPoint) {
+            const utData = calculateUTBotAlerts(data, indicatorSettings.utBotSensitivity, indicatorSettings.utBotAtrPeriod, indicatorSettings.utBotUseHeikinAshi);
+            utBotSeriesRef.current.setData(utData.map(d => ({ time: d.time, value: d.trailingStop })) as any);
+
+            const newCandles = data.map(c => {
+                const utPoint = utData.find(d => d.time === c.time);
+                if (utPoint) {
                     const color = utPoint.color === 'green' ? '#22c55e' : utPoint.color === 'red' ? '#ef4444' : '#3b82f6';
                     return { ...c, color, wickColor: color };
-               }
-               return c;
-           });
-           candlestickSeriesRef.current?.setData(newCandles);
-           allCandlesRef.current = newCandles;
-           
-           utBotMarkersRef.current = utData.filter(d => d.isBuy || d.isSell).map(d => ({
-               time: d.time,
-               position: d.isBuy ? 'belowBar' : 'aboveBar',
-               color: d.isBuy ? '#22c55e' : '#ef4444',
-               shape: d.isBuy ? 'arrowUp' : 'arrowDown',
-               text: d.isBuy ? 'BUY' : 'SELL'
-           }));
-           
-           setTimeout(safeSetMarkers, 50);
+                }
+                return c;
+            });
+            candlestickSeriesRef.current?.setData(newCandles);
+            allCandlesRef.current = newCandles;
+
+            utBotMarkersRef.current = utData.filter(d => d.isBuy || d.isSell).map(d => ({
+                time: d.time,
+                position: d.isBuy ? 'belowBar' : 'aboveBar',
+                color: d.isBuy ? '#22c55e' : '#ef4444',
+                shape: d.isBuy ? 'arrowUp' : 'arrowDown',
+                text: d.isBuy ? 'BUY' : 'SELL'
+            }));
+
+            setTimeout(safeSetMarkers, 50);
         } else if (!indicatorSettings.showUTBot && utBotSeriesRef.current) {
-           const newCandles = data.map(c => ({ ...c, color: undefined, wickColor: undefined }));
-           candlestickSeriesRef.current?.setData(newCandles);
-           allCandlesRef.current = newCandles;
-           utBotMarkersRef.current = [];
-           
-           setTimeout(safeSetMarkers, 50);
+            const newCandles = data.map(c => ({ ...c, color: undefined, wickColor: undefined }));
+            candlestickSeriesRef.current?.setData(newCandles);
+            allCandlesRef.current = newCandles;
+            utBotMarkersRef.current = [];
+
+            setTimeout(safeSetMarkers, 50);
         }
 
     }, [indicatorSettings]);
@@ -667,9 +667,9 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             if (candles.length < 10) return;
             try {
                 const result = calculateSupertrend(
-                    candles, 
-                    indicatorSettings.supertrendAtrPeriod, 
-                    indicatorSettings.supertrendMultiplier, 
+                    candles,
+                    indicatorSettings.supertrendAtrPeriod,
+                    indicatorSettings.supertrendMultiplier,
                     indicatorSettings.supertrendChangeATR
                 );
                 setSupertrendData(result);
@@ -730,7 +730,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                 if (!isMounted) return;
 
                 const formatted = data.map((k: any) => ({
-                    time: k.time, open: parseFloat(k.open), high: parseFloat(k.high), 
+                    time: k.time, open: parseFloat(k.open), high: parseFloat(k.high),
                     low: parseFloat(k.low), close: parseFloat(k.close), volume: parseFloat(k.volume || 100)
                 }));
                 setWickSRCandles(formatted);
@@ -797,26 +797,26 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             ...quantumAiMarkersRef.current,
             ...patternMarkersRef.current,
         ];
-        
+
         const grouped = allMarkers.reduce((acc, curr) => {
-             if (!acc[curr.time]) acc[curr.time] = [];
-             acc[curr.time].push(curr);
-             return acc;
+            if (!acc[curr.time]) acc[curr.time] = [];
+            acc[curr.time].push(curr);
+            return acc;
         }, {} as Record<string, any[]>);
-        
+
         const deduplicatedMarkers = Object.keys(grouped).map(timeStr => {
-             const items = grouped[timeStr];
-             const bullItems = items.filter(i => i.position === 'belowBar');
-             const bearItems = items.filter(i => i.position === 'aboveBar');
-             const inItems = items.filter(i => i.position === 'inBar');
-             
-             const final = [];
-             if (bullItems.length > 0) final.push({ ...bullItems[0], text: Array.from(new Set(bullItems.map(i => i.text))).filter(t => t).join(', ') });
-             if (bearItems.length > 0) final.push({ ...bearItems[0], text: Array.from(new Set(bearItems.map(i => i.text))).filter(t => t).join(', ') });
-             if (inItems.length > 0) final.push({ ...inItems[0], text: Array.from(new Set(inItems.map(i => i.text))).filter(t => t).join(', ') });
-             return final;
+            const items = grouped[timeStr];
+            const bullItems = items.filter(i => i.position === 'belowBar');
+            const bearItems = items.filter(i => i.position === 'aboveBar');
+            const inItems = items.filter(i => i.position === 'inBar');
+
+            const final = [];
+            if (bullItems.length > 0) final.push({ ...bullItems[0], text: Array.from(new Set(bullItems.map(i => i.text))).filter(t => t).join(', ') });
+            if (bearItems.length > 0) final.push({ ...bearItems[0], text: Array.from(new Set(bearItems.map(i => i.text))).filter(t => t).join(', ') });
+            if (inItems.length > 0) final.push({ ...inItems[0], text: Array.from(new Set(inItems.map(i => i.text))).filter(t => t).join(', ') });
+            return final;
         }).flat().sort((a, b) => a.time - b.time);
-        
+
         try {
             markersPluginRef.current.setMarkers(deduplicatedMarkers);
         } catch (err) {
@@ -837,8 +837,8 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                     position: d.bullEntry ? 'belowBar' : 'aboveBar',
                     color: d.bullEntry ? '#a855f7' : '#ec4899', // purple for bull, pink for bear
                     shape: d.bullEntry ? 'arrowUp' : 'arrowDown',
-                    text: d.bullEntry 
-                        ? `⚡ ${Math.round(d.bullConfidence)}%` 
+                    text: d.bullEntry
+                        ? `⚡ ${Math.round(d.bullConfidence)}%`
                         : `⚡ ${Math.round(d.bearConfidence)}%`,
                 }));
         }
@@ -902,7 +902,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         const updateInterval = setInterval(() => {
             const bufferedData = marketDataBufferRef.current;
             if (!bufferedData || !candlestickSeriesRef.current || !lastCandleRef.current) return;
-            
+
             // Reset buffer after capturing
             marketDataBufferRef.current = null;
 
@@ -910,7 +910,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             let needsUpdate = false;
             let isNewCandle = false;
             const lastCandle = lastCandleRef.current as any;
-            
+
             let newClose = lastCandle.close;
             let newHigh = lastCandle.high;
             let newLow = lastCandle.low;
@@ -985,7 +985,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
 
                 const len = allCandlesRef.current.length;
                 const MAX_CANDLES = 2000;
-                
+
                 if (isNewCandle) {
                     allCandlesRef.current.push(updatedCandle);
                     // Prevent memory leak by limiting array size
@@ -1023,7 +1023,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                         if (utData.length > 0) {
                             const lastUT = utData[utData.length - 1];
                             utBotSeriesRef.current.update({ time: lastUT.time, value: lastUT.trailingStop } as any);
-                            
+
                             const candleColor = lastUT.color === 'green' ? '#22c55e' : lastUT.color === 'red' ? '#ef4444' : '#3b82f6';
                             allCandlesRef.current[allCandlesRef.current.length - 1] = {
                                 ...updatedCandle,
@@ -1031,7 +1031,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                                 wickColor: candleColor
                             };
                             candlestickSeriesRef.current.update(allCandlesRef.current[allCandlesRef.current.length - 1]);
-                            
+
                             const newMarkers = utData.filter(d => d.isBuy || d.isSell).map(d => ({
                                 time: d.time,
                                 position: d.isBuy ? 'belowBar' : 'aboveBar',
@@ -1040,7 +1040,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                                 text: d.isBuy ? 'BUY' : 'SELL'
                             }));
                             utBotMarkersRef.current = newMarkers;
-                            
+
                             const allMarkers = [...botTradeMarkersRef.current, ...utBotMarkersRef.current].sort((a, b) => a.time - b.time);
                             markersPluginRef.current?.setMarkers(allMarkers);
                         }
@@ -1050,7 +1050,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                     if (indicatorSettings.showSessions) {
                         const sessData = allCandlesRef.current;
                         const tz = indicatorSettings.timezoneOffset || 0;
-                        
+
                         const sa = calculateSessions(sessData, indicatorSettings.sessionA.session, tz);
                         const sb = calculateSessions(sessData, indicatorSettings.sessionB.session, tz);
                         const sc = calculateSessions(sessData, indicatorSettings.sessionC.session, tz);
@@ -1089,12 +1089,12 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         const data = allCandlesRef.current;
         const lookback = Math.min(indicatorSettings.autoFiboLookback, data.length);
         const windowData = data.slice(-lookback);
-        
+
         let highest = -Infinity;
         let lowest = Infinity;
         let highTime = 0;
         let lowTime = 0;
-        
+
         for (let i = 0; i < windowData.length; i++) {
             if (windowData[i].high > highest) {
                 highest = windowData[i].high;
@@ -1293,7 +1293,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         for (const [key, line] of wallLinesRef.current.entries()) {
             // Ignore order lines, they are managed by the next useEffect
             if (key.startsWith('order-')) continue;
-            
+
             if (!currentLineKeys.has(key)) {
                 try {
                     candlestickSeriesRef.current?.removePriceLine(line);
@@ -1484,20 +1484,20 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                     <LiquidityHeatmapRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={realHeatmapData} />
                     <FibonacciCloudRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={fiboData} />
                     <BollingerBandsRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={bbData} visible={indicatorSettings.showBB} />
-                <MACDRenderer 
-                    chart={chartRef.current} 
-                    data={allCandlesRef.current} 
-                    visible={indicatorSettings.showMACD}
-                    fast={indicatorSettings.macdFast}
-                    slow={indicatorSettings.macdSlow}
-                    signal={indicatorSettings.macdSignal}
-                />
+                    <MACDRenderer
+                        chart={chartRef.current}
+                        data={allCandlesRef.current}
+                        visible={indicatorSettings.showMACD}
+                        fast={indicatorSettings.macdFast}
+                        slow={indicatorSettings.macdSlow}
+                        signal={indicatorSettings.macdSignal}
+                    />
                     <IchimokuRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={ichimokuData} displacement={indicatorSettings.displacement} />
-                    <TrendFinderRenderer 
-                        chart={chartRef.current} 
-                        series={candlestickSeriesRef.current} 
-                        data={trendFinderData} 
-                        visible={indicatorSettings.showTrendFinder} 
+                    <TrendFinderRenderer
+                        chart={chartRef.current}
+                        series={candlestickSeriesRef.current}
+                        data={trendFinderData}
+                        visible={indicatorSettings.showTrendFinder}
                         threshold={indicatorSettings.trendFinderThreshold}
                         hideLowConfidenceTrend={indicatorSettings.hideLowConfidenceTrend}
                     />
@@ -1512,11 +1512,11 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                         />
                     )}
                     {indicatorSettings.showSessions && (
-                        <SessionsRenderer 
-                            chart={chartRef.current} 
-                            series={candlestickSeriesRef.current} 
-                            sessionsData={sessionsData} 
-                            settings={indicatorSettings} 
+                        <SessionsRenderer
+                            chart={chartRef.current}
+                            series={candlestickSeriesRef.current}
+                            sessionsData={sessionsData}
+                            settings={indicatorSettings}
                         />
                     )}
                     <SMCRenderer
@@ -1599,20 +1599,20 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                         visibleLogicalRange={chartRef.current?.timeScale().getVisibleLogicalRange()}
                     />
                     {indicatorSettings.showSupertrend && (
-                        <SupertrendRenderer 
-                            chart={chartRef.current} 
-                            series={candlestickSeriesRef.current} 
-                            data={supertrendData} 
+                        <SupertrendRenderer
+                            chart={chartRef.current}
+                            series={candlestickSeriesRef.current}
+                            data={supertrendData}
                             ohlcData={allCandlesRef.current}
                             showSignals={indicatorSettings.supertrendShowSignals}
                             highlighter={indicatorSettings.supertrendHighlighting}
                         />
                     )}
                     {indicatorSettings.showMsbOb && msbObData && (
-                        <MsbObRenderer 
-                            chart={chartRef.current} 
-                            series={candlestickSeriesRef.current} 
-                            data={msbObData} 
+                        <MsbObRenderer
+                            chart={chartRef.current}
+                            series={candlestickSeriesRef.current}
+                            data={msbObData}
                             ohlcData={allCandlesRef.current}
                             showZigzag={indicatorSettings.msbObShowZigzag}
                         />
@@ -1670,8 +1670,8 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                     const divColor = last.divergenceStatus.includes('Bullish') ? '#00d4aa' : last.divergenceStatus.includes('Bearish') ? '#ff4d4d' : '#718096';
 
                     const quantumHudElement = (
-                        <div className="fixed z-[9999] select-none" style={{ 
-                            width: 280, 
+                        <div className="fixed z-[9999] select-none" style={{
+                            width: 280,
                             fontFamily: "'Inter', sans-serif",
                             left: `${quantumAiHudPos.x}px`,
                             top: `${quantumAiHudPos.y}px`
@@ -1684,7 +1684,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                                 boxShadow: '0 12px 40px rgba(0,0,0,0.7)',
                             }}>
                                 {/* Header */}
-                                <div 
+                                <div
                                     onMouseDown={handleHudMouseDown}
                                     style={{
                                         background: 'linear-gradient(90deg, #1a1f3c 0%, #12192e 100%)',
@@ -1772,19 +1772,19 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                 {countdownFormatted && (
                     <div className="absolute bottom-[40px] right-[75px] z-20 pointer-events-none flex flex-col items-end gap-2">
                         {botStatus && botStatus.is_absorbing && (
-                             <div className="bg-orange-600 border border-orange-400 text-white text-[16px] font-bold px-3 py-1.5 rounded animate-pulse shadow-lg">
+                            <div className="bg-orange-600 border border-orange-400 text-white text-[16px] font-bold px-3 py-1.5 rounded animate-pulse shadow-lg">
                                 🧬 ABSORPTION DETECTED
-                             </div>
+                            </div>
                         )}
                         {botStatus && botStatus.absorption_delta !== undefined && (
-                             <div className="bg-black/60 border border-white/10 text-[14px] font-mono px-3 py-1.5 rounded backdrop-blur-md">
+                            <div className="bg-black/60 border border-white/10 text-[14px] font-mono px-3 py-1.5 rounded backdrop-blur-md">
                                 <span className="text-gray-400 mr-2 text-[11px] uppercase tracking-tighter">Backend CVD</span>
                                 <span className={botStatus.absorption_delta >= 0 ? 'text-green-400' : 'text-red-400'}>
                                     {botStatus.absorption_delta > 0 ? '+' : ''}{typeof botStatus.absorption_delta === 'number'
                                         ? botStatus.absorption_delta.toLocaleString(undefined, { maximumFractionDigits: 0 })
                                         : botStatus.absorption_delta}
                                 </span>
-                             </div>
+                            </div>
                         )}
                         <div className="bg-black/60 dark:bg-black/60 border border-white/10 text-[#d1d5db] text-[20px] font-mono font-bold px-3 py-1.5 rounded shadow-lg backdrop-blur-md">
                             {countdownFormatted}
@@ -1827,11 +1827,11 @@ const DepthChart: React.FC<{
     if (allPoints.length === 0) return <div className="text-gray-500 text-center pt-8 text-xs">No data</div>;
     const minPrice = Math.min(...allPoints.map(p => p.price));
     const maxPrice = Math.max(...allPoints.map(p => p.price));
-    const maxVol   = Math.max(...allPoints.map(p => p.vol), 1);
+    const maxVol = Math.max(...allPoints.map(p => p.vol), 1);
     const W = 100; const H = 100;
     const PAD = 2;
     const px = (price: number) => PAD + ((price - minPrice) / (maxPrice - minPrice || 1)) * (W - PAD * 2);
-    const py = (vol: number)   => (H - PAD) - (vol / maxVol) * (H - PAD * 2);
+    const py = (vol: number) => (H - PAD) - (vol / maxVol) * (H - PAD * 2);
     const buildPath = (points: { price: number; vol: number }[]) => {
         if (points.length === 0) return '';
         let d = `M ${px(points[0].price)} ${H - PAD}`;
@@ -2034,9 +2034,9 @@ const OrderBook: React.FC<{ bids: any[], asks: any[], maxTotal: number, volumeTh
     const sigSize = volumeThreshold > 0 ? volumeThreshold : maxTotal * 0.05;
     const eventCfg: Record<L2Event['type'], { icon: string; color: string; label: string }> = {
         new_wall: { icon: '🟢', color: '#22c55e', label: 'NEW WALL' },
-        removed:  { icon: '🔴', color: '#ef4444', label: 'REMOVED ' },
+        removed: { icon: '🔴', color: '#ef4444', label: 'REMOVED ' },
         absorbed: { icon: '⚡', color: '#f59e0b', label: 'ABSORBED' },
-        spoof:    { icon: '⚠️', color: '#a855f7', label: 'SPOOF?  ' },
+        spoof: { icon: '⚠️', color: '#a855f7', label: 'SPOOF?  ' },
     };
 
     return (
@@ -2044,130 +2044,126 @@ const OrderBook: React.FC<{ bids: any[], asks: any[], maxTotal: number, volumeTh
             {isEmpty ? (
                 <div className="flex-1 flex items-center justify-center text-gray-500 text-xs">Loading order book...</div>
             ) : (<>
-            {/* ── STEP 1: Imbalance Gauge ─────────────────────────────────── */}
-            <div className="px-2 pt-2 pb-1.5 flex-shrink-0 border-b border-white/5">
-                <div className="flex justify-between items-center mb-1">
-                    <span className="text-[9px] uppercase tracking-widest font-black" style={{ color: imbalanceColor }}>{imbalanceLabel}</span>
-                    <span className="text-[9px] text-gray-500 tabular-nums">{imbalancePct}% Bid · {100 - imbalancePct}% Ask</span>
+                {/* ── STEP 1: Imbalance Gauge ─────────────────────────────────── */}
+                <div className="px-2 pt-2 pb-1.5 flex-shrink-0 border-b border-white/5">
+                    <div className="flex justify-between items-center mb-1">
+                        <span className="text-[9px] uppercase tracking-widest font-black" style={{ color: imbalanceColor }}>{imbalanceLabel}</span>
+                        <span className="text-[9px] text-gray-500 tabular-nums">{imbalancePct}% Bid · {100 - imbalancePct}% Ask</span>
+                    </div>
+                    <div className="relative h-[5px] rounded-full bg-white/5 overflow-hidden">
+                        <div className="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
+                            style={{ width: `${imbalancePct}%`, background: `linear-gradient(90deg, #22c55e80, ${imbalanceColor})` }} />
+                        <div className="absolute left-1/2 top-0 h-full w-px bg-white/20" />
+                    </div>
+                    <div className="flex justify-between text-[8px] text-gray-600 mt-0.5"><span>Bids</span><span>Asks</span></div>
                 </div>
-                <div className="relative h-[5px] rounded-full bg-white/5 overflow-hidden">
-                    <div className="absolute left-0 top-0 h-full rounded-full transition-all duration-500"
-                        style={{ width: `${imbalancePct}%`, background: `linear-gradient(90deg, #22c55e80, ${imbalanceColor})` }} />
-                    <div className="absolute left-1/2 top-0 h-full w-px bg-white/20" />
-                </div>
-                <div className="flex justify-between text-[8px] text-gray-600 mt-0.5"><span>Bids</span><span>Asks</span></div>
-            </div>
 
-            {/* ── Toolbar ────────────────────────────────────────────────── */}
-            <div className="flex items-center justify-between px-2 py-1 border-b border-white/5 flex-shrink-0 gap-1">
-                <div className="flex rounded overflow-hidden border border-white/10 text-[9px]">
-                    {(['book', 'depth'] as const).map(v => (
-                        <button key={v} onClick={() => setView(v)}
-                            className={`px-2 py-0.5 uppercase tracking-wider font-bold transition-all ${
-                                view === v ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-white'}`}>{v}
-                        </button>
-                    ))}
-                </div>
-                {view === 'book' && (
-                    <div className="flex items-center gap-0.5">
-                        <span className="text-[8px] text-gray-600 mr-0.5">Grp</span>
-                        {BUCKET_OPTIONS.map(b => (
-                            <button key={b} onClick={() => setBucket(b)}
-                                className={`px-1.5 py-0.5 rounded text-[8px] font-bold transition-all ${
-                                    bucket === b ? 'bg-indigo-600/80 text-white' : 'text-gray-600 hover:text-gray-300'}`}>
-                                {b === 0 ? 'Tick' : b}
+                {/* ── Toolbar ────────────────────────────────────────────────── */}
+                <div className="flex items-center justify-between px-2 py-1 border-b border-white/5 flex-shrink-0 gap-1">
+                    <div className="flex rounded overflow-hidden border border-white/10 text-[9px]">
+                        {(['book', 'depth'] as const).map(v => (
+                            <button key={v} onClick={() => setView(v)}
+                                className={`px-2 py-0.5 uppercase tracking-wider font-bold transition-all ${view === v ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:text-white'}`}>{v}
                             </button>
                         ))}
                     </div>
-                )}
-            </div>
-
-            {/* ── STEP 2: Depth Chart ──────────────────────────────────────── */}
-            {view === 'depth' ? (
-                <div className="flex-1 p-2 overflow-hidden">
-                    <DepthChart bidPoints={depthData.bidPoints} askPoints={depthData.askPoints} formatPrice={formatPrice} formatSize={formatSize} />
-                </div>
-            ) : (
-                <>
-                    {/* Column headers */}
-                    <div className="flex text-gray-600 py-1 px-2 uppercase tracking-wider font-bold flex-shrink-0 text-[9px] border-b border-white/5">
-                        <div className="w-1/3 text-left">Price</div>
-                        <div className="w-1/3 text-right">Size</div>
-                        <div className="w-1/3 text-right">Total</div>
-                    </div>
-
-                    {/* Asks */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col justify-end">
-                        {reversedAsks.map((ask: any, i: number) => {
-                            const isWall = ask.size * ask.price >= sigSize;
-                            return (
-                                <div key={i} className={`flex px-2 py-[2px] relative hover:bg-white/5 cursor-pointer ${
-                                    isWall ? 'ring-1 ring-inset ring-red-500/25' : ''}`}>
-                                    <div className="absolute right-0 top-0 h-full bg-red-500/10 dark:bg-red-500/15 transition-all duration-300 pointer-events-none"
-                                        style={{ width: `${(ask.total / displayMax) * 100}%` }} />
-                                    <div className={`w-1/3 text-left relative z-10 font-bold ${ isWall ? 'text-red-400' : 'text-red-500/60'}`}>{formatPrice(ask.price)}</div>
-                                    <div className={`w-1/3 text-right relative z-10 ${ isWall ? 'text-white font-bold' : 'text-gray-600'}`}>{formatSize(ask.size)}</div>
-                                    <div className="w-1/3 text-right text-gray-700 relative z-10">{formatSize(ask.total)}</div>
-                                </div>
-                            );
-                        })}
-                    </div>
-
-                    {/* Spread */}
-                    <div className="flex-shrink-0 px-2 py-1.5 border-y border-white/5 bg-black/20">
-                        <div className="flex items-center justify-between text-[10px]">
-                            <span className="text-gray-500 font-sans">Spread</span>
-                            {asks.length > 0 && asks[asks.length - 1] && bids.length > 0 && (
-                                <span className="text-indigo-400 font-bold">
-                                    {(asks[asks.length - 1].price - bids[0].price).toFixed(10).replace(/\.?0+$/, '')}
-                                </span>
-                            )}
+                    {view === 'book' && (
+                        <div className="flex items-center gap-0.5">
+                            <span className="text-[8px] text-gray-600 mr-0.5">Grp</span>
+                            {BUCKET_OPTIONS.map(b => (
+                                <button key={b} onClick={() => setBucket(b)}
+                                    className={`px-1.5 py-0.5 rounded text-[8px] font-bold transition-all ${bucket === b ? 'bg-indigo-600/80 text-white' : 'text-gray-600 hover:text-gray-300'}`}>
+                                    {b === 0 ? 'Tick' : b}
+                                </button>
+                            ))}
                         </div>
-                    </div>
-
-                    {/* Bids */}
-                    <div className="flex-1 overflow-y-auto custom-scrollbar">
-                        {displayBids.map((bid: any, i: number) => {
-                            const isWall = bid.size * bid.price >= sigSize;
-                            return (
-                                <div key={i} className={`flex px-2 py-[2px] relative hover:bg-white/5 cursor-pointer ${
-                                    isWall ? 'ring-1 ring-inset ring-green-500/25' : ''}`}>
-                                    <div className="absolute right-0 top-0 h-full bg-green-500/10 dark:bg-green-500/15 transition-all duration-300 pointer-events-none"
-                                        style={{ width: `${(bid.total / displayMax) * 100}%` }} />
-                                    <div className={`w-1/3 text-left relative z-10 font-bold ${ isWall ? 'text-green-400' : 'text-green-500/60'}`}>{formatPrice(bid.price)}</div>
-                                    <div className={`w-1/3 text-right relative z-10 ${ isWall ? 'text-white font-bold' : 'text-gray-600'}`}>{formatSize(bid.size)}</div>
-                                    <div className="w-1/3 text-right text-gray-700 relative z-10">{formatSize(bid.total)}</div>
-                                </div>
-                            );
-                        })}
-                    </div>
-                </>
-            )}
-
-            {/* ── STEP 5: Activity Feed / Event Log ───────────────────────── */}
-            <div className="flex-shrink-0 border-t border-white/10 mt-1">
-                <div className="flex items-center justify-between px-3 py-1.5 bg-black/20">
-                    <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">⚡ Activity Feed</span>
-                    {events.length > 0 && (
-                        <button onClick={() => setEvents([])} className="text-[9px] text-gray-600 hover:text-gray-400 transition-colors uppercase font-bold tracking-wider">clear</button>
                     )}
                 </div>
-                <div className="h-[140px] overflow-y-auto custom-scrollbar">
-                    {events.length === 0 ? (
-                        <div className="text-center text-[10px] text-gray-600 py-6">Monitoring for significant wall activity...</div>
-                    ) : events.map(ev => {
-                        const cfg = eventCfg[ev.type];
-                        return (
-                            <div key={ev.id} className="flex items-center gap-2 px-3 py-1 hover:bg-white/5 border-b border-white/5 last:border-0 transition-colors">
-                                <span className="text-[9px] text-gray-500 tabular-nums w-[60px] flex-shrink-0 font-medium">{ev.time}</span>
-                                <span className="text-[10px] font-bold flex-shrink-0" style={{ color: cfg.color }}>{cfg.icon} {cfg.label}</span>
-                                <span className={`text-[10px] font-black flex-shrink-0 ${ ev.side === 'bid' ? 'text-green-500' : 'text-red-500'}`}>{ev.side.toUpperCase()}</span>
-                                <span className="text-[10px] text-gray-300 truncate font-sans tracking-wide">{formatSize(ev.size)} <span className="text-gray-500 text-[9px] font-mono mx-1">@</span> {formatPrice(ev.price)}</span>
+
+                {/* ── STEP 2: Depth Chart ──────────────────────────────────────── */}
+                {view === 'depth' ? (
+                    <div className="flex-1 p-2 overflow-hidden">
+                        <DepthChart bidPoints={depthData.bidPoints} askPoints={depthData.askPoints} formatPrice={formatPrice} formatSize={formatSize} />
+                    </div>
+                ) : (
+                    <>
+                        {/* Column headers */}
+                        <div className="flex text-gray-600 py-1 px-2 uppercase tracking-wider font-bold flex-shrink-0 text-[9px] border-b border-white/5">
+                            <div className="w-1/3 text-left">Price</div>
+                            <div className="w-1/3 text-right">Size</div>
+                            <div className="w-1/3 text-right">Total</div>
+                        </div>
+
+                        {/* Asks */}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col justify-end">
+                            {reversedAsks.map((ask: any, i: number) => {
+                                const isWall = ask.size * ask.price >= sigSize;
+                                return (
+                                    <div key={i} className={`flex px-2 py-[2px] relative hover:bg-white/5 cursor-pointer ${isWall ? 'ring-1 ring-inset ring-red-500/25' : ''}`}>
+                                        <div className="absolute right-0 top-0 h-full bg-red-500/10 dark:bg-red-500/15 transition-all duration-300 pointer-events-none"
+                                            style={{ width: `${(ask.total / displayMax) * 100}%` }} />
+                                        <div className={`w-1/3 text-left relative z-10 font-bold ${isWall ? 'text-red-400' : 'text-red-500/60'}`}>{formatPrice(ask.price)}</div>
+                                        <div className={`w-1/3 text-right relative z-10 ${isWall ? 'text-white font-bold' : 'text-gray-600'}`}>{formatSize(ask.size)}</div>
+                                        <div className="w-1/3 text-right text-gray-700 relative z-10">{formatSize(ask.total)}</div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* Spread */}
+                        <div className="flex-shrink-0 px-2 py-1.5 border-y border-white/5 bg-black/20">
+                            <div className="flex items-center justify-between text-[10px]">
+                                <span className="text-gray-500 font-sans">Spread</span>
+                                {asks.length > 0 && asks[asks.length - 1] && bids.length > 0 && (
+                                    <span className="text-indigo-400 font-bold">
+                                        {(asks[asks.length - 1].price - bids[0].price).toFixed(10).replace(/\.?0+$/, '')}
+                                    </span>
+                                )}
                             </div>
-                        );
-                    })}
+                        </div>
+
+                        {/* Bids */}
+                        <div className="flex-1 overflow-y-auto custom-scrollbar">
+                            {displayBids.map((bid: any, i: number) => {
+                                const isWall = bid.size * bid.price >= sigSize;
+                                return (
+                                    <div key={i} className={`flex px-2 py-[2px] relative hover:bg-white/5 cursor-pointer ${isWall ? 'ring-1 ring-inset ring-green-500/25' : ''}`}>
+                                        <div className="absolute right-0 top-0 h-full bg-green-500/10 dark:bg-green-500/15 transition-all duration-300 pointer-events-none"
+                                            style={{ width: `${(bid.total / displayMax) * 100}%` }} />
+                                        <div className={`w-1/3 text-left relative z-10 font-bold ${isWall ? 'text-green-400' : 'text-green-500/60'}`}>{formatPrice(bid.price)}</div>
+                                        <div className={`w-1/3 text-right relative z-10 ${isWall ? 'text-white font-bold' : 'text-gray-600'}`}>{formatSize(bid.size)}</div>
+                                        <div className="w-1/3 text-right text-gray-700 relative z-10">{formatSize(bid.total)}</div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </>
+                )}
+
+                {/* ── STEP 5: Activity Feed / Event Log ───────────────────────── */}
+                <div className="flex-shrink-0 border-t border-white/10 mt-1">
+                    <div className="flex items-center justify-between px-3 py-1.5 bg-black/20">
+                        <span className="text-[10px] uppercase tracking-widest text-gray-500 font-bold">⚡ Activity Feed</span>
+                        {events.length > 0 && (
+                            <button onClick={() => setEvents([])} className="text-[9px] text-gray-600 hover:text-gray-400 transition-colors uppercase font-bold tracking-wider">clear</button>
+                        )}
+                    </div>
+                    <div className="h-[140px] overflow-y-auto custom-scrollbar">
+                        {events.length === 0 ? (
+                            <div className="text-center text-[10px] text-gray-600 py-6">Monitoring for significant wall activity...</div>
+                        ) : events.map(ev => {
+                            const cfg = eventCfg[ev.type];
+                            return (
+                                <div key={ev.id} className="flex items-center gap-2 px-3 py-1 hover:bg-white/5 border-b border-white/5 last:border-0 transition-colors">
+                                    <span className="text-[9px] text-gray-500 tabular-nums w-[60px] flex-shrink-0 font-medium">{ev.time}</span>
+                                    <span className="text-[10px] font-bold flex-shrink-0" style={{ color: cfg.color }}>{cfg.icon} {cfg.label}</span>
+                                    <span className={`text-[10px] font-black flex-shrink-0 ${ev.side === 'bid' ? 'text-green-500' : 'text-red-500'}`}>{ev.side.toUpperCase()}</span>
+                                    <span className="text-[10px] text-gray-300 truncate font-sans tracking-wide">{formatSize(ev.size)} <span className="text-gray-500 text-[9px] font-mono mx-1">@</span> {formatPrice(ev.price)}</span>
+                                </div>
+                            );
+                        })}
+                    </div>
                 </div>
-            </div>
             </>)}
         </div>
     );
@@ -2192,7 +2188,7 @@ const OrderFlowHeatmap: React.FC = () => {
     const { orderFlowActiveTab: activeTab, setOrderFlowActiveTab: setActiveTab, orderFlowShowFootprint: showFootprint, setOrderFlowShowFootprint: setShowFootprint } = useUIStore();
     const { settings: advancedMetrics, updateSettings: onAdvancedMetricsChange } = useAdvancedMetricsSettings();
     const advancedMetricsData = useAdvancedMetrics(symbol, exchange, interval);
-    
+
     const [isWallHunterOpen, setIsWallHunterOpen] = useState(false);
     const [isEmergencySelling, setIsEmergencySelling] = useState(false); // NEW STATE
     const [isFullscreen, setIsFullscreen] = useState(false); // NEW STATE
@@ -2251,7 +2247,7 @@ const OrderFlowHeatmap: React.FC = () => {
                     <HeatmapSymbolSelector symbol={symbol} exchange={exchange} onSymbolChange={setSymbol} onExchangeChange={setExchange} />
                     <TimeframeSelector interval={interval} onIntervalChange={setInterval} />
                     <IndicatorSelector settings={indicatorSettings} onSettingsChange={setIndicatorSettings} />
-                    
+
                     <div className="flex bg-gray-100 dark:bg-black/30 p-1 rounded-lg border border-gray-200 dark:border-white/10">
                         <button
                             onClick={() => setActiveTab('bot_settings')}
@@ -2260,7 +2256,7 @@ const OrderFlowHeatmap: React.FC = () => {
                                 : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/10'
                                 }`}
                         >
-                             <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-settings"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-settings"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.38a2 2 0 0 0-.73-2.73l-.15-.1a2 2 0 0 1-1-1.72v-.51a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z" /><circle cx="12" cy="12" r="3" /></svg>
                             <span>OrderBlockBot</span>
                         </button>
                         <button
@@ -2270,7 +2266,7 @@ const OrderFlowHeatmap: React.FC = () => {
                                 : 'text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white hover:bg-black/10'
                                 }`}
                         >
-                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-align-left"><line x1="21" y1="6" x2="3" y2="6"/><line x1="15" y1="12" x2="3" y2="12"/><line x1="17" y1="18" x2="3" y2="18"/></svg>
+                            <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="lucide lucide-align-left"><line x1="21" y1="6" x2="3" y2="6" /><line x1="15" y1="12" x2="3" y2="12" /><line x1="17" y1="18" x2="3" y2="18" /></svg>
                             <span>Bot Logs</span>
                         </button>
                     </div>
@@ -2303,9 +2299,9 @@ const OrderFlowHeatmap: React.FC = () => {
                 </div>
             </header>
 
-            <HeatmapSubNav 
-                activeTab={activeTab} 
-                onChange={setActiveTab} 
+            <HeatmapSubNav
+                activeTab={activeTab}
+                onChange={setActiveTab}
                 volumeThreshold={volumeThreshold}
                 setVolumeThreshold={setVolumeThreshold}
                 volumeMode={volumeMode}
@@ -2336,7 +2332,7 @@ const OrderFlowHeatmap: React.FC = () => {
                         </div>
                     </div>
                     {!isFullscreen && (
-                        <div className="h-[85vh] flex-shrink-0 w-full bg-white dark:bg-[#000000] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
+                        <div className="h-[65vh] flex-shrink-0 w-full bg-white dark:bg-[#000000] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
                             <div className="p-3 border-b border-gray-200 dark:border-white/5 flex justify-between items-center">
                                 <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Level 2 Order Book</h3>
                             </div>
@@ -2398,7 +2394,7 @@ const OrderFlowHeatmap: React.FC = () => {
                                             <span className="text-gray-500">Trailing SL:</span>
                                             <span className="text-red-400 font-bold">{formatDisplayPrice(botStatus.sl_price)}</span>
                                         </div>
-                                        
+
                                         {/* EMERGENCY EXIT BLOCKS */}
                                         <div className="mt-2 grid grid-cols-2 gap-2 pointer-events-auto">
                                             <button
