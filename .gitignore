@@ -70,10 +70,7 @@ htmlcov/
 *.sln
 *.sw?
 
-# Environment Variables (Sensitive Data) - NEVER commit .env files!
-.env
-.env.*
-!.env.example
+# Environment Variables (Sensitive Data) - tracked intentionally (personal project)
 service_account.json
 *service_account*.json
 
