@@ -53,7 +53,7 @@ export const SentimentNarratives: React.FC<SentimentNarrativesProps> = ({
 
                 {!hasNarrativesLoaded && !isNarrativeLoading ? (
                     <div className="flex flex-col items-center justify-center flex-grow text-center text-gray-500 p-8 opacity-70">
-                        <div className="bg-slate-100 dark:bg-slate-800 p-4 rounded-full mb-3">
+                        <div className="bg-slate-100 dark:bg-[#0A0A0A] p-4 rounded-full mb-3">
                             <span className="text-4xl">🧠</span>
                         </div>
                         <p className="font-medium">AI Narrative Engine is Ready</p>

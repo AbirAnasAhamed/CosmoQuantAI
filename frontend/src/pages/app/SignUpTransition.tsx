@@ -54,7 +54,7 @@ const SignUpTransition: React.FC<SignUpTransitionProps> = ({ onAnimationComplete
                     <Logo />
                 </div>
 
-                <div className="bg-slate-900/80 backdrop-blur-md border border-[#1A1A1A] rounded-xl p-6 shadow-2xl">
+                <div className="bg-[#050505]/80 backdrop-blur-md border border-[#1A1A1A] rounded-xl p-6 shadow-2xl">
                     <div className="space-y-4 mb-6">
                         {steps.map((step, index) => (
                             index <= activeStep ? (

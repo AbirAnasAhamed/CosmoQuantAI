@@ -38,14 +38,14 @@ export const Charting = () => {
     return (
         <div className="h-full flex flex-col space-y-4">
             {/* Chart Toolbar */}
-            <div className="bg-omni-panel border border-slate-700 rounded-xl p-4 flex justify-between items-center">
+            <div className="bg-omni-panel border border-[#1F1F1F] rounded-xl p-4 flex justify-between items-center">
                 <div className="flex items-center space-x-4">
                     <div className="flex items-center space-x-2 text-white font-bold">
                         <span className="bg-orange-500/20 text-orange-400 p-1.5 rounded-lg"><CandlestickChart size={20} /></span>
                         <span>BTC/USDT</span>
                     </div>
-                    <div className="h-6 w-px bg-slate-700"></div>
-                    <div className="flex bg-slate-800 rounded-lg p-1 border border-slate-700">
+                    <div className="h-6 w-px bg-[#0A0A0A]"></div>
+                    <div className="flex bg-[#0A0A0A] rounded-lg p-1 border border-[#1F1F1F]">
                         {['15m', '1H', '4H', '1D', '1W'].map(tf => (
                             <button
                                 key={tf}
@@ -60,31 +60,31 @@ export const Charting = () => {
                 </div>
 
                 <div className="flex space-x-3">
-                    <button className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 transition-colors">
+                    <button className="p-2 hover:bg-[#0A0A0A] rounded-lg text-slate-400 transition-colors">
                         <Activity size={20} />
                     </button>
-                    <button className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 transition-colors">
+                    <button className="p-2 hover:bg-[#0A0A0A] rounded-lg text-slate-400 transition-colors">
                         <Settings size={20} />
                     </button>
-                    <button className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 transition-colors">
+                    <button className="p-2 hover:bg-[#0A0A0A] rounded-lg text-slate-400 transition-colors">
                         <Maximize2 size={20} />
                     </button>
                 </div>
             </div>
 
             {/* Main Chart Area */}
-            <div className="flex-1 bg-omni-panel border border-slate-700 rounded-xl p-4 relative min-h-[500px]">
+            <div className="flex-1 bg-omni-panel border border-[#1F1F1F] rounded-xl p-4 relative min-h-[500px]">
                 <div className="absolute top-4 left-4 z-10 flex flex-col gap-2">
-                    <div className="flex items-center gap-2 text-xs text-omni-success bg-slate-900/80 px-2 py-1 rounded backdrop-blur-sm border border-slate-700">
+                    <div className="flex items-center gap-2 text-xs text-omni-success bg-[#050505]/80 px-2 py-1 rounded backdrop-blur-sm border border-[#1F1F1F]">
                         <span className="w-2 h-2 rounded-full bg-omni-success"></span> O: {data[data.length - 1]?.open.toFixed(2)}
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-omni-success bg-slate-900/80 px-2 py-1 rounded backdrop-blur-sm border border-slate-700">
+                    <div className="flex items-center gap-2 text-xs text-omni-success bg-[#050505]/80 px-2 py-1 rounded backdrop-blur-sm border border-[#1F1F1F]">
                         <span className="w-2 h-2 rounded-full bg-omni-success"></span> H: {data[data.length - 1]?.high.toFixed(2)}
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-omni-danger bg-slate-900/80 px-2 py-1 rounded backdrop-blur-sm border border-slate-700">
+                    <div className="flex items-center gap-2 text-xs text-omni-danger bg-[#050505]/80 px-2 py-1 rounded backdrop-blur-sm border border-[#1F1F1F]">
                         <span className="w-2 h-2 rounded-full bg-omni-danger"></span> L: {data[data.length - 1]?.low.toFixed(2)}
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-white bg-slate-900/80 px-2 py-1 rounded backdrop-blur-sm border border-slate-700">
+                    <div className="flex items-center gap-2 text-xs text-white bg-[#050505]/80 px-2 py-1 rounded backdrop-blur-sm border border-[#1F1F1F]">
                         <span className="w-2 h-2 rounded-full bg-white"></span> C: {data[data.length - 1]?.close.toFixed(2)}
                     </div>
                 </div>

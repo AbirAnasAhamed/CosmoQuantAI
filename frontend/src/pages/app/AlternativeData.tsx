@@ -84,7 +84,7 @@ const SatelliteView: React.FC = () => {
     return (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 h-full">
             {/* Visual Map Panel */}
-            <div className="lg:col-span-2 relative bg-slate-900 rounded-2xl overflow-hidden border border-[#1A1A1A] shadow-2xl group">
+            <div className="lg:col-span-2 relative bg-[#050505] rounded-2xl overflow-hidden border border-[#1A1A1A] shadow-2xl group">
                 {/* Simulated Satellite Map Background */}
                 <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-30"></div>
                 <div className="absolute inset-0" style={{
@@ -227,7 +227,7 @@ const GeolocationView: React.FC = () => {
             <div className="flex-1 grid grid-cols-1 lg:grid-cols-3 gap-6">
                 <div className="lg:col-span-2 relative rounded-2xl overflow-hidden border border-brand-border-light dark:border-[#1A1A1A] shadow-xl">
                     {/* Map Base */}
-                    <div className="absolute inset-0 bg-gray-200 dark:bg-slate-800">
+                    <div className="absolute inset-0 bg-gray-200 dark:bg-[#0A0A0A]">
                         <svg width="100%" height="100%" xmlns="http://www.w3.org/2000/svg" className="opacity-20">
                             <defs>
                                 <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
@@ -299,7 +299,7 @@ const JobPostingsView: React.FC = () => {
             </Card>
 
             <div className="lg:col-span-1 flex flex-col gap-4">
-                <div className="bg-slate-900 border border-gray-800 rounded-xl p-4 flex-1 overflow-hidden flex flex-col">
+                <div className="bg-[#050505] border border-gray-800 rounded-xl p-4 flex-1 overflow-hidden flex flex-col">
                     <h4 className="text-xs font-bold text-green-400 uppercase tracking-wider mb-3 font-mono">&gt;&gt; LIVE_FEED: POSTINGS</h4>
                     <div className="flex-1 overflow-y-auto space-y-2 custom-scrollbar font-mono text-xs">
                         {MOCK_SAMPLE_JOBS.map((job, i) => (

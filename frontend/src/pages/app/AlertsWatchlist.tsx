@@ -95,10 +95,10 @@ const CreateAlertModal: React.FC<{
         onClose();
     };
     
-    const inputBaseClasses = "w-full bg-slate-50 dark:bg-slate-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-primary outline-none transition-all";
+    const inputBaseClasses = "w-full bg-slate-50 dark:bg-[#0A0A0A]/50 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-primary outline-none transition-all";
 
     return (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-modal-fade-in" onClick={onClose}>
+        <div className="fixed inset-0 bg-[#050505]/60 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-modal-fade-in" onClick={onClose}>
             <div className="w-full max-w-lg bg-white dark:bg-[#0A0A0A] rounded-3xl shadow-2xl border border-gray-200 dark:border-gray-700 overflow-hidden animate-modal-content-slide-down" onClick={(e) => e.stopPropagation()}>
                 <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex justify-between items-center">
                     <h2 className="text-xl font-bold text-slate-900 dark:text-white">Set New Sentinel</h2>
@@ -126,7 +126,7 @@ const CreateAlertModal: React.FC<{
                         </div>
                     </div>
                     
-                    <div className="bg-gray-50 dark:bg-slate-800/30 p-4 rounded-xl border border-gray-200 dark:border-gray-700/50">
+                    <div className="bg-gray-50 dark:bg-[#0A0A0A]/30 p-4 rounded-xl border border-gray-200 dark:border-gray-700/50">
                          <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-3">Condition</label>
                         {triggerType === 'Price' && (
                             <div className="flex items-center gap-3">

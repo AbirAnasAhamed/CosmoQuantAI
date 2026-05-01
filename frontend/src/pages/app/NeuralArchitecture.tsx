@@ -29,7 +29,7 @@ const NeuralArchitecture: React.FC = () => {
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             {/* Tab Switcher */}
-            <div className="flex space-x-4 border-b border-gray-200 dark:border-slate-700 pb-2 mb-6">
+            <div className="flex space-x-4 border-b border-gray-200 dark:border-[#1F1F1F] pb-2 mb-6">
                 <button
                     onClick={() => setActiveTab('monitor')}
                     className={`pb-2 px-4 font-bold text-sm transition-all ${activeTab === 'monitor'
@@ -82,7 +82,7 @@ const SystemMonitor = () => {
             {/* Main Charts */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Area Chart */}
-                <div className="lg:col-span-2 bg-white dark:bg-[#141414] border border-gray-200 dark:border-slate-700 rounded-xl p-6 h-[400px] shadow-sm">
+                <div className="lg:col-span-2 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1F1F1F] rounded-xl p-6 h-[400px] shadow-sm">
                     <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">Cumulative Performance</h3>
                     <ResponsiveContainer width="100%" height="100%" className="!h-[320px]">
                         <AreaChart data={pnlData}>
@@ -104,7 +104,7 @@ const SystemMonitor = () => {
                 </div>
 
                 {/* Health Panel */}
-                <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-slate-700 rounded-xl p-6 flex flex-col shadow-sm">
+                <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1F1F1F] rounded-xl p-6 flex flex-col shadow-sm">
                     <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">System Health</h3>
                     <div className="space-y-4 flex-1">
                         <HealthItem label="API Latency" value="45ms" status="good" />
@@ -113,7 +113,7 @@ const SystemMonitor = () => {
                         <HealthItem label="Model Drift" value="0.04" status="warning" />
                         <HealthItem label="Execution Queue" value="Idle" status="good" />
                     </div>
-                    <div className="mt-4 p-4 bg-slate-100 dark:bg-slate-800 rounded-lg border border-slate-200 dark:border-slate-600">
+                    <div className="mt-4 p-4 bg-slate-100 dark:bg-[#0A0A0A] rounded-lg border border-slate-200 dark:border-slate-600">
                         <h4 className="text-xs text-slate-500 dark:text-slate-400 uppercase font-bold mb-2">Latest Alert</h4>
                         <p className="text-sm text-slate-700 dark:text-slate-200">Feature Lab: RSI divergence detected on BTC/USDT [15m]</p>
                     </div>
@@ -121,7 +121,7 @@ const SystemMonitor = () => {
             </div>
 
             {/* Bar Chart */}
-            <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-slate-700 rounded-xl p-6 h-[350px] shadow-sm">
+            <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1F1F1F] rounded-xl p-6 h-[350px] shadow-sm">
                 <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4">Daily Profit & Loss Analysis</h3>
                 <ResponsiveContainer width="100%" height="100%" className="!h-[270px]">
                     <BarChart data={dailyPerformance}>
@@ -193,7 +193,7 @@ const BrainVisualizer = () => {
     return (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full">
             {/* Grid Side */}
-            <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-slate-700 rounded-xl p-6 shadow-sm relative overflow-hidden">
+            <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1F1F1F] rounded-xl p-6 shadow-sm relative overflow-hidden">
                 <div className="flex items-center space-x-3 mb-6">
                     <div className="p-3 bg-indigo-500/10 rounded-lg text-indigo-500">
                         <BrainCircuit size={28} />
@@ -219,7 +219,7 @@ const BrainVisualizer = () => {
                     onClick={runAnalysis}
                     disabled={isAnalyzing}
                     className={`w-full py-4 rounded-xl font-bold text-lg tracking-wide shadow-lg transition-all mb-4 flex items-center justify-center gap-2 ${isAnalyzing
-                            ? 'bg-slate-200 dark:bg-slate-700 text-slate-500 cursor-not-allowed'
+                            ? 'bg-slate-200 dark:bg-[#0A0A0A] text-slate-500 cursor-not-allowed'
                             : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white'
                         }`}
                 >
@@ -232,7 +232,7 @@ const BrainVisualizer = () => {
             </div>
 
             {/* Output Side (Simulated) */}
-            <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-slate-700 rounded-xl p-6 flex flex-col shadow-sm">
+            <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1F1F1F] rounded-xl p-6 flex flex-col shadow-sm">
                 <h3 className="text-lg font-semibold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
                     <Layers size={18} /> Strategic Output
                 </h3>
@@ -249,7 +249,7 @@ const BrainVisualizer = () => {
                             <span className="text-4xl font-black text-emerald-600 dark:text-emerald-500">BUY</span>
                             <div className="mt-2 text-sm font-medium text-slate-600 dark:text-slate-300">Confidence: 87.4%</div>
                         </div>
-                        <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded-lg">
+                        <div className="bg-slate-50 dark:bg-[#0A0A0A] p-4 rounded-lg">
                             <h4 className="text-sm font-semibold text-indigo-500 mb-2">Reasoning</h4>
                             <p className="text-slate-600 dark:text-slate-300 text-sm leading-relaxed">
                                 Agent A detects a local minimum with high probability. Agent B reports positive sentiment surge on Twitter regarding ETF approvals.
@@ -267,13 +267,13 @@ const BrainVisualizer = () => {
 const StatCard = ({ title, value, sub, icon: Icon, trend }: any) => {
     const trendColor = trend === 'up' ? 'text-emerald-500' : trend === 'down' ? 'text-red-500' : 'text-amber-500';
     return (
-        <div className="bg-white dark:bg-[#141414] border border-gray-200 dark:border-slate-700 rounded-xl p-6 flex items-start justify-between hover:border-brand-primary/50 transition-colors shadow-sm">
+        <div className="bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-[#1F1F1F] rounded-xl p-6 flex items-start justify-between hover:border-brand-primary/50 transition-colors shadow-sm">
             <div>
                 <p className="text-slate-500 dark:text-slate-400 text-sm font-medium mb-1">{title}</p>
                 <h4 className="text-2xl font-bold text-slate-900 dark:text-white mb-1">{value}</h4>
                 <span className={`text-xs font-mono ${trendColor}`}>{sub}</span>
             </div>
-            <div className={`p-3 rounded-lg bg-slate-50 dark:bg-slate-800 ${trendColor}`}>
+            <div className={`p-3 rounded-lg bg-slate-50 dark:bg-[#0A0A0A] ${trendColor}`}>
                 <Icon size={24} />
             </div>
         </div>
@@ -281,7 +281,7 @@ const StatCard = ({ title, value, sub, icon: Icon, trend }: any) => {
 };
 
 const HealthItem = ({ label, value, status }: any) => (
-    <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-slate-700 last:border-0">
+    <div className="flex justify-between items-center py-2 border-b border-gray-100 dark:border-[#1F1F1F] last:border-0">
         <span className="text-slate-600 dark:text-slate-400 text-sm">{label}</span>
         <div className="flex items-center gap-2">
             <span className="text-slate-900 dark:text-white font-mono text-sm">{value}</span>
@@ -295,8 +295,8 @@ const AgentCard = ({ agent, icon, onToggle }: any) => {
 
     // Dynamic styles based on Light/Dark + Status
     let statusColor = 'text-slate-500';
-    let borderColor = 'border-gray-200 dark:border-slate-700';
-    let bgColor = 'bg-white dark:bg-slate-800';
+    let borderColor = 'border-gray-200 dark:border-[#1F1F1F]';
+    let bgColor = 'bg-white dark:bg-[#0A0A0A]';
 
     if (agent.status === 'Optimal' || agent.status === 'Active') {
         statusColor = 'text-emerald-500';
@@ -314,7 +314,7 @@ const AgentCard = ({ agent, icon, onToggle }: any) => {
         <div className={`p-4 rounded-xl border relative group transition-all duration-300 ${bgColor} ${borderColor} hover:shadow-lg`}>
             <div className="flex justify-between items-start mb-3">
                 <div className="flex items-center gap-2">
-                    <div className={`p-1.5 rounded-md bg-slate-100 dark:bg-slate-700 ${statusColor}`}>
+                    <div className={`p-1.5 rounded-md bg-slate-100 dark:bg-[#0A0A0A] ${statusColor}`}>
                         {icon}
                     </div>
                     <div>
@@ -327,14 +327,14 @@ const AgentCard = ({ agent, icon, onToggle }: any) => {
 
             <div className="space-y-1 text-xs">
                 <div className="flex justify-between"><span className="text-slate-500">Role:</span> <span className="text-slate-700 dark:text-slate-300">{agent.type}</span></div>
-                <div className="flex justify-between"><span className="text-slate-500">Model:</span> <span className="font-mono bg-slate-100 dark:bg-slate-700 px-1 rounded text-slate-600 dark:text-slate-300">{agent.model}</span></div>
+                <div className="flex justify-between"><span className="text-slate-500">Model:</span> <span className="font-mono bg-slate-100 dark:bg-[#0A0A0A] px-1 rounded text-slate-600 dark:text-slate-300">{agent.model}</span></div>
             </div>
 
             {/* Hover Actions */}
-            <div className="absolute inset-0 bg-slate-900/10 dark:bg-black/40 backdrop-blur-[1px] rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
+            <div className="absolute inset-0 bg-[#050505]/10 dark:bg-black/40 backdrop-blur-[1px] rounded-xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity z-10">
                 <button
                     onClick={onToggle}
-                    className="p-2 bg-white dark:bg-slate-800 rounded-full shadow-lg text-slate-900 dark:text-white hover:scale-110 transition-transform"
+                    className="p-2 bg-white dark:bg-[#0A0A0A] rounded-full shadow-lg text-slate-900 dark:text-white hover:scale-110 transition-transform"
                 >
                     <Power size={18} />
                 </button>

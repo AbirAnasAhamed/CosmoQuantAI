@@ -36,7 +36,7 @@ const SentimentOrb = ({ score, momentum, volume, netflow }: any) => {
     const rotationSpeed = Math.max(3, 15 - Math.abs(momentum));
 
     return (
-        <div className="relative w-full h-full flex flex-col items-center justify-center overflow-hidden bg-[#0A0A0A] rounded-2xl border border-slate-700/50">
+        <div className="relative w-full h-full flex flex-col items-center justify-center overflow-hidden bg-[#0A0A0A] rounded-2xl border border-[#1F1F1F]/50">
             {/* --- Background Cyber Grid --- */}
             <div className="absolute inset-0 opacity-20 pointer-events-none"
                 style={{
@@ -50,7 +50,7 @@ const SentimentOrb = ({ score, momentum, volume, netflow }: any) => {
             <div className="relative flex items-center justify-center w-72 h-72">
 
                 {/* 1. Outer Static Ring with Ticks */}
-                <div className="absolute inset-0 border border-slate-700/50 rounded-full opacity-50"></div>
+                <div className="absolute inset-0 border border-[#1F1F1F]/50 rounded-full opacity-50"></div>
 
                 {/* 2. Rotating Dash Ring (Clockwise) */}
                 <div className="absolute inset-2 border-2 border-dashed border-slate-600/60 rounded-full animate-[spin_10s_linear_infinite]"
@@ -109,7 +109,7 @@ const SentimentOrb = ({ score, momentum, volume, netflow }: any) => {
                 </button>
 
                 {/* Metrics HUD */}
-                <div className="flex justify-between w-full text-xs font-mono border-t border-slate-700/50 pt-3 mt-1">
+                <div className="flex justify-between w-full text-xs font-mono border-t border-[#1F1F1F]/50 pt-3 mt-1">
                     <div className="flex flex-col items-center gap-1 group cursor-default">
                         <div className="flex items-center">
                             <span className="text-slate-500 uppercase text-[10px]">Momentum</span>
@@ -248,7 +248,7 @@ const FearGreedFlux = ({ score, classification }: any) => {
             </div>
 
             {/* Footer Timer */}
-            <div className="mt-2 flex items-center gap-2 text-[10px] bg-slate-800/50 px-3 py-1.5 rounded-full border border-slate-700/50">
+            <div className="mt-2 flex items-center gap-2 text-[10px] bg-[#0A0A0A]/50 px-3 py-1.5 rounded-full border border-[#1F1F1F]/50">
                 <span className="text-slate-400">Next Update:</span>
                 <span className="font-mono text-slate-200">{timeLeft}</span>
             </div>

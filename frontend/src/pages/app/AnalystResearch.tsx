@@ -175,7 +175,7 @@ const AnalystResearch: React.FC = () => {
         <div className="space-y-8 animate-fade-in-slide-up">
 
             {/* Header & Selector */}
-            <Card className="!p-4 bg-gradient-to-r from-slate-900 to-slate-800 border-slate-700 text-white">
+            <Card className="!p-4 bg-gradient-to-r from-slate-900 to-slate-800 border-[#1F1F1F] text-white">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div className="flex items-center gap-4">
                         <div className="p-3 bg-white/10 rounded-lg backdrop-blur-sm">

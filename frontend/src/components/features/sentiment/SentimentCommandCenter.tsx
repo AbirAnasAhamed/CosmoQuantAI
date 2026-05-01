@@ -158,15 +158,15 @@ export const SentimentCommandCenter: React.FC<SentimentCommandCenterProps> = ({
     // Modal Component
     const Modal = (
         <div
-            className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200"
+            className="fixed inset-0 bg-[#050505]/60 backdrop-blur-sm z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200"
             onClick={() => setIsOpen(false)}
         >
             <div
-                className="bg-white dark:bg-slate-900 w-full max-w-5xl max-h-[90vh] rounded-3xl shadow-2xl border border-white/10 overflow-hidden flex flex-col relative animate-in zoom-in-95 duration-200"
+                className="bg-white dark:bg-[#050505] w-full max-w-5xl max-h-[90vh] rounded-3xl shadow-2xl border border-white/10 overflow-hidden flex flex-col relative animate-in zoom-in-95 duration-200"
                 onClick={e => e.stopPropagation()}
             >
                 {/* Modal Header */}
-                <div className="p-5 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between bg-slate-50 dark:bg-slate-800/50">
+                <div className="p-5 border-b border-slate-200 dark:border-[#141414] flex items-center justify-between bg-slate-50 dark:bg-[#0A0A0A]/50">
                     <div className="flex items-center gap-3">
                         <div className="p-2.5 bg-indigo-500/10 rounded-xl">
                             <Smartphone className="w-6 h-6 text-indigo-600 dark:text-indigo-400" />
@@ -183,16 +183,16 @@ export const SentimentCommandCenter: React.FC<SentimentCommandCenterProps> = ({
                     </div>
                     <div className="flex items-center gap-3">
                         {/* Language Toggle */}
-                        <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 mr-2">
+                        <div className="flex bg-slate-100 dark:bg-[#0A0A0A] rounded-lg p-1 mr-2">
                             <button
                                 onClick={() => setLanguage('en')}
-                                className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${language === 'en' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${language === 'en' ? 'bg-white dark:bg-[#0A0A0A] shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                                 EN
                             </button>
                             <button
                                 onClick={() => setLanguage('bn')}
-                                className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${language === 'bn' ? 'bg-white dark:bg-slate-700 shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700'}`}
+                                className={`px-3 py-1 rounded-md text-xs font-bold transition-all ${language === 'bn' ? 'bg-white dark:bg-[#0A0A0A] shadow-sm text-indigo-600 dark:text-indigo-400' : 'text-slate-500 hover:text-slate-700'}`}
                             >
                                 BN
                             </button>
@@ -218,7 +218,7 @@ export const SentimentCommandCenter: React.FC<SentimentCommandCenterProps> = ({
                         </Button>
                         <button
                             onClick={() => setIsOpen(false)}
-                            className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-slate-800 text-slate-500 transition-colors"
+                            className="p-2 rounded-full hover:bg-slate-200 dark:hover:bg-[#0A0A0A] text-slate-500 transition-colors"
                         >
                             <X className="w-6 h-6" />
                         </button>
@@ -229,7 +229,7 @@ export const SentimentCommandCenter: React.FC<SentimentCommandCenterProps> = ({
                 <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar">
                     {!report && !isLoading ? (
                         <div className="h-full flex flex-col items-center justify-center text-slate-500 dark:text-slate-400 min-h-[300px]">
-                            <div className="p-6 bg-slate-100 dark:bg-slate-800 rounded-full mb-6">
+                            <div className="p-6 bg-slate-100 dark:bg-[#0A0A0A] rounded-full mb-6">
                                 <BrainCircuit className="w-16 h-16 text-indigo-400 opacity-50" />
                             </div>
                             <h4 className="text-xl font-semibold mb-2">Ready to Analyze</h4>
@@ -243,7 +243,7 @@ export const SentimentCommandCenter: React.FC<SentimentCommandCenterProps> = ({
                     ) : (
                         <div className="space-y-8">
                             {/* Executive Summary (Hero Section) */}
-                            <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 dark:from-slate-800 dark:via-slate-800/80 dark:to-slate-800 p-6 rounded-2xl border border-indigo-100 dark:border-slate-700 relative overflow-hidden shadow-sm">
+                            <div className="bg-gradient-to-r from-indigo-50 via-purple-50 to-indigo-50 dark:from-slate-800 dark:via-slate-800/80 dark:to-slate-800 p-6 rounded-2xl border border-indigo-100 dark:border-[#1F1F1F] relative overflow-hidden shadow-sm">
                                 <div className="absolute top-0 right-0 p-4 opacity-5">
                                     <FileText className="w-32 h-32 text-indigo-600" />
                                 </div>
@@ -254,8 +254,8 @@ export const SentimentCommandCenter: React.FC<SentimentCommandCenterProps> = ({
                                 <p className="text-lg text-slate-800 dark:text-slate-200 leading-relaxed font-medium relative z-10">
                                     {isLoading ? (
                                         <div className="space-y-2">
-                                            <span className="animate-pulse block h-4 w-full bg-slate-200 dark:bg-slate-700 rounded"></span>
-                                            <span className="animate-pulse block h-4 w-3/4 bg-slate-200 dark:bg-slate-700 rounded"></span>
+                                            <span className="animate-pulse block h-4 w-full bg-slate-200 dark:bg-[#0A0A0A] rounded"></span>
+                                            <span className="animate-pulse block h-4 w-3/4 bg-slate-200 dark:bg-[#0A0A0A] rounded"></span>
                                         </div>
                                     ) : report?.executive_summary}
                                 </p>
@@ -266,7 +266,7 @@ export const SentimentCommandCenter: React.FC<SentimentCommandCenterProps> = ({
                                 {sections.map((section, idx) => (
                                     <div
                                         key={idx}
-                                        className={`p-6 rounded-2xl border ${section.color} bg-white dark:bg-slate-800/40 hover:bg-slate-50 dark:hover:bg-slate-800 transition-all shadow-sm hover:shadow-md`}
+                                        className={`p-6 rounded-2xl border ${section.color} bg-white dark:bg-[#0A0A0A]/40 hover:bg-slate-50 dark:hover:bg-[#0A0A0A] transition-all shadow-sm hover:shadow-md`}
                                     >
                                         <div className="flex items-center gap-3 mb-4">
                                             <div className={`p-2 rounded-lg ${section.color.replace('border-', 'bg-')}`}>
@@ -279,9 +279,9 @@ export const SentimentCommandCenter: React.FC<SentimentCommandCenterProps> = ({
                                         <div className="text-slate-600 dark:text-slate-400 leading-relaxed">
                                             {isLoading ? (
                                                 <div className="space-y-2">
-                                                    <span className="animate-pulse block h-3 w-full bg-slate-100 dark:bg-slate-700 rounded"></span>
-                                                    <span className="animate-pulse block h-3 w-5/6 bg-slate-100 dark:bg-slate-700 rounded"></span>
-                                                    <span className="animate-pulse block h-3 w-4/6 bg-slate-100 dark:bg-slate-700 rounded"></span>
+                                                    <span className="animate-pulse block h-3 w-full bg-slate-100 dark:bg-[#0A0A0A] rounded"></span>
+                                                    <span className="animate-pulse block h-3 w-5/6 bg-slate-100 dark:bg-[#0A0A0A] rounded"></span>
+                                                    <span className="animate-pulse block h-3 w-4/6 bg-slate-100 dark:bg-[#0A0A0A] rounded"></span>
                                                 </div>
                                             ) : (
                                                 section.content || "Data unavailable"

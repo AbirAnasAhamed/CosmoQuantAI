@@ -282,7 +282,7 @@ const BotLab: React.FC = () => {
                         onClick={() => setIsCreating(true)}
                         className="group relative h-full min-h-[320px] border border-dashed border-white/10 hover:border-cyan-500/50 rounded-3xl flex flex-col items-center justify-center text-center hover:bg-cyan-500/5 transition-all duration-300"
                     >
-                        <div className="w-16 h-16 rounded-full bg-slate-800 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 shadow-xl group-hover:bg-cyan-500 group-hover:text-black text-gray-500">
+                        <div className="w-16 h-16 rounded-full bg-[#0A0A0A] flex items-center justify-center mb-4 group-hover:scale-110 transition-transform duration-300 shadow-xl group-hover:bg-cyan-500 group-hover:text-black text-gray-500">
                             <Plus size={32} />
                         </div>
                         <h3 className="text-lg font-bold text-gray-500 group-hover:text-cyan-400 transition-colors">Initialize New Unit</h3>
@@ -296,7 +296,7 @@ const BotLab: React.FC = () => {
                     <Button
                         variant="secondary"
                         onClick={() => loadBots(true)}
-                        className="bg-slate-800/50 hover:bg-slate-700/50 border-white/10 text-gray-400 hover:text-white px-8 py-3 rounded-full flex items-center gap-2 transition-all shadow-lg hover:shadow-cyan-500/10"
+                        className="bg-[#0A0A0A]/50 hover:bg-[#0A0A0A]/50 border-white/10 text-gray-400 hover:text-white px-8 py-3 rounded-full flex items-center gap-2 transition-all shadow-lg hover:shadow-cyan-500/10"
                     >
                         Load More Bots <ChevronDown size={16} />
                     </Button>

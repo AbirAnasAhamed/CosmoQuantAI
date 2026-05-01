@@ -38,13 +38,13 @@ export const SentimentPriceChart: React.FC<SentimentChartsProps> = ({
                     <p className="text-xs text-gray-500">Dual-axis analysis of market sentiment and price action.</p>
                 </div>
                 <div className="flex gap-4 text-xs font-mono">
-                    <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-1 mr-4">
+                    <div className="flex bg-slate-100 dark:bg-[#0A0A0A] rounded-lg p-1 mr-4">
                         {timeframes.map((tf) => (
                             <button
                                 key={tf.value}
                                 onClick={() => setTimeframe(tf.value)}
                                 className={`px-3 py-1 rounded-md transition-all ${timeframe === tf.value
-                                    ? 'bg-white dark:bg-slate-700 text-brand-primary shadow-sm font-bold'
+                                    ? 'bg-white dark:bg-[#0A0A0A] text-brand-primary shadow-sm font-bold'
                                     : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
                                     }`}
                             >
@@ -105,7 +105,7 @@ export const SentimentPriceChart: React.FC<SentimentChartsProps> = ({
                     </ResponsiveContainer>
                 ) : (
                     <div className="flex flex-col items-center justify-center gap-3 text-slate-500 opacity-50">
-                        <div className="w-16 h-16 rounded-full border-2 border-dashed border-slate-700 flex items-center justify-center animate-pulse">
+                        <div className="w-16 h-16 rounded-full border-2 border-dashed border-[#1F1F1F] flex items-center justify-center animate-pulse">
                             <span className="text-2xl">📊</span>
                         </div>
                         <p className="text-sm font-mono">NO HISTORICAL DATA DETECTED</p>

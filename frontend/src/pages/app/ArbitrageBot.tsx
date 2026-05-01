@@ -26,7 +26,7 @@ interface ApiKey {
 
 // Reusable Glass Card Component
 const GlassCard: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
-    <div className={`backdrop-blur-md bg-slate-900/50 border border-white/5 rounded-3xl overflow-hidden ${className}`}>
+    <div className={`backdrop-blur-md bg-[#050505]/50 border border-white/5 rounded-3xl overflow-hidden ${className}`}>
         {children}
     </div>
 );
@@ -324,8 +324,8 @@ const ArbitrageBot = () => {
                     </p>
                 </div>
 
-                <div className={`flex items-center gap-4 p-2 rounded-2xl border transition-all duration-300 ${isRunning ? 'bg-emerald-950/20 border-emerald-500/30' : 'bg-slate-900/50 border-white/5'}`}>
-                    <div className={`px-4 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 uppercase tracking-wider ${isRunning ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-800 text-slate-500'}`}>
+                <div className={`flex items-center gap-4 p-2 rounded-2xl border transition-all duration-300 ${isRunning ? 'bg-emerald-950/20 border-emerald-500/30' : 'bg-[#050505]/50 border-white/5'}`}>
+                    <div className={`px-4 py-1.5 rounded-xl text-xs font-bold flex items-center gap-2 uppercase tracking-wider ${isRunning ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#0A0A0A] text-slate-500'}`}>
                         <div className={`w-2 h-2 rounded-full ${isRunning ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`}></div>
                         {isRunning ? 'Online' : 'Offline'}
                     </div>
@@ -387,7 +387,7 @@ const ArbitrageBot = () => {
                                 </div>
                                 <div
                                     onClick={() => !isRunning && setIsPaperTrading(!isPaperTrading)}
-                                    className={`w-12 h-6 rounded-full flex items-center padding-1 cursor-pointer transition-colors ${!isPaperTrading ? 'bg-amber-500' : 'bg-slate-700'}`}
+                                    className={`w-12 h-6 rounded-full flex items-center padding-1 cursor-pointer transition-colors ${!isPaperTrading ? 'bg-amber-500' : 'bg-[#0A0A0A]'}`}
                                 >
                                     <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform mx-1 ${!isPaperTrading ? 'translate-x-6' : ''}`}></div>
                                 </div>
@@ -405,7 +405,7 @@ const ArbitrageBot = () => {
                                 </div>
                                 <div
                                     onClick={() => !isRunning && setAutoBalance(!autoBalance)}
-                                    className={`w-12 h-6 rounded-full flex items-center padding-1 cursor-pointer transition-colors ${autoBalance ? 'bg-emerald-500' : 'bg-slate-700'}`}
+                                    className={`w-12 h-6 rounded-full flex items-center padding-1 cursor-pointer transition-colors ${autoBalance ? 'bg-emerald-500' : 'bg-[#0A0A0A]'}`}
                                 >
                                     <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform mx-1 ${autoBalance ? 'translate-x-6' : ''}`}></div>
                                 </div>
@@ -451,7 +451,7 @@ const ArbitrageBot = () => {
                                     </div>
                                     <div
                                         onClick={() => !isRunning && setIsTrailingStopEnabled(!isTrailingStopEnabled)}
-                                        className={`w-12 h-6 rounded-full flex items-center padding-1 cursor-pointer transition-colors ${isTrailingStopEnabled ? 'bg-rose-500' : 'bg-slate-700'}`}
+                                        className={`w-12 h-6 rounded-full flex items-center padding-1 cursor-pointer transition-colors ${isTrailingStopEnabled ? 'bg-rose-500' : 'bg-[#0A0A0A]'}`}
                                     >
                                         <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform mx-1 ${isTrailingStopEnabled ? 'translate-x-6' : ''}`}></div>
                                     </div>
@@ -489,7 +489,7 @@ const ArbitrageBot = () => {
                                     </div>
                                     <div
                                         onClick={() => !isRunning && setIsSorEnabled(!isSorEnabled)}
-                                        className={`w-12 h-6 rounded-full flex items-center padding-1 cursor-pointer transition-colors ${isSorEnabled ? 'bg-blue-500' : 'bg-slate-700'}`}
+                                        className={`w-12 h-6 rounded-full flex items-center padding-1 cursor-pointer transition-colors ${isSorEnabled ? 'bg-blue-500' : 'bg-[#0A0A0A]'}`}
                                     >
                                         <div className={`bg-white w-4 h-4 rounded-full shadow-md transform transition-transform mx-1 ${isSorEnabled ? 'translate-x-6' : ''}`}></div>
                                     </div>
@@ -593,7 +593,7 @@ const ArbitrageBot = () => {
                                                 />
                                             </ComboboxButton>
                                         </div>
-                                        <ComboboxOptions className="absolute mt-1 max-h-60 w-full overflow-auto rounded-md bg-slate-800 py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm z-50">
+                                        <ComboboxOptions className="absolute mt-1 max-h-60 w-full overflow-auto rounded-md bg-[#0A0A0A] py-1 text-base shadow-lg ring-1 ring-black/5 focus:outline-none sm:text-sm z-50">
                                             {filteredPairs.length === 0 && query !== '' ? (
                                                 <div className="relative cursor-default select-none py-2 px-4 text-gray-400">
                                                     Nothing found.
@@ -669,7 +669,7 @@ const ArbitrageBot = () => {
                         <div className="flex items-center justify-center gap-4 md:gap-12 py-4">
                             {/* Exchange A */}
                             <div className="text-center group">
-                                <div className="w-16 h-16 md:w-20 md:h-20 rounded-3xl bg-slate-800 flex items-center justify-center mx-auto mb-4 shadow-xl group-hover:scale-110 transition-transform border border-white/5 group-hover:border-blue-500/50 relative">
+                                <div className="w-16 h-16 md:w-20 md:h-20 rounded-3xl bg-[#0A0A0A] flex items-center justify-center mx-auto mb-4 shadow-xl group-hover:scale-110 transition-transform border border-white/5 group-hover:border-blue-500/50 relative">
                                     <span className="text-2xl font-bold text-blue-400">{exchangeA ? exchangeA[0] : '?'}</span>
                                     <div className="absolute -bottom-1.5 -right-1.5 w-5 h-5 bg-emerald-500 border-4 border-slate-900 rounded-full shadow-[0_0_10px_#10b981]" title="API Connected"></div>
                                 </div>
@@ -681,7 +681,7 @@ const ArbitrageBot = () => {
                             <div className="flex flex-col items-center flex-1 max-w-[240px]">
                                 <div className="text-[10px] text-gray-400 mb-3 uppercase tracking-widest font-bold">Spread Gap</div>
                                 <div className="flex items-center gap-2 w-full justify-center relative group">
-                                    <div className="h-2 w-full bg-slate-800 rounded-full overflow-hidden relative border border-white/5">
+                                    <div className="h-2 w-full bg-[#0A0A0A] rounded-full overflow-hidden relative border border-white/5">
                                         <div className={`absolute top-0 left-0 h-full bg-gradient-to-r from-blue-500 to-purple-500 transition-all duration-500 shadow-[0_0_15px_rgba(168,85,247,0.5)]`} style={{ width: `${Math.min(spread * 50, 100)}%` }}></div>
                                     </div>
                                 </div>
@@ -692,7 +692,7 @@ const ArbitrageBot = () => {
 
                             {/* Exchange B */}
                             <div className="text-center group">
-                                <div className="w-16 h-16 md:w-20 md:h-20 rounded-3xl bg-slate-800 flex items-center justify-center mx-auto mb-4 shadow-xl group-hover:scale-110 transition-transform border border-white/5 group-hover:border-purple-500/50 relative">
+                                <div className="w-16 h-16 md:w-20 md:h-20 rounded-3xl bg-[#0A0A0A] flex items-center justify-center mx-auto mb-4 shadow-xl group-hover:scale-110 transition-transform border border-white/5 group-hover:border-purple-500/50 relative">
                                     <span className="text-2xl font-bold text-purple-400">{exchangeB ? exchangeB[0] : '?'}</span>
                                     <div className="absolute -bottom-1.5 -right-1.5 w-5 h-5 bg-emerald-500 border-4 border-slate-900 rounded-full shadow-[0_0_10px_#10b981]" title="API Connected"></div>
                                 </div>

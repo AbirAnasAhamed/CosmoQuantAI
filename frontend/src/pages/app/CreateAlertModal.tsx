@@ -67,7 +67,7 @@ const CreateAlertModal: React.FC<CreateAlertModalProps> = ({ onClose, onAddAlert
         onClose();
     };
     
-    const inputBaseClasses = "w-full bg-white dark:bg-slate-700 border border-brand-border-light dark:border-[#1A1A1A] rounded-md p-2 text-slate-900 dark:text-white";
+    const inputBaseClasses = "w-full bg-white dark:bg-[#0A0A0A] border border-brand-border-light dark:border-[#1A1A1A] rounded-md p-2 text-slate-900 dark:text-white";
 
     return (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 animate-modal-fade-in" onClick={onClose}>

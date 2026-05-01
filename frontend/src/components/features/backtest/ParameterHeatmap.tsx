@@ -159,8 +159,8 @@ const ParameterHeatmap: React.FC<ParameterHeatmapProps> = ({ results }) => {
                                                         <span className="text-[10px] font-bold text-white drop-shadow-md">
                                                             {val?.toFixed(1)}
                                                         </span>
-                                                        <div className="hidden group-hover:block absolute bottom-full mb-2 bg-slate-900 text-white text-xs p-2 rounded shadow-xl z-50 whitespace-nowrap pointer-events-none">
-                                                            <div className="font-bold border-b border-slate-700 pb-1 mb-1">Result Details</div>
+                                                        <div className="hidden group-hover:block absolute bottom-full mb-2 bg-[#050505] text-white text-xs p-2 rounded shadow-xl z-50 whitespace-nowrap pointer-events-none">
+                                                            <div className="font-bold border-b border-[#1F1F1F] pb-1 mb-1">Result Details</div>
                                                             <div>{xAxisParam}: <span className="font-mono text-yellow-400">{xVal}</span></div>
                                                             <div>{yAxisParam}: <span className="font-mono text-yellow-400">{yVal}</span></div>
                                                             <div className="mt-1">{selectedMetric}: <span className={`font-mono font-bold ${val > 0 ? 'text-green-400' : 'text-red-400'}`}>{val.toFixed(2)}</span></div>

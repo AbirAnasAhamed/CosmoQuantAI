@@ -51,7 +51,7 @@ export const AIStrategyLab: React.FC<AIStrategyLabProps> = ({
             <div className="lg:col-span-4 flex flex-col gap-4 h-full">
 
                 {/* AI Input Card */}
-                <div className="flex-1 bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl border border-white/20 dark:border-gray-700/50 rounded-2xl p-5 shadow-xl flex flex-col relative overflow-hidden group">
+                <div className="flex-1 bg-white/50 dark:bg-[#050505]/50 backdrop-blur-xl border border-white/20 dark:border-gray-700/50 rounded-2xl p-5 shadow-xl flex flex-col relative overflow-hidden group">
                     {/* Decorative Background Gradient */}
                     <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500"></div>
                     <div className="absolute -right-10 -top-10 w-32 h-32 bg-purple-500/10 blur-3xl rounded-full pointer-events-none"></div>
@@ -84,7 +84,7 @@ export const AIStrategyLab: React.FC<AIStrategyLabProps> = ({
                                 <button
                                     key={i}
                                     onClick={() => setAiPrompt(s)}
-                                    className="whitespace-nowrap px-2 py-1 bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-md text-[10px] text-gray-500 hover:text-purple-500 hover:border-purple-500 transition-colors"
+                                    className="whitespace-nowrap px-2 py-1 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-gray-700 rounded-md text-[10px] text-gray-500 hover:text-purple-500 hover:border-purple-500 transition-colors"
                                 >
                                     {s}
                                 </button>
@@ -95,7 +95,7 @@ export const AIStrategyLab: React.FC<AIStrategyLabProps> = ({
                     <button
                         onClick={handleAiGenerate}
                         disabled={isGenerating}
-                        className="mt-4 w-full relative group overflow-hidden rounded-xl bg-slate-900 dark:bg-white text-white dark:text-slate-900 font-bold py-3.5 shadow-lg hover:shadow-purple-500/25 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
+                        className="mt-4 w-full relative group overflow-hidden rounded-xl bg-[#050505] dark:bg-white text-white dark:text-slate-900 font-bold py-3.5 shadow-lg hover:shadow-purple-500/25 transition-all active:scale-[0.98] disabled:opacity-70 disabled:cursor-not-allowed"
                     >
                         <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full group-hover:animate-shimmer" />
                         <span className="flex items-center justify-center gap-2">
@@ -109,7 +109,7 @@ export const AIStrategyLab: React.FC<AIStrategyLabProps> = ({
                 </div>
 
                 {/* Upload Section (Compact & Stylish) */}
-                <div className="bg-white/50 dark:bg-slate-900/50 backdrop-blur-xl border border-white/20 dark:border-gray-700/50 rounded-2xl p-4 shadow-lg flex flex-col justify-center">
+                <div className="bg-white/50 dark:bg-[#050505]/50 backdrop-blur-xl border border-white/20 dark:border-gray-700/50 rounded-2xl p-4 shadow-lg flex flex-col justify-center">
                     <div className="flex items-center justify-between mb-2">
                         <h3 className="text-sm font-semibold text-slate-700 dark:text-slate-300 flex items-center gap-2">
                             <UploadCloud className="w-4 h-4 text-blue-500" /> Import Code
@@ -119,7 +119,7 @@ export const AIStrategyLab: React.FC<AIStrategyLabProps> = ({
                     <div className="flex gap-2 items-center">
                         <input type="file" ref={fileInputRef} onChange={handleFileChange} className="hidden" accept=".py" />
 
-                        <div className="flex-1 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-2 flex items-center justify-center cursor-pointer hover:bg-gray-50 dark:hover:bg-slate-800/50 transition-colors" onClick={() => fileInputRef.current?.click()}>
+                        <div className="flex-1 border border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-2 flex items-center justify-center cursor-pointer hover:bg-gray-50 dark:hover:bg-[#0A0A0A]/50 transition-colors" onClick={() => fileInputRef.current?.click()}>
                             <span className="text-xs text-gray-500 truncate max-w-[150px]">
                                 {fileName || "Select .py file"}
                             </span>

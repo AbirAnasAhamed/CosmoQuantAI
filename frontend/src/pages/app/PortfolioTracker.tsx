@@ -14,7 +14,7 @@ const COLORS = ['#6366F1', '#8B5CF6', '#D946EF', '#F43F5E', '#F59E0B', '#10B981'
 
 const GlassCard: React.FC<{ children: React.ReactNode, className?: string, style?: React.CSSProperties }> = ({ children, className = "", style }) => (
     <div 
-        className={`backdrop-blur-xl bg-white/5 dark:bg-slate-900/40 border border-white/10 dark:border-white/5 rounded-[2rem] shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] overflow-hidden ${className}`}
+        className={`backdrop-blur-xl bg-white/5 dark:bg-[#050505]/40 border border-white/10 dark:border-white/5 rounded-[2rem] shadow-[0_8px_32px_0_rgba(0,0,0,0.36)] overflow-hidden ${className}`}
         style={style}
     >
         {children}
@@ -97,7 +97,7 @@ const ConnectExchangeModal: React.FC<{
 
     return (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-xl z-[100] flex items-center justify-center p-4 animate-in fade-in zoom-in duration-300" onClick={onClose}>
-            <div className="bg-slate-900 border border-white/10 w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
+            <div className="bg-[#050505] border border-white/10 w-full max-w-xl rounded-[2.5rem] shadow-2xl overflow-hidden flex flex-col" onClick={e => e.stopPropagation()}>
                 <div className="p-8 border-b border-white/5 bg-white/5 flex justify-between items-center">
                     <h2 className="text-2xl font-black text-white tracking-tight">Connect Data Stream</h2>
                     <button onClick={onClose} className="p-2 hover:bg-white/10 rounded-full transition-colors text-white/50 hover:text-white">&times;</button>

@@ -21,7 +21,7 @@ export const FeatureLab: React.FC<FeatureLabProps> = ({ data }) => {
         <div className="space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                 {/* Feature Importance Chart */}
-                <div className="lg:col-span-2 bg-omni-panel border border-slate-700 rounded-xl p-6">
+                <div className="lg:col-span-2 bg-omni-panel border border-[#1F1F1F] rounded-xl p-6">
                     <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                         <Layers size={20} className="text-omni-accent" /> Feature Importance (SHAP Values)
                     </h3>
@@ -48,7 +48,7 @@ export const FeatureLab: React.FC<FeatureLabProps> = ({ data }) => {
                 </div>
 
                 {/* Correlation Matrix (Simplified) */}
-                <div className="bg-omni-panel border border-slate-700 rounded-xl p-6">
+                <div className="bg-omni-panel border border-[#1F1F1F] rounded-xl p-6">
                     <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                         <TrendingUp size={20} className="text-omni-success" /> Target Correlation
                     </h3>
@@ -61,7 +61,7 @@ export const FeatureLab: React.FC<FeatureLabProps> = ({ data }) => {
                                         {feature.correlation > 0 ? '+' : ''}{feature.correlation}
                                     </span>
                                 </div>
-                                <div className="h-1.5 bg-slate-800 rounded-full overflow-hidden flex">
+                                <div className="h-1.5 bg-[#0A0A0A] rounded-full overflow-hidden flex">
                                     <div className="w-1/2 flex justify-end">
                                         {feature.correlation < 0 && (
                                             <div
@@ -86,7 +86,7 @@ export const FeatureLab: React.FC<FeatureLabProps> = ({ data }) => {
             </div>
 
             {/* Feature Engineering Playground */}
-            <div className="bg-omni-panel border border-slate-700 rounded-xl p-6">
+            <div className="bg-omni-panel border border-[#1F1F1F] rounded-xl p-6">
                 <div className="flex justify-between items-center mb-6">
                     <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                         <BarChart3 size={20} className="text-purple-400" /> Feature Engineering Lab
@@ -98,7 +98,7 @@ export const FeatureLab: React.FC<FeatureLabProps> = ({ data }) => {
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                     {['Log Returns', 'Volatility Scaling', 'Lagged Features (t-1, t-2)', 'Fourier Transform', 'Wavelet Denoising', 'Sentiment Embedding'].map((method) => (
-                        <div key={method} className="p-4 bg-slate-800/50 border border-slate-700 rounded-lg hover:border-purple-500/50 transition-colors cursor-pointer group">
+                        <div key={method} className="p-4 bg-[#0A0A0A]/50 border border-[#1F1F1F] rounded-lg hover:border-purple-500/50 transition-colors cursor-pointer group">
                             <div className="flex items-center gap-3">
                                 <div className="w-4 h-4 rounded border border-slate-500 group-hover:bg-purple-500 group-hover:border-purple-500 transition-colors"></div>
                                 <span className="text-sm text-slate-300 group-hover:text-white">{method}</span>

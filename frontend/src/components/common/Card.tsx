@@ -11,7 +11,7 @@ interface CardProps {
 
 const Card: React.FC<CardProps> = ({ children, className = '', onClick, style }) => {
   const interactiveClasses = onClick
-    ? 'hover:shadow-xl hover:dark:shadow-brand-primary/20 dark:hover:bg-slate-800/50 cursor-pointer hover:-translate-y-1'
+    ? 'hover:shadow-xl hover:dark:shadow-brand-primary/20 dark:hover:bg-[#0A0A0A]/50 cursor-pointer hover:-translate-y-1'
     : '';
   return (
     <div

@@ -51,7 +51,7 @@ const ZScoreGauge: React.FC<{ zScore: number }> = ({ zScore }) => {
                 <span>Mean (0)</span>
                 <span>Sell Pair (+2σ)</span>
             </div>
-            <div className="relative h-3 bg-gray-200 dark:bg-slate-800 rounded-full overflow-hidden">
+            <div className="relative h-3 bg-gray-200 dark:bg-[#0A0A0A] rounded-full overflow-hidden">
                 {/* Zones */}
                 <div className="absolute left-0 w-[16.66%] h-full bg-emerald-500/30"></div> {/* Buy Zone */}
                 <div className="absolute right-0 w-[16.66%] h-full bg-rose-500/30"></div>   {/* Sell Zone */}
@@ -134,13 +134,13 @@ const MatrixCell: React.FC<{
             {value.toFixed(2)}
 
             {/* Tooltip */}
-            <div className="absolute opacity-0 group-hover:opacity-100 bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-slate-900 text-white text-xs rounded-md px-2 py-1 pointer-events-none whitespace-nowrap z-50 shadow-xl border border-slate-700 transition-opacity duration-200">
+            <div className="absolute opacity-0 group-hover:opacity-100 bottom-full mb-2 left-1/2 transform -translate-x-1/2 bg-[#050505] text-white text-xs rounded-md px-2 py-1 pointer-events-none whitespace-nowrap z-50 shadow-xl border border-[#1F1F1F] transition-opacity duration-200">
                 <div className="font-bold">{row} vs {col}</div>
                 <div>Corr: {value.toFixed(4)}</div>
                 {leadLagText && (
                     <div className="text-emerald-400 font-bold mt-0.5">{leadLagText}</div>
                 )}
-                <div className="absolute bottom-[-4px] left-1/2 transform -translate-x-1/2 w-2 h-2 bg-slate-900 rotate-45 border-r border-b border-slate-700"></div>
+                <div className="absolute bottom-[-4px] left-1/2 transform -translate-x-1/2 w-2 h-2 bg-[#050505] rotate-45 border-r border-b border-[#1F1F1F]"></div>
             </div>
         </div>
     );
@@ -160,7 +160,7 @@ const PairCard: React.FC<{ pairData: CointegratedPair; index: number }> = ({ pai
                 <div className="flex justify-between items-start mb-4">
                     <div className="flex items-center gap-3">
                         <div className="flex -space-x-2">
-                            <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center text-[10px] font-bold border-2 border-white dark:border-brand-dark">{pairData.pair[0]}</div>
+                            <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-[#0A0A0A] flex items-center justify-center text-[10px] font-bold border-2 border-white dark:border-brand-dark">{pairData.pair[0]}</div>
                             <div className="w-8 h-8 rounded-full bg-slate-300 dark:bg-slate-600 flex items-center justify-center text-[10px] font-bold border-2 border-white dark:border-brand-dark">{pairData.pair[1]}</div>
                         </div>
                         <div>
@@ -221,7 +221,7 @@ const CorrelationMatrix: React.FC = () => {
         toast.custom((t) => (
             <div
                 className={`${t.visible ? 'animate-enter' : 'animate-leave'
-                    } max-w-sm w-full bg-slate-900/90 dark:bg-slate-900/90 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-2xl pointer-events-auto flex ring-1 ring-white/10 overflow-hidden`}
+                    } max-w-sm w-full bg-[#050505]/90 dark:bg-[#050505]/90 backdrop-blur-md shadow-[0_8px_30px_rgb(0,0,0,0.12)] rounded-2xl pointer-events-auto flex ring-1 ring-white/10 overflow-hidden`}
             >
                 <div className="flex-1 w-0 p-4">
                     <div className="flex items-start gap-4">
@@ -353,7 +353,7 @@ const CorrelationMatrix: React.FC = () => {
 
                     <div className="flex items-center gap-2">
                         {/* Timeframe Selector */}
-                        <div className="flex bg-slate-200 dark:bg-slate-800 rounded-lg p-1">
+                        <div className="flex bg-slate-200 dark:bg-[#0A0A0A] rounded-lg p-1">
                             {['1H', '4H', '1D'].map((tf) => (
                                 <button
                                     key={tf}

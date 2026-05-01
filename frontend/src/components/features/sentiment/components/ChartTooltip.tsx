@@ -6,8 +6,8 @@ import { formatToLocalTime } from '@/utils/dateUtils';
 const ChartTooltip: React.FC<any> = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
         return (
-            <div className="backdrop-blur-xl bg-white/95 dark:bg-slate-900/95 border border-slate-200 dark:border-slate-800 p-4 rounded-xl shadow-xl min-w-[200px]">
-                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-3 uppercase tracking-wider border-b border-slate-100 dark:border-slate-800 pb-2">
+            <div className="backdrop-blur-xl bg-white/95 dark:bg-[#050505]/95 border border-slate-200 dark:border-[#141414] p-4 rounded-xl shadow-xl min-w-[200px]">
+                <p className="text-xs font-bold text-slate-500 dark:text-slate-400 mb-3 uppercase tracking-wider border-b border-slate-100 dark:border-[#141414] pb-2">
                     {formatToLocalTime(label)}
                 </p>
                 <div className="space-y-2">

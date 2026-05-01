@@ -15,9 +15,9 @@ export const HighImpactWidget: React.FC<HighImpactWidgetProps> = ({ news }) => {
 
     if (highImpactNews.length === 0) {
         return (
-            <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-950 p-6 shadow-xl">
+            <div className="relative overflow-hidden rounded-2xl border border-slate-200 dark:border-[#141414] bg-white dark:bg-slate-950 p-6 shadow-xl">
                 <div className="flex flex-col items-center justify-center text-slate-500 py-10 gap-3">
-                    <div className="p-3 bg-slate-100 dark:bg-slate-900 rounded-full">
+                    <div className="p-3 bg-slate-100 dark:bg-[#050505] rounded-full">
                         <Activity className="w-6 h-6 opacity-50" />
                     </div>
                     <span className="text-sm font-medium tracking-wide">Market Conditions Stable. No Critical Alerts.</span>
@@ -33,7 +33,7 @@ export const HighImpactWidget: React.FC<HighImpactWidgetProps> = ({ news }) => {
 
             <div className="relative bg-white dark:bg-slate-950 rounded-2xl overflow-hidden h-full flex flex-col">
                 {/* Header Section */}
-                <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-900 bg-slate-50/50 dark:bg-slate-900/20 backdrop-blur-sm">
+                <div className="flex items-center justify-between p-5 border-b border-slate-100 dark:border-slate-900 bg-slate-50/50 dark:bg-[#050505]/20 backdrop-blur-sm">
                     <div className="flex items-center gap-3">
                         <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-red-500 to-orange-600 shadow-lg shadow-red-500/20">
                             <Zap className="w-4 h-4 text-white fill-white animate-bounce-slow" />
@@ -58,7 +58,7 @@ export const HighImpactWidget: React.FC<HighImpactWidgetProps> = ({ news }) => {
                     {highImpactNews.map((item, index) => (
                         <div
                             key={index}
-                            className="group/item relative flex flex-col gap-2 p-4 rounded-xl transition-all duration-300 hover:bg-slate-50 dark:hover:bg-slate-900/50 border border-transparent hover:border-slate-200 dark:hover:border-slate-800"
+                            className="group/item relative flex flex-col gap-2 p-4 rounded-xl transition-all duration-300 hover:bg-slate-50 dark:hover:bg-[#050505]/50 border border-transparent hover:border-slate-200 dark:hover:border-[#141414]"
                         >
                             <div className="flex items-start justify-between gap-4">
                                 <div className="flex-1">

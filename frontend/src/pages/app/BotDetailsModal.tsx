@@ -157,7 +157,7 @@ const BotDetailsModal: React.FC<BotDetailsModalProps> = ({ bot, onClose }) => {
             <div className="bg-[#0A0A0A] w-full max-w-5xl h-[85vh] rounded-xl shadow-2xl flex flex-col overflow-hidden border border-gray-800 ring-1 ring-white/10" onClick={e => e.stopPropagation()}>
 
                 {/* --- 1. Header Section --- */}
-                <div className="h-16 px-6 border-b border-gray-800 bg-[#141414]/50 flex items-center justify-between">
+                <div className="h-16 px-6 border-b border-gray-800 bg-[#0A0A0A]/50 flex items-center justify-between">
                     <div className="flex items-center gap-4">
                         <div className={`p-2 rounded-lg ${bot.status === 'active' ? 'bg-emerald-500/10 text-emerald-500' : 'bg-gray-700/50 text-gray-400'}`}>
                             {bot.status === 'active' ? <Activity size={20} className="animate-pulse" /> : <Pause size={20} />}

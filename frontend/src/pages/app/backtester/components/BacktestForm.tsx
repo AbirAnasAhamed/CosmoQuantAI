@@ -215,17 +215,17 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
             "July", "August", "September", "October", "November", "December",
         ];
         return (
-            <div className="m-2 flex items-center justify-between px-2 py-2 bg-white dark:bg-slate-800 rounded-lg border-b border-gray-200 dark:border-gray-700">
-                <button onClick={decreaseMonth} disabled={prevMonthButtonDisabled} className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full text-slate-600 dark:text-slate-300 transition-colors disabled:opacity-50" type="button"><ChevronLeft size={18} /></button>
+            <div className="m-2 flex items-center justify-between px-2 py-2 bg-white dark:bg-[#0A0A0A] rounded-lg border-b border-gray-200 dark:border-gray-700">
+                <button onClick={decreaseMonth} disabled={prevMonthButtonDisabled} className="p-1 hover:bg-gray-100 dark:hover:bg-[#0A0A0A] rounded-full text-slate-600 dark:text-slate-300 transition-colors disabled:opacity-50" type="button"><ChevronLeft size={18} /></button>
                 <div className="flex gap-2">
                     <select value={months[getMonth(date)]} onChange={({ target: { value } }) => changeMonth(months.indexOf(value))} className="bg-transparent text-sm font-bold text-slate-800 dark:text-white cursor-pointer focus:outline-none hover:text-brand-primary dark:hover:text-brand-primary transition-colors appearance-none text-center">
-                        {months.map((option) => (<option key={option} value={option} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{option}</option>))}
+                        {months.map((option) => (<option key={option} value={option} className="bg-white dark:bg-[#0A0A0A] text-slate-900 dark:text-white">{option}</option>))}
                     </select>
                     <select value={getYear(date)} onChange={({ target: { value } }) => changeYear(Number(value))} className="bg-transparent text-sm font-bold text-slate-800 dark:text-white cursor-pointer focus:outline-none hover:text-brand-primary dark:hover:text-brand-primary transition-colors appearance-none text-center">
-                        {years.map((option) => (<option key={option} value={option} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">{option}</option>))}
+                        {years.map((option) => (<option key={option} value={option} className="bg-white dark:bg-[#0A0A0A] text-slate-900 dark:text-white">{option}</option>))}
                     </select>
                 </div>
-                <button onClick={increaseMonth} disabled={nextMonthButtonDisabled} className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full text-slate-600 dark:text-slate-300 transition-colors disabled:opacity-50" type="button"><ChevronRight size={18} /></button>
+                <button onClick={increaseMonth} disabled={nextMonthButtonDisabled} className="p-1 hover:bg-gray-100 dark:hover:bg-[#0A0A0A] rounded-full text-slate-600 dark:text-slate-300 transition-colors disabled:opacity-50" type="button"><ChevronRight size={18} /></button>
             </div>
         );
     };
@@ -306,7 +306,7 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                 {mode !== 'batch' ? (
                     <div>
                         {/* Indicator Selector */}
-                        <div className="mb-4 p-3 bg-indigo-50 dark:bg-slate-900 border border-indigo-200 dark:border-indigo-900 rounded-lg">
+                        <div className="mb-4 p-3 bg-indigo-50 dark:bg-[#050505] border border-indigo-200 dark:border-indigo-900 rounded-lg">
                             <label className="block text-xs font-bold text-indigo-700 dark:text-indigo-400 mb-1">Use Saved Indicator (Optional)</label>
                             <select
                                 className={inputBaseClasses}
@@ -341,9 +341,9 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                         </div>
                     </div>
                 ) : (
-                    <div className="bg-gray-50 dark:bg-slate-800 p-4 rounded-lg border border-gray-200 dark:border-gray-700 col-span-1 md:col-span-2 lg:col-span-3">
+                    <div className="bg-gray-50 dark:bg-[#0A0A0A] p-4 rounded-lg border border-gray-200 dark:border-gray-700 col-span-1 md:col-span-2 lg:col-span-3">
                         <h3 className="text-sm font-bold mb-3 flex items-center gap-2 text-slate-700 dark:text-slate-300"><CheckSquare size={16} /> Select Strategies for Batch Run</h3>
-                        <div className="h-40 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded p-2 bg-white dark:bg-slate-900 grid grid-cols-2 md:grid-cols-3 gap-2">
+                        <div className="h-40 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded p-2 bg-white dark:bg-[#050505] grid grid-cols-2 md:grid-cols-3 gap-2">
                             {allBatchStrategies.length > 0 ? (allBatchStrategies.map(s => (
                                 <div key={`batch-${s}`} onClick={() => toggleBatchStrategy(s)} className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors border select-none ${(batchStrategies || []).includes(s) ? 'bg-blue-100 dark:bg-blue-900/30 border-blue-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800 border-transparent'}`}>
                                     {(batchStrategies || []).includes(s) ? <CheckSquare size={14} className="text-blue-600" /> : <Square size={14} className="text-gray-400" />}
@@ -375,8 +375,8 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                             <h3 className="text-sm font-bold text-blue-800 dark:text-blue-300">WFA Configuration</h3>
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <div><label className="text-xs font-semibold text-gray-500 mb-1 block">Training Window</label><input type="number" value={wfaTrainWindow} onChange={(e) => setWfaTrainWindow(Number(e.target.value))} className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-gray-700 rounded p-2 text-sm" /></div>
-                            <div><label className="text-xs font-semibold text-gray-500 mb-1 block">Testing Window</label><input type="number" value={wfaTestWindow} onChange={(e) => setWfaTestWindow(Number(e.target.value))} className="w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-gray-700 rounded p-2 text-sm" /></div>
+                            <div><label className="text-xs font-semibold text-gray-500 mb-1 block">Training Window</label><input type="number" value={wfaTrainWindow} onChange={(e) => setWfaTrainWindow(Number(e.target.value))} className="w-full bg-white dark:bg-[#050505] border border-gray-300 dark:border-gray-700 rounded p-2 text-sm" /></div>
+                            <div><label className="text-xs font-semibold text-gray-500 mb-1 block">Testing Window</label><input type="number" value={wfaTestWindow} onChange={(e) => setWfaTestWindow(Number(e.target.value))} className="w-full bg-white dark:bg-[#050505] border border-gray-300 dark:border-gray-700 rounded p-2 text-sm" /></div>
                         </div>
                     </div>
                 )}
@@ -392,22 +392,22 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                     <select className={inputBaseClasses} value={secondaryTimeframe} onChange={(e) => setSecondaryTimeframe(e.target.value)}><option value="">None</option>{availableTimeframes.map(t => (<option key={t} value={t}>{t}</option>))}</select>
                 </div>
 
-                <div className="col-span-1 md:col-span-2 lg:col-span-3 bg-gray-50 dark:bg-slate-800/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
+                <div className="col-span-1 md:col-span-2 lg:col-span-3 bg-gray-50 dark:bg-[#0A0A0A]/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
                     <div className="flex items-center gap-2 mb-3"><History size={16} className="text-brand-primary" /><label className="text-sm font-bold text-slate-700 dark:text-slate-300">Time Horizon</label></div>
                     <div className="flex flex-col lg:flex-row gap-4 items-end">
                         <div className="flex-1 grid grid-cols-2 gap-4 w-full">
                             <div className="relative group">
                                 <label className="text-xs font-semibold text-gray-500 mb-1.5 block ml-1">Start Date</label>
-                                <DatePicker selected={startDate ? new Date(startDate) : null} onChange={(date: Date) => setStartDate(date?.toISOString().split('T')[0] || '')} className={`${inputBaseClasses} pl-2 font-medium cursor-pointer`} dateFormat="yyyy-MM-dd" placeholderText="Select start" renderCustomHeader={CustomInputHeader} calendarClassName="!bg-white dark:!bg-slate-900 !border-gray-200 dark:!border-gray-700" />
+                                <DatePicker selected={startDate ? new Date(startDate) : null} onChange={(date: Date) => setStartDate(date?.toISOString().split('T')[0] || '')} className={`${inputBaseClasses} pl-2 font-medium cursor-pointer`} dateFormat="yyyy-MM-dd" placeholderText="Select start" renderCustomHeader={CustomInputHeader} calendarClassName="!bg-white dark:!bg-[#050505] !border-gray-200 dark:!border-gray-700" />
                             </div>
                             <div className="relative group">
                                 <label className="text-xs font-semibold text-gray-500 mb-1.5 block ml-1">End Date</label>
-                                <DatePicker selected={endDate ? new Date(endDate) : null} onChange={(date: Date) => setEndDate(date?.toISOString().split('T')[0] || '')} className={`${inputBaseClasses} pl-2 font-medium cursor-pointer`} dateFormat="yyyy-MM-dd" placeholderText="Select end" renderCustomHeader={CustomInputHeader} calendarClassName="!bg-white dark:!bg-slate-900 !border-gray-200 dark:!border-gray-700" />
+                                <DatePicker selected={endDate ? new Date(endDate) : null} onChange={(date: Date) => setEndDate(date?.toISOString().split('T')[0] || '')} className={`${inputBaseClasses} pl-2 font-medium cursor-pointer`} dateFormat="yyyy-MM-dd" placeholderText="Select end" renderCustomHeader={CustomInputHeader} calendarClassName="!bg-white dark:!bg-[#050505] !border-gray-200 dark:!border-gray-700" />
                             </div>
                         </div>
                         <div className="w-full lg:w-auto">
                             <label className="text-xs font-semibold text-gray-500 mb-1.5 block ml-1 lg:text-right px-1">Quick Select</label>
-                            <div className="flex bg-white dark:bg-slate-900 rounded-lg border border-gray-200 dark:border-gray-700 p-1">
+                            <div className="flex bg-white dark:bg-[#050505] rounded-lg border border-gray-200 dark:border-gray-700 p-1">
                                 {presetOptions.map((option) => (<button key={option.label} onClick={() => handlePresetChange(option.days)} className="flex-1 px-3 py-1.5 text-xs font-medium rounded-md text-slate-600 dark:text-slate-400 hover:bg-brand-primary/10 hover:text-brand-primary transition-all">{option.label}</button>))}
                             </div>
                         </div>

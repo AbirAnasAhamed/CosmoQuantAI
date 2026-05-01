@@ -16,14 +16,14 @@ const BotDetailsModal: React.FC<BotDetailsModalProps> = ({ bot: initialBot, onCl
 
     return createPortal(
         <div className="fixed inset-0 bg-black/80 backdrop-blur-md z-[70] flex items-center justify-center p-4 animate-in fade-in duration-200" onClick={onClose}>
-            <div className="bg-slate-900/90 border border-white/10 w-full max-w-4xl rounded-3xl shadow-2xl h-[80vh] flex flex-col overflow-hidden relative" onClick={e => e.stopPropagation()}>
+            <div className="bg-[#050505]/90 border border-white/10 w-full max-w-4xl rounded-3xl shadow-2xl h-[80vh] flex flex-col overflow-hidden relative" onClick={e => e.stopPropagation()}>
                 {/* Glow Effects */}
                 <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-[2px] bg-gradient-to-r from-transparent via-cyan-500 to-transparent opacity-50"></div>
 
                 {/* Header */}
                 <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
                     <div className="flex items-center gap-4">
-                        <div className={`p-2 rounded-xl ${bot.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-slate-700/50 text-slate-400'}`}>
+                        <div className={`p-2 rounded-xl ${bot.status === 'active' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-[#0A0A0A]/50 text-slate-400'}`}>
                             <Cpu size={24} />
                         </div>
                         <div>

@@ -64,7 +64,7 @@ export const WhaleActivityWidget: React.FC = () => {
     };
 
     return (
-        <Card className="w-full h-[380px] p-0 border border-slate-700/50 bg-[#0B0F19] shadow-2xl overflow-hidden relative group">
+        <Card className="w-full h-[380px] p-0 border border-[#1F1F1F]/50 bg-[#0B0F19] shadow-2xl overflow-hidden relative group">
             {/* Dynamic Background Mesh */}
             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-5 mix-blend-overlay pointer-events-none"></div>
             <div className="absolute -bottom-20 -left-20 w-64 h-64 rounded-full blur-[100px] opacity-10 bg-blue-600 transition-colors duration-1000" />
@@ -97,7 +97,7 @@ export const WhaleActivityWidget: React.FC = () => {
             <div className="p-5 flex flex-col h-[calc(100%-65px)]">
 
                 {/* Controls - Compact */}
-                <div className="flex items-center gap-2 mb-4 p-2 bg-slate-900/60 rounded-lg border border-slate-700/50">
+                <div className="flex items-center gap-2 mb-4 p-2 bg-[#050505]/60 rounded-lg border border-[#1F1F1F]/50">
                     <div className="flex-1 flex items-center gap-2 pl-2">
                         <label className="text-[10px] text-slate-400 uppercase font-semibold">Min Value:</label>
                         <div className="flex items-center">
@@ -106,7 +106,7 @@ export const WhaleActivityWidget: React.FC = () => {
                                 type="number"
                                 value={threshold}
                                 onChange={(e) => setThreshold(parseFloat(e.target.value))}
-                                className="h-6 bg-transparent border-b border-slate-700 text-slate-200 w-12 text-sm text-center focus:outline-none focus:border-blue-500 mx-1"
+                                className="h-6 bg-transparent border-b border-[#1F1F1F] text-slate-200 w-12 text-sm text-center focus:outline-none focus:border-blue-500 mx-1"
                             />
                             <span className="text-xs text-slate-500 font-bold">M</span>
                         </div>
@@ -134,7 +134,7 @@ export const WhaleActivityWidget: React.FC = () => {
                             </div>
                         ) : (
                             alerts.map((alert, idx) => (
-                                <div key={idx} className="group/item relative flex items-center justify-between p-2.5 rounded-lg border border-slate-800/60 bg-slate-900/40 hover:bg-slate-800 hover:border-blue-500/30 hover:shadow-[0_0_15px_rgba(59,130,246,0.1)] transition-all duration-200">
+                                <div key={idx} className="group/item relative flex items-center justify-between p-2.5 rounded-lg border border-[#141414]/60 bg-[#050505]/40 hover:bg-[#0A0A0A] hover:border-blue-500/30 hover:shadow-[0_0_15px_rgba(59,130,246,0.1)] transition-all duration-200">
                                     <div className="flex items-start gap-3">
                                         <div className="p-1.5 rounded bg-blue-500/10 border border-blue-500/20 mt-0.5">
                                             <Wallet className="h-3.5 w-3.5 text-blue-400" />

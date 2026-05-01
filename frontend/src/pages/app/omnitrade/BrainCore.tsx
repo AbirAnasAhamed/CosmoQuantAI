@@ -238,7 +238,7 @@ export const BrainCore: React.FC<BrainCoreProps> = ({ currentData, genesisBot })
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 h-full relative">
             {/* Visualizer Side */}
             <div className="space-y-6">
-                <div className="bg-omni-panel border border-slate-700 rounded-xl p-6 relative overflow-hidden">
+                <div className="bg-omni-panel border border-[#1F1F1F] rounded-xl p-6 relative overflow-hidden">
                     <div className="flex items-center justify-between mb-6 relative z-10">
                         <div className="flex items-center space-x-3">
                             <div className="p-3 bg-indigo-500/20 rounded-lg text-indigo-400 animate-pulse">
@@ -254,7 +254,7 @@ export const BrainCore: React.FC<BrainCoreProps> = ({ currentData, genesisBot })
                             {deletedHistory.length > 0 && (
                                 <button
                                     onClick={undoDelete}
-                                    className="p-2 bg-slate-800 text-slate-400 hover:text-white border border-slate-700 rounded-lg transition-colors flex items-center gap-2 text-xs font-bold"
+                                    className="p-2 bg-[#0A0A0A] text-slate-400 hover:text-white border border-[#1F1F1F] rounded-lg transition-colors flex items-center gap-2 text-xs font-bold"
                                     title="Undo Last Deletion"
                                 >
                                     <Undo2 size={16} /> UNDO
@@ -286,7 +286,7 @@ export const BrainCore: React.FC<BrainCoreProps> = ({ currentData, genesisBot })
                         onClick={runAnalysis}
                         disabled={isAnalyzing || isTraining || !currentData}
                         className={`w-full py-4 rounded-xl font-bold text-lg tracking-wide shadow-lg transition-all mb-4 ${isAnalyzing
-                            ? 'bg-slate-700 text-slate-400 cursor-not-allowed'
+                            ? 'bg-[#0A0A0A] text-slate-400 cursor-not-allowed'
                             : 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white'
                             }`}
                     >
@@ -302,7 +302,7 @@ export const BrainCore: React.FC<BrainCoreProps> = ({ currentData, genesisBot })
                     </button>
 
                     {/* Continuous Learning Panel */}
-                    <div className="border-t border-slate-700 pt-4 mt-4">
+                    <div className="border-t border-[#1F1F1F] pt-4 mt-4">
                         <div className="flex justify-between items-center mb-3">
                             <h3 className="text-sm font-semibold text-slate-300 flex items-center gap-2">
                                 <GitBranch size={16} /> Continuous Learning Pipeline
@@ -310,7 +310,7 @@ export const BrainCore: React.FC<BrainCoreProps> = ({ currentData, genesisBot })
                             {isTraining && <span className="text-xs text-omni-accent animate-pulse">OPTIMIZING... {Math.round(trainingProgress)}%</span>}
                         </div>
 
-                        <div className="bg-slate-800 rounded-lg p-3 border border-slate-700 flex flex-col gap-3">
+                        <div className="bg-[#0A0A0A] rounded-lg p-3 border border-[#1F1F1F] flex flex-col gap-3">
                             {/* PPO Control - LINKED TO GENESIS BOT */}
                             <div className="flex items-center justify-between">
                                 <div>
@@ -330,7 +330,7 @@ export const BrainCore: React.FC<BrainCoreProps> = ({ currentData, genesisBot })
                                     onClick={trainPPOAgent}
                                     disabled={isTraining || isAnalyzing}
                                     className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition-colors ${isTraining
-                                        ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                                        ? 'bg-[#0A0A0A] text-slate-500 cursor-not-allowed'
                                         : 'bg-omni-accent/10 text-omni-accent hover:bg-omni-accent/20 border border-omni-accent/50'
                                         }`}
                                 >
@@ -340,7 +340,7 @@ export const BrainCore: React.FC<BrainCoreProps> = ({ currentData, genesisBot })
                             </div>
 
                             {/* LSTM Control */}
-                            <div className="flex items-center justify-between border-t border-slate-700 pt-2">
+                            <div className="flex items-center justify-between border-t border-[#1F1F1F] pt-2">
                                 <div>
                                     <div className="text-xs text-slate-400">Agent A (Time-Series)</div>
                                     <div className="text-xs font-mono text-white">v1.8.0-LSTM</div>
@@ -349,7 +349,7 @@ export const BrainCore: React.FC<BrainCoreProps> = ({ currentData, genesisBot })
                                     onClick={trainLstmAgent}
                                     disabled={isTraining || isAnalyzing}
                                     className={`px-3 py-1.5 rounded text-xs font-bold flex items-center gap-2 transition-colors ${isTraining
-                                        ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                                        ? 'bg-[#0A0A0A] text-slate-500 cursor-not-allowed'
                                         : 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 border border-emerald-500/50'
                                         }`}
                                 >
@@ -359,19 +359,19 @@ export const BrainCore: React.FC<BrainCoreProps> = ({ currentData, genesisBot })
                             </div>
                         </div>
                         {isTraining && (
-                            <div className="w-full h-1 bg-slate-700 mt-2 rounded-full overflow-hidden">
+                            <div className="w-full h-1 bg-[#0A0A0A] mt-2 rounded-full overflow-hidden">
                                 <div className="h-full bg-omni-accent transition-all duration-300" style={{ width: `${trainingProgress}%` }}></div>
                             </div>
                         )}
                     </div>
                 </div>
 
-                <div className="bg-black/40 border border-slate-800 rounded-xl p-4 font-mono text-sm h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
+                <div className="bg-black/40 border border-[#141414] rounded-xl p-4 font-mono text-sm h-48 overflow-y-auto scrollbar-thin scrollbar-thumb-slate-700">
                     {logs.length === 0 ? (
                         <span className="text-slate-600">System idle. Neural swarm awaiting input vectors...</span>
                     ) : (
                         logs.map((log, i) => (
-                            <div key={i} className="mb-1 text-slate-300 border-l-2 border-slate-700 pl-2 text-xs">
+                            <div key={i} className="mb-1 text-slate-300 border-l-2 border-[#1F1F1F] pl-2 text-xs">
                                 {log}
                             </div>
                         ))
@@ -380,7 +380,7 @@ export const BrainCore: React.FC<BrainCoreProps> = ({ currentData, genesisBot })
             </div>
 
             {/* Results Side */}
-            <div className="bg-omni-panel border border-slate-700 rounded-xl p-6 flex flex-col">
+            <div className="bg-omni-panel border border-[#1F1F1F] rounded-xl p-6 flex flex-col">
                 <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                     <MessageSquare size={18} /> Strategic Output
                 </h3>
@@ -402,14 +402,14 @@ export const BrainCore: React.FC<BrainCoreProps> = ({ currentData, genesisBot })
                         </div>
 
                         <div className="space-y-4">
-                            <div className="bg-slate-800/50 p-4 rounded-lg">
+                            <div className="bg-[#0A0A0A]/50 p-4 rounded-lg">
                                 <h4 className="text-sm font-semibold text-omni-accent mb-2">Reasoning</h4>
                                 <p className="text-slate-300 leading-relaxed text-sm">
                                     {analysis.reasoning}
                                 </p>
                             </div>
 
-                            <div className="bg-slate-800/50 p-4 rounded-lg">
+                            <div className="bg-[#0A0A0A]/50 p-4 rounded-lg">
                                 <h4 className="text-sm font-semibold text-omni-danger mb-2 flex items-center gap-2">
                                     <AlertTriangle size={14} /> Risk Assessment
                                 </h4>
@@ -420,7 +420,7 @@ export const BrainCore: React.FC<BrainCoreProps> = ({ currentData, genesisBot })
 
                             {/* SHAP Feature Importance Visualization (Recharts) */}
                             {analysis.shapValues && (
-                                <div className="bg-slate-800/50 p-4 rounded-lg h-80 flex flex-col">
+                                <div className="bg-[#0A0A0A]/50 p-4 rounded-lg h-80 flex flex-col">
                                     <h4 className="text-sm font-semibold text-purple-400 mb-3 flex items-center gap-2">
                                         <Layers size={14} /> XAI Feature Importance (SHAP)
                                     </h4>
@@ -455,7 +455,7 @@ export const BrainCore: React.FC<BrainCoreProps> = ({ currentData, genesisBot })
                         </div>
                     </div>
                 ) : (
-                    <div className="flex-1 flex flex-col items-center justify-center text-slate-500 border-2 border-dashed border-slate-700 rounded-xl">
+                    <div className="flex-1 flex flex-col items-center justify-center text-slate-500 border-2 border-dashed border-[#1F1F1F] rounded-xl">
                         <Cpu size={48} className="mb-4 opacity-50" />
                         <p>Run analysis to generate strategy</p>
                     </div>
@@ -466,7 +466,7 @@ export const BrainCore: React.FC<BrainCoreProps> = ({ currentData, genesisBot })
             {showAddModal && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
                     <div className="bg-omni-panel border border-slate-600 rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
-                        <div className="bg-slate-800 p-4 border-b border-slate-700 flex justify-between items-center">
+                        <div className="bg-[#0A0A0A] p-4 border-b border-[#1F1F1F] flex justify-between items-center">
                             <h3 className="text-white font-bold flex items-center gap-2">
                                 <Cpu size={18} className="text-indigo-400" /> Deploy New Neural Unit
                             </h3>
@@ -479,7 +479,7 @@ export const BrainCore: React.FC<BrainCoreProps> = ({ currentData, genesisBot })
                                 <label className="text-xs text-slate-400 uppercase font-bold mb-1 block">Agent Designation (Name)</label>
                                 <input
                                     type="text"
-                                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white text-sm focus:border-indigo-500 outline-none"
+                                    className="w-full bg-[#050505] border border-[#1F1F1F] rounded-lg p-2 text-white text-sm focus:border-indigo-500 outline-none"
                                     placeholder="e.g. Agent X - Volatility Hunter"
                                     value={newAgentForm.name}
                                     onChange={(e) => setNewAgentForm({ ...newAgentForm, name: e.target.value })}
@@ -490,7 +490,7 @@ export const BrainCore: React.FC<BrainCoreProps> = ({ currentData, genesisBot })
                                     <label className="text-xs text-slate-400 uppercase font-bold mb-1 block">Role Type</label>
                                     <input
                                         type="text"
-                                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white text-sm focus:border-indigo-500 outline-none"
+                                        className="w-full bg-[#050505] border border-[#1F1F1F] rounded-lg p-2 text-white text-sm focus:border-indigo-500 outline-none"
                                         placeholder="e.g. Risk Analyst"
                                         value={newAgentForm.type}
                                         onChange={(e) => setNewAgentForm({ ...newAgentForm, type: e.target.value })}
@@ -500,7 +500,7 @@ export const BrainCore: React.FC<BrainCoreProps> = ({ currentData, genesisBot })
                                     <label className="text-xs text-slate-400 uppercase font-bold mb-1 block">Model Architecture</label>
                                     <input
                                         type="text"
-                                        className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white text-sm focus:border-indigo-500 outline-none"
+                                        className="w-full bg-[#050505] border border-[#1F1F1F] rounded-lg p-2 text-white text-sm focus:border-indigo-500 outline-none"
                                         placeholder="e.g. Transformer"
                                         value={newAgentForm.model}
                                         onChange={(e) => setNewAgentForm({ ...newAgentForm, model: e.target.value })}
@@ -510,7 +510,7 @@ export const BrainCore: React.FC<BrainCoreProps> = ({ currentData, genesisBot })
                             <div>
                                 <label className="text-xs text-slate-400 uppercase font-bold mb-1 block">Protocol Description</label>
                                 <textarea
-                                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white text-sm focus:border-indigo-500 outline-none h-24 resize-none"
+                                    className="w-full bg-[#050505] border border-[#1F1F1F] rounded-lg p-2 text-white text-sm focus:border-indigo-500 outline-none h-24 resize-none"
                                     placeholder="Describe the agent's function..."
                                     value={newAgentForm.description}
                                     onChange={(e) => setNewAgentForm({ ...newAgentForm, description: e.target.value })}
@@ -582,7 +582,7 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, icon, onToggle, onRestart,
             case 'Idle':
                 return {
                     borderColor: 'border-slate-600',
-                    bgColor: 'bg-slate-800/50',
+                    bgColor: 'bg-[#0A0A0A]/50',
                     textColor: 'text-slate-400',
                     iconColor: 'text-slate-500',
                     shadow: '',
@@ -600,8 +600,8 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, icon, onToggle, onRestart,
                 };
             default:
                 return {
-                    borderColor: 'border-slate-700',
-                    bgColor: 'bg-slate-800',
+                    borderColor: 'border-[#1F1F1F]',
+                    bgColor: 'bg-[#0A0A0A]',
                     textColor: 'text-slate-400',
                     iconColor: 'text-slate-400',
                     shadow: '',
@@ -646,12 +646,12 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, icon, onToggle, onRestart,
                 </div>
                 <div className="flex justify-between items-center text-xs">
                     <span className="text-slate-500">Architecture:</span>
-                    <span className="font-mono text-xs bg-black/30 px-1.5 py-0.5 rounded text-slate-400 border border-slate-700/50">{agent.model}</span>
+                    <span className="font-mono text-xs bg-black/30 px-1.5 py-0.5 rounded text-slate-400 border border-[#1F1F1F]/50">{agent.model}</span>
                 </div>
             </div>
 
             {/* Manual Control Overlay (Visible on Hover) */}
-            <div className="absolute inset-0 bg-slate-900/90 rounded-xl flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20 backdrop-blur-sm border border-slate-500/50">
+            <div className="absolute inset-0 bg-[#050505]/90 rounded-xl flex items-center justify-center gap-3 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-20 backdrop-blur-sm border border-slate-500/50">
                 <button
                     onClick={(e) => { e.stopPropagation(); onToggle(); }}
                     className={`p-3 rounded-full border transition-all transform hover:scale-110 shadow-lg ${isStopped
@@ -681,9 +681,9 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, icon, onToggle, onRestart,
             </div>
 
             {/* Tooltip */}
-            <div className="absolute bottom-[calc(100%+12px)] left-1/2 -translate-x-1/2 w-72 bg-slate-900/95 border border-slate-600 rounded-xl p-4 shadow-2xl z-50 hidden group-hover:block backdrop-blur-md animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
-                <div className="flex items-center gap-2 mb-3 border-b border-slate-700 pb-2">
-                    <div className={`p-1.5 rounded-md bg-slate-800 ${config.iconColor}`}>{icon}</div>
+            <div className="absolute bottom-[calc(100%+12px)] left-1/2 -translate-x-1/2 w-72 bg-[#050505]/95 border border-slate-600 rounded-xl p-4 shadow-2xl z-50 hidden group-hover:block backdrop-blur-md animate-in fade-in zoom-in-95 duration-200 pointer-events-none">
+                <div className="flex items-center gap-2 mb-3 border-b border-[#1F1F1F] pb-2">
+                    <div className={`p-1.5 rounded-md bg-[#0A0A0A] ${config.iconColor}`}>{icon}</div>
                     <div>
                         <span className="block font-bold text-white text-sm">{agent.name}</span>
                         <span className="text-[10px] text-slate-400 uppercase tracking-wide">System Description</span>
@@ -699,7 +699,7 @@ const AgentCard: React.FC<AgentCardProps> = ({ agent, icon, onToggle, onRestart,
                         <span className="font-bold">{agent.status.toUpperCase()}</span>
                     </div>
                 </div>
-                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-slate-900 border-b border-r border-slate-600 rotate-45"></div>
+                <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-[#050505] border-b border-r border-slate-600 rotate-45"></div>
             </div>
         </div>
     );

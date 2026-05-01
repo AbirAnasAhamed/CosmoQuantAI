@@ -56,7 +56,7 @@ const SymbolSelector: React.FC<{
                     leaveTo="opacity-0"
                     afterLeave={() => setQuery('')}
                 >
-                    <Combobox.Options className="absolute mt-1 max-h-60 min-w-[150px] overflow-auto rounded-md bg-white dark:bg-[#141414] py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm z-50 custom-scrollbar">
+                    <Combobox.Options className="absolute mt-1 max-h-60 min-w-[150px] overflow-auto rounded-md bg-white dark:bg-[#0A0A0A] py-1 text-base shadow-lg ring-1 ring-black ring-opacity-5 focus:outline-none sm:text-sm z-50 custom-scrollbar">
                         {filtered.length === 0 && query !== '' ? (
                             <div className="relative cursor-default select-none py-2 px-4 text-gray-700 dark:text-gray-400">
                                 Nothing found.
@@ -331,7 +331,7 @@ const MarketDepthWidget: React.FC = () => {
     return (
         <div className="h-full flex flex-col p-6 space-y-4">
             {/* Header Section */}
-            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-white dark:bg-[#141414] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+            <div className="flex flex-col xl:flex-row justify-between items-start xl:items-center gap-4 bg-white dark:bg-[#0A0A0A] p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
                 <div>
                     <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
                         <Activity className="text-brand-primary w-5 h-5" />

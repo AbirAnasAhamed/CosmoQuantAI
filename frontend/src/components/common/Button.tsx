@@ -12,11 +12,11 @@ const Button: React.FC<ButtonProps> = ({ children, variant = 'primary', classNam
 
   const variantClasses = {
     primary: 'bg-brand-primary text-white hover:bg-brand-primary-hover focus:ring-brand-primary',
-    secondary: 'bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400 dark:bg-[#0A0A0A] dark:text-gray-100 dark:hover:bg-slate-700 dark:focus:ring-brand-dark',
+    secondary: 'bg-gray-200 text-gray-700 hover:bg-gray-300 focus:ring-gray-400 dark:bg-[#0A0A0A] dark:text-gray-100 dark:hover:bg-[#0A0A0A] dark:focus:ring-brand-dark',
     outline: 'bg-transparent border border-brand-primary text-brand-primary hover:bg-brand-primary hover:text-white focus:ring-brand-primary',
     danger: 'bg-red-500 text-white hover:bg-red-600 focus:ring-red-500',
     success: 'bg-emerald-500 text-white hover:bg-emerald-600 focus:ring-emerald-500',
-    ghost: 'bg-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 focus:ring-slate-400', // Added ghost styling
+    ghost: 'bg-transparent text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#0A0A0A] focus:ring-slate-400', // Added ghost styling
   };
 
   return (

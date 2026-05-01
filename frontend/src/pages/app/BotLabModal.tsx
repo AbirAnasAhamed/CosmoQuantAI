@@ -235,10 +235,10 @@ const BotLabModal: React.FC<BotLabModalProps> = ({ isOpen, onClose, onSuccess })
 
     return (
         <Dialog open={isOpen} onClose={onClose} className="relative z-[60]">
-            <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-md" aria-hidden="true" />
+            <div className="fixed inset-0 bg-[#050505]/80 backdrop-blur-md" aria-hidden="true" />
 
             <div className="fixed inset-0 flex items-center justify-center p-4">
-                <Dialog.Panel className="w-full max-w-3xl rounded-3xl bg-slate-900 border border-white/10 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden relative animate-in fade-in zoom-in-95 duration-200">
+                <Dialog.Panel className="w-full max-w-3xl rounded-3xl bg-[#050505] border border-white/10 shadow-2xl flex flex-col max-h-[90vh] overflow-hidden relative animate-in fade-in zoom-in-95 duration-200">
                     {/* Header */}
                     <div className="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
                         <div className="flex items-center gap-4">

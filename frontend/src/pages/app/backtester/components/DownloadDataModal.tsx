@@ -80,7 +80,7 @@ export const DownloadDataModal: React.FC<DownloadDataModalProps> = ({
         return result;
     };
 
-    const inputBaseClasses = "w-full bg-white dark:bg-slate-900 border border-gray-300 dark:border-gray-700 rounded-md p-2 text-slate-900 dark:text-white focus:ring-brand-primary focus:border-brand-primary";
+    const inputBaseClasses = "w-full bg-white dark:bg-[#050505] border border-gray-300 dark:border-gray-700 rounded-md p-2 text-slate-900 dark:text-white focus:ring-brand-primary focus:border-brand-primary";
 
     const CustomInputHeader = ({
         date,
@@ -98,11 +98,11 @@ export const DownloadDataModal: React.FC<DownloadDataModalProps> = ({
         ];
 
         return (
-            <div className="m-2 flex items-center justify-between px-2 py-2 bg-white dark:bg-slate-800 rounded-lg border-b border-gray-200 dark:border-gray-700">
+            <div className="m-2 flex items-center justify-between px-2 py-2 bg-white dark:bg-[#0A0A0A] rounded-lg border-b border-gray-200 dark:border-gray-700">
                 <button
                     onClick={decreaseMonth}
                     disabled={prevMonthButtonDisabled}
-                    className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full text-slate-600 dark:text-slate-300 transition-colors disabled:opacity-50"
+                    className="p-1 hover:bg-gray-100 dark:hover:bg-[#0A0A0A] rounded-full text-slate-600 dark:text-slate-300 transition-colors disabled:opacity-50"
                     type="button"
                 >
                     <ChevronLeft size={18} />
@@ -115,7 +115,7 @@ export const DownloadDataModal: React.FC<DownloadDataModalProps> = ({
                         className="bg-transparent text-sm font-bold text-slate-800 dark:text-white cursor-pointer focus:outline-none hover:text-brand-primary transition-colors appearance-none text-center"
                     >
                         {months.map((option) => (
-                            <option key={option} value={option} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+                            <option key={option} value={option} className="bg-white dark:bg-[#0A0A0A] text-slate-900 dark:text-white">
                                 {option}
                             </option>
                         ))}
@@ -127,7 +127,7 @@ export const DownloadDataModal: React.FC<DownloadDataModalProps> = ({
                         className="bg-transparent text-sm font-bold text-slate-800 dark:text-white cursor-pointer focus:outline-none hover:text-brand-primary transition-colors appearance-none text-center"
                     >
                         {years.map((option) => (
-                            <option key={option} value={option} className="bg-white dark:bg-slate-800 text-slate-900 dark:text-white">
+                            <option key={option} value={option} className="bg-white dark:bg-[#0A0A0A] text-slate-900 dark:text-white">
                                 {option}
                             </option>
                         ))}
@@ -137,7 +137,7 @@ export const DownloadDataModal: React.FC<DownloadDataModalProps> = ({
                 <button
                     onClick={increaseMonth}
                     disabled={nextMonthButtonDisabled}
-                    className="p-1 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-full text-slate-600 dark:text-slate-300 transition-colors disabled:opacity-50"
+                    className="p-1 hover:bg-gray-100 dark:hover:bg-[#0A0A0A] rounded-full text-slate-600 dark:text-slate-300 transition-colors disabled:opacity-50"
                     type="button"
                 >
                     <ChevronRight size={18} />
@@ -280,7 +280,7 @@ export const DownloadDataModal: React.FC<DownloadDataModalProps> = ({
                                             dateFormat="yyyy-MM-dd"
                                             placeholderText="Select start"
                                             renderCustomHeader={CustomInputHeader}
-                                            calendarClassName="!bg-white dark:!bg-slate-900 !border-gray-200 dark:!border-gray-700 !font-sans !text-slate-900 dark:!text-slate-100 shadow-xl rounded-xl overflow-hidden"
+                                            calendarClassName="!bg-white dark:!bg-[#050505] !border-gray-200 dark:!border-gray-700 !font-sans !text-slate-900 dark:!text-slate-100 shadow-xl rounded-xl overflow-hidden"
                                             dayClassName={() => "dark:text-slate-200 hover:!bg-brand-primary hover:!text-white rounded-full"}
                                             popperClassName="!z-50"
                                         />
@@ -300,7 +300,7 @@ export const DownloadDataModal: React.FC<DownloadDataModalProps> = ({
                                             dateFormat="yyyy-MM-dd"
                                             placeholderText="Select end"
                                             renderCustomHeader={CustomInputHeader}
-                                            calendarClassName="!bg-white dark:!bg-slate-900 !border-gray-200 dark:!border-gray-700 !font-sans !text-slate-900 dark:!text-slate-100 shadow-xl rounded-xl overflow-hidden"
+                                            calendarClassName="!bg-white dark:!bg-[#050505] !border-gray-200 dark:!border-gray-700 !font-sans !text-slate-900 dark:!text-slate-100 shadow-xl rounded-xl overflow-hidden"
                                             dayClassName={() => "dark:text-slate-200 hover:!bg-brand-primary hover:!text-white rounded-full"}
                                             popperClassName="!z-50"
                                         />

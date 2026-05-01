@@ -86,13 +86,13 @@ export const MacroEconomicWidget: React.FC = () => {
         }
     };
 
-    if (loading) return <div className="h-64 animate-pulse bg-slate-900/50 rounded-2xl"></div>;
+    if (loading) return <div className="h-64 animate-pulse bg-[#050505]/50 rounded-2xl"></div>;
     if (error) return <div className="h-64 flex items-center justify-center text-slate-500">{error}</div>;
 
     return (
-        <div className="relative overflow-hidden rounded-2xl border border-slate-700/50 bg-[#0A0A0A] shadow-xl">
+        <div className="relative overflow-hidden rounded-2xl border border-[#1F1F1F]/50 bg-[#0A0A0A] shadow-xl">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-slate-800/60 bg-slate-900/40 backdrop-blur-md">
+            <div className="flex items-center justify-between p-4 border-b border-[#141414]/60 bg-[#050505]/40 backdrop-blur-md">
                 <div className="flex items-center gap-3">
                     <div className="p-2 rounded-lg bg-blue-500/10 border border-blue-500/20 text-blue-400">
                         <Globe className="w-5 h-5" />
@@ -110,7 +110,7 @@ export const MacroEconomicWidget: React.FC = () => {
                 {/* Actions */}
                 <div className="flex items-center gap-2">
                     {/* Language Toggle */}
-                    <div className="flex bg-slate-800/50 rounded-lg p-0.5 border border-slate-700/50">
+                    <div className="flex bg-[#0A0A0A]/50 rounded-lg p-0.5 border border-[#1F1F1F]/50">
                         <button
                             onClick={() => setLanguage('en')}
                             className={`px-2 py-1 rounded text-[10px] font-bold transition-all ${language === 'en' ? 'bg-indigo-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-300'}`}
@@ -140,7 +140,7 @@ export const MacroEconomicWidget: React.FC = () => {
 
                     <button
                         onClick={fetchData}
-                        className="p-2 rounded-lg bg-slate-800/50 border border-slate-700 text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                        className="p-2 rounded-lg bg-[#0A0A0A]/50 border border-[#1F1F1F] text-slate-400 hover:text-white hover:bg-[#0A0A0A] transition-colors"
                     >
                         <RefreshCcw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
                     </button>
@@ -168,7 +168,7 @@ export const MacroEconomicWidget: React.FC = () => {
             <div className="overflow-x-auto">
                 <table className="w-full text-left border-collapse">
                     <thead>
-                        <tr className="text-[10px] uppercase font-bold text-slate-500 border-b border-slate-800/50 bg-slate-900/20">
+                        <tr className="text-[10px] uppercase font-bold text-slate-500 border-b border-[#141414]/50 bg-[#050505]/20">
                             <th className="py-3 px-4">Event</th>
                             <th className="py-3 px-4">Date</th>
                             <th className="py-3 px-4">Actual</th>
@@ -179,7 +179,7 @@ export const MacroEconomicWidget: React.FC = () => {
                     </thead>
                     <tbody className="text-sm font-mono divide-y divide-slate-800/30">
                         {data.map((item, idx) => (
-                            <tr key={idx} className={`hover:bg-slate-800/30 transition-colors ${item.status === 'Upcoming' ? 'bg-blue-500/5' : ''}`}>
+                            <tr key={idx} className={`hover:bg-[#0A0A0A]/30 transition-colors ${item.status === 'Upcoming' ? 'bg-blue-500/5' : ''}`}>
                                 <td className="py-3 px-4 font-bold text-slate-200">{item.event}</td>
                                 <td className="py-3 px-4 text-slate-400 text-xs">{item.date}</td>
                                 <td className={`py-3 px-4 font-bold ${getSentimentColor(item)}`}>
@@ -200,7 +200,7 @@ export const MacroEconomicWidget: React.FC = () => {
                     </tbody>
                 </table>
             </div>
-            <div className="p-3 border-t border-slate-800/50 bg-slate-950/30 text-center">
+            <div className="p-3 border-t border-[#141414]/50 bg-slate-950/30 text-center">
                 <p className="text-[10px] text-slate-600 font-mono">
                     Sources: BLS, FRED, Federal Reserve (Simulated Data)
                 </p>

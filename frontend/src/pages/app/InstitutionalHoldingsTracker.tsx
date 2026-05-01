@@ -45,7 +45,7 @@ const HoldingDetailModal: React.FC<{ holding: FundHolding; onClose: () => void }
     const gridColor = theme === 'dark' ? '#334155' : '#E2E8F0';
 
     return (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-backdrop-fade-in" onClick={onClose} role="dialog" aria-modal="true">
+        <div className="fixed inset-0 bg-[#050505]/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-backdrop-fade-in" onClick={onClose} role="dialog" aria-modal="true">
             <div className="bg-white dark:bg-[#0A0A0A] w-full max-w-3xl rounded-2xl shadow-2xl border border-brand-border-light dark:border-[#1A1A1A] flex flex-col overflow-hidden animate-modal-content-slide-down" onClick={e => e.stopPropagation()}>
                 <header className="flex justify-between items-center p-6 border-b border-brand-border-light dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#000000]/50">
                     <div className="flex items-center gap-4">

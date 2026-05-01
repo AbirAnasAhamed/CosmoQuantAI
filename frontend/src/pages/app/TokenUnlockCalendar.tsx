@@ -277,7 +277,7 @@ const EventDetailModal: React.FC<{ event: TokenUnlockEvent; onClose: () => void;
                         </div>
 
                         {/* AI Terminal */}
-                        <Card className="bg-slate-900 border border-slate-800 text-blue-400 font-mono relative overflow-hidden">
+                        <Card className="bg-[#050505] border border-[#141414] text-blue-400 font-mono relative overflow-hidden">
                             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
                             <div className="relative z-10">
                                 <div className="flex justify-between items-center mb-4 pb-2 border-b border-blue-500/30">

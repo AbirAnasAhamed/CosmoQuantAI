@@ -386,7 +386,7 @@ const CustomIndicatorStudio: React.FC = () => {
                             <Button size="sm" variant="primary" onClick={handleRunScript} className="text-xs h-8 flex items-center gap-2 shadow-lg shadow-brand-primary/20">
                                 <PlayIcon className="w-3 h-3" /> Run Script
                             </Button>
-                            <div className="absolute top-full right-0 mt-2 w-64 p-3 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[10px] leading-relaxed rounded-lg shadow-xl border border-gray-100 dark:border-slate-700 opacity-0 invisible group-hover/hint:opacity-100 group-hover/hint:visible transition-all z-50">
+                            <div className="absolute top-full right-0 mt-2 w-64 p-3 bg-white dark:bg-[#0A0A0A] text-slate-600 dark:text-slate-300 text-[10px] leading-relaxed rounded-lg shadow-xl border border-gray-100 dark:border-[#1F1F1F] opacity-0 invisible group-hover/hint:opacity-100 group-hover/hint:visible transition-all z-50">
                                 <strong>Note:</strong> This editor configures parameters for the built-in study. Custom Pine Script logic is not directly injected into this widget version.
                             </div>
                         </div>

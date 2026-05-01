@@ -322,7 +322,7 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ data = [], trades = [] })
     return (
         <div className="relative w-full flex flex-col gap-2">
             {/* --- Chart Toolbar --- */}
-            <div className="flex items-center gap-3 px-4 py-2 bg-slate-800/50 rounded-t-xl border border-slate-700">
+            <div className="flex items-center gap-3 px-4 py-2 bg-[#0A0A0A]/50 rounded-t-xl border border-[#1F1F1F]">
                 <div className="flex items-center gap-2 text-slate-300 text-sm font-semibold">
                     <Activity size={16} className="text-brand-primary" />
                     <span>Chart Layers:</span>
@@ -335,8 +335,8 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ data = [], trades = [] })
                             className={`
                                 flex items-center gap-2 px-3 py-1 rounded-md text-xs font-medium transition-all border
                                 ${ind.visible 
-                                    ? `bg-slate-700 text-white border-${ind.color} ring-1 ring-${ind.color}/50` 
-                                    : 'bg-transparent text-slate-400 border-slate-700 hover:bg-slate-700/50'}
+                                    ? `bg-[#0A0A0A] text-white border-${ind.color} ring-1 ring-${ind.color}/50` 
+                                    : 'bg-transparent text-slate-400 border-[#1F1F1F] hover:bg-[#0A0A0A]/50'}
                             `}
                             style={{ borderColor: ind.visible ? ind.color : undefined }}
                         >
@@ -351,11 +351,11 @@ const BacktestChart: React.FC<BacktestChartProps> = ({ data = [], trades = [] })
             <div className="relative w-full h-[450px]">
                 <div 
                     ref={chartContainerRef} 
-                    className="w-full h-full rounded-b-xl overflow-hidden border border-slate-700 shadow-2xl bg-[#141414]" 
+                    className="w-full h-full rounded-b-xl overflow-hidden border border-[#1F1F1F] shadow-2xl bg-[#0A0A0A]" 
                 />
                 
                 {!formattedData.length && (
-                    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/80 text-slate-400 text-sm pointer-events-none z-10">
+                    <div className="absolute inset-0 flex items-center justify-center bg-[#050505]/80 text-slate-400 text-sm pointer-events-none z-10">
                         <div className="flex flex-col items-center gap-2">
                             <Layers size={24} />
                             <span>No Chart Data Available to Display</span>

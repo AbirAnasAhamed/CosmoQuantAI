@@ -81,7 +81,7 @@ const MonthlyReturnsHeatmap: React.FC<MonthlyReturnsHeatmapProps> = ({ data }) =
                                                 <>
                                                     {value.toFixed(1)}%
                                                     {/* Tooltip */}
-                                                    <div className="absolute bottom-full mb-2 hidden group-hover:block z-20 bg-slate-900 text-white text-xs p-2 rounded whitespace-nowrap shadow-xl border border-slate-700">
+                                                    <div className="absolute bottom-full mb-2 hidden group-hover:block z-20 bg-[#050505] text-white text-xs p-2 rounded whitespace-nowrap shadow-xl border border-[#1F1F1F]">
                                                         <span className="font-bold">{MONTHS[i]} {year}</span>: {value > 0 ? '+' : ''}{value.toFixed(2)}%
                                                     </div>
                                                 </>

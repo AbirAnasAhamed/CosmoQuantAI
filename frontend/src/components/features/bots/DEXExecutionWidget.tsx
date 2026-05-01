@@ -44,7 +44,7 @@ const DEXExecutionWidget: React.FC = () => {
     };
 
     return (
-        <div className="bg-slate-900/50 border border-white/10 rounded-2xl p-6 backdrop-blur-md relative overflow-hidden">
+        <div className="bg-[#050505]/50 border border-white/10 rounded-2xl p-6 backdrop-blur-md relative overflow-hidden">
             <div className="absolute top-0 right-0 p-4 opacity-10 pointer-events-none">
                 <Zap size={120} />
             </div>
@@ -83,7 +83,7 @@ const DEXExecutionWidget: React.FC = () => {
                     <select
                         value={protocol}
                         onChange={(e) => setProtocol(e.target.value)}
-                        className="w-full bg-slate-800 border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-cyan-500/50 text-sm"
+                        className="w-full bg-[#0A0A0A] border border-white/10 rounded-lg px-4 py-2 text-white focus:outline-none focus:border-cyan-500/50 text-sm"
                     >
                         {PROTOCOLS.map(p => (
                             <option key={p.id} value={p.id}>{p.name}</option>
@@ -117,7 +117,7 @@ const DEXExecutionWidget: React.FC = () => {
                     </div>
 
                     <div className="flex justify-center py-1">
-                        <div className="bg-slate-800 p-1.5 rounded-full border border-white/10">
+                        <div className="bg-[#0A0A0A] p-1.5 rounded-full border border-white/10">
                             <ArrowDown size={14} className="text-gray-400" />
                         </div>
                     </div>

@@ -32,7 +32,7 @@ export const ImpactBadge: React.FC<ImpactBadgeProps> = ({ level = 'LOW', sentime
         icon = <BarChart2 className="w-3 h-3 text-orange-600 dark:text-orange-400" />;
     } else {
         // Low Impact - subtle
-        bgClass = "bg-slate-200 text-slate-500 border-slate-300 dark:bg-slate-800 dark:text-slate-400 dark:border-slate-700";
+        bgClass = "bg-slate-200 text-slate-500 border-slate-300 dark:bg-[#0A0A0A] dark:text-slate-400 dark:border-[#1F1F1F]";
     }
 
     if (normalizedLevel === 'LOW') {

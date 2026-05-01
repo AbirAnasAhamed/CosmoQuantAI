@@ -108,7 +108,7 @@ export const BotManager: React.FC<BotManagerProps> = ({ bots, setBots }) => {
 
             {/* --- FLEET ANALYTICS BAR --- */}
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 animate-in fade-in slide-in-from-top-2">
-                <div className="bg-omni-panel border border-slate-700 rounded-xl p-4 flex items-center gap-4">
+                <div className="bg-omni-panel border border-[#1F1F1F] rounded-xl p-4 flex items-center gap-4">
                     <div className="p-3 bg-indigo-500/10 rounded-lg text-indigo-400">
                         <DollarSign size={24} />
                     </div>
@@ -117,7 +117,7 @@ export const BotManager: React.FC<BotManagerProps> = ({ bots, setBots }) => {
                         <div className="text-xl font-mono font-bold text-white">${totalAllocated.toLocaleString()}</div>
                     </div>
                 </div>
-                <div className="bg-omni-panel border border-slate-700 rounded-xl p-4 flex items-center gap-4">
+                <div className="bg-omni-panel border border-[#1F1F1F] rounded-xl p-4 flex items-center gap-4">
                     <div className="p-3 bg-emerald-500/10 rounded-lg text-emerald-400">
                         <TrendingUp size={24} />
                     </div>
@@ -126,7 +126,7 @@ export const BotManager: React.FC<BotManagerProps> = ({ bots, setBots }) => {
                         <div className="text-xl font-mono font-bold text-emerald-400">+12.4%</div>
                     </div>
                 </div>
-                <div className="bg-omni-panel border border-slate-700 rounded-xl p-4 flex items-center gap-4">
+                <div className="bg-omni-panel border border-[#1F1F1F] rounded-xl p-4 flex items-center gap-4">
                     <div className="p-3 bg-blue-500/10 rounded-lg text-blue-400">
                         <Activity size={24} />
                     </div>
@@ -135,7 +135,7 @@ export const BotManager: React.FC<BotManagerProps> = ({ bots, setBots }) => {
                         <div className="text-xl font-mono font-bold text-white">{activeCount}/{bots.length}</div>
                     </div>
                 </div>
-                <div className="bg-omni-panel border border-slate-700 rounded-xl p-4 flex items-center gap-4">
+                <div className="bg-omni-panel border border-[#1F1F1F] rounded-xl p-4 flex items-center gap-4">
                     <div className="p-3 bg-purple-500/10 rounded-lg text-purple-400">
                         <Share2 size={24} />
                     </div>
@@ -184,7 +184,7 @@ export const BotManager: React.FC<BotManagerProps> = ({ bots, setBots }) => {
                                         onClick={() => handleArchitectAction('LOCK')}
                                         className={`p-3 rounded-lg border flex flex-col items-center justify-center gap-2 transition-all ${systemLocked
                                             ? 'bg-amber-500 text-black border-amber-500 font-bold'
-                                            : 'bg-slate-800/50 border-amber-500/30 text-amber-500 hover:bg-amber-500/20'
+                                            : 'bg-[#0A0A0A]/50 border-amber-500/30 text-amber-500 hover:bg-amber-500/20'
                                             }`}
                                     >
                                         {systemLocked ? <Lock size={20} /> : <Unlock size={20} />}
@@ -266,7 +266,7 @@ export const BotManager: React.FC<BotManagerProps> = ({ bots, setBots }) => {
                             <input
                                 type="text"
                                 placeholder="Search units..."
-                                className="bg-slate-800 border border-slate-700 rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-slate-500"
+                                className="bg-[#0A0A0A] border border-[#1F1F1F] rounded-lg pl-9 pr-4 py-2 text-sm text-white focus:outline-none focus:border-slate-500"
                             />
                         </div>
                         <button className="bg-indigo-600 hover:bg-indigo-500 text-white font-bold py-2 px-4 rounded-lg flex items-center gap-2 transition-all shadow-lg shadow-indigo-900/20">
@@ -277,7 +277,7 @@ export const BotManager: React.FC<BotManagerProps> = ({ bots, setBots }) => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
                     {bots.map((bot) => (
-                        <div key={bot.id} className={`bg-omni-panel border rounded-xl overflow-hidden hover:border-slate-500 transition-all duration-300 group relative ${bot.id === 'BOT-OMEGA' ? 'border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.1)]' : 'border-slate-700'
+                        <div key={bot.id} className={`bg-omni-panel border rounded-xl overflow-hidden hover:border-slate-500 transition-all duration-300 group relative ${bot.id === 'BOT-OMEGA' ? 'border-amber-500/50 shadow-[0_0_15px_rgba(245,158,11,0.1)]' : 'border-[#1F1F1F]'
                             }`}>
 
                             {/* Special Header for Super Bot */}
@@ -300,7 +300,7 @@ export const BotManager: React.FC<BotManagerProps> = ({ bots, setBots }) => {
                                     <div className="flex items-center gap-3">
                                         <div className={`p-3 rounded-lg ${bot.id === 'BOT-OMEGA' ? 'bg-amber-500/20 text-amber-400' :
                                             bot.strategy === 'Scalping' ? 'bg-blue-500/20 text-blue-400' :
-                                                'bg-slate-700/50 text-slate-400'
+                                                'bg-[#0A0A0A]/50 text-slate-400'
                                             }`}>
                                             {bot.id === 'BOT-OMEGA' ? <Network size={24} /> : <Bot size={20} />}
                                         </div>
@@ -317,7 +317,7 @@ export const BotManager: React.FC<BotManagerProps> = ({ bots, setBots }) => {
                                     {/* Status Badge */}
                                     <div className={`px-2 py-1 rounded text-xs font-bold border flex items-center gap-1.5 ${bot.status === 'RUNNING' ? 'bg-omni-success/10 text-omni-success border-omni-success/30' :
                                         bot.status === 'PAUSED' ? 'bg-omni-warning/10 text-omni-warning border-omni-warning/30' :
-                                            'bg-slate-700 text-slate-400 border-slate-600'
+                                            'bg-[#0A0A0A] text-slate-400 border-slate-600'
                                         }`}>
                                         <span className={`w-1.5 h-1.5 rounded-full ${bot.status === 'RUNNING' ? 'bg-omni-success animate-pulse' :
                                             bot.status === 'PAUSED' ? 'bg-omni-warning' :
@@ -329,7 +329,7 @@ export const BotManager: React.FC<BotManagerProps> = ({ bots, setBots }) => {
 
                                 {/* Vertex Model Version Chip */}
                                 {bot.modelVersion && (
-                                    <div className="mb-4 bg-slate-900/50 border border-slate-700/50 rounded-lg p-2 flex items-center justify-between text-xs">
+                                    <div className="mb-4 bg-[#050505]/50 border border-[#1F1F1F]/50 rounded-lg p-2 flex items-center justify-between text-xs">
                                         <span className="text-slate-500 flex items-center gap-1">
                                             <CloudLightning size={12} /> Vertex AI Core
                                         </span>
@@ -341,7 +341,7 @@ export const BotManager: React.FC<BotManagerProps> = ({ bots, setBots }) => {
 
                                 {/* Metrics Grid */}
                                 <div className="grid grid-cols-2 gap-4 mb-4">
-                                    <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                                    <div className="bg-[#0A0A0A]/50 p-3 rounded-lg border border-[#1F1F1F]/50">
                                         <div className="text-xs text-slate-400 flex items-center gap-1 mb-1">
                                             <DollarSign size={12} /> Total PnL
                                         </div>
@@ -349,7 +349,7 @@ export const BotManager: React.FC<BotManagerProps> = ({ bots, setBots }) => {
                                             {bot.pnl >= 0 ? '+' : ''}{bot.pnl.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                                         </div>
                                     </div>
-                                    <div className="bg-slate-800/50 p-3 rounded-lg border border-slate-700/50">
+                                    <div className="bg-[#0A0A0A]/50 p-3 rounded-lg border border-[#1F1F1F]/50">
                                         <div className="text-xs text-slate-400 flex items-center gap-1 mb-1">
                                             <BarChart3 size={12} /> Win Rate
                                         </div>
@@ -382,7 +382,7 @@ export const BotManager: React.FC<BotManagerProps> = ({ bots, setBots }) => {
                                 </div>
 
                                 {/* Actions */}
-                                <div className="flex gap-2 pt-4 border-t border-slate-700/50">
+                                <div className="flex gap-2 pt-4 border-t border-[#1F1F1F]/50">
                                     {bot.status === 'RUNNING' ? (
                                         <button
                                             onClick={() => toggleStatus(bot.id)}
@@ -395,7 +395,7 @@ export const BotManager: React.FC<BotManagerProps> = ({ bots, setBots }) => {
                                             onClick={() => toggleStatus(bot.id)}
                                             disabled={bot.status === 'STOPPED'}
                                             className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-2 transition-colors ${bot.status === 'STOPPED'
-                                                ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                                                ? 'bg-[#0A0A0A] text-slate-500 cursor-not-allowed'
                                                 : 'bg-omni-success/10 hover:bg-omni-success/20 text-omni-success border border-omni-success/30'
                                                 }`}
                                         >
@@ -416,7 +416,7 @@ export const BotManager: React.FC<BotManagerProps> = ({ bots, setBots }) => {
 
                                     {/* Deep Dive Button */}
                                     <button
-                                        className="px-3 rounded-lg border border-slate-700 hover:border-slate-500 text-slate-400 hover:text-white transition-colors flex items-center justify-center"
+                                        className="px-3 rounded-lg border border-[#1F1F1F] hover:border-slate-500 text-slate-400 hover:text-white transition-colors flex items-center justify-center"
                                         title="Deep Dive Analytics"
                                     >
                                         <ArrowUpRight size={16} />
@@ -426,8 +426,8 @@ export const BotManager: React.FC<BotManagerProps> = ({ bots, setBots }) => {
                                         onClick={() => stopBot(bot.id)}
                                         disabled={bot.status === 'STOPPED'}
                                         className={`px-3 rounded-lg border flex items-center justify-center transition-colors ${bot.status === 'STOPPED'
-                                            ? 'bg-slate-800 border-slate-700 text-slate-600 cursor-not-allowed'
-                                            : 'bg-slate-800 border-slate-700 text-slate-400 hover:text-omni-danger hover:border-omni-danger/50'
+                                            ? 'bg-[#0A0A0A] border-[#1F1F1F] text-slate-600 cursor-not-allowed'
+                                            : 'bg-[#0A0A0A] border-[#1F1F1F] text-slate-400 hover:text-omni-danger hover:border-omni-danger/50'
                                             }`}
                                     >
                                         <Square size={16} fill="currentColor" />
@@ -443,7 +443,7 @@ export const BotManager: React.FC<BotManagerProps> = ({ bots, setBots }) => {
             {showSwarmModal && (
                 <div className="absolute inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4 animate-in fade-in duration-200">
                     <div className="bg-omni-panel border border-slate-600 rounded-xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
-                        <div className="bg-slate-800 p-4 border-b border-slate-700 flex justify-between items-center">
+                        <div className="bg-[#0A0A0A] p-4 border-b border-[#1F1F1F] flex justify-between items-center">
                             <div>
                                 <h3 className="text-white font-bold flex items-center gap-2 text-lg">
                                     <Network size={20} className="text-amber-500" /> Neural Swarm Configuration
@@ -460,10 +460,10 @@ export const BotManager: React.FC<BotManagerProps> = ({ bots, setBots }) => {
                                 {swarmConfig.map((agent) => (
                                     <div key={agent.id} className={`p-4 rounded-lg border flex items-center justify-between transition-all ${agent.isActive
                                         ? 'bg-indigo-500/10 border-indigo-500/50'
-                                        : 'bg-slate-900 border-slate-700 opacity-60'
+                                        : 'bg-[#050505] border-[#1F1F1F] opacity-60'
                                         }`}>
                                         <div className="flex items-center gap-3">
-                                            <div className={`p-2 rounded-lg ${agent.isActive ? 'bg-indigo-500 text-white' : 'bg-slate-700 text-slate-500'}`}>
+                                            <div className={`p-2 rounded-lg ${agent.isActive ? 'bg-indigo-500 text-white' : 'bg-[#0A0A0A] text-slate-500'}`}>
                                                 <Cpu size={18} />
                                             </div>
                                             <div>
@@ -473,7 +473,7 @@ export const BotManager: React.FC<BotManagerProps> = ({ bots, setBots }) => {
                                         </div>
                                         <button
                                             onClick={() => toggleSwarmAgent(agent.id)}
-                                            className={`w-12 h-6 rounded-full p-1 transition-colors relative ${agent.isActive ? 'bg-indigo-500' : 'bg-slate-700'
+                                            className={`w-12 h-6 rounded-full p-1 transition-colors relative ${agent.isActive ? 'bg-indigo-500' : 'bg-[#0A0A0A]'
                                                 }`}
                                         >
                                             <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${agent.isActive ? 'translate-x-6' : 'translate-x-0'
@@ -483,7 +483,7 @@ export const BotManager: React.FC<BotManagerProps> = ({ bots, setBots }) => {
                                 ))}
                             </div>
 
-                            <div className="mt-6 p-4 bg-slate-900 rounded-lg border border-slate-700">
+                            <div className="mt-6 p-4 bg-[#050505] rounded-lg border border-[#1F1F1F]">
                                 <div className="flex items-center gap-2 text-amber-500 font-bold text-sm mb-2">
                                     <AlertTriangle size={14} /> Swarm Intelligence Impact
                                 </div>
@@ -495,7 +495,7 @@ export const BotManager: React.FC<BotManagerProps> = ({ bots, setBots }) => {
                             </div>
                         </div>
 
-                        <div className="p-4 bg-slate-800 border-t border-slate-700 flex justify-end gap-3">
+                        <div className="p-4 bg-[#0A0A0A] border-t border-[#1F1F1F] flex justify-end gap-3">
                             <button onClick={() => setShowSwarmModal(false)} className="px-4 py-2 text-slate-300 hover:text-white text-sm font-bold">Cancel</button>
                             <button onClick={() => { setArchitectLog(p => ["[CONFIG] SWARM UPDATE CONFIRMED.", ...p]); setShowSwarmModal(false); }} className="px-6 py-2 bg-amber-500 hover:bg-amber-600 text-black font-bold rounded-lg text-sm flex items-center gap-2">
                                 <CheckCircle2 size={16} /> Confirm Link

@@ -116,7 +116,7 @@ const TradeRow: React.FC<{ trade: BlockTrade; maxTradeValue: number; isNew: bool
 
 // Reusing DarkPoolRow style for Whale/On-Chain Movements
 const WhaleMovementRow: React.FC<{ trade: BlockTrade; isNew: boolean }> = ({ trade, isNew }) => (
-    <div className={`flex justify-between items-center p-3 border-l-4 border-purple-500 bg-slate-50 dark:bg-slate-900/50 mb-2 rounded-r-lg shadow-sm transition-all hover:translate-x-1 ${isNew ? 'animate-fade-in-right' : ''}`}>
+    <div className={`flex justify-between items-center p-3 border-l-4 border-purple-500 bg-slate-50 dark:bg-[#050505]/50 mb-2 rounded-r-lg shadow-sm transition-all hover:translate-x-1 ${isNew ? 'animate-fade-in-right' : ''}`}>
         <div>
             <div className="flex items-center gap-2">
                 <span className="font-bold text-slate-900 dark:text-white">{trade.symbol}</span>
@@ -259,7 +259,7 @@ const BlockTradeDetector: React.FC = () => {
 
             {/* Header / Sonar Panel */}
             <div className="flex-shrink-0 grid grid-cols-1 md:grid-cols-3 gap-6 staggered-fade-in">
-                <Card className="flex items-center justify-between !p-4 bg-gradient-to-r from-slate-900 to-slate-800 text-white border-slate-700">
+                <Card className="flex items-center justify-between !p-4 bg-gradient-to-r from-slate-900 to-slate-800 text-white border-[#1F1F1F]">
                     <div className="flex items-center gap-4">
                         <LiquidityRadar isActive={isConnected} />
                         <div>

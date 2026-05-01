@@ -49,7 +49,7 @@ const CustomTooltip: React.FC<any> = ({ active, payload, label }) => {
     if (active && payload && payload.length) {
         const data = payload[0].payload;
         return (
-            <div className="p-3 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 text-sm">
+            <div className="p-3 bg-white/90 dark:bg-[#050505]/90 backdrop-blur-md rounded-lg shadow-xl border border-gray-200 dark:border-gray-700 text-sm">
                 <p className="font-bold text-slate-900 dark:text-white mb-1">{label}</p>
                 <p className="text-brand-primary font-mono">Equity: ${data.value.toLocaleString()}</p>
             </div>

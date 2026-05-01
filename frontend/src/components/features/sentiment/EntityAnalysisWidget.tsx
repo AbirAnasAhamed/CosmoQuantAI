@@ -14,11 +14,11 @@ interface EntityAnalysisWidgetProps {
 export const EntityAnalysisWidget: React.FC<EntityAnalysisWidgetProps> = ({ data, isLoading }) => {
     if (isLoading) {
         return (
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 animate-pulse">
-                <div className="h-6 bg-slate-200 dark:bg-slate-700 rounded w-1/3 mb-4"></div>
+            <div className="bg-white dark:bg-[#0A0A0A] rounded-xl p-6 shadow-sm border border-slate-200 dark:border-[#1F1F1F] animate-pulse">
+                <div className="h-6 bg-slate-200 dark:bg-[#0A0A0A] rounded w-1/3 mb-4"></div>
                 <div className="space-y-3">
-                    <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-full"></div>
-                    <div className="h-4 bg-slate-200 dark:bg-slate-700 rounded w-5/6"></div>
+                    <div className="h-4 bg-slate-200 dark:bg-[#0A0A0A] rounded w-full"></div>
+                    <div className="h-4 bg-slate-200 dark:bg-[#0A0A0A] rounded w-5/6"></div>
                 </div>
             </div>
         );
@@ -28,7 +28,7 @@ export const EntityAnalysisWidget: React.FC<EntityAnalysisWidgetProps> = ({ data
 
     if (!hasEntities) {
         return (
-            <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+            <div className="bg-white dark:bg-[#0A0A0A] rounded-xl p-6 shadow-sm border border-slate-200 dark:border-[#1F1F1F]">
                 <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-2">Deep Entity Analysis</h3>
                 <p className="text-slate-500 dark:text-slate-400 text-sm">No specific crypto entities detected in the recent news cycle.</p>
             </div>
@@ -36,7 +36,7 @@ export const EntityAnalysisWidget: React.FC<EntityAnalysisWidgetProps> = ({ data
     }
 
     return (
-        <div className="bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+        <div className="bg-white dark:bg-[#0A0A0A] rounded-xl p-6 shadow-sm border border-slate-200 dark:border-[#1F1F1F]">
             <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 flex items-center gap-2">
                     <span className="text-indigo-500">✨</span> Deep Entity Analysis

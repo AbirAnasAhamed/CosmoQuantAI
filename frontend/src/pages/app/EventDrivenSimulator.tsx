@@ -301,7 +301,7 @@ const EventDrivenSimulator: React.FC = () => {
         <div className="flex h-[calc(100vh-8rem)] gap-6 p-2">
             {/* Left Configuration Panel */}
             <div className="w-1/3 flex flex-col gap-6">
-                <Card className="p-6 bg-white dark:bg-[#141414] border-slate-200 dark:border-slate-700 shadow-xl overflow-y-auto max-h-[70vh]">
+                <Card className="p-6 bg-white dark:bg-[#0A0A0A] border-slate-200 dark:border-[#1F1F1F] shadow-xl overflow-y-auto max-h-[70vh]">
                     <h2 className="text-xl font-bold text-slate-800 dark:text-white mb-6 flex items-center gap-2">
                         <Activity className="text-brand-primary" />
                         Simulation Config
@@ -314,12 +314,12 @@ const EventDrivenSimulator: React.FC = () => {
                                 type="text"
                                 value={symbol}
                                 onChange={(e) => setSymbol(e.target.value)}
-                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-primary outline-none transaction-all"
+                                className="w-full bg-slate-50 dark:bg-[#050505] border border-slate-200 dark:border-[#1F1F1F] rounded-lg px-4 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-primary outline-none transaction-all"
                             />
                         </div>
 
                         {/* Strategy Parameters - NEW */}
-                        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <div className="p-4 bg-slate-50 dark:bg-[#0A0A0A]/50 rounded-lg border border-slate-200 dark:border-[#1F1F1F]">
                             <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
                                 <TrendingUp size={16} /> Strategy Parameters
                             </h3>
@@ -330,7 +330,7 @@ const EventDrivenSimulator: React.FC = () => {
                                         type="number" step="0.01"
                                         value={strategyParams.stop_loss}
                                         onChange={(e) => setStrategyParams({ ...strategyParams, stop_loss: parseFloat(e.target.value) })}
-                                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm"
+                                        className="w-full bg-white dark:bg-[#050505] border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm"
                                     />
                                 </div>
                                 <div>
@@ -339,7 +339,7 @@ const EventDrivenSimulator: React.FC = () => {
                                         type="number" step="0.01"
                                         value={strategyParams.take_profit}
                                         onChange={(e) => setStrategyParams({ ...strategyParams, take_profit: parseFloat(e.target.value) })}
-                                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm"
+                                        className="w-full bg-white dark:bg-[#050505] border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm"
                                     />
                                 </div>
                                 <div className="col-span-2">
@@ -348,7 +348,7 @@ const EventDrivenSimulator: React.FC = () => {
                                         type="number" step="0.1" min="0" max="1"
                                         value={strategyParams.buy_probability}
                                         onChange={(e) => setStrategyParams({ ...strategyParams, buy_probability: parseFloat(e.target.value) })}
-                                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm"
+                                        className="w-full bg-white dark:bg-[#050505] border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm"
                                     />
                                 </div>
                             </div>
@@ -374,7 +374,7 @@ const EventDrivenSimulator: React.FC = () => {
                                 step="50"
                                 value={latency}
                                 onChange={(e) => setLatency(parseInt(e.target.value))}
-                                className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-brand-primary"
+                                className="w-full h-2 bg-slate-200 dark:bg-[#0A0A0A] rounded-lg appearance-none cursor-pointer accent-brand-primary"
                             />
                             <div className="flex justify-between text-xs text-slate-500 mt-1">
                                 <span>0ms (Instant)</span>
@@ -395,13 +395,13 @@ const EventDrivenSimulator: React.FC = () => {
                                 step="0.1"
                                 value={slippage}
                                 onChange={(e) => setSlippage(parseFloat(e.target.value))}
-                                className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-primary outline-none"
+                                className="w-full bg-slate-50 dark:bg-[#050505] border border-slate-200 dark:border-[#1F1F1F] rounded-lg px-4 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-primary outline-none"
                             />
                             <p className="text-xs text-slate-500 mt-1">Simulates execution volatility (Price drift + Noise)</p>
                         </div>
 
                         {/* Commission Config - NEW */}
-                        <div className="p-4 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700">
+                        <div className="p-4 bg-slate-50 dark:bg-[#0A0A0A]/50 rounded-lg border border-slate-200 dark:border-[#1F1F1F]">
                             <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300 mb-3 flex items-center gap-2">
                                 <DollarSign size={16} /> Commission Config
                             </h3>
@@ -412,7 +412,7 @@ const EventDrivenSimulator: React.FC = () => {
                                         type="number" step="0.01"
                                         value={makerFee}
                                         onChange={(e) => setMakerFee(parseFloat(e.target.value))}
-                                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm"
+                                        className="w-full bg-white dark:bg-[#050505] border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm"
                                     />
                                 </div>
                                 <div>
@@ -421,7 +421,7 @@ const EventDrivenSimulator: React.FC = () => {
                                         type="number" step="0.01"
                                         value={takerFee}
                                         onChange={(e) => setTakerFee(parseFloat(e.target.value))}
-                                        className="w-full bg-white dark:bg-slate-900 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm"
+                                        className="w-full bg-white dark:bg-[#050505] border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-sm"
                                     />
                                 </div>
                             </div>
@@ -440,7 +440,7 @@ const EventDrivenSimulator: React.FC = () => {
                                 step="1"
                                 value={volumeParticipation}
                                 onChange={(e) => setVolumeParticipation(parseInt(e.target.value))}
-                                className="w-full h-2 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer accent-brand-primary"
+                                className="w-full h-2 bg-slate-200 dark:bg-[#0A0A0A] rounded-lg appearance-none cursor-pointer accent-brand-primary"
                             />
                             <div className="flex justify-between text-xs text-slate-500 mt-1">
                                 <span>1% (Drip Feed)</span>
@@ -454,13 +454,13 @@ const EventDrivenSimulator: React.FC = () => {
                                 <FastForward size={16} />
                                 Playback Speed
                             </label>
-                            <div className="flex bg-slate-100 dark:bg-slate-900 p-1 rounded-lg">
+                            <div className="flex bg-slate-100 dark:bg-[#050505] p-1 rounded-lg">
                                 {speedOptions.map((opt) => (
                                     <button
                                         key={opt.label}
                                         onClick={() => setPlaybackSpeed(opt.value)}
                                         className={`flex-1 py-1.5 text-sm font-medium rounded-md transition-all ${playbackSpeed === opt.value
-                                            ? 'bg-white dark:bg-slate-700 text-brand-primary shadow-sm'
+                                            ? 'bg-white dark:bg-[#0A0A0A] text-brand-primary shadow-sm'
                                             : 'text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200'
                                             }`}
                                     >
@@ -473,7 +473,7 @@ const EventDrivenSimulator: React.FC = () => {
                         <div className="grid grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-slate-600 dark:text-slate-400 mb-1">Timeframe</label>
-                                <select className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-primary outline-none">
+                                <select className="w-full bg-slate-50 dark:bg-[#050505] border border-slate-200 dark:border-[#1F1F1F] rounded-lg px-4 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-primary outline-none">
                                     <option>1m</option>
                                     <option>5m</option>
                                     <option>1h</option>
@@ -484,7 +484,7 @@ const EventDrivenSimulator: React.FC = () => {
                                 <input
                                     type="number"
                                     defaultValue={10000}
-                                    className="w-full bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg px-4 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-primary outline-none"
+                                    className="w-full bg-slate-50 dark:bg-[#050505] border border-slate-200 dark:border-[#1F1F1F] rounded-lg px-4 py-2 text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-primary outline-none"
                                 />
                             </div>
                         </div>
@@ -543,13 +543,13 @@ const EventDrivenSimulator: React.FC = () => {
 
                 {/* Real-time Stats */}
                 <div className="grid grid-cols-2 gap-4">
-                    <Card className="p-4 bg-white dark:bg-[#141414] border-l-4 border-emerald-500">
+                    <Card className="p-4 bg-white dark:bg-[#0A0A0A] border-l-4 border-emerald-500">
                         <p className="text-sm text-slate-500">Net PnL</p>
                         <p className={`text-2xl font-bold ${pnl >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
                             ${pnl.toFixed(2)}
                         </p>
                     </Card>
-                    <Card className="p-4 bg-white dark:bg-[#141414] border-l-4 border-blue-500">
+                    <Card className="p-4 bg-white dark:bg-[#0A0A0A] border-l-4 border-blue-500">
                         <p className="text-sm text-slate-500">Holdings</p>
                         <p className="text-2xl font-bold text-slate-800 dark:text-white">
                             {holdings}
@@ -561,7 +561,7 @@ const EventDrivenSimulator: React.FC = () => {
             {/* Right Monitor Panel */}
             <div className="flex-1 flex flex-col gap-6">
                 {/* Live Chart */}
-                <Card className="h-1/3 bg-white dark:bg-[#141414] p-4 relative overflow-hidden flex flex-col">
+                <Card className="h-1/3 bg-white dark:bg-[#0A0A0A] p-4 relative overflow-hidden flex flex-col">
                     <div className="absolute top-4 left-4 z-10 flex gap-2">
                         <div className="bg-white/10 backdrop-blur-md px-3 py-1 rounded-full border border-white/10">
                             <span className="text-xs font-mono text-white flex items-center gap-2">
@@ -583,8 +583,8 @@ const EventDrivenSimulator: React.FC = () => {
                 </Card>
 
                 {/* Order Book - NEW */}
-                <Card className="h-1/4 bg-white dark:bg-[#141414] p-0 relative overflow-hidden flex flex-col">
-                    <div className="absolute top-2 left-2 z-10 bg-slate-900/80 px-2 py-1 rounded text-xs text-white border border-slate-700">
+                <Card className="h-1/4 bg-white dark:bg-[#0A0A0A] p-0 relative overflow-hidden flex flex-col">
+                    <div className="absolute top-2 left-2 z-10 bg-[#050505]/80 px-2 py-1 rounded text-xs text-white border border-[#1F1F1F]">
                         Order Book (Simulated)
                     </div>
                     <OrderBookWidget
@@ -596,7 +596,7 @@ const EventDrivenSimulator: React.FC = () => {
                 </Card>
 
                 {/* Equity Curve */}
-                <Card className="h-1/6 bg-white dark:bg-[#141414] p-4 relative overflow-hidden flex flex-col">
+                <Card className="h-1/6 bg-white dark:bg-[#0A0A0A] p-4 relative overflow-hidden flex flex-col">
                     <EquityCurve data={equityData} />
                 </Card>
 

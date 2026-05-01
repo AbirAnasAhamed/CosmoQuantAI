@@ -78,10 +78,10 @@ export const StrategyBuilderModal: React.FC<StrategyBuilderModalProps> = ({ isOp
 
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-            <div className="bg-white dark:bg-slate-900 w-full max-w-4xl h-[600px] rounded-xl border border-gray-200 dark:border-gray-800 shadow-2xl overflow-hidden flex flex-col animate-fade-in-up">
+            <div className="bg-white dark:bg-[#050505] w-full max-w-4xl h-[600px] rounded-xl border border-gray-200 dark:border-gray-800 shadow-2xl overflow-hidden flex flex-col animate-fade-in-up">
 
                 {/* Header */}
-                <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-slate-800/50">
+                <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-gray-800 bg-gray-50 dark:bg-[#0A0A0A]/50">
                     <div>
                         <h3 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
                             <Layers className="text-brand-primary" size={20} /> Strategy Library
@@ -96,7 +96,7 @@ export const StrategyBuilderModal: React.FC<StrategyBuilderModalProps> = ({ isOp
                 <div className="flex flex-1 overflow-hidden">
 
                     {/* Sidebar: Categories */}
-                    <div className="w-1/4 bg-gray-50 dark:bg-slate-800/30 border-r border-gray-200 dark:border-gray-800 overflow-y-auto">
+                    <div className="w-1/4 bg-gray-50 dark:bg-[#0A0A0A]/30 border-r border-gray-200 dark:border-gray-800 overflow-y-auto">
                         <div className="p-3 space-y-1">
                             {catalog && Object.keys(catalog).map((cat) => (
                                 <button
@@ -104,7 +104,7 @@ export const StrategyBuilderModal: React.FC<StrategyBuilderModalProps> = ({ isOp
                                     onClick={() => setSelectedCategory(cat)}
                                     className={`w-full text-left px-4 py-3 rounded-lg text-sm font-medium flex items-center gap-3 transition-all ${selectedCategory === cat
                                             ? 'bg-brand-primary text-white shadow-md'
-                                            : 'text-slate-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-slate-700'
+                                            : 'text-slate-600 dark:text-slate-400 hover:bg-gray-200 dark:hover:bg-[#0A0A0A]'
                                         }`}
                                 >
                                     {getIcon(cat)}
@@ -115,7 +115,7 @@ export const StrategyBuilderModal: React.FC<StrategyBuilderModalProps> = ({ isOp
                     </div>
 
                     {/* Main Content: Strategy Grid */}
-                    <div className="w-2/4 p-6 overflow-y-auto bg-white dark:bg-slate-900">
+                    <div className="w-2/4 p-6 overflow-y-auto bg-white dark:bg-[#050505]">
                         <h4 className="text-sm font-bold text-gray-500 mb-4 uppercase tracking-wider">{selectedCategory} Strategies</h4>
                         <div className="grid grid-cols-1 gap-3">
                             {catalog && catalog[selectedCategory]?.map((strat: any) => (
@@ -129,7 +129,7 @@ export const StrategyBuilderModal: React.FC<StrategyBuilderModalProps> = ({ isOp
                                 >
                                     <div className="flex justify-between items-start mb-1">
                                         <h5 className="font-bold text-slate-800 dark:text-slate-200">{strat.name}</h5>
-                                        <span className="text-[10px] px-2 py-0.5 rounded bg-gray-100 dark:bg-slate-800 text-gray-500 border border-gray-200 dark:border-gray-700">
+                                        <span className="text-[10px] px-2 py-0.5 rounded bg-gray-100 dark:bg-[#0A0A0A] text-gray-500 border border-gray-200 dark:border-gray-700">
                                             {strat.ind}
                                         </span>
                                     </div>
@@ -140,7 +140,7 @@ export const StrategyBuilderModal: React.FC<StrategyBuilderModalProps> = ({ isOp
                     </div>
 
                     {/* Right Panel: Configuration */}
-                    <div className="w-1/4 bg-gray-50 dark:bg-slate-800/30 border-l border-gray-200 dark:border-gray-800 p-5 flex flex-col">
+                    <div className="w-1/4 bg-gray-50 dark:bg-[#0A0A0A]/30 border-l border-gray-200 dark:border-gray-800 p-5 flex flex-col">
                         <h4 className="text-xs font-bold text-gray-400 mb-4 uppercase">Configuration</h4>
 
                         {selectedStrategy ? (
@@ -151,11 +151,11 @@ export const StrategyBuilderModal: React.FC<StrategyBuilderModalProps> = ({ isOp
                                         type="text"
                                         value={name}
                                         onChange={(e) => setName(e.target.value)}
-                                        className="w-full bg-white dark:bg-slate-900 border border-gray-200 dark:border-gray-700 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-brand-primary outline-none"
+                                        className="w-full bg-white dark:bg-[#050505] border border-gray-200 dark:border-gray-700 rounded-lg p-2.5 text-sm focus:ring-2 focus:ring-brand-primary outline-none"
                                     />
                                 </div>
 
-                                <div className="bg-white dark:bg-slate-900 p-3 rounded-lg border border-gray-200 dark:border-gray-700">
+                                <div className="bg-white dark:bg-[#050505] p-3 rounded-lg border border-gray-200 dark:border-gray-700">
                                     <h5 className="text-[10px] font-bold text-brand-primary mb-3 uppercase flex items-center gap-1">
                                         <Info size={10} /> Parameters
                                     </h5>
@@ -167,7 +167,7 @@ export const StrategyBuilderModal: React.FC<StrategyBuilderModalProps> = ({ isOp
                                                     type="number"
                                                     value={params[key]}
                                                     onChange={(e) => setParams({ ...params, [key]: parseFloat(e.target.value) })}
-                                                    className="w-full bg-gray-50 dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded p-1.5 text-sm"
+                                                    className="w-full bg-gray-50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-gray-700 rounded p-1.5 text-sm"
                                                 />
                                             </div>
                                         ))}

@@ -52,7 +52,7 @@ const MetricChip: React.FC<{ label: string; value: string; positive?: boolean; h
 // --- Core Components ---
 
 const FeaturedModelHero: React.FC<{ model: MarketplaceModel; onSelect: () => void }> = ({ model, onSelect }) => (
-    <div className="relative w-full rounded-3xl overflow-hidden bg-slate-900 border border-slate-800 shadow-2xl mb-12 group cursor-pointer" onClick={onSelect}>
+    <div className="relative w-full rounded-3xl overflow-hidden bg-[#050505] border border-[#141414] shadow-2xl mb-12 group cursor-pointer" onClick={onSelect}>
         {/* Dynamic Background */}
         <div className="absolute inset-0">
              <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 mix-blend-soft-light"></div>
@@ -271,7 +271,7 @@ const ModelDetailView: React.FC<{ model: MarketplaceModel; onBack: () => void }>
 
                 {/* Right: Checkout & Reviews */}
                 <div className="lg:col-span-1 space-y-6">
-                    <Card className="bg-gradient-to-br from-slate-900 to-slate-800 text-white border-slate-700 relative overflow-hidden">
+                    <Card className="bg-gradient-to-br from-slate-900 to-slate-800 text-white border-[#1F1F1F] relative overflow-hidden">
                         <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-brand-primary to-purple-500"></div>
                         <div className="relative z-10 text-center p-4">
                              <p className="text-gray-400 text-sm font-medium mb-2">Access this algorithm</p>

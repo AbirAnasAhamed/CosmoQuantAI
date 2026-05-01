@@ -18,7 +18,7 @@ const CommunityPoll = ({ stats, onVote }: { stats: any, onVote: any }) => {
     };
 
     return (
-        <div className="h-full flex flex-col relative overflow-hidden rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-slate-900/50 backdrop-blur-md shadow-sm p-5">
+        <div className="h-full flex flex-col relative overflow-hidden rounded-2xl border border-slate-200 dark:border-[#141414] bg-white/50 dark:bg-[#050505]/50 backdrop-blur-md shadow-sm p-5">
             <h3 className="text-sm font-bold text-slate-800 dark:text-white text-center mb-1">
                 Market Sentiment Poll
             </h3>
@@ -59,7 +59,7 @@ const CommunityPoll = ({ stats, onVote }: { stats: any, onVote: any }) => {
             ) : (
                 <div className="flex flex-col gap-6 animate-fade-in-up mt-2">
                     {/* Visual Bar Representation */}
-                    <div className="relative h-12 w-full bg-slate-100 dark:bg-slate-800/50 rounded-full overflow-hidden flex font-bold text-xs">
+                    <div className="relative h-12 w-full bg-slate-100 dark:bg-[#0A0A0A]/50 rounded-full overflow-hidden flex font-bold text-xs">
                         <div
                             style={{ width: `${bullishPercent}%` }}
                             className="h-full bg-gradient-to-r from-emerald-500 to-teal-400 text-white flex items-center pl-3 transition-all duration-1000"
@@ -73,7 +73,7 @@ const CommunityPoll = ({ stats, onVote }: { stats: any, onVote: any }) => {
                             {bearishPercent > 15 && `${bearishPercent}% Bearish`}
                         </div>
                         {/* Center Thunder Icon */}
-                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white dark:bg-slate-900 rounded-full flex items-center justify-center shadow-lg z-10 border-2 border-slate-100 dark:border-slate-800">
+                        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-8 h-8 bg-white dark:bg-[#050505] rounded-full flex items-center justify-center shadow-lg z-10 border-2 border-slate-100 dark:border-[#141414]">
                             <span className="text-yellow-500 animate-pulse">⚡</span>
                         </div>
                     </div>

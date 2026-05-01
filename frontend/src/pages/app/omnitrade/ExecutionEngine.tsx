@@ -387,7 +387,7 @@ export const ExecutionEngine = () => {
     // Determine Market Regime Label
     const getMarketRegime = () => {
         if (marketMetrics.volatilityIndex > 1.8) return { label: 'EXTREME VOLATILITY', color: 'text-omni-danger', bg: 'bg-omni-danger/10', icon: AlertOctagon };
-        if (marketMetrics.volatilityIndex < 0.9 && Math.abs(marketMetrics.trend) < 0.2) return { label: 'LOW VOLATILITY', color: 'text-slate-400', bg: 'bg-slate-800', icon: Activity };
+        if (marketMetrics.volatilityIndex < 0.9 && Math.abs(marketMetrics.trend) < 0.2) return { label: 'LOW VOLATILITY', color: 'text-slate-400', bg: 'bg-[#0A0A0A]', icon: Activity };
         if (marketMetrics.trend > 0.6) return { label: 'STRONG UPTREND', color: 'text-omni-success', bg: 'bg-omni-success/10', icon: TrendingUp };
         if (marketMetrics.trend < -0.6) return { label: 'STRONG DOWNTREND', color: 'text-omni-danger', bg: 'bg-omni-danger/10', icon: TrendingDown };
         return { label: 'SIDEWAYS / CHOP', color: 'text-omni-warning', bg: 'bg-omni-warning/10', icon: ArrowRightLeft };
@@ -399,29 +399,29 @@ export const ExecutionEngine = () => {
         <div className="space-y-6">
 
             {/* Execution Quality Strip */}
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 bg-omni-panel border border-slate-700 rounded-xl p-4">
-                <div className="flex items-center gap-3 border-r border-slate-700/50">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 bg-omni-panel border border-[#1F1F1F] rounded-xl p-4">
+                <div className="flex items-center gap-3 border-r border-[#1F1F1F]/50">
                     <div className="p-2 bg-indigo-500/10 rounded-lg text-indigo-400"><Clock size={16} /></div>
                     <div>
                         <div className="text-[10px] text-slate-400 uppercase">Fill Latency</div>
                         <div className="text-lg font-mono font-bold text-white">{marketMetrics.latency.toFixed(1)}ms</div>
                     </div>
                 </div>
-                <div className="flex items-center gap-3 border-r border-slate-700/50">
+                <div className="flex items-center gap-3 border-r border-[#1F1F1F]/50">
                     <div className="p-2 bg-orange-500/10 rounded-lg text-orange-400"><TrendingDown size={16} /></div>
                     <div>
                         <div className="text-[10px] text-slate-400 uppercase">Avg Slippage</div>
                         <div className="text-lg font-mono font-bold text-white">{marketMetrics.slippage.toFixed(3)}%</div>
                     </div>
                 </div>
-                <div className="flex items-center gap-3 border-r border-slate-700/50">
+                <div className="flex items-center gap-3 border-r border-[#1F1F1F]/50">
                     <div className="p-2 bg-green-500/10 rounded-lg text-green-400"><CheckCircle size={16} /></div>
                     <div>
                         <div className="text-[10px] text-slate-400 uppercase">Fill Rate</div>
                         <div className="text-lg font-mono font-bold text-white">99.98%</div>
                     </div>
                 </div>
-                <div className="flex items-center gap-3 border-r border-slate-700/50">
+                <div className="flex items-center gap-3 border-r border-[#1F1F1F]/50">
                     <div className="p-2 bg-purple-500/10 rounded-lg text-purple-400"><Layers size={16} /></div>
                     <div>
                         <div className="text-[10px] text-slate-400 uppercase">Smart Routes</div>
@@ -444,8 +444,8 @@ export const ExecutionEngine = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
                 {/* --- LEFT COL: DIRECT MARKET ACCESS (MANUAL) & ORDER BOOK --- */}
-                <div className="lg:col-span-4 bg-omni-panel border border-slate-700 rounded-xl flex flex-col overflow-hidden">
-                    <div className="p-4 border-b border-slate-700 bg-slate-800/50">
+                <div className="lg:col-span-4 bg-omni-panel border border-[#1F1F1F] rounded-xl flex flex-col overflow-hidden">
+                    <div className="p-4 border-b border-[#1F1F1F] bg-[#0A0A0A]/50">
                         <h3 className="text-lg font-semibold text-white flex items-center gap-2">
                             <Crosshair size={20} className="text-blue-400" /> Direct Market Access
                         </h3>
@@ -453,7 +453,7 @@ export const ExecutionEngine = () => {
 
                     <div className="p-6 space-y-6 flex-1">
                         {/* Controls */}
-                        <div className="flex bg-slate-800 p-1 rounded-lg">
+                        <div className="flex bg-[#0A0A0A] p-1 rounded-lg">
                             {['LIMIT', 'MARKET', 'STOP'].map((type) => (
                                 <button
                                     key={type}
@@ -472,7 +472,7 @@ export const ExecutionEngine = () => {
                             <select
                                 value={selectedExchange}
                                 onChange={(e) => setSelectedExchange(e.target.value)}
-                                className="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-white text-xs focus:border-blue-500 outline-none"
+                                className="w-full bg-[#050505] border border-[#1F1F1F] rounded-lg p-2 text-white text-xs focus:border-blue-500 outline-none"
                             >
                                 <option value="binance">Binance Spot/Margin</option>
                                 <option value="binanceusdm">Binance Futures (USD-M)</option>
@@ -487,7 +487,7 @@ export const ExecutionEngine = () => {
                                     type="number"
                                     value={manualPrice}
                                     onChange={(e) => setManualPrice(Number(e.target.value))}
-                                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white font-mono text-sm focus:border-blue-500 outline-none"
+                                    className="w-full bg-[#050505] border border-[#1F1F1F] rounded-lg p-3 text-white font-mono text-sm focus:border-blue-500 outline-none"
                                 />
                             </div>
 
@@ -497,7 +497,7 @@ export const ExecutionEngine = () => {
                                     type="number"
                                     value={manualAmount}
                                     onChange={(e) => setManualAmount(Number(e.target.value))}
-                                    className="w-full bg-slate-900 border border-slate-700 rounded-lg p-3 text-white font-mono text-sm focus:border-blue-500 outline-none"
+                                    className="w-full bg-[#050505] border border-[#1F1F1F] rounded-lg p-3 text-white font-mono text-sm focus:border-blue-500 outline-none"
                                 />
                             </div>
                         </div>
@@ -518,7 +518,7 @@ export const ExecutionEngine = () => {
                         </div>
 
                         {/* LIVE ORDER BOOK (L2) */}
-                        <div className="mt-4 pt-4 border-t border-slate-700">
+                        <div className="mt-4 pt-4 border-t border-[#1F1F1F]">
                             <div className="flex items-center justify-between mb-2">
                                 <span className="text-xs font-bold text-slate-400 flex items-center gap-1"><BookOpen size={12} /> Live Book (L2)</span>
                                 <span className="text-[10px] text-slate-500 font-mono">Spread: 0.05%</span>
@@ -534,7 +534,7 @@ export const ExecutionEngine = () => {
                                     ))}
                                 </div>
                                 {/* Spread */}
-                                <div className="text-center text-slate-500 py-1 border-y border-slate-800 my-1">
+                                <div className="text-center text-slate-500 py-1 border-y border-[#141414] my-1">
                                     {marketMetrics.currentPrice.toFixed(2)}
                                 </div>
                                 {/* Bids */}
@@ -553,7 +553,7 @@ export const ExecutionEngine = () => {
 
                 {/* --- MIDDLE COL: ALGO ENGINE & ROUTER --- */}
                 <div className="lg:col-span-4 space-y-6">
-                    <div className="bg-omni-panel border border-slate-700 rounded-xl p-6 flex flex-col justify-between shadow-lg h-full relative overflow-hidden">
+                    <div className="bg-omni-panel border border-[#1F1F1F] rounded-xl p-6 flex flex-col justify-between shadow-lg h-full relative overflow-hidden">
                         <div className="relative z-10">
                             <h3 className="text-lg font-semibold text-white mb-2 flex items-center gap-2">
                                 <Zap size={20} className="text-amber-500" /> Algorithmic Engine
@@ -571,7 +571,7 @@ export const ExecutionEngine = () => {
                         </div>
 
                         {/* Smart Order Router Visualization */}
-                        <div className="mt-6 pt-6 border-t border-slate-700 relative z-10">
+                        <div className="mt-6 pt-6 border-t border-[#1F1F1F] relative z-10">
                             <div className="flex items-center justify-between mb-4">
                                 <div className="text-xs font-bold text-slate-400 uppercase flex items-center gap-2">
                                     <Globe size={14} /> Smart Order Router
@@ -586,7 +586,7 @@ export const ExecutionEngine = () => {
                                         <span>Binance Liquidity</span>
                                         <span className="font-mono">45%</span>
                                     </div>
-                                    <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                                    <div className="h-2 bg-[#0A0A0A] rounded-full overflow-hidden">
                                         <div className={`h-full bg-yellow-500 rounded-full transition-all duration-1000 ${isRunning ? 'w-[45%] animate-pulse' : 'w-0'}`}></div>
                                     </div>
                                 </div>
@@ -597,7 +597,7 @@ export const ExecutionEngine = () => {
                                         <span>Coinbase Prime</span>
                                         <span className="font-mono">30%</span>
                                     </div>
-                                    <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                                    <div className="h-2 bg-[#0A0A0A] rounded-full overflow-hidden">
                                         <div className={`h-full bg-blue-500 rounded-full transition-all duration-1000 ${isRunning ? 'w-[30%] animate-pulse' : 'w-0'}`}></div>
                                     </div>
                                 </div>
@@ -608,7 +608,7 @@ export const ExecutionEngine = () => {
                                         <span>Kraken Dark Pool</span>
                                         <span className="font-mono">25%</span>
                                     </div>
-                                    <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
+                                    <div className="h-2 bg-[#0A0A0A] rounded-full overflow-hidden">
                                         <div className={`h-full bg-purple-500 rounded-full transition-all duration-1000 ${isRunning ? 'w-[25%] animate-pulse' : 'w-0'}`}></div>
                                     </div>
                                 </div>
@@ -618,7 +618,7 @@ export const ExecutionEngine = () => {
                 </div>
 
                 {/* --- RIGHT COL: RISK MANAGEMENT & SIZING --- */}
-                <div className="lg:col-span-4 bg-omni-panel border border-slate-700 rounded-xl p-6 flex flex-col">
+                <div className="lg:col-span-4 bg-omni-panel border border-[#1F1F1F] rounded-xl p-6 flex flex-col">
                     <h3 className="text-lg font-semibold text-white mb-4 flex items-center gap-2">
                         <Shield size={20} className="text-omni-accent" /> Dynamic Risk & Sizing
                     </h3>
@@ -626,7 +626,7 @@ export const ExecutionEngine = () => {
                     {/* Strategy Profile Selector */}
                     <div className="mb-4">
                         <label className="text-xs text-slate-400 font-bold uppercase mb-2 block">Execution Strategy Profile</label>
-                        <div className="grid grid-cols-3 gap-1 p-1 bg-slate-800 rounded-lg border border-slate-700">
+                        <div className="grid grid-cols-3 gap-1 p-1 bg-[#0A0A0A] rounded-lg border border-[#1F1F1F]">
                             {[
                                 { id: 'STANDARD', label: 'Std PPO', icon: Brain },
                                 { id: 'SCALPER_AI', label: 'Scalper', icon: Zap },
@@ -637,7 +637,7 @@ export const ExecutionEngine = () => {
                                     onClick={() => setExecutionStrategy(strat.id as any)}
                                     className={`flex flex-col items-center justify-center py-2 rounded transition-all ${executionStrategy === strat.id
                                         ? 'bg-indigo-500 text-white shadow-lg'
-                                        : 'text-slate-400 hover:text-white hover:bg-slate-700'
+                                        : 'text-slate-400 hover:text-white hover:bg-[#0A0A0A]'
                                         }`}
                                 >
                                     <strat.icon size={14} className="mb-1" />
@@ -648,7 +648,7 @@ export const ExecutionEngine = () => {
                     </div>
 
                     {/* Risk Mode Selector */}
-                    <div className="flex items-center gap-2 bg-slate-800 p-1 rounded-lg border border-slate-700 mb-4">
+                    <div className="flex items-center gap-2 bg-[#0A0A0A] p-1 rounded-lg border border-[#1F1F1F] mb-4">
                         {['FIXED', 'VOLATILITY', 'ATR'].map(mode => (
                             <button
                                 key={mode}
@@ -666,7 +666,7 @@ export const ExecutionEngine = () => {
                     <div className="space-y-4 flex-1">
                         {/* ATR Manual Tuning */}
                         {riskConfig.dynamicMode === 'ATR' && (
-                            <div className="bg-slate-800 rounded-lg p-3 border border-slate-700 animate-in fade-in slide-in-from-top-1">
+                            <div className="bg-[#0A0A0A] rounded-lg p-3 border border-[#1F1F1F] animate-in fade-in slide-in-from-top-1">
                                 <div className="flex justify-between items-center mb-2">
                                     <div className="flex items-center gap-2">
                                         <Activity size={14} className="text-omni-accent" />
@@ -681,7 +681,7 @@ export const ExecutionEngine = () => {
                                     min="1.0" max="5.0" step="0.1"
                                     value={riskConfig.atrMultiplier}
                                     onChange={(e) => setRiskConfig({ ...riskConfig, atrMultiplier: Number(e.target.value) })}
-                                    className="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-omni-accent"
+                                    className="w-full h-1 bg-[#0A0A0A] rounded-lg appearance-none cursor-pointer accent-omni-accent"
                                 />
                             </div>
                         )}
@@ -696,7 +696,7 @@ export const ExecutionEngine = () => {
                                 color="text-omni-danger"
                                 icon={<ArrowRightLeft size={14} />}
                             />
-                            <div className="bg-slate-800 rounded-lg p-3 border border-slate-700 relative overflow-hidden">
+                            <div className="bg-[#0A0A0A] rounded-lg p-3 border border-[#1F1F1F] relative overflow-hidden">
                                 <div className="flex justify-between items-start mb-1">
                                     <label className="text-xs text-slate-400">Kelly Size</label>
                                     <div className="text-slate-600"><Calculator size={14} /></div>
@@ -712,7 +712,7 @@ export const ExecutionEngine = () => {
                         </div>
 
                         {/* AI Position Sizing Tuner */}
-                        <div className="bg-slate-800 rounded-lg p-3 border border-slate-700 space-y-3">
+                        <div className="bg-[#0A0A0A] rounded-lg p-3 border border-[#1F1F1F] space-y-3">
                             {/* Trust Factor */}
                             <div>
                                 <div className="flex justify-between items-center mb-1">
@@ -726,7 +726,7 @@ export const ExecutionEngine = () => {
                                     type="range" min="0.5" max="2.0" step="0.1"
                                     value={positionConfig.aiTrustFactor}
                                     onChange={(e) => setPositionConfig({ ...positionConfig, aiTrustFactor: Number(e.target.value) })}
-                                    className="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                    className="w-full h-1 bg-[#0A0A0A] rounded-lg appearance-none cursor-pointer accent-purple-500"
                                 />
                             </div>
                             {/* Aggressiveness (Exponent) */}
@@ -742,7 +742,7 @@ export const ExecutionEngine = () => {
                                     type="range" min="1.0" max="6.0" step="0.5"
                                     value={positionConfig.aggressiveness}
                                     onChange={(e) => setPositionConfig({ ...positionConfig, aggressiveness: Number(e.target.value) })}
-                                    className="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-pink-500"
+                                    className="w-full h-1 bg-[#0A0A0A] rounded-lg appearance-none cursor-pointer accent-pink-500"
                                 />
                                 <div className="flex justify-between text-[9px] text-slate-500 mt-1">
                                     <span>Linear</span>
@@ -752,7 +752,7 @@ export const ExecutionEngine = () => {
                         </div>
 
                         {/* Portfolio Heat Shield */}
-                        <div className="bg-slate-800 rounded-lg p-3 border border-slate-700">
+                        <div className="bg-[#0A0A0A] rounded-lg p-3 border border-[#1F1F1F]">
                             <div className="flex justify-between items-center mb-1">
                                 <label className="text-[10px] text-slate-400 font-bold uppercase flex items-center gap-1">
                                     <Flame size={12} className="text-red-400" /> Portfolio Heat Shield
@@ -764,14 +764,14 @@ export const ExecutionEngine = () => {
                                 min="10" max="90" step="5"
                                 value={riskConfig.portfolioHeatLimit}
                                 onChange={(e) => setRiskConfig({ ...riskConfig, portfolioHeatLimit: Number(e.target.value) })}
-                                className="w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-red-500"
+                                className="w-full h-1 bg-[#0A0A0A] rounded-lg appearance-none cursor-pointer accent-red-500"
                             />
                         </div>
 
                         {/* Leverage Slider (Up to 200x) */}
-                        <div className={`bg-slate-800 rounded-lg p-3 border transition-all duration-300 relative overflow-hidden group ${isFlashingRed ? 'border-omni-danger animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.4)]' :
+                        <div className={`bg-[#0A0A0A] rounded-lg p-3 border transition-all duration-300 relative overflow-hidden group ${isFlashingRed ? 'border-omni-danger animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.4)]' :
                             isCriticalRisk ? 'border-omni-danger shadow-[0_0_15px_rgba(239,68,68,0.2)]' :
-                                isHighRisk ? 'border-omni-warning' : 'border-slate-700'
+                                isHighRisk ? 'border-omni-warning' : 'border-[#1F1F1F]'
                             }`}>
                             {/* DEGEN MODE BACKGROUND FX */}
                             {riskConfig.leverage > 100 && (
@@ -790,7 +790,7 @@ export const ExecutionEngine = () => {
                                 min="1" max="200" step="1"
                                 value={riskConfig.leverage}
                                 onChange={(e) => setRiskConfig({ ...riskConfig, leverage: Number(e.target.value) })}
-                                className={`w-full h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer relative z-10 ${isCriticalRisk ? 'accent-omni-danger' : isHighRisk ? 'accent-omni-warning' : 'accent-blue-500'
+                                className={`w-full h-1 bg-[#0A0A0A] rounded-lg appearance-none cursor-pointer relative z-10 ${isCriticalRisk ? 'accent-omni-danger' : isHighRisk ? 'accent-omni-warning' : 'accent-blue-500'
                                     }`}
                             />
 
@@ -799,7 +799,7 @@ export const ExecutionEngine = () => {
                                 <div className="flex items-center gap-1 text-[10px] text-slate-400 cursor-help">
                                     Est. Liq Price <Info size={10} />
                                     {/* Tooltip */}
-                                    <div className="absolute bottom-full left-0 mb-2 w-48 p-2 bg-slate-900 border border-slate-600 rounded text-[10px] text-slate-300 hidden group-hover/liq:block z-50 shadow-xl">
+                                    <div className="absolute bottom-full left-0 mb-2 w-48 p-2 bg-[#050505] border border-slate-600 rounded text-[10px] text-slate-300 hidden group-hover/liq:block z-50 shadow-xl">
                                         Estimated liquidation price based on current entry and {riskConfig.leverage}x leverage.
                                         Liquidation occurs when loss exceeds margin collateral.
                                     </div>
@@ -819,17 +819,17 @@ export const ExecutionEngine = () => {
             </div>
 
             {/* Order Blotter with Sorting */}
-            <div className="bg-omni-panel border border-slate-700 rounded-xl overflow-hidden">
-                <div className="p-4 border-b border-slate-700 flex justify-between items-center">
+            <div className="bg-omni-panel border border-[#1F1F1F] rounded-xl overflow-hidden">
+                <div className="p-4 border-b border-[#1F1F1F] flex justify-between items-center">
                     <h3 className="font-semibold text-white flex items-center gap-2">
                         <FileText size={18} className="text-slate-400" /> Order Blotter
                     </h3>
                     <div className="flex gap-2">
-                        <span className="px-2 py-1 bg-slate-800 rounded text-xs text-slate-400 border border-slate-700">Filled: {trades.filter(t => t.status === 'FILLED').length}</span>
-                        <span className="px-2 py-1 bg-slate-800 rounded text-xs text-slate-400 border border-slate-700">Pending: {trades.filter(t => t.status === 'PENDING').length}</span>
+                        <span className="px-2 py-1 bg-[#0A0A0A] rounded text-xs text-slate-400 border border-[#1F1F1F]">Filled: {trades.filter(t => t.status === 'FILLED').length}</span>
+                        <span className="px-2 py-1 bg-[#0A0A0A] rounded text-xs text-slate-400 border border-[#1F1F1F]">Pending: {trades.filter(t => t.status === 'PENDING').length}</span>
                         <button
                             onClick={handleExportCSV}
-                            className="px-2 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs text-white border border-slate-600 flex items-center gap-1 transition-colors"
+                            className="px-2 py-1 bg-[#0A0A0A] hover:bg-slate-600 rounded text-xs text-white border border-slate-600 flex items-center gap-1 transition-colors"
                             title="Export Visible Rows to CSV"
                         >
                             <Download size={12} /> CSV
@@ -838,7 +838,7 @@ export const ExecutionEngine = () => {
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
-                        <thead className="bg-slate-800/50 text-slate-400">
+                        <thead className="bg-[#0A0A0A]/50 text-slate-400">
                             <tr>
                                 <th className="px-6 py-3 font-medium cursor-pointer hover:text-white transition-colors" onClick={() => handleSort('id')}>
                                     <div className="flex items-center gap-1">Order ID <SortIcon colKey="id" /></div>
@@ -875,7 +875,7 @@ export const ExecutionEngine = () => {
                                 <React.Fragment key={trade.id}>
                                     <tr
                                         onClick={() => toggleExpand(trade.id)}
-                                        className={`hover:bg-slate-700/30 transition-colors font-mono cursor-pointer ${expandedTradeId === trade.id ? 'bg-slate-700/20' : ''}`}
+                                        className={`hover:bg-[#0A0A0A]/30 transition-colors font-mono cursor-pointer ${expandedTradeId === trade.id ? 'bg-[#0A0A0A]/20' : ''}`}
                                     >
                                         <td className="px-6 py-4 text-slate-500">{trade.id}</td>
                                         <td className="px-6 py-4 text-slate-400">{trade.timestamp}</td>
@@ -886,7 +886,7 @@ export const ExecutionEngine = () => {
                                         <td className="px-6 py-4 text-right">
                                             <div className="flex items-center justify-end gap-2">
                                                 <span className={`text-xs ${trade.confidence >= 80 ? 'text-purple-400' : 'text-slate-400'}`}>{trade.confidence}%</span>
-                                                <div className="w-16 h-1 bg-slate-700 rounded-full overflow-hidden">
+                                                <div className="w-16 h-1 bg-[#0A0A0A] rounded-full overflow-hidden">
                                                     <div className={`h-full ${trade.confidence >= 90 ? 'bg-omni-success' : trade.confidence >= 75 ? 'bg-purple-500' : 'bg-slate-500'}`} style={{ width: `${trade.confidence}%` }}></div>
                                                 </div>
                                             </div>
@@ -912,16 +912,16 @@ export const ExecutionEngine = () => {
 
                                     {/* Expandable Detail View */}
                                     {expandedTradeId === trade.id && (
-                                        <tr className="bg-slate-800/20 animate-in fade-in duration-200">
+                                        <tr className="bg-[#0A0A0A]/20 animate-in fade-in duration-200">
                                             <td colSpan={10} className="p-0">
-                                                <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 border-b border-slate-700/50 shadow-inner">
+                                                <div className="p-6 grid grid-cols-1 md:grid-cols-3 gap-6 border-b border-[#1F1F1F]/50 shadow-inner">
 
                                                     {/* Execution Analysis */}
                                                     <div className="space-y-3">
                                                         <h4 className="text-xs font-bold text-omni-accent uppercase tracking-wider flex items-center gap-2">
                                                             <Microscope size={14} /> Execution Analysis
                                                         </h4>
-                                                        <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700 space-y-2">
+                                                        <div className="bg-[#0A0A0A]/50 rounded-lg p-3 border border-[#1F1F1F] space-y-2">
                                                             <div className="flex justify-between text-sm">
                                                                 <span className="text-slate-400">Effective Notional:</span>
                                                                 <span className="text-white font-mono">
@@ -945,7 +945,7 @@ export const ExecutionEngine = () => {
                                                             <Activity size={14} /> Market Context (At Execution)
                                                         </h4>
                                                         {trade.marketSnapshot ? (
-                                                            <div className="bg-slate-800/50 rounded-lg p-3 border border-slate-700 space-y-2">
+                                                            <div className="bg-[#0A0A0A]/50 rounded-lg p-3 border border-[#1F1F1F] space-y-2">
                                                                 <div className="flex justify-between text-sm">
                                                                     <span className="text-slate-400">Volatility Index:</span>
                                                                     <span className={`font-mono ${trade.marketSnapshot.volatilityIndex > 1.2 ? 'text-omni-warning' : 'text-omni-success'}`}>
@@ -978,7 +978,7 @@ export const ExecutionEngine = () => {
                                                             <span className="px-2 py-1 bg-blue-500/20 text-blue-300 text-xs rounded border border-blue-500/30">
                                                                 {trade.marketSnapshot && Math.abs(trade.marketSnapshot.trend) > 0.5 ? 'Trend Following' : 'Mean Reversion'}
                                                             </span>
-                                                            <span className="px-2 py-1 bg-slate-700 text-slate-300 text-xs rounded border border-slate-600">
+                                                            <span className="px-2 py-1 bg-[#0A0A0A] text-slate-300 text-xs rounded border border-slate-600">
                                                                 {trade.side} Signal
                                                             </span>
                                                         </div>
@@ -1002,7 +1002,7 @@ export const ExecutionEngine = () => {
 };
 
 const RiskCard = ({ label, base, effective, isDynamic, unit, color, icon }: any) => (
-    <div className="bg-slate-800 rounded-lg p-3 border border-slate-700 relative overflow-hidden group hover:border-slate-500 transition-colors">
+    <div className="bg-[#0A0A0A] rounded-lg p-3 border border-[#1F1F1F] relative overflow-hidden group hover:border-slate-500 transition-colors">
         <div className="flex justify-between items-start mb-1">
             <label className="text-xs text-slate-400">{label}</label>
             <div className="text-slate-600">{icon}</div>

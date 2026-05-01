@@ -274,13 +274,13 @@ const OnChainAnalyzer: React.FC = () => {
                     </Card>
 
                     {/* Hashrate (System Load) */}
-                    <Card className="flex-1 bg-slate-900 border border-slate-800 staggered-fade-in" style={{ animationDelay: '300ms' }}>
+                    <Card className="flex-1 bg-[#050505] border border-[#141414] staggered-fade-in" style={{ animationDelay: '300ms' }}>
                         <div className="flex justify-between items-start mb-2">
                             <div>
                                 <h3 className="text-sm font-bold text-white uppercase tracking-wider">Network Security</h3>
                                 <p className="text-[10px] text-gray-400">Hashrate (EH/s)</p>
                             </div>
-                            <div className="px-2 py-1 bg-slate-800 rounded text-xs font-mono text-cyan-400 border border-cyan-500/30">
+                            <div className="px-2 py-1 bg-[#0A0A0A] rounded text-xs font-mono text-cyan-400 border border-cyan-500/30">
                                 {stats.hashRate} EH/s
                             </div>
                         </div>

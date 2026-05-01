@@ -43,10 +43,10 @@ const AIGeneratorModal: React.FC<AIGeneratorModalProps> = ({ isOpen, onClose, on
 
     return (
         <Dialog open={isOpen} onClose={onClose} className="relative z-[70]">
-            <div className="fixed inset-0 bg-slate-900/90 backdrop-blur-md" aria-hidden="true" />
+            <div className="fixed inset-0 bg-[#050505]/90 backdrop-blur-md" aria-hidden="true" />
 
             <div className="fixed inset-0 flex items-center justify-center p-4">
-                <Dialog.Panel className="w-full max-w-2xl rounded-3xl bg-slate-900 border border-violet-500/20 shadow-2xl overflow-hidden relative animate-in fade-in zoom-in-95 duration-300">
+                <Dialog.Panel className="w-full max-w-2xl rounded-3xl bg-[#050505] border border-violet-500/20 shadow-2xl overflow-hidden relative animate-in fade-in zoom-in-95 duration-300">
 
                     {/* Header with Magic Gradient */}
                     <div className="p-6 border-b border-white/5 bg-gradient-to-r from-violet-900/20 to-fuchsia-900/20 backdrop-blur-xl flex justify-between items-center">

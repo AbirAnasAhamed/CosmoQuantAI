@@ -40,7 +40,7 @@ const BotLabHeader: React.FC<BotLabHeaderProps> = ({ bots, stats, onOpenCreate }
                 onClick={toggleKillSwitch}
                 className={`relative overflow-hidden rounded-2xl p-4 border transition-all duration-500 group ${killSwitchActive
                     ? 'bg-red-600 border-red-500 shadow-[0_0_30px_rgba(220,38,38,0.5)] animate-pulse'
-                    : 'bg-slate-900/50 border-white/5 hover:border-red-500/50 hover:bg-red-950/20'
+                    : 'bg-[#050505]/50 border-white/5 hover:border-red-500/50 hover:bg-red-950/20'
                     }`}
             >
                 <div className="relative z-10 flex flex-col items-center justify-center text-center h-full">
@@ -65,7 +65,7 @@ const BotLabHeader: React.FC<BotLabHeaderProps> = ({ bots, stats, onOpenCreate }
             </div>
 
             {/* Active Bots */}
-            <div className="bg-slate-900/50 border border-white/5 rounded-2xl p-5 flex flex-col justify-center">
+            <div className="bg-[#050505]/50 border border-white/5 rounded-2xl p-5 flex flex-col justify-center">
                 <div className="flex items-center justify-between mb-2">
                     <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Active Bots</p>
                     <Activity size={16} className="text-emerald-500" />
@@ -74,13 +74,13 @@ const BotLabHeader: React.FC<BotLabHeaderProps> = ({ bots, stats, onOpenCreate }
                     <span className="text-2xl font-bold text-white">{stats.active_bots}</span>
                     <span className="text-xs text-gray-500">/ {stats.total_bots}</span>
                 </div>
-                <div className="w-full bg-slate-800 rounded-full h-1 mt-3 overflow-hidden">
+                <div className="w-full bg-[#0A0A0A] rounded-full h-1 mt-3 overflow-hidden">
                     <div className="bg-emerald-500 h-full rounded-full transition-all duration-1000" style={{ width: `${(stats.active_bots / (stats.total_bots || 1)) * 100}%` }}></div>
                 </div>
             </div>
 
             {/* Win Rate */}
-            <div className="bg-slate-900/50 border border-white/5 rounded-2xl p-5 flex flex-col justify-center">
+            <div className="bg-[#050505]/50 border border-white/5 rounded-2xl p-5 flex flex-col justify-center">
                 <div className="flex items-center justify-between mb-2">
                     <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Win Rate</p>
                     <Layers size={16} className="text-cyan-500" />
@@ -94,7 +94,7 @@ const BotLabHeader: React.FC<BotLabHeaderProps> = ({ bots, stats, onOpenCreate }
             {/* Deploy Button */}
             <button
                 onClick={onOpenCreate}
-                className="bg-slate-900/50 border border-white/5 border-dashed hover:border-cyan-500 hover:bg-cyan-950/20 rounded-2xl p-4 flex flex-col items-center justify-center text-center transition-all duration-300 group"
+                className="bg-[#050505]/50 border border-white/5 border-dashed hover:border-cyan-500 hover:bg-cyan-950/20 rounded-2xl p-4 flex flex-col items-center justify-center text-center transition-all duration-300 group"
             >
                 <div className="w-10 h-10 rounded-full bg-cyan-500/10 text-cyan-500 flex items-center justify-center mb-2 group-hover:scale-110 group-hover:bg-cyan-500 group-hover:text-black transition-all">
                     <Plus size={24} />

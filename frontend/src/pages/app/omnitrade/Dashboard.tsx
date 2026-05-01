@@ -47,7 +47,7 @@ export const Dashboard: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 bg-omni-panel border border-slate-700 rounded-xl p-6 h-[400px]">
+                <div className="lg:col-span-2 bg-omni-panel border border-[#1F1F1F] rounded-xl p-6 h-[400px]">
                     <h3 className="text-lg font-semibold text-white mb-4">Cumulative PnL Performance</h3>
                     <ResponsiveContainer width="100%" height="100%" className="!h-[320px]">
                         <AreaChart data={pnlData}>
@@ -69,7 +69,7 @@ export const Dashboard: React.FC = () => {
                     </ResponsiveContainer>
                 </div>
 
-                <div className="bg-omni-panel border border-slate-700 rounded-xl p-6 flex flex-col">
+                <div className="bg-omni-panel border border-[#1F1F1F] rounded-xl p-6 flex flex-col">
                     <h3 className="text-lg font-semibold text-white mb-4">System Health</h3>
                     <div className="space-y-4 flex-1">
                         <HealthItem label="API Latency" value="45ms" status="good" />
@@ -78,7 +78,7 @@ export const Dashboard: React.FC = () => {
                         <HealthItem label="Model Drift" value="0.04" status="warning" />
                         <HealthItem label="Execution Queue" value="Idle" status="good" />
                     </div>
-                    <div className="mt-4 p-4 bg-slate-800 rounded-lg border border-slate-700">
+                    <div className="mt-4 p-4 bg-[#0A0A0A] rounded-lg border border-[#1F1F1F]">
                         <h4 className="text-xs text-slate-400 uppercase font-bold mb-2">Latest Alert</h4>
                         <p className="text-sm text-white">Feature Lab: RSI divergence detected on BTC/USDT [15m]</p>
                     </div>
@@ -86,7 +86,7 @@ export const Dashboard: React.FC = () => {
             </div>
 
             {/* New Section: Daily Profit & Loss Analysis */}
-            <div className="bg-omni-panel border border-slate-700 rounded-xl p-6 h-[350px]">
+            <div className="bg-omni-panel border border-[#1F1F1F] rounded-xl p-6 h-[350px]">
                 <h3 className="text-lg font-semibold text-white mb-4">Daily Profit & Loss Analysis (Last 14 Days)</h3>
                 <ResponsiveContainer width="100%" height="100%" className="!h-[270px]">
                     <BarChart data={dailyPerformance}>
@@ -114,13 +114,13 @@ export const Dashboard: React.FC = () => {
 const StatCard = ({ title, value, sub, icon: Icon, trend }: any) => {
     const trendColor = trend === 'up' ? 'text-omni-success' : trend === 'down' ? 'text-omni-danger' : 'text-omni-accent';
     return (
-        <div className="bg-omni-panel border border-slate-700 rounded-xl p-6 flex items-start justify-between hover:border-slate-500 transition-colors">
+        <div className="bg-omni-panel border border-[#1F1F1F] rounded-xl p-6 flex items-start justify-between hover:border-slate-500 transition-colors">
             <div>
                 <p className="text-slate-400 text-sm font-medium mb-1">{title}</p>
                 <h4 className="text-2xl font-bold text-white mb-1">{value}</h4>
                 <span className={`text-xs font-mono ${trendColor}`}>{sub}</span>
             </div>
-            <div className={`p-3 rounded-lg bg-slate-800 ${trendColor}`}>
+            <div className={`p-3 rounded-lg bg-[#0A0A0A] ${trendColor}`}>
                 <Icon size={24} />
             </div>
         </div>
@@ -128,7 +128,7 @@ const StatCard = ({ title, value, sub, icon: Icon, trend }: any) => {
 };
 
 const HealthItem = ({ label, value, status }: any) => (
-    <div className="flex justify-between items-center py-2 border-b border-slate-700/50 last:border-0">
+    <div className="flex justify-between items-center py-2 border-b border-[#1F1F1F]/50 last:border-0">
         <span className="text-slate-400 text-sm">{label}</span>
         <div className="flex items-center gap-2">
             <span className="text-white font-mono text-sm">{value}</span>

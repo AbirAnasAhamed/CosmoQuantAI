@@ -146,7 +146,7 @@ const BotLogViewer: React.FC<BotLogViewerProps> = ({ botId, botName, className =
     };
 
     return (
-        <div className={`flex flex-col h-full bg-[#000000] rounded-xl border border-slate-800 shadow-2xl overflow-hidden relative ${className}`}>
+        <div className={`flex flex-col h-full bg-[#000000] rounded-xl border border-[#141414] shadow-2xl overflow-hidden relative ${className}`}>
 
             {/* Cyberpunk Grid Background */}
             <div className="absolute inset-0 opacity-5 pointer-events-none z-0"
@@ -157,11 +157,11 @@ const BotLogViewer: React.FC<BotLogViewerProps> = ({ botId, botName, className =
             </div>
 
             {/* Header / Control Panel */}
-            <div className="relative z-10 flex flex-col md:flex-row justify-between items-center p-3 border-b border-slate-800 bg-[#080E1A]/90 backdrop-blur-md gap-3">
+            <div className="relative z-10 flex flex-col md:flex-row justify-between items-center p-3 border-b border-[#141414] bg-[#080E1A]/90 backdrop-blur-md gap-3">
 
                 {/* Visual Status */}
                 <div className="flex items-center gap-3 w-full md:w-auto">
-                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-slate-900/80 border border-slate-700">
+                    <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-[#050505]/80 border border-[#1F1F1F]">
                         <Terminal className="w-4 h-4 text-cyan-400" />
                         <span className="text-xs font-mono text-cyan-100 font-bold tracking-wider">
                             TERMINAL_V2.0
@@ -179,7 +179,7 @@ const BotLogViewer: React.FC<BotLogViewerProps> = ({ botId, botName, className =
                             placeholder="Scan logs..."
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
-                            className="w-full bg-slate-900/50 border border-slate-700 rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-cyan-500/50 focus:bg-slate-900 transition-all font-mono"
+                            className="w-full bg-[#050505]/50 border border-[#1F1F1F] rounded-lg pl-9 pr-3 py-1.5 text-xs text-slate-300 focus:outline-none focus:border-cyan-500/50 focus:bg-[#050505] transition-all font-mono"
                         />
                     </div>
                 </div>
@@ -188,7 +188,7 @@ const BotLogViewer: React.FC<BotLogViewerProps> = ({ botId, botName, className =
                 <div className="flex items-center gap-1.5 w-full md:w-auto justify-end">
                     <button
                         onClick={() => setIsAutoScroll(!isAutoScroll)}
-                        className={`p-1.5 rounded-lg border transition-all ${isAutoScroll ? 'bg-cyan-500/10 border-cyan-500/50 text-cyan-400' : 'bg-transparent border-slate-700 text-slate-500 hover:text-slate-300'}`}
+                        className={`p-1.5 rounded-lg border transition-all ${isAutoScroll ? 'bg-cyan-500/10 border-cyan-500/50 text-cyan-400' : 'bg-transparent border-[#1F1F1F] text-slate-500 hover:text-slate-300'}`}
                         title={isAutoScroll ? "Auto-scroll ON" : "Auto-scroll OFF"}
                     >
                         {isAutoScroll ? <PauseCircle className="w-4 h-4" /> : <PlayCircle className="w-4 h-4" />}
@@ -196,7 +196,7 @@ const BotLogViewer: React.FC<BotLogViewerProps> = ({ botId, botName, className =
 
                     <button
                         onClick={() => setLogs([])}
-                        className="p-1.5 rounded-lg border border-slate-700 text-slate-500 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/10 transition-all"
+                        className="p-1.5 rounded-lg border border-[#1F1F1F] text-slate-500 hover:text-red-400 hover:border-red-500/30 hover:bg-red-500/10 transition-all"
                         title="Clear Buffer"
                     >
                         <Trash2 className="w-4 h-4" />
@@ -204,7 +204,7 @@ const BotLogViewer: React.FC<BotLogViewerProps> = ({ botId, botName, className =
 
                     <button
                         onClick={handleDownloadLogs}
-                        className="p-1.5 rounded-lg border border-slate-700 text-slate-500 hover:text-cyan-400 hover:border-cyan-500/30 hover:bg-cyan-500/10 transition-all"
+                        className="p-1.5 rounded-lg border border-[#1F1F1F] text-slate-500 hover:text-cyan-400 hover:border-cyan-500/30 hover:bg-cyan-500/10 transition-all"
                         title="Export Logs"
                     >
                         <Download className="w-4 h-4" />
@@ -213,15 +213,15 @@ const BotLogViewer: React.FC<BotLogViewerProps> = ({ botId, botName, className =
             </div>
 
             {/* Filter Chips */}
-            <div className="relative z-10 px-3 py-2 border-b border-slate-800 bg-[#080E1A]/80 backdrop-blur flex gap-2 overflow-x-auto no-scrollbar">
+            <div className="relative z-10 px-3 py-2 border-b border-[#141414] bg-[#080E1A]/80 backdrop-blur flex gap-2 overflow-x-auto no-scrollbar">
                 {['ERROR', 'TRADE', 'INFO', 'SYSTEM'].map(type => (
                     <button
                         key={type}
                         onClick={() => toggleFilter(type)}
                         className={`px-2.5 py-0.5 text-[10px] font-mono rounded border transition-all uppercase tracking-wide
                             ${activeFilters.includes(type)
-                                ? 'bg-slate-700 text-white border-slate-500'
-                                : 'bg-transparent text-slate-500 border-slate-800 hover:border-slate-600'
+                                ? 'bg-[#0A0A0A] text-white border-slate-500'
+                                : 'bg-transparent text-slate-500 border-[#141414] hover:border-slate-600'
                             }`}
                     >
                         {type}
@@ -252,7 +252,7 @@ const BotLogViewer: React.FC<BotLogViewerProps> = ({ botId, botName, className =
                         filteredLogs.map((log, i) => (
                             <div
                                 key={i}
-                                className={`group flex items-start gap-3 p-2 rounded border border-transparent hover:border-slate-800 hover:bg-slate-900/50 transition-all duration-200 animate-in fade-in slide-in-from-left-2`}
+                                className={`group flex items-start gap-3 p-2 rounded border border-transparent hover:border-[#141414] hover:bg-[#050505]/50 transition-all duration-200 animate-in fade-in slide-in-from-left-2`}
                             >
                                 <span className="text-[10px] text-slate-600 min-w-[70px] pt-0.5 select-none font-medium">
                                     {log.time}
@@ -274,7 +274,7 @@ const BotLogViewer: React.FC<BotLogViewerProps> = ({ botId, botName, className =
             </div>
 
             {/* Status Bar / Footer */}
-            <div className="relative z-10 px-3 py-1.5 border-t border-slate-800 bg-[#000000] flex justify-between items-center text-[10px] text-slate-600 font-mono uppercase tracking-wider">
+            <div className="relative z-10 px-3 py-1.5 border-t border-[#141414] bg-[#000000] flex justify-between items-center text-[10px] text-slate-600 font-mono uppercase tracking-wider">
                 <span>Mem: OK</span>
                 <div className="flex gap-4">
                     <span>Buffer: {logs.length} entries</span>

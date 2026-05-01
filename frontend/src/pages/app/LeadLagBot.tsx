@@ -7,7 +7,7 @@ import { useMarketStore } from '@/store/marketStore';
 
 // Reusable Components
 const GlassCard: React.FC<{ children: React.ReactNode; className?: string }> = ({ children, className = '' }) => (
-    <div className={`backdrop-blur-md bg-slate-900/50 border border-white/5 rounded-3xl overflow-hidden ${className}`}>
+    <div className={`backdrop-blur-md bg-[#050505]/50 border border-white/5 rounded-3xl overflow-hidden ${className}`}>
         {children}
     </div>
 );

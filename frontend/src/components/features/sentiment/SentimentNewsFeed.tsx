@@ -40,7 +40,7 @@ const VerifyButton = ({ content }: { content: string }) => {
         <button
             onClick={handleVerify}
             disabled={loading}
-            className="text-[10px] flex items-center gap-1 text-slate-400 hover:text-brand-primary transition-colors border border-slate-200 dark:border-slate-800 px-2 py-1 rounded hover:bg-slate-100 dark:hover:bg-slate-800"
+            className="text-[10px] flex items-center gap-1 text-slate-400 hover:text-brand-primary transition-colors border border-slate-200 dark:border-[#141414] px-2 py-1 rounded hover:bg-slate-100 dark:hover:bg-[#0A0A0A]"
             style={{ zIndex: 20, position: 'relative' }}
         >
             {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <span className="text-blue-500">🛡️</span>}
@@ -83,13 +83,13 @@ export const SentimentNewsFeed: React.FC<SentimentNewsFeedProps> = ({
 
                 <div className="flex flex-wrap gap-2 items-center">
                     {/* Sentiment Filter */}
-                    <div className="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                    <div className="flex bg-slate-100 dark:bg-[#0A0A0A] p-1 rounded-lg">
                         {(['All', 'Positive', 'Negative', 'Neutral'] as const).map(filter => (
                             <button
                                 key={filter}
                                 onClick={() => setActiveFilter(filter)}
                                 className={`px-4 py-1.5 text-xs font-bold uppercase rounded-md transition-all duration-300 ${activeFilter === filter
-                                    ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-sm scale-105'
+                                    ? 'bg-white dark:bg-[#0A0A0A] text-slate-900 dark:text-white shadow-sm scale-105'
                                     : 'text-gray-500 hover:text-slate-700 dark:hover:text-slate-300'
                                     }`}
                             >
@@ -106,7 +106,7 @@ export const SentimentNewsFeed: React.FC<SentimentNewsFeedProps> = ({
                     onClick={() => onSourceSelect('All')}
                     className={`whitespace-nowrap px-3 py-1 text-xs font-medium rounded-full transition-colors border ${activeSourceFilter === 'All'
                         ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 border-transparent'
+                        : 'bg-slate-100 dark:bg-[#0A0A0A] text-slate-500 hover:bg-slate-200 dark:hover:bg-[#0A0A0A] border-transparent'
                         }`}
                 >
                     All Sources
@@ -117,7 +117,7 @@ export const SentimentNewsFeed: React.FC<SentimentNewsFeedProps> = ({
                         onClick={() => onSourceSelect(source)}
                         className={`whitespace-nowrap px-3 py-1 text-xs font-medium rounded-full transition-colors border ${activeSourceFilter === source
                             ? 'bg-blue-600 text-white border-blue-600'
-                            : 'bg-slate-100 dark:bg-slate-800 text-slate-500 hover:bg-slate-200 dark:hover:bg-slate-700 border-transparent'
+                            : 'bg-slate-100 dark:bg-[#0A0A0A] text-slate-500 hover:bg-slate-200 dark:hover:bg-[#0A0A0A] border-transparent'
                             }`}
                     >
                         {source}
@@ -150,7 +150,7 @@ export const SentimentNewsFeed: React.FC<SentimentNewsFeedProps> = ({
                             key={`${source.id}-${index}`}
                             {...wrapperProps // @ts-ignore
                             }
-                            className={`group relative overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 backdrop-blur-sm p-5 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:border-${moodColor}-500/30 ${isNew ? 'animate-pulse ring-2 ring-blue-500/50' : ''}`}
+                            className={`group relative overflow-hidden rounded-xl border border-slate-200 dark:border-[#141414] bg-white dark:bg-[#050505]/50 backdrop-blur-sm p-5 transition-all duration-300 hover:scale-[1.02] hover:shadow-xl hover:border-${moodColor}-500/30 ${isNew ? 'animate-pulse ring-2 ring-blue-500/50' : ''}`}
                         >
                             <div className={`absolute inset-0 bg-gradient-to-br ${moodGradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`}></div>
                             <div className="relative z-10 flex flex-col h-full justify-between">
@@ -170,7 +170,7 @@ export const SentimentNewsFeed: React.FC<SentimentNewsFeedProps> = ({
                                     <p className="text-sm font-medium text-slate-700 dark:text-slate-200 leading-relaxed line-clamp-3 mb-4 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{source.content}</p>
                                     <div className="mb-3"><VerifyButton content={source.content} /></div>
                                 </div>
-                                <div className="flex items-center justify-between border-t border-gray-100 dark:border-slate-800 pt-3 mt-2">
+                                <div className="flex items-center justify-between border-t border-gray-100 dark:border-[#141414] pt-3 mt-2">
                                     <div className="flex items-center gap-2">
                                         <span className="text-[10px] text-gray-400 font-mono">{formatRelativeTime(source.timestamp)}</span>
                                         {source.is_translated && (

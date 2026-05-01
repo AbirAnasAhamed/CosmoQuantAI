@@ -65,9 +65,9 @@ export const DataNexus: React.FC<DataNexusProps> = ({ onNavigate }) => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 {sources.map((source) => (
-                    <div key={source.name} className="bg-omni-panel border border-slate-700 rounded-xl p-4 flex flex-col justify-between hover:border-omni-accent transition-colors">
+                    <div key={source.name} className="bg-omni-panel border border-[#1F1F1F] rounded-xl p-4 flex flex-col justify-between hover:border-omni-accent transition-colors">
                         <div className="flex justify-between items-start mb-4">
-                            <div className="p-2 bg-slate-800 rounded-lg text-omni-accent">
+                            <div className="p-2 bg-[#0A0A0A] rounded-lg text-omni-accent">
                                 <source.icon size={20} />
                             </div>
                             <div className={`flex items-center space-x-1 text-xs font-mono ${source.status === 'Connected' ? 'text-omni-success' : 'text-slate-500'}`}>
@@ -86,19 +86,19 @@ export const DataNexus: React.FC<DataNexusProps> = ({ onNavigate }) => {
                 ))}
             </div>
 
-            <div className="bg-omni-panel border border-slate-700 rounded-xl overflow-hidden">
-                <div className="p-4 border-b border-slate-700 flex justify-between items-center">
+            <div className="bg-omni-panel border border-[#1F1F1F] rounded-xl overflow-hidden">
+                <div className="p-4 border-b border-[#1F1F1F] flex justify-between items-center">
                     <h3 className="font-semibold text-white flex items-center gap-2">
                         <Activity size={18} className="text-omni-accent" />
                         Live Ingestion Stream
                     </h3>
-                    <button className="p-2 hover:bg-slate-700 rounded-lg text-slate-400 transition-colors">
+                    <button className="p-2 hover:bg-[#0A0A0A] rounded-lg text-slate-400 transition-colors">
                         <RefreshCw size={16} />
                     </button>
                 </div>
                 <div className="overflow-x-auto">
                     <table className="w-full text-left text-sm">
-                        <thead className="bg-slate-800/50 text-slate-400">
+                        <thead className="bg-[#0A0A0A]/50 text-slate-400">
                             <tr>
                                 <th className="px-6 py-3 font-medium">Symbol</th>
                                 <th className="px-6 py-3 font-medium text-right">Price</th>
@@ -109,7 +109,7 @@ export const DataNexus: React.FC<DataNexusProps> = ({ onNavigate }) => {
                         </thead>
                         <tbody className="divide-y divide-slate-700">
                             {tickers.map((ticker) => (
-                                <tr key={ticker.symbol} className="hover:bg-slate-700/30 transition-colors font-mono">
+                                <tr key={ticker.symbol} className="hover:bg-[#0A0A0A]/30 transition-colors font-mono">
                                     <td className="px-6 py-4 font-semibold text-white">{ticker.symbol}</td>
                                     <td className="px-6 py-4 text-right text-slate-300">${ticker.price.toFixed(2)}</td>
                                     <td className={`px-6 py-4 text-right font-medium ${ticker.changePercent >= 0 ? 'text-omni-success' : 'text-omni-danger'}`}>

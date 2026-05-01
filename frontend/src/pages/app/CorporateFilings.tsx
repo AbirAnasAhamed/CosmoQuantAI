@@ -68,10 +68,10 @@ const AddFilingModal: React.FC<{
         onClose();
     };
 
-    const inputBaseClasses = "w-full bg-gray-50 dark:bg-slate-800/50 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-primary outline-none transition-all";
+    const inputBaseClasses = "w-full bg-gray-50 dark:bg-[#0A0A0A]/50 border border-gray-200 dark:border-gray-700 rounded-xl p-3 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-primary outline-none transition-all";
 
     return (
-        <div className="fixed inset-0 bg-slate-900/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-backdrop-fade-in" onClick={onClose}>
+        <div className="fixed inset-0 bg-[#050505]/80 backdrop-blur-sm z-[60] flex items-center justify-center p-4 animate-backdrop-fade-in" onClick={onClose}>
             <div className="bg-white dark:bg-[#0A0A0A] w-full max-w-2xl rounded-2xl shadow-2xl border border-brand-border-light dark:border-[#1A1A1A] flex flex-col overflow-hidden animate-modal-content-slide-down" onClick={e => e.stopPropagation()}>
                 <div className="p-6 border-b border-brand-border-light dark:border-[#1A1A1A] flex justify-between items-center bg-gray-50 dark:bg-[#000000]/50">
                     <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -109,7 +109,7 @@ const AddFilingModal: React.FC<{
                             </div>
                             <div>
                                 <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider mb-2">Type</label>
-                                <div className="flex rounded-xl bg-gray-100 dark:bg-slate-800/50 p-1">
+                                <div className="flex rounded-xl bg-gray-100 dark:bg-[#0A0A0A]/50 p-1">
                                     <button type="button" onClick={() => setFormData({ ...formData, transactionType: 'Buy' })} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${formData.transactionType === 'Buy' ? 'bg-emerald-500 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}>Buy</button>
                                     <button type="button" onClick={() => setFormData({ ...formData, transactionType: 'Sell' })} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${formData.transactionType === 'Sell' ? 'bg-rose-500 text-white shadow-md' : 'text-gray-500 hover:text-gray-300'}`}>Sell</button>
                                 </div>
@@ -238,7 +238,7 @@ const CorporateFilings: React.FC = () => {
 
             {/* Header / HUD */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 flex-shrink-0 staggered-fade-in">
-                <Card className="bg-gradient-to-br from-slate-900 to-slate-800 text-white border-slate-700 !p-5 relative overflow-hidden">
+                <Card className="bg-gradient-to-br from-slate-900 to-slate-800 text-white border-[#1F1F1F] !p-5 relative overflow-hidden">
                     <div className="relative z-10 flex justify-between items-center">
                         <div>
                             <p className="text-xs text-gray-400 uppercase tracking-wider mb-1">Insider Sentiment (30d)</p>

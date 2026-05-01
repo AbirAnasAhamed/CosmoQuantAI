@@ -68,11 +68,11 @@ export const DarkPoolWidget: React.FC<DarkPoolWidgetProps> = ({ symbol = 'BTC' }
         if (!score) return 'from-slate-800 to-slate-900';
         if (score > 0.2) return 'from-emerald-950/40 to-slate-900 border-emerald-500/20';
         if (score < -0.2) return 'from-rose-950/40 to-slate-900 border-rose-500/20';
-        return 'from-slate-800 to-slate-900 border-slate-700/30';
+        return 'from-slate-800 to-slate-900 border-[#1F1F1F]/30';
     };
 
     return (
-        <Card className="w-full h-[380px] p-0 border border-slate-700/50 bg-[#0B0F19] shadow-2xl overflow-hidden relative group">
+        <Card className="w-full h-[380px] p-0 border border-[#1F1F1F]/50 bg-[#0B0F19] shadow-2xl overflow-hidden relative group">
             {/* Dynamic Background Mesh */}
             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-5 mix-blend-overlay pointer-events-none"></div>
             <div className={`absolute -top-20 -right-20 w-64 h-64 rounded-full blur-[100px] opacity-20 transition-colors duration-1000 ${data?.sentiment_score && data.sentiment_score > 0 ? 'bg-emerald-500' : 'bg-rose-500'}`} />
@@ -113,7 +113,7 @@ export const DarkPoolWidget: React.FC<DarkPoolWidgetProps> = ({ symbol = 'BTC' }
                         <div className="text-[10px] uppercase tracking-[0.2em] text-slate-500 mb-2 font-semibold">Net Bias</div>
 
                         {loading ? (
-                            <div className="h-10 w-20 bg-slate-800 animate-pulse rounded" />
+                            <div className="h-10 w-20 bg-[#0A0A0A] animate-pulse rounded" />
                         ) : (
                             <div className="text-center">
                                 <div className={`text-4xl font-black font-mono tracking-tighter ${getSentimentColor(data?.sentiment_score || 0)}`}>
@@ -127,7 +127,7 @@ export const DarkPoolWidget: React.FC<DarkPoolWidgetProps> = ({ symbol = 'BTC' }
                     </div>
 
                     {/* Mini Chart */}
-                    <div className="h-20 w-full rounded-xl border border-slate-800/60 bg-slate-950/50 p-3 relative overflow-hidden">
+                    <div className="h-20 w-full rounded-xl border border-[#141414]/60 bg-slate-950/50 p-3 relative overflow-hidden">
                         <div className="flex items-center justify-between text-[9px] text-slate-500 uppercase font-semibold mb-1">
                             <span>Flow Delta</span>
                             <Activity className="h-3 w-3 opacity-50" />
@@ -154,21 +154,21 @@ export const DarkPoolWidget: React.FC<DarkPoolWidgetProps> = ({ symbol = 'BTC' }
 
                 {/* Trade Feed Column */}
                 <div className="flex flex-col h-full overflow-hidden">
-                    <div className="flex items-center justify-between mb-3 border-b border-dashed border-slate-800 pb-2">
+                    <div className="flex items-center justify-between mb-3 border-b border-dashed border-[#141414] pb-2">
                         <h4 className="text-xs font-bold text-slate-400 uppercase flex items-center gap-2">
                             <Layers className="h-3 w-3" /> Recent Blocks
                         </h4>
-                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 border border-slate-700">
+                        <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#0A0A0A] text-slate-400 border border-[#1F1F1F]">
                             &gt; $100k
                         </span>
                     </div>
 
                     <div className="flex-1 overflow-y-auto space-y-2 pr-1 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
                         {loading ? (
-                            [1, 2, 3, 4].map(i => <div key={i} className="h-12 bg-slate-800/30 rounded animate-pulse" />)
+                            [1, 2, 3, 4].map(i => <div key={i} className="h-12 bg-[#0A0A0A]/30 rounded animate-pulse" />)
                         ) : (
                             data?.block_trades.map((trade, idx) => (
-                                <div key={idx} className="group/item relative flex items-center justify-between p-2.5 rounded-lg border border-slate-800/60 bg-slate-900/40 hover:bg-slate-800 hover:border-slate-700 hover:shadow-lg hover:shadow-black/20 transition-all duration-200">
+                                <div key={idx} className="group/item relative flex items-center justify-between p-2.5 rounded-lg border border-[#141414]/60 bg-[#050505]/40 hover:bg-[#0A0A0A] hover:border-[#1F1F1F] hover:shadow-lg hover:shadow-black/20 transition-all duration-200">
                                     <div className="flex items-center gap-3">
                                         <div className={`p-1.5 rounded bg-opacity-10 ${trade.side === 'BUY' ? 'bg-emerald-500' : 'bg-rose-500'}`}>
                                             {trade.side === 'BUY' ? (

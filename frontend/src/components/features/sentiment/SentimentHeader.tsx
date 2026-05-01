@@ -84,7 +84,7 @@ export const SentimentHeader: React.FC<SentimentHeaderProps> = ({
                     <div>
                         <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
                             Sentiment Engine V2
-                            <div className="hidden md:block w-px h-6 bg-slate-300 dark:bg-slate-700 mx-2"></div>
+                            <div className="hidden md:block w-px h-6 bg-slate-300 dark:bg-[#0A0A0A] mx-2"></div>
                             <DigitalClock className="text-lg text-blue-600 dark:text-blue-400" />
                         </h2>
                         <p className="text-xs text-gray-500 dark:text-gray-400">Real-time social volume & momentum analysis</p>
@@ -97,31 +97,31 @@ export const SentimentHeader: React.FC<SentimentHeaderProps> = ({
                             variant="secondary"
                             size="sm"
                             onClick={() => setIsExportOpen(!isExportOpen)}
-                            className="flex items-center gap-2 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
+                            className="flex items-center gap-2 bg-white dark:bg-[#0A0A0A] border border-slate-200 dark:border-[#1F1F1F] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#0A0A0A]"
                         >
                             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
                             Export
                         </Button>
 
                         {isExportOpen && (
-                            <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-slate-800 rounded-lg shadow-xl border border-slate-200 dark:border-slate-700 z-50 overflow-hidden">
+                            <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#0A0A0A] rounded-lg shadow-xl border border-slate-200 dark:border-[#1F1F1F] z-50 overflow-hidden">
                                 <button
                                     onClick={() => handleExportCSV('chart')}
-                                    className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 transition-colors"
+                                    className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#0A0A0A] flex items-center gap-2 transition-colors"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg>
                                     Download Chart Data (CSV)
                                 </button>
                                 <button
                                     onClick={() => handleExportCSV('news')}
-                                    className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 transition-colors border-t border-slate-100 dark:border-slate-700"
+                                    className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#0A0A0A] flex items-center gap-2 transition-colors border-t border-slate-100 dark:border-[#1F1F1F]"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><path d="M16 13H8"></path><path d="M16 17H8"></path><path d="M10 9H8"></path></svg>
                                     Download News Feed (CSV)
                                 </button>
                                 <button
                                     onClick={handlePrint}
-                                    className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700 flex items-center gap-2 transition-colors border-t border-slate-100 dark:border-slate-700"
+                                    className="w-full text-left px-4 py-3 text-sm text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#0A0A0A] flex items-center gap-2 transition-colors border-t border-slate-100 dark:border-[#1F1F1F]"
                                 >
                                     <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
                                     Print / Save as PDF
@@ -164,11 +164,11 @@ export const SentimentHeader: React.FC<SentimentHeaderProps> = ({
 
                     <div className="flex items-center gap-4">
                         {/* Model Toggle */}
-                        <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-lg">
+                        <div className="flex items-center bg-slate-100 dark:bg-[#0A0A0A] p-1 rounded-lg">
                             <button
                                 onClick={() => setAiModel('vader')}
                                 className={`px-3 py-1.5 text-xs font-bold rounded-md flex items-center gap-2 transition-all ${aiModel === 'vader'
-                                    ? 'bg-white dark:bg-slate-700 text-green-600 shadow-sm'
+                                    ? 'bg-white dark:bg-[#0A0A0A] text-green-600 shadow-sm'
                                     : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
                                     }`}
                             >
@@ -177,7 +177,7 @@ export const SentimentHeader: React.FC<SentimentHeaderProps> = ({
                             <button
                                 onClick={() => setAiModel('finbert')}
                                 className={`px-3 py-1.5 text-xs font-bold rounded-md flex items-center gap-2 transition-all ${aiModel === 'finbert'
-                                    ? 'bg-white dark:bg-slate-700 text-purple-600 shadow-sm'
+                                    ? 'bg-white dark:bg-[#0A0A0A] text-purple-600 shadow-sm'
                                     : 'text-slate-500 hover:text-slate-700 dark:text-slate-400'
                                     }`}
                             >
@@ -191,7 +191,7 @@ export const SentimentHeader: React.FC<SentimentHeaderProps> = ({
                             </span>
                             <button
                                 onClick={() => setIsNerEnabled(!isNerEnabled)}
-                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${isNerEnabled ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-slate-700'
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 ${isNerEnabled ? 'bg-indigo-600' : 'bg-slate-200 dark:bg-[#0A0A0A]'
                                     }`}
                             >
                                 <span

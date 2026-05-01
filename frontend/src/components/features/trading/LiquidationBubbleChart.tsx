@@ -99,7 +99,7 @@ const LiquidationBubbleChart: React.FC<LiquidationBubbleChartProps> = ({ data, a
             }
             // Candle/Line Tooltip
             return (
-                <div className="p-2 rounded-lg border border-slate-700/50 bg-slate-900/80 backdrop-blur-sm shadow-xl text-xs font-mono z-50">
+                <div className="p-2 rounded-lg border border-[#1F1F1F]/50 bg-[#050505]/80 backdrop-blur-sm shadow-xl text-xs font-mono z-50">
                     <p className="font-bold text-slate-300 mb-1">Price Action</p>
                     <div className="text-white">${dataPoint.close?.toLocaleString()}</div>
                     <div className="text-[10px] text-gray-500 mt-1">{new Date(dataPoint.time).toLocaleTimeString()}</div>

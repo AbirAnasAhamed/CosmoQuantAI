@@ -23,7 +23,7 @@ import Button from '@/components/common/Button';
 // Trigger Node
 const TriggerNode = ({ data, isConnectable }: any) => {
     return (
-        <div className="bg-slate-900 border-2 border-blue-500 rounded-xl p-4 shadow-[0_0_20px_rgba(59,130,246,0.3)] min-w-[250px]">
+        <div className="bg-[#050505] border-2 border-blue-500 rounded-xl p-4 shadow-[0_0_20px_rgba(59,130,246,0.3)] min-w-[250px]">
             <div className="flex items-center gap-2 mb-3 border-b border-white/10 pb-2">
                 <Activity size={16} className="text-blue-400" />
                 <span className="text-xs font-bold uppercase tracking-widest text-blue-400">Trigger</span>
@@ -81,7 +81,7 @@ const TriggerNode = ({ data, isConnectable }: any) => {
 // Action Node
 const ActionNode = ({ data, isConnectable }: any) => {
     return (
-        <div className="bg-slate-900 border-2 border-pink-500 rounded-xl p-4 shadow-[0_0_20px_rgba(236,72,153,0.3)] min-w-[250px]">
+        <div className="bg-[#050505] border-2 border-pink-500 rounded-xl p-4 shadow-[0_0_20px_rgba(236,72,153,0.3)] min-w-[250px]">
             <Handle type="target" position={Position.Left} isConnectable={isConnectable} className="!bg-pink-500 !w-3 !h-3" />
 
             <div className="flex items-center gap-2 mb-3 border-b border-white/10 pb-2">
@@ -302,7 +302,7 @@ const VisualStrategyBuilderModal: React.FC<VisualStrategyBuilderModalProps> = ({
 
     return createPortal(
         <div className="fixed inset-0 bg-black/90 backdrop-blur-xl z-[60] flex items-center justify-center p-4 animate-in fade-in duration-300">
-            <div className="bg-slate-900 border border-white/10 w-full h-full max-w-7xl rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+            <div className="bg-[#050505] border border-white/10 w-full h-full max-w-7xl rounded-2xl shadow-2xl flex flex-col overflow-hidden">
 
                 {/* Header */}
                 <div className="h-16 border-b border-white/10 flex items-center justify-between px-6 bg-black/40">
@@ -340,7 +340,7 @@ const VisualStrategyBuilderModal: React.FC<VisualStrategyBuilderModalProps> = ({
 
                             <div className="space-y-4">
                                 <div
-                                    className="bg-slate-800 border-2 border-blue-500/50 p-3 rounded-lg cursor-grab hover:border-blue-500 hover:bg-blue-500/10 transition-colors flex items-center gap-3"
+                                    className="bg-[#0A0A0A] border-2 border-blue-500/50 p-3 rounded-lg cursor-grab hover:border-blue-500 hover:bg-blue-500/10 transition-colors flex items-center gap-3"
                                     onDragStart={(event) => event.dataTransfer.setData('application/reactflow', 'trigger')}
                                     draggable
                                 >
@@ -352,7 +352,7 @@ const VisualStrategyBuilderModal: React.FC<VisualStrategyBuilderModalProps> = ({
                                 </div>
 
                                 <div
-                                    className="bg-slate-800 border-2 border-pink-500/50 p-3 rounded-lg cursor-grab hover:border-pink-500 hover:bg-pink-500/10 transition-colors flex items-center gap-3"
+                                    className="bg-[#0A0A0A] border-2 border-pink-500/50 p-3 rounded-lg cursor-grab hover:border-pink-500 hover:bg-pink-500/10 transition-colors flex items-center gap-3"
                                     onDragStart={(event) => event.dataTransfer.setData('application/reactflow', 'action')}
                                     draggable
                                 >
@@ -415,7 +415,7 @@ const VisualStrategyBuilderModal: React.FC<VisualStrategyBuilderModalProps> = ({
                             fitView
                         >
                             <Background color="#334155" gap={20} size={1} />
-                            <Controls className="bg-slate-800 border border-white/10 text-white fill-white" />
+                            <Controls className="bg-[#0A0A0A] border border-white/10 text-white fill-white" />
                             <Panel position="bottom-center" className="bg-black/60 backdrop-blur px-4 py-2 rounded-full border border-white/10 text-xs text-gray-400 mb-8">
                                 {nodes.length} Modules Active • {edges.length} Connections
                             </Panel>

@@ -74,7 +74,7 @@ export const SentimentSignalAnalysis: React.FC<SentimentSignalAnalysisProps> = (
                 </div>
             </Card>
 
-            <Card className="flex flex-col bg-slate-900 border-slate-800 relative overflow-hidden">
+            <Card className="flex flex-col bg-[#050505] border-[#141414] relative overflow-hidden">
                 <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.25)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-0 pointer-events-none bg-[length:100%_2px,3px_100%]"></div>
 
                 <div className="relative z-10 flex flex-col h-full">
@@ -88,7 +88,7 @@ export const SentimentSignalAnalysis: React.FC<SentimentSignalAnalysisProps> = (
                             <select
                                 value={selectedProvider}
                                 onChange={(e) => setSelectedProvider(e.target.value)}
-                                className="bg-slate-800 text-white text-xs border border-slate-700 rounded px-2 py-1 outline-none focus:border-blue-500 cursor-pointer"
+                                className="bg-[#0A0A0A] text-white text-xs border border-[#1F1F1F] rounded px-2 py-1 outline-none focus:border-blue-500 cursor-pointer"
                             >
                                 <option value="gemini">Gemini 2.5</option>
                                 <option value="openai">GPT-4o</option>

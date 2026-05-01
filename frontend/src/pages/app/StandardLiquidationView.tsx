@@ -232,7 +232,7 @@ const StandardLiquidationView: React.FC = () => {
                                     className="w-full bg-black/40 border border-white/10 hover:border-white/20 rounded-lg py-2 pl-9 pr-8 text-xs font-bold font-mono text-white appearance-none cursor-pointer focus:border-brand-primary focus:ring-1 focus:ring-brand-primary/50 outline-none transition-all shadow-inner"
                                 >
                                     {exchanges.map((ex) => (
-                                        <option key={ex} value={ex} className="bg-slate-900 text-white font-mono">
+                                        <option key={ex} value={ex} className="bg-[#050505] text-white font-mono">
                                             {ex.toUpperCase()}
                                         </option>
                                     ))}

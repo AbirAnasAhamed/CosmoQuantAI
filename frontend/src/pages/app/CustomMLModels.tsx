@@ -85,7 +85,7 @@ const UploadModelModal: React.FC<{
         }
     };
 
-    const inputBaseClasses = "w-full bg-slate-900/50 border border-gray-700 rounded-xl p-3 text-white focus:ring-2 focus:ring-brand-primary focus:border-transparent outline-none transition-all placeholder-gray-500";
+    const inputBaseClasses = "w-full bg-[#050505]/50 border border-gray-700 rounded-xl p-3 text-white focus:ring-2 focus:ring-brand-primary focus:border-transparent outline-none transition-all placeholder-gray-500";
 
     return (
         <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-backdrop-fade-in" onClick={onClose}>

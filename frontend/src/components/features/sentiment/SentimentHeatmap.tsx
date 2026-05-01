@@ -78,7 +78,7 @@ interface SentimentHeatmapProps {
 
 export const SentimentHeatmap: React.FC<SentimentHeatmapProps> = ({ heatmapData, isHeatmapLoading, onSync }) => {
     return (
-        <Card className="min-h-[450px] flex flex-col relative overflow-hidden border-slate-200 dark:border-slate-800 bg-white/50 dark:bg-[#0B1121]/80 backdrop-blur-xl">
+        <Card className="min-h-[450px] flex flex-col relative overflow-hidden border-slate-200 dark:border-[#141414] bg-white/50 dark:bg-[#0B1121]/80 backdrop-blur-xl">
             <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4 z-10">
                 <div className="flex items-center gap-3">
                     <div className="p-2.5 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-xl text-white shadow-lg shadow-indigo-500/20">
@@ -104,7 +104,7 @@ export const SentimentHeatmap: React.FC<SentimentHeatmapProps> = ({ heatmapData,
                 </Button>
             </div>
 
-            <div className="flex-grow w-full h-[380px] min-h-[380px] bg-slate-100 dark:bg-[#0f1623] rounded-2xl p-1 overflow-hidden border border-slate-200 dark:border-slate-800/60 shadow-inner relative">
+            <div className="flex-grow w-full h-[380px] min-h-[380px] bg-slate-100 dark:bg-[#0f1623] rounded-2xl p-1 overflow-hidden border border-slate-200 dark:border-[#141414]/60 shadow-inner relative">
                 {isHeatmapLoading && heatmapData.length === 0 ? (
                     <div className="absolute inset-0 flex flex-col items-center justify-center z-20 bg-white/80 dark:bg-[#0f1623]/80 backdrop-blur-sm">
                         <Loader2 className="animate-spin w-8 h-8 text-brand-primary" />
@@ -127,7 +127,7 @@ export const SentimentHeatmap: React.FC<SentimentHeatmapProps> = ({ heatmapData,
                                     if (active && payload && payload.length) {
                                         const data = payload[0].payload;
                                         return (
-                                            <div className="bg-white/95 dark:bg-[#0A0A0A]/95 backdrop-blur-xl p-4 rounded-xl shadow-2xl border border-slate-100 dark:border-slate-700 min-w-[200px]">
+                                            <div className="bg-white/95 dark:bg-[#0A0A0A]/95 backdrop-blur-xl p-4 rounded-xl shadow-2xl border border-slate-100 dark:border-[#1F1F1F] min-w-[200px]">
                                                 <h4 className="text-lg font-black text-slate-800 dark:text-white">{data.name}</h4>
                                                 <p>{data.sentimentScore}</p>
                                             </div>

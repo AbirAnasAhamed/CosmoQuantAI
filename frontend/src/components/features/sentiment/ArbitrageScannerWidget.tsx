@@ -105,17 +105,17 @@ export const ArbitrageScannerWidget: React.FC = () => {
     };
 
     return (
-        <div className="relative h-full flex flex-col rounded-2xl overflow-hidden border border-slate-700/50 bg-[#0A0A0A] shadow-2xl">
+        <div className="relative h-full flex flex-col rounded-2xl overflow-hidden border border-[#1F1F1F]/50 bg-[#0A0A0A] shadow-2xl">
             {/* --- Background Effects --- */}
             <div className="absolute inset-0 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] opacity-20 pointer-events-none"></div>
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-indigo-500 to-transparent opacity-50"></div>
 
             {/* --- Header --- */}
-            <div className="relative z-10 flex items-center justify-between p-4 border-b border-slate-800/60 bg-slate-900/40 backdrop-blur-md">
+            <div className="relative z-10 flex items-center justify-between p-4 border-b border-[#141414]/60 bg-[#050505]/40 backdrop-blur-md">
                 <div className="flex items-center gap-3">
                     <div className="relative hidden sm:block">
                         <div className="absolute inset-0 bg-indigo-500 blur-md opacity-20 animate-pulse"></div>
-                        <div className="relative p-2 rounded-xl bg-slate-800 border border-slate-700 text-indigo-400">
+                        <div className="relative p-2 rounded-xl bg-[#0A0A0A] border border-[#1F1F1F] text-indigo-400">
                             <Radar className="w-5 h-5 animate-[spin_4s_linear_infinite]" />
                         </div>
                     </div>
@@ -130,7 +130,7 @@ export const ArbitrageScannerWidget: React.FC = () => {
 
                 <div className="flex items-center gap-3">
                     {/* Sensitivity Selector */}
-                    <div className="relative group hidden md:flex items-center gap-2 bg-slate-950/50 border border-slate-800 rounded-lg px-3 py-1.5 focus-within:border-amber-500/50 focus-within:shadow-[0_0_15px_rgba(245,158,11,0.2)] transition-all">
+                    <div className="relative group hidden md:flex items-center gap-2 bg-slate-950/50 border border-[#141414] rounded-lg px-3 py-1.5 focus-within:border-amber-500/50 focus-within:shadow-[0_0_15px_rgba(245,158,11,0.2)] transition-all">
                         <Zap className="w-3.5 h-3.5 text-amber-500 group-hover:text-amber-400 transition-colors" />
                         <span className="text-[10px] font-mono font-bold text-slate-400">SEN: {sensitivity.toFixed(1)}</span>
                         <input 
@@ -140,7 +140,7 @@ export const ArbitrageScannerWidget: React.FC = () => {
                             step="0.1" 
                             value={sensitivity}
                             onChange={(e) => setSensitivity(parseFloat(e.target.value))}
-                            className="w-16 h-1 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-amber-500"
+                            className="w-16 h-1 bg-[#0A0A0A] rounded-lg appearance-none cursor-pointer accent-amber-500"
                             title="Adjust Divergence Sensitivity"
                         />
                     </div>
@@ -151,7 +151,7 @@ export const ArbitrageScannerWidget: React.FC = () => {
                         <select
                             value={selectedExchange}
                             onChange={(e) => setSelectedExchange(e.target.value)}
-                            className="bg-slate-950/50 border border-slate-800 text-slate-200 text-xs font-mono rounded-lg pl-8 pr-2 py-1.5 focus:outline-none focus:border-indigo-500/50 focus:shadow-[0_0_15px_rgba(99,102,241,0.2)] transition-all cursor-pointer appearance-none hover:bg-slate-900"
+                            className="bg-slate-950/50 border border-[#141414] text-slate-200 text-xs font-mono rounded-lg pl-8 pr-2 py-1.5 focus:outline-none focus:border-indigo-500/50 focus:shadow-[0_0_15px_rgba(99,102,241,0.2)] transition-all cursor-pointer appearance-none hover:bg-[#050505]"
                         >
                             {SUPPORTED_EXCHANGES.map(ex => (
                                 <option key={ex.id} value={ex.id}>{ex.name}</option>
@@ -169,7 +169,7 @@ export const ArbitrageScannerWidget: React.FC = () => {
                             placeholder="SEARCH..."
                             value={searchTerm}
                             onChange={(e) => setSearchTerm(e.target.value)}
-                            className="bg-slate-950/50 border border-slate-800 text-slate-200 text-xs font-mono rounded-lg pl-9 pr-3 py-1.5 focus:outline-none focus:border-indigo-500/50 focus:shadow-[0_0_15px_rgba(99,102,241,0.2)] transition-all w-24 focus:w-32 placeholder:text-slate-600"
+                            className="bg-slate-950/50 border border-[#141414] text-slate-200 text-xs font-mono rounded-lg pl-9 pr-3 py-1.5 focus:outline-none focus:border-indigo-500/50 focus:shadow-[0_0_15px_rgba(99,102,241,0.2)] transition-all w-24 focus:w-32 placeholder:text-slate-600"
                         />
                     </div>
                 </div>
@@ -198,7 +198,7 @@ export const ArbitrageScannerWidget: React.FC = () => {
                     </div>
                 ) : filteredOpportunities.length === 0 ? (
                     <div className="flex flex-col items-center justify-center h-full gap-3 text-slate-500 opacity-60">
-                        <div className="p-4 rounded-full bg-slate-900 border border-slate-800">
+                        <div className="p-4 rounded-full bg-[#050505] border border-[#141414]">
                             <Search className="w-6 h-6" />
                         </div>
                         <span className="text-xs font-mono">NO DIVERGENCES DETECTED ON {selectedExchange.toUpperCase()}</span>
@@ -208,8 +208,8 @@ export const ArbitrageScannerWidget: React.FC = () => {
                         const theme = getTheme(opp.type);
                         return (
                             <div key={`${opp.symbol}-${idx}`}
-                                className={`group relative flex items-center justify-between p-3 rounded-xl border border-slate-800/80 bg-slate-900/40 backdrop-blur-sm 
-                                ${theme.hoverBorder} hover:bg-slate-800/80 transition-all duration-300 cursor-pointer overflow-hidden`}
+                                className={`group relative flex items-center justify-between p-3 rounded-xl border border-[#141414]/80 bg-[#050505]/40 backdrop-blur-sm 
+                                ${theme.hoverBorder} hover:bg-[#0A0A0A]/80 transition-all duration-300 cursor-pointer overflow-hidden`}
                             >
                                 {/* Hover Gradient Effect */}
                                 <div className={`absolute inset-0 bg-gradient-to-r ${theme.gradient} opacity-0 group-hover:opacity-10 transition-opacity duration-300 pointer-events-none`}></div>
@@ -257,7 +257,7 @@ export const ArbitrageScannerWidget: React.FC = () => {
                                             {[1, 2, 3].map((bar) => (
                                                 <div key={bar}
                                                     className={`w-1 h-3 rounded-full ${theme.bg} ${theme.border} 
-                                                    ${(opp.signal_strength === 'High' || bar === 1) ? theme.signalActive : 'bg-slate-800'} 
+                                                    ${(opp.signal_strength === 'High' || bar === 1) ? theme.signalActive : 'bg-[#0A0A0A]'} 
                                                     ${bar === 3 && opp.signal_strength === 'High' ? 'animate-pulse' : ''}`}
                                                 ></div>
                                             ))}

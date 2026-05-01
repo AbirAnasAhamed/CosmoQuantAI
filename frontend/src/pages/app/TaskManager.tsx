@@ -50,7 +50,7 @@ const CreateTaskModal: React.FC<{ onClose: () => void; onAddTask: (task: Omit<Ta
     const inputClasses = "w-full bg-slate-50 dark:bg-[#0A0A0A]/50 border border-brand-border-light dark:border-[#1A1A1A] rounded-xl p-3 text-sm text-slate-900 dark:text-white focus:ring-2 focus:ring-brand-primary outline-none transition-all";
 
     return (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-backdrop-fade-in" onClick={onClose}>
+        <div className="fixed inset-0 bg-[#050505]/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-backdrop-fade-in" onClick={onClose}>
             <div className="bg-white dark:bg-[#0A0A0A] w-full max-w-lg rounded-2xl shadow-2xl border border-brand-border-light dark:border-[#1A1A1A] overflow-hidden animate-modal-content-slide-down" onClick={e => e.stopPropagation()}>
                 <div className="p-6 border-b border-brand-border-light dark:border-[#1A1A1A] bg-gray-50 dark:bg-[#000000]/50">
                     <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
@@ -305,7 +305,7 @@ const TaskManager: React.FC = () => {
                         onClick={() => setFilter(f)}
                         className={`px-4 py-2 text-xs font-bold uppercase tracking-wider rounded-lg transition-all ${
                             filter === f 
-                                ? 'bg-slate-900 dark:bg-white text-white dark:text-slate-900 shadow-md' 
+                                ? 'bg-[#050505] dark:bg-white text-white dark:text-slate-900 shadow-md' 
                                 : 'text-gray-500 hover:bg-gray-100 dark:hover:bg-white/5'
                         }`}
                     >

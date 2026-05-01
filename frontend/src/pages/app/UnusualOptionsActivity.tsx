@@ -20,7 +20,7 @@ const PutCallMeter: React.FC<{ ratio: number }> = ({ ratio }) => {
                 <div className="absolute inset-0 bg-gradient-to-r from-emerald-500 via-yellow-500 to-rose-500 opacity-30"></div>
                 {/* Marker */}
                 <div
-                    className="absolute top-0 bottom-0 w-1.5 bg-slate-900 dark:bg-white shadow-[0_0_10px_rgba(0,0,0,0.5)] transition-all duration-500"
+                    className="absolute top-0 bottom-0 w-1.5 bg-[#050505] dark:bg-white shadow-[0_0_10px_rgba(0,0,0,0.5)] transition-all duration-500"
                     style={{ left: `${percentage}%` }}
                 ></div>
             </div>
@@ -205,7 +205,7 @@ const UnusualOptionsActivity: React.FC = () => {
                 </Card>
 
                 {/* Whale Spotlight Card */}
-                <Card className="relative overflow-hidden bg-slate-900 text-white border-slate-800">
+                <Card className="relative overflow-hidden bg-[#050505] text-white border-[#141414]">
                     {/* Background Effect */}
                     <div className="absolute -right-10 -top-10 w-32 h-32 bg-purple-500/30 rounded-full blur-3xl"></div>
 

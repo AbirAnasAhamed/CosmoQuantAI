@@ -87,7 +87,7 @@ const BotCard: React.FC<{
 
     return (
         <div
-            className="group relative bg-slate-900/40 backdrop-blur-md border border-white/5 rounded-3xl overflow-hidden hover:border-cyan-500/50 hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] transition-all duration-500 transform hover:-translate-y-1 flex flex-col"
+            className="group relative bg-[#050505]/40 backdrop-blur-md border border-white/5 rounded-3xl overflow-hidden hover:border-cyan-500/50 hover:shadow-[0_0_30px_rgba(6,182,212,0.15)] transition-all duration-500 transform hover:-translate-y-1 flex flex-col"
             style={{ animation: `fadeInUp 0.6s ease-out ${index * 0.1}s backwards` }}
         >
             {/* Top Gradient Line */}
@@ -98,7 +98,7 @@ const BotCard: React.FC<{
                 <div className="flex justify-between items-start mb-6">
                     <div>
                         <div className="flex items-center gap-3">
-                            <div className={`p-2 rounded-xl ${bot.status === 'active' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-slate-800 text-slate-500'}`}>
+                            <div className={`p-2 rounded-xl ${bot.status === 'active' ? 'bg-cyan-500/20 text-cyan-400' : 'bg-[#0A0A0A] text-slate-500'}`}>
                                 <Cpu size={20} />
                             </div>
                             <div>
@@ -113,7 +113,7 @@ const BotCard: React.FC<{
 
                     <button
                         onClick={(e) => { e.stopPropagation(); onToggleStatus(bot.id, bot.status); }}
-                        className={`relative w-10 h-6 rounded-full transition-colors duration-300 ${bot.status === 'active' ? 'bg-cyan-500/20' : 'bg-slate-700/50'}`}
+                        className={`relative w-10 h-6 rounded-full transition-colors duration-300 ${bot.status === 'active' ? 'bg-cyan-500/20' : 'bg-[#0A0A0A]/50'}`}
                     >
                         <div className={`absolute top-1 left-1 w-4 h-4 rounded-full transition-all duration-300 shadow-lg ${bot.status === 'active' ? 'translate-x-4 bg-cyan-400 shadow-[0_0_10px_rgba(34,211,238,0.8)]' : 'bg-slate-500'}`} />
                     </button>
@@ -121,13 +121,13 @@ const BotCard: React.FC<{
 
                 {/* Metrics */}
                 <div className="grid grid-cols-2 gap-4 mb-6">
-                    <div className="bg-slate-800/30 rounded-xl p-3 border border-white/5">
+                    <div className="bg-[#0A0A0A]/30 rounded-xl p-3 border border-white/5">
                         <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold mb-1">Net PnL</p>
                         <div className={`text-xl font-bold font-mono ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
                             {isPositive ? '+' : '-'}<AnimatedNumber value={Math.abs(bot.pnl)} prefix="$" />
                         </div>
                     </div>
-                    <div className="bg-slate-800/30 rounded-xl p-3 border border-white/5 text-right">
+                    <div className="bg-[#0A0A0A]/30 rounded-xl p-3 border border-white/5 text-right">
                         <p className="text-[10px] text-gray-500 uppercase tracking-wider font-semibold mb-1">ROI</p>
                         <div className={`text-lg font-bold font-mono ${isPositive ? 'text-emerald-400' : 'text-rose-400'}`}>
                             {Math.abs(bot.pnlPercent).toFixed(2)}%

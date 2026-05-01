@@ -63,7 +63,7 @@ const PanicButton = () => {
                 className={`group flex items-center justify-center gap-2 px-4 py-2 rounded-xl font-bold transition-all duration-300 shadow-sm border
                     ${isOpen
                         ? 'bg-red-50 text-red-600 border-red-200 ring-2 ring-red-100'
-                        : 'bg-white dark:bg-[#0A0A0A]/50 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700 hover:bg-red-50 hover:text-red-500 hover:border-red-200'
+                        : 'bg-white dark:bg-[#0A0A0A]/50 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-[#1F1F1F] hover:bg-red-50 hover:text-red-500 hover:border-red-200'
                     } ${loading ? 'opacity-70 cursor-wait' : ''}`}
                 title="Emergency Controls"
             >
@@ -80,8 +80,8 @@ const PanicButton = () => {
 
             {/* Dropdown Menu */}
             {isOpen && (
-                <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-brand-surface border border-slate-200 dark:border-slate-700 rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 p-1">
-                    <div className="px-3 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-slate-700/50 mb-1">
+                <div className="absolute right-0 mt-2 w-72 bg-white dark:bg-brand-surface border border-slate-200 dark:border-[#1F1F1F] rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 p-1">
+                    <div className="px-3 py-2 text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider border-b border-slate-100 dark:border-[#1F1F1F]/50 mb-1">
                         Select Action
                     </div>
 
@@ -114,7 +114,7 @@ const PanicButton = () => {
                             </div>
                         </button>
 
-                        <div className="my-1 border-b border-slate-100 dark:border-slate-700/50"></div>
+                        <div className="my-1 border-b border-slate-100 dark:border-[#1F1F1F]/50"></div>
 
                         {/* Option 3: STOP ALL */}
                         <button

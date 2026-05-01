@@ -67,20 +67,20 @@ const RegimeCompass: React.FC<RegimeCompassProps> = ({ currentRegime, trendScore
     }, [currentRegime, trendScore, volatilityScore]);
 
     return (
-        <div className="relative w-full h-64 bg-slate-900 rounded-xl border border-slate-800 overflow-hidden shadow-inner">
+        <div className="relative w-full h-64 bg-[#050505] rounded-xl border border-[#141414] overflow-hidden shadow-inner">
             {/* Grid Lines */}
             <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-full h-px bg-slate-700/50"></div>
+                <div className="w-full h-px bg-[#0A0A0A]/50"></div>
             </div>
             <div className="absolute inset-0 flex items-center justify-center">
-                <div className="h-full w-px bg-slate-700/50"></div>
+                <div className="h-full w-px bg-[#0A0A0A]/50"></div>
             </div>
 
             {/* Labels */}
-            <span className="absolute top-2 right-1/2 translate-x-1/2 text-[10px] font-bold uppercase tracking-widest text-emerald-500 bg-slate-900/80 px-2 rounded">Bullish Trend</span>
-            <span className="absolute bottom-2 right-1/2 translate-x-1/2 text-[10px] font-bold uppercase tracking-widest text-rose-500 bg-slate-900/80 px-2 rounded">Bearish Trend</span>
-            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-widest text-blue-400 [writing-mode:vertical-lr] rotate-180 bg-slate-900/80 py-2 rounded">Stable</span>
-            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-widest text-purple-400 [writing-mode:vertical-lr] bg-slate-900/80 py-2 rounded">Volatile</span>
+            <span className="absolute top-2 right-1/2 translate-x-1/2 text-[10px] font-bold uppercase tracking-widest text-emerald-500 bg-[#050505]/80 px-2 rounded">Bullish Trend</span>
+            <span className="absolute bottom-2 right-1/2 translate-x-1/2 text-[10px] font-bold uppercase tracking-widest text-rose-500 bg-[#050505]/80 px-2 rounded">Bearish Trend</span>
+            <span className="absolute left-2 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-widest text-blue-400 [writing-mode:vertical-lr] rotate-180 bg-[#050505]/80 py-2 rounded">Stable</span>
+            <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-bold uppercase tracking-widest text-purple-400 [writing-mode:vertical-lr] bg-[#050505]/80 py-2 rounded">Volatile</span>
 
             {/* The Puck */}
             <div
@@ -225,7 +225,7 @@ const RegimeHistoryChart: React.FC<{ data: RegimeDataPoint[] }> = ({ data }) => 
             const dataPoint = payload[0].payload as RegimeDataPoint;
             const regimeInfo = REGIME_DEFINITIONS[dataPoint.regime] || REGIME_DEFINITIONS['Bull Stable'];
             return (
-                <div className="p-3 bg-white/90 dark:bg-slate-900/90 backdrop-blur-md rounded-lg shadow-xl border border-gray-200 dark:border-slate-700 text-xs">
+                <div className="p-3 bg-white/90 dark:bg-[#050505]/90 backdrop-blur-md rounded-lg shadow-xl border border-gray-200 dark:border-[#1F1F1F] text-xs">
                     <p className="text-gray-500 dark:text-gray-400 mb-1">{new Date(label).toLocaleDateString()} {new Date(label).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
                     <div className="flex justify-between items-center gap-4 mb-2">
                         <span className="text-slate-900 dark:text-white font-bold text-lg">${dataPoint.price.toLocaleString()}</span>

@@ -138,7 +138,7 @@ const AIAssistantModal: React.FC<AIAssistantModalProps> = ({ isOpen, onClose, cu
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         placeholder={`Ask about ${currentView}...`}
-                        className="flex-1 w-full bg-gray-100 dark:bg-slate-700 border-transparent focus:border-brand-primary focus:ring-brand-primary rounded-md p-2 text-sm"
+                        className="flex-1 w-full bg-gray-100 dark:bg-[#0A0A0A] border-transparent focus:border-brand-primary focus:ring-brand-primary rounded-md p-2 text-sm"
                         disabled={isLoading}
                     />
                     <Button type="submit" disabled={isLoading || !input.trim()}>Send</Button>
