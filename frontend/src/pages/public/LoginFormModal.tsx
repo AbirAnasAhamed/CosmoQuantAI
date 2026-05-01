@@ -60,10 +60,10 @@ const LoginFormModal: React.FC<LoginFormModalProps> = ({ onClose, onLoginSuccess
             role="dialog"
             aria-modal="true"
         >
-            <div className="absolute inset-0 bg-[#020610]/80 backdrop-blur-xl" onClick={handleClose}></div>
+            <div className="absolute inset-0 bg-[#020610]/40 backdrop-blur-sm" onClick={handleClose}></div>
 
             <div
-                className={`relative w-full max-w-md bg-[#070F20]/90 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden transform transition-all duration-300 ${isClosing ? 'scale-95 translate-y-4' : 'scale-100 translate-y-0 animate-modal-content-slide-down'}`}
+                className={`relative w-full max-w-md bg-[#070F20]/40 backdrop-blur-md rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden transform transition-all duration-300 ${isClosing ? 'scale-95 translate-y-4' : 'scale-100 translate-y-0 animate-modal-content-slide-down'}`}
                 onClick={e => e.stopPropagation()}
             >
                 <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-cyan-500 via-violet-500 to-pink-500" />

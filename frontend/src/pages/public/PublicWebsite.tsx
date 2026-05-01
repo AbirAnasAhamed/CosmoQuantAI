@@ -53,8 +53,8 @@ const PublicHeader: React.FC<{
     return (
         <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 flex justify-center pt-4 px-4 pointer-events-none`}>
             <nav className={`pointer-events-auto w-full max-w-[95%] transition-all duration-500 border flex items-center justify-between ${scrolled
-                    ? 'bg-[#050A14]/90 backdrop-blur-xl border-cyan-500/20 shadow-[0_0_30px_rgba(6,182,212,0.1)] py-3 px-6 rounded-2xl'
-                    : 'bg-[#050A14]/60 backdrop-blur-md border-white/5 shadow-lg py-4 px-8 rounded-2xl'
+                    ? 'bg-[#050A14]/40 backdrop-blur-sm border-cyan-500/20 shadow-[0_0_30px_rgba(6,182,212,0.1)] py-3 px-6 rounded-2xl'
+                    : 'bg-[#050A14]/10 backdrop-blur-sm border-white/5 shadow-lg py-4 px-8 rounded-2xl'
                 }`}>
 
                 {/* Left: Logo + Nav */}

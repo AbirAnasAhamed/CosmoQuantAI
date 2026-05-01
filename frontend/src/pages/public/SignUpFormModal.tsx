@@ -82,10 +82,10 @@ const SignUpFormModal: React.FC<SignUpFormModalProps> = ({ onClose, onRegister }
             role="dialog"
             aria-modal="true"
         >
-            <div className="absolute inset-0 bg-[#020610]/80 backdrop-blur-xl" onClick={handleClose}></div>
+            <div className="absolute inset-0 bg-[#020610]/40 backdrop-blur-sm" onClick={handleClose}></div>
 
             <div
-                className={`relative w-full max-w-4xl bg-[#070F20]/90 backdrop-blur-2xl rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden flex flex-col md:flex-row transform transition-all duration-300 ${isClosing ? 'scale-95 translate-y-4' : 'scale-100 translate-y-0 animate-modal-content-slide-down'}`}
+                className={`relative w-full max-w-4xl bg-[#070F20]/40 backdrop-blur-md rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden flex flex-col md:flex-row transform transition-all duration-300 ${isClosing ? 'scale-95 translate-y-4' : 'scale-100 translate-y-0 animate-modal-content-slide-down'}`}
                 onClick={e => e.stopPropagation()}
             >
                 {/* Glow outlines */}
