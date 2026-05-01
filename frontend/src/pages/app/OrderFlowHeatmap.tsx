@@ -2310,7 +2310,7 @@ const OrderFlowHeatmap: React.FC = () => {
                 onAdvancedMetricsChange={onAdvancedMetricsChange}
             />
 
-            <div className={isFullscreen ? 'fixed inset-0 z-[200] bg-gray-50 dark:bg-[#000000] p-4 overflow-y-auto custom-scrollbar' : 'flex-1 p-4 overflow-y-auto custom-scrollbar relative bg-gray-50 dark:bg-[#000000]'}>
+            <div className={isFullscreen ? 'fixed inset-0 z-[200] bg-gray-50 dark:bg-[#000000] p-4 overflow-y-auto page-scrollbar' : 'flex-1 p-4 overflow-y-auto page-scrollbar relative bg-gray-50 dark:bg-[#000000]'}>
                 {/* IN FULLSCREEN MODE, RENDER ONLY THE MAIN CHART WITHOUT THE LEFT PADDING. OTHERWISE RENDER NORMALLY */}
                 <div className={`flex flex-col gap-4 min-h-full`}>
                     <div className={`${isFullscreen ? 'h-screen' : 'h-[85vh]'} flex-shrink-0 w-full bg-white dark:bg-[#000000] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col`}>
