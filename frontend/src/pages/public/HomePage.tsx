@@ -46,13 +46,13 @@ const CosmicStarBackground: React.FC = () => {
 
         let animId: number;
         const maxZ = 3000;
-        // Extreme amount of stars for a "trillions of stars" effect
-        const starCount = Math.min(8000, window.innerWidth * 5);
+        // Extreme amount of stars for a "trillions of stars" effect (3x increased)
+        const starCount = Math.min(12000, window.innerWidth * 9);
         let stars: Star[] = [];
 
         const resize = () => {
             canvas.width = window.innerWidth;
-            canvas.height = canvas.parentElement?.clientHeight || window.innerHeight;
+            canvas.height = window.innerHeight; // Fixed to viewport height for massive performance gain
         };
 
         class Star {
@@ -103,12 +103,10 @@ const CosmicStarBackground: React.FC = () => {
                 // Size shrinks as it goes further away
                 const size = Math.max(0.1, (1 - this.z / maxZ) * 2 * this.sizeMultiplier);
 
-                ctx!.beginPath();
-                ctx!.arc(sx, sy, size, 0, Math.PI * 2);
+                // fillRect is vastly faster than drawing arcs/paths for tiny dots
                 ctx!.fillStyle = this.color;
                 ctx!.globalAlpha = opacity;
-                ctx!.fill();
-                ctx!.globalAlpha = 1;
+                ctx!.fillRect(sx, sy, size, size);
             }
         }
 
@@ -120,19 +118,13 @@ const CosmicStarBackground: React.FC = () => {
         };
 
         const animate = () => {
-            // Dark cosmic background with slight trail clear
-            ctx!.fillStyle = 'rgba(2, 6, 16, 0.3)';
+            // Reset globalAlpha to ensure the canvas is fully cleared
+            ctx!.globalAlpha = 1.0;
+            // Fully clear the canvas to prevent trails (shadow lines)
+            ctx!.fillStyle = 'rgba(2, 6, 16, 1.0)';
             ctx!.fillRect(0, 0, canvas.width, canvas.height);
 
-            // Draw a subtle nebula/glow at the vanishing point
-            const cx = canvas.width / 2;
-            const cy = canvas.height / 2;
-            const gradient = ctx!.createRadialGradient(cx, cy, 0, cx, cy, canvas.width / 3);
-            gradient.addColorStop(0, 'rgba(139, 92, 246, 0.08)');
-            gradient.addColorStop(0.5, 'rgba(6, 182, 212, 0.03)');
-            gradient.addColorStop(1, 'rgba(2, 6, 16, 0)');
-            ctx!.fillStyle = gradient;
-            ctx!.fillRect(0, 0, canvas.width, canvas.height);
+            // (Removed radial gradient calculation here for massive performance boost)
 
             // Warp speed (traveling fast)
             const speed = 4;
@@ -149,7 +141,7 @@ const CosmicStarBackground: React.FC = () => {
         };
     }, []);
 
-    return <canvas ref={canvasRef} className="absolute inset-0 z-0 w-full h-full pointer-events-none" />;
+    return <canvas ref={canvasRef} className="fixed inset-0 z-0 w-full h-full pointer-events-none" />;
 };
 
 // ============================
@@ -301,7 +293,7 @@ const MarketIntelligenceSection: React.FC = () => {
     }, []);
 
     return (
-        <div ref={ref} className="py-24 bg-[#030D1A] fade-in-up border-b border-white/5">
+        <div ref={ref} className="py-24 bg-transparent fade-in-up border-b border-white/5">
             <div className="container mx-auto px-4 sm:px-6 lg:px-8">
                 {/* Section header */}
                 <div className="text-center mb-14">
@@ -411,7 +403,7 @@ const StatsSection: React.FC = () => {
 
     return (
         <div ref={ref} className="py-24 border-t border-white/5 fade-in-up relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-b from-[#030D1A] to-[#020610]" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-transparent pointer-events-none" />
             <div className="container mx-auto px-4 relative z-10">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
                     {stats.map((stat, i) => (
@@ -436,7 +428,7 @@ const BentoGrid: React.FC = () => {
     const ref = useScrollAnimation(0.1);
 
     return (
-        <div ref={ref} className="py-32 relative fade-in-up bg-[#020610]">
+        <div ref={ref} className="py-32 relative fade-in-up bg-transparent">
             <div className="absolute top-1/4 left-0 w-[500px] h-[500px] bg-cyan-500/5 rounded-full blur-[150px] pointer-events-none" />
             <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-violet-500/5 rounded-full blur-[150px] pointer-events-none" />
 
@@ -637,7 +629,7 @@ const AIStrategyGenerator: React.FC = () => {
     };
 
     return (
-        <div ref={ref} className="py-28 bg-[#030D1A] fade-in-up relative overflow-hidden">
+        <div ref={ref} className="py-28 bg-transparent fade-in-up relative overflow-hidden">
             <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHZpZXdCb3g9IjAgMCA0MCA0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj48ZyBmaWxsPSJub25lIiBmaWxsLXJ1bGU9ImV2ZW5vZGQiPjxnIGZpbGw9IiMwNmI2ZDQiIGZpbGwtb3BhY2l0eT0iMC4wMiI+PHBhdGggZD0iTTAgMGg0MHY0MEgweiIvPjxwYXRoIGQ9Ik0wIDBMMCAxIDE5IDEgMTkgMCIvPjwvZz48L2c+PC9zdmc+')] opacity-30" />
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
                 <div className="grid lg:grid-cols-2 gap-16 items-center">
@@ -738,7 +730,7 @@ const PartnersSection: React.FC = () => {
     ];
 
     return (
-        <div className="py-16 bg-[#020610] border-y border-white/5">
+        <div className="py-16 bg-transparent border-y border-white/5">
             <div className="text-center mb-10">
                 <p className="text-xs font-semibold text-slate-600 uppercase tracking-widest">Integrated with leading platforms</p>
             </div>
@@ -763,7 +755,7 @@ const PartnersSection: React.FC = () => {
 const CustomServicesSection: React.FC = () => {
     const ref = useScrollAnimation();
     return (
-        <div ref={ref} className="py-32 relative overflow-hidden fade-in-up bg-[#030D1A]">
+        <div ref={ref} className="py-32 relative overflow-hidden fade-in-up bg-transparent">
             {/* Animated background */}
             <div className="absolute inset-0 overflow-hidden">
                 <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[150px] animate-float-slow" />
@@ -861,10 +853,10 @@ const HomePage: React.FC<{ onLogin: () => void; onSignUp: () => void; }> = ({ on
     };
 
     return (
-        <div className="overflow-hidden">
+        <div className="relative overflow-hidden bg-transparent">
+            <CosmicStarBackground />
             {/* ========== HERO ========== */}
-            <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-[#020610]">
-                <CosmicStarBackground />
+            <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-transparent">
                 <FloatingOrbs />
 
                 {/* Radial gradient overlay */}
