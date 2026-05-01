@@ -120,8 +120,8 @@ const CosmicStarBackground: React.FC = () => {
         const animate = () => {
             // Reset globalAlpha to ensure the canvas is fully cleared
             ctx!.globalAlpha = 1.0;
-            // Fully clear the canvas to prevent trails (shadow lines)
-            ctx!.fillStyle = 'rgba(2, 6, 16, 1.0)';
+            // Fully clear the canvas with pure black
+            ctx!.fillStyle = 'rgba(0, 0, 0, 1.0)';
             ctx!.fillRect(0, 0, canvas.width, canvas.height);
 
             // (Removed radial gradient calculation here for massive performance boost)
@@ -429,9 +429,6 @@ const BentoGrid: React.FC = () => {
 
     return (
         <div ref={ref} className="py-32 relative fade-in-up bg-transparent">
-            <div className="absolute top-1/4 left-0 w-[500px] h-[500px] bg-cyan-500/5 rounded-full blur-[150px] pointer-events-none" />
-            <div className="absolute bottom-0 right-0 w-[500px] h-[500px] bg-violet-500/5 rounded-full blur-[150px] pointer-events-none" />
-
             <div className="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
                 <div className="text-center max-w-3xl mx-auto mb-20">
                     <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/20 text-violet-400 text-xs font-bold uppercase tracking-widest mb-6">
@@ -756,12 +753,6 @@ const CustomServicesSection: React.FC = () => {
     const ref = useScrollAnimation();
     return (
         <div ref={ref} className="py-32 relative overflow-hidden fade-in-up bg-transparent">
-            {/* Animated background */}
-            <div className="absolute inset-0 overflow-hidden">
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-cyan-500/10 rounded-full blur-[150px] animate-float-slow" />
-                <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] bg-violet-500/10 rounded-full blur-[100px] animate-float-medium" />
-            </div>
-
             {/* Grid lines decoration */}
             <div className="absolute inset-0 opacity-10" style={{
                 backgroundImage: 'linear-gradient(rgba(6,182,212,0.3) 1px, transparent 1px), linear-gradient(90deg, rgba(6,182,212,0.3) 1px, transparent 1px)',
@@ -857,11 +848,6 @@ const HomePage: React.FC<{ onLogin: () => void; onSignUp: () => void; }> = ({ on
             <CosmicStarBackground />
             {/* ========== HERO ========== */}
             <div className="relative min-h-screen flex items-center justify-center overflow-hidden bg-transparent">
-                <FloatingOrbs />
-
-                {/* Radial gradient overlay */}
-                <div className="absolute inset-0 bg-radial-glow pointer-events-none z-1" />
-
                 <div className="container mx-auto px-4 relative z-10 flex flex-col items-center text-center pt-24 pb-32">
                     {/* Badge */}
                     <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-cyan-500/10 border border-cyan-500/20 text-cyan-400 text-xs font-bold uppercase tracking-widest mb-10 animate-fade-in-down shadow-[0_0_20px_rgba(6,182,212,0.1)]">
