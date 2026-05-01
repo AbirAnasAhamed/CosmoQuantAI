@@ -65,7 +65,7 @@ const CosmicStarBackground: React.FC = () => {
                 this.y = Math.sin(angle) * distance;
                 this.z = spawnAnywhere ? Math.random() * maxZ : 10;
                 this.pz = this.z;
-                
+
                 // Trillions of stars effect: most stars are tiny dots, a few are larger
                 this.sizeMultiplier = Math.random() < 0.9 ? (Math.random() * 0.4 + 0.1) : (Math.random() * 1.2 + 0.6);
 
@@ -93,14 +93,8 @@ const CosmicStarBackground: React.FC = () => {
                 const sx = (this.x / this.z) * fov + cx;
                 const sy = (this.y / this.z) * fov + cy;
 
-                const px = (this.x / this.pz) * fov + cx;
-                const py = (this.y / this.pz) * fov + cy;
-
-                // If the star's trail is entirely off screen, skip drawing to save performance
-                if (
-                    (sx < 0 || sx > canvas.width || sy < 0 || sy > canvas.height) &&
-                    (px < 0 || px > canvas.width || py < 0 || py > canvas.height)
-                ) {
+                // If the star is entirely off screen, skip drawing to save performance
+                if (sx < 0 || sx > canvas.width || sy < 0 || sy > canvas.height) {
                     return;
                 }
 
@@ -110,12 +104,10 @@ const CosmicStarBackground: React.FC = () => {
                 const size = Math.max(0.1, (1 - this.z / maxZ) * 2 * this.sizeMultiplier);
 
                 ctx!.beginPath();
-                ctx!.lineWidth = size;
-                ctx!.strokeStyle = this.color;
+                ctx!.arc(sx, sy, size, 0, Math.PI * 2);
+                ctx!.fillStyle = this.color;
                 ctx!.globalAlpha = opacity;
-                ctx!.moveTo(px, py);
-                ctx!.lineTo(sx, sy);
-                ctx!.stroke();
+                ctx!.fill();
                 ctx!.globalAlpha = 1;
             }
         }
@@ -143,7 +135,7 @@ const CosmicStarBackground: React.FC = () => {
             ctx!.fillRect(0, 0, canvas.width, canvas.height);
 
             // Warp speed (traveling fast)
-            const speed = 2;
+            const speed = 4;
             stars.forEach(s => { s.update(speed); s.draw(); });
 
             animId = requestAnimationFrame(animate);
