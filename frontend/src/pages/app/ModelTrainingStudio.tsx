@@ -7,6 +7,7 @@ import TargetSelection from '@/components/ml/TargetSelection';
 import AdvancedHyperparameters from '@/components/ml/AdvancedHyperparameters';
 import FeatureImportanceChart from '@/components/ml/FeatureImportanceChart';
 import { HeatmapSymbolSelector } from '../../components/features/market/HeatmapSymbolSelector';
+import LiveMarketPulse from '@/components/ml/LiveMarketPulse';
 
 const ModelTrainingStudio: React.FC = () => {
     const [symbol, setSymbol] = useState('BTC/USDT');
@@ -145,16 +146,19 @@ const ModelTrainingStudio: React.FC = () => {
                     </h3>
 
                     <div className="space-y-5 flex-1">
-                        <div>
-                            <label className="block text-sm font-medium text-slate-300 mb-2">Asset & Exchange</label>
-                            <div className={isTraining ? 'opacity-50 pointer-events-none' : ''}>
-                                <HeatmapSymbolSelector 
-                                    symbol={symbol} 
-                                    exchange={exchange} 
-                                    onSymbolChange={setSymbol} 
-                                    onExchangeChange={setExchange} 
-                                />
+                        <div className="grid grid-cols-2 gap-4 items-end">
+                            <div>
+                                <label className="block text-sm font-medium text-slate-300 mb-2">Asset & Exchange</label>
+                                <div className={isTraining ? 'opacity-50 pointer-events-none' : ''}>
+                                    <HeatmapSymbolSelector 
+                                        symbol={symbol} 
+                                        exchange={exchange} 
+                                        onSymbolChange={setSymbol} 
+                                        onExchangeChange={setExchange} 
+                                    />
+                                </div>
                             </div>
+                            <LiveMarketPulse symbol={symbol} exchange={exchange} />
                         </div>
                         
                         <div>
