@@ -41,6 +41,7 @@ class User(Base):
     education_progress = relationship("UserEducationProgress", back_populates="user")
     grid_bots = relationship("GridBot", back_populates="owner")
     lead_lag_bots = relationship("LeadLagBot", back_populates="owner")
+    custom_models = relationship("CustomMLModel", back_populates="user")
 
 # 2. API Keys Model
 class ApiKey(Base):
@@ -109,3 +110,4 @@ from .analyst_rating import AnalystRating
 from .research_report import ResearchReport
 from .lead_lag import LeadLagBot, LeadLagTradeLog
 from .orderbook_snapshot import OrderBookSnapshot
+from .ml_model import CustomMLModel, ModelVersion, ModelStatus

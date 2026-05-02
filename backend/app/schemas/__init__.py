@@ -149,3 +149,4 @@ from .indicator import *
 
 # 👇 This is the new line
 from .education import *
+from .ml_model import *

@@ -1,8 +1,11 @@
 
 import React, { useState, useMemo } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { mlModelsService } from '@/services/mlModelsService';
+import { toast } from 'react-hot-toast';
 import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
-import { MOCK_CUSTOM_MODELS, LstmIcon, RandomForestIcon, ArimaIcon, OtherModelIcon, CheckCircleIcon, ClockIcon, ExclamationCircleIcon } from '@/constants';
+import { LstmIcon, RandomForestIcon, ArimaIcon, OtherModelIcon, CheckCircleIcon, ClockIcon, ExclamationCircleIcon } from '@/constants';
 import type { CustomMLModel, ModelVersion } from '@/types';
 
 // --- Visual Components ---
@@ -60,24 +63,24 @@ const StatusPill: React.FC<{ status: ModelVersion['status'] }> = ({ status }) =>
 
 const UploadModelModal: React.FC<{
     onClose: () => void;
-    onUpload: (data: { modelName?: string; modelType?: CustomMLModel['modelType']; fileName: string; description: string; version: number }, existingModelId?: string) => void;
+    onUpload: (data: { modelName?: string; modelType?: CustomMLModel['modelType']; file: File; description: string; version: number }, existingModelId?: string) => void;
     existingModel?: CustomMLModel;
 }> = ({ onClose, onUpload, existingModel }) => {
     const isNewVersionMode = !!existingModel;
     const [modelName, setModelName] = useState(existingModel?.name || '');
     const [modelType, setModelType] = useState<CustomMLModel['modelType']>(existingModel?.modelType || 'LSTM');
-    const [fileName, setFileName] = useState('');
+    const [file, setFile] = useState<File | null>(null);
     const [description, setDescription] = useState('');
 
     const nextVersion = isNewVersionMode ? (Math.max(...existingModel.versions.map(v => v.version)) + 0.1).toFixed(1) : '1.0';
 
     const handleSubmit = (e: React.FormEvent) => {
         e.preventDefault();
-        if (fileName && description && (modelName || isNewVersionMode)) {
+        if (file && description && (modelName || isNewVersionMode)) {
             onUpload({
                 modelName: isNewVersionMode ? undefined : modelName,
                 modelType: isNewVersionMode ? undefined : modelType,
-                fileName,
+                file: file,
                 description,
                 version: parseFloat(nextVersion),
             }, existingModel?.id);
@@ -122,9 +125,9 @@ const UploadModelModal: React.FC<{
                         <div className="flex flex-col items-center justify-center gap-3">
                             <label htmlFor="file-upload" className="cursor-pointer px-6 py-3 bg-brand-primary text-white rounded-full text-sm font-bold hover:bg-brand-primary-hover transition-all shadow-lg shadow-brand-primary/20">
                                 Choose File
-                                <input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={(e) => setFileName(e.target.files?.[0].name || '')} required />
+                                <input id="file-upload" name="file-upload" type="file" className="sr-only" onChange={(e) => setFile(e.target.files?.[0] || null)} required />
                             </label>
-                            <span className="text-xs font-mono text-gray-400">{fileName || "Supports .pkl, .h5, .onnx, .pt"}</span>
+                            <span className="text-xs font-mono text-gray-400">{file?.name || "Supports .pkl, .h5, .onnx, .pt"}</span>
                         </div>
                     </div>
 
@@ -260,55 +263,75 @@ const ModelCard: React.FC<{
 // --- Main Page ---
 
 const CustomMLModels: React.FC = () => {
-    const [models, setModels] = useState<CustomMLModel[]>(MOCK_CUSTOM_MODELS);
+    const queryClient = useQueryClient();
     const [modalState, setModalState] = useState<{ isOpen: boolean; modelToUpdate?: CustomMLModel }>({ isOpen: false });
 
-    const handleUpload = (data: { modelName?: string; modelType?: CustomMLModel['modelType']; fileName: string; description: string; version: number }, existingModelId?: string) => {
+    // Fetch models
+    const { data: models = [], isLoading } = useQuery({
+        queryKey: ['mlModels'],
+        queryFn: mlModelsService.getModels,
+        // Smart Polling: Only poll every 5s IF there's any model version currently "Processing"
+        refetchInterval: (query) => {
+            const currentModels = query.state.data || [];
+            const isProcessing = currentModels.some((m: CustomMLModel) => 
+                m.versions.some((v: ModelVersion) => v.status === 'Processing')
+            );
+            return isProcessing ? 5000 : false;
+        },
+    });
+
+    const createMutation = useMutation({
+        mutationFn: (data: any) => mlModelsService.createModel(data.modelName!, data.modelType!, data.version, data.description, data.file),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['mlModels'] });
+            toast.success('Model created and uploading!');
+        },
+        onError: () => toast.error('Failed to create model'),
+    });
+
+    const uploadVersionMutation = useMutation({
+        mutationFn: ({ modelId, data }: { modelId: string; data: any }) => mlModelsService.uploadVersion(modelId, data.version, data.description, data.file),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['mlModels'] });
+            toast.success('New version uploaded!');
+        },
+        onError: () => toast.error('Failed to upload version'),
+    });
+
+    const setVersionMutation = useMutation({
+        mutationFn: ({ modelId, versionId }: { modelId: string; versionId: string }) => mlModelsService.setActiveVersion(modelId, versionId),
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['mlModels'] });
+            toast.success('Active version updated');
+        },
+        onError: (err: any) => toast.error(err.response?.data?.detail || 'Failed to set active version'),
+    });
+
+    const deleteMutation = useMutation({
+        mutationFn: mlModelsService.deleteModel,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['mlModels'] });
+            toast.success('Model deleted');
+        },
+        onError: () => toast.error('Failed to delete model'),
+    });
+
+    const handleUpload = (data: { modelName?: string; modelType?: CustomMLModel['modelType']; file: File; description: string; version: number }, existingModelId?: string) => {
         if (existingModelId) { // Uploading a new version
-            setModels(currentModels => currentModels.map(m => {
-                if (m.id === existingModelId) {
-                    const newVersion: ModelVersion = {
-                        id: `v${data.version}-${new Date().getTime()}`,
-                        version: data.version,
-                        fileName: data.fileName,
-                        uploadDate: new Date().toISOString().split('T')[0],
-                        status: 'Processing',
-                        description: data.description,
-                    };
-                    const updatedModel = { ...m, versions: [newVersion, ...m.versions] };
-                    // Mock processing completion
-                    setTimeout(() => setModels(prev => prev.map(model => model.id === m.id ? { ...model, versions: model.versions.map(v => v.id === newVersion.id ? { ...v, status: 'Ready' } : v) } : model)), 3000);
-                    return updatedModel;
-                }
-                return m;
-            }));
+            uploadVersionMutation.mutate({ modelId: existingModelId, data });
         } else { // Uploading a new model
-            const newVersion: ModelVersion = {
-                id: `v${data.version}-${new Date().getTime()}`,
-                version: data.version,
-                fileName: data.fileName,
-                uploadDate: new Date().toISOString().split('T')[0],
-                status: 'Processing',
-                description: data.description,
-            };
-            const newModel: CustomMLModel = {
-                id: `model_${new Date().getTime()}`,
-                name: data.modelName!,
-                modelType: data.modelType!,
-                versions: [newVersion],
-                activeVersionId: newVersion.id,
-            };
-            setModels(prev => [newModel, ...prev]);
-            setTimeout(() => setModels(prev => prev.map(m => m.id === newModel.id ? { ...m, versions: m.versions.map(v => v.id === newVersion.id ? { ...v, status: 'Ready' } : v), activeVersionId: newVersion.id } : m)), 3000);
+            createMutation.mutate(data);
         }
     };
 
     const handleDelete = (modelId: string) => {
-        setModels(models.filter(m => m.id !== modelId));
+        if (window.confirm("Are you sure you want to delete this model?")) {
+            deleteMutation.mutate(modelId);
+        }
     };
 
     const handleSetActiveVersion = (modelId: string, versionId: string) => {
-        setModels(models.map(m => m.id === modelId ? { ...m, activeVersionId: versionId } : m));
+        setVersionMutation.mutate({ modelId, versionId });
     };
 
     return (
@@ -339,28 +362,36 @@ const CustomMLModels: React.FC = () => {
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8">
-                    {models.map((model, index) => (
-                        <ModelCard
-                            key={model.id}
-                            model={model}
-                            onDelete={handleDelete}
-                            onUploadVersion={(m) => setModalState({ isOpen: true, modelToUpdate: m })}
-                            onSetActiveVersion={handleSetActiveVersion}
-                            animationDelay={index * 100}
-                        />
-                    ))}
-
-                    {/* Add New Placeholder */}
-                    <button
-                        onClick={() => setModalState({ isOpen: true })}
-                        className="group relative border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl flex flex-col items-center justify-center p-10 text-center hover:border-brand-primary hover:bg-brand-primary/5 transition-all duration-300 min-h-[300px]"
-                    >
-                        <div className="w-20 h-20 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-inner">
-                            <svg className="w-8 h-8 text-gray-400 group-hover:text-brand-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                    {isLoading ? (
+                        <div className="col-span-full flex justify-center py-20">
+                            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-primary"></div>
                         </div>
-                        <h3 className="text-lg font-bold text-gray-500 dark:text-gray-400 group-hover:text-brand-primary transition-colors">Deploy New Model</h3>
-                        <p className="text-xs text-gray-400 mt-2 max-w-[200px]">Upload .h5, .pkl or .onnx files to integrate custom logic.</p>
-                    </button>
+                    ) : (
+                        <>
+                            {models.map((model, index) => (
+                                <ModelCard
+                                    key={model.id}
+                                    model={model}
+                                    onDelete={handleDelete}
+                                    onUploadVersion={(m) => setModalState({ isOpen: true, modelToUpdate: m })}
+                                    onSetActiveVersion={handleSetActiveVersion}
+                                    animationDelay={index * 100}
+                                />
+                            ))}
+
+                            {/* Add New Placeholder */}
+                            <button
+                                onClick={() => setModalState({ isOpen: true })}
+                                className="group relative border-2 border-dashed border-gray-300 dark:border-gray-700 rounded-2xl flex flex-col items-center justify-center p-10 text-center hover:border-brand-primary hover:bg-brand-primary/5 transition-all duration-300 min-h-[300px]"
+                            >
+                                <div className="w-20 h-20 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center mb-4 group-hover:scale-110 transition-transform shadow-inner">
+                                    <svg className="w-8 h-8 text-gray-400 group-hover:text-brand-primary" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                                </div>
+                                <h3 className="text-lg font-bold text-gray-500 dark:text-gray-400 group-hover:text-brand-primary transition-colors">Deploy New Model</h3>
+                                <p className="text-xs text-gray-400 mt-2 max-w-[200px]">Upload .h5, .pkl or .onnx files to integrate custom logic.</p>
+                            </button>
+                        </>
+                    )}
                 </div>
             </div>
         </div>

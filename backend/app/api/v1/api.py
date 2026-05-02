@@ -64,3 +64,6 @@ api_router.include_router(advanced_liquidation.router, prefix="/advanced_liquida
 
 from app.api.v1.endpoints import advanced_metrics
 api_router.include_router(advanced_metrics.router, prefix="/advanced-metrics", tags=["advanced-metrics"])
+
+from app.api.v1.endpoints import ml_models
+api_router.include_router(ml_models.router, prefix="/ml-models", tags=["ml-models"])
