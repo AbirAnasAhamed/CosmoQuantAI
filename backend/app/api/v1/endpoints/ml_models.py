@@ -182,6 +182,10 @@ def delete_model(
             except Exception as e:
                 print(f"Error removing file {version.file_path}: {e}")
 
+    # Break circular foreign key dependency before deletion
+    db_model.active_version_id = None
+    db.flush()
+
     db.delete(db_model)
     db.commit()
 

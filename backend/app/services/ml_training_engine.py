@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 import pandas_ta as ta
+import ccxt
 import os
 import time
 from sqlalchemy.orm import Session
@@ -52,23 +53,33 @@ def fetch_l2_data(symbol: str, db: Session, lookback_hours: int = 6, timeframe: 
             
     return df
 
-def fetch_data(symbol: str, timeframe: str, period: str = None) -> pd.DataFrame:
-    # Note: yfinance format is 'BTC-USD', binance is 'BTC/USDT'
-    yf_symbol = symbol.replace("/", "-").replace("USDT", "USD")
-    
-    tf_map = {"5m": "5m", "15m": "15m", "1h": "1h", "4h": "1h", "1d": "1d"}
+def fetch_data(symbol: str, timeframe: str, period: str = None, exchange_name: str = 'binance') -> pd.DataFrame:
+    tf_map = {"5m": "5m", "15m": "15m", "1h": "1h", "4h": "4h", "1d": "1d"}
     tf = tf_map.get(timeframe, "1d")
     
-    if period is None:
-        period = "2y" if tf == "1d" else "60d"
-    
-    df = yf.download(yf_symbol, period=period, interval=tf)
-    if df.empty:
-        raise Exception(f"No data found for symbol {yf_symbol}.")
-    
-    # Flatten MultiIndex columns if present
-    if isinstance(df.columns, pd.MultiIndex):
-        df.columns = df.columns.get_level_values(0)
+    try:
+        ex_class = getattr(ccxt, exchange_name)
+        exchange = ex_class({'enableRateLimit': True})
+    except Exception:
+        exchange = ccxt.binance({'enableRateLimit': True})
+        
+    try:
+        # Fetch up to 1500 candles to ensure enough data for indicators
+        ohlcv = exchange.fetch_ohlcv(symbol, tf, limit=1500)
+    except Exception as e:
+        # Fallback to spot if futures fails, or try parsing symbol
+        try:
+            spot_symbol = symbol.split(':')[0]
+            ohlcv = exchange.fetch_ohlcv(spot_symbol, tf, limit=1500)
+        except Exception as fallback_e:
+            raise Exception(f"Failed to fetch data for {symbol} via CCXT: {e}")
+            
+    if not ohlcv:
+        raise Exception(f"No data found for symbol {symbol} on {exchange_name}.")
+        
+    df = pd.DataFrame(ohlcv, columns=['timestamp', 'Open', 'High', 'Low', 'Close', 'Volume'])
+    df['timestamp'] = pd.to_datetime(df['timestamp'], unit='ms')
+    df.set_index('timestamp', inplace=True)
     
     return df
 
@@ -118,8 +129,9 @@ def train_model_task(job_id: str, db: Session):
             
         else:
             ohlcv_period = config.get("ohlcv_period")
-            add_log(f"Fetching historical OHLCV data for {job.symbol} (Period: {ohlcv_period or 'Auto'})...")
-            df = fetch_data(job.symbol, job.timeframe, period=ohlcv_period)
+            exchange_name = config.get("exchange", "binance")
+            add_log(f"Fetching historical OHLCV data for {job.symbol} from {exchange_name.upper()}...")
+            df = fetch_data(job.symbol, job.timeframe, period=ohlcv_period, exchange_name=exchange_name)
             add_log(f"Fetched {len(df)} rows of market data.")
             job.progress = 15.0
             

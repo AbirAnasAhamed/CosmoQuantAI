@@ -267,21 +267,23 @@ const ModelTrainingStudio: React.FC = () => {
                                 </button>
                             </div>
                             
-                            <div>
-                                <label className="block text-sm font-medium text-slate-300 mb-1">Training Data Lookback (Hours)</label>
-                                <select 
-                                    value={dataLookback}
-                                    onChange={(e) => setDataLookback(Number(e.target.value))}
-                                    disabled={isTraining}
-                                    className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400 outline-none transition-all disabled:opacity-50"
-                                >
-                                    <option className="bg-gray-900 text-white" value={1}>Last 1 Hour</option>
-                                    <option className="bg-gray-900 text-white" value={6}>Last 6 Hours</option>
-                                    <option className="bg-gray-900 text-white" value={12}>Last 12 Hours</option>
-                                    <option className="bg-gray-900 text-white" value={24}>Last 24 Hours</option>
-                                </select>
-                                <p className="text-xs text-slate-500 mt-1.5 ml-1 font-medium">Amount of historical data to use for training.</p>
-                            </div>
+                            {dataSource === 'l2_orderbook' && (
+                                <div>
+                                    <label className="block text-sm font-medium text-slate-300 mb-1">Training Data Lookback (Hours)</label>
+                                    <select 
+                                        value={dataLookback}
+                                        onChange={(e) => setDataLookback(Number(e.target.value))}
+                                        disabled={isTraining}
+                                        className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400 outline-none transition-all disabled:opacity-50"
+                                    >
+                                        <option className="bg-gray-900 text-white" value={1}>Last 1 Hour</option>
+                                        <option className="bg-gray-900 text-white" value={6}>Last 6 Hours</option>
+                                        <option className="bg-gray-900 text-white" value={12}>Last 12 Hours</option>
+                                        <option className="bg-gray-900 text-white" value={24}>Last 24 Hours</option>
+                                    </select>
+                                    <p className="text-xs text-slate-500 mt-1.5 ml-1 font-medium">Amount of historical tick data to use.</p>
+                                </div>
+                            )}
 
                             {dataSource === 'l2_orderbook' && (
                                 <div className="flex items-center justify-between p-4 bg-purple-500/5 rounded-xl border border-purple-500/20 shadow-inner">
