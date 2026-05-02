@@ -2193,6 +2193,7 @@ const OrderFlowHeatmap: React.FC = () => {
     const [isEmergencySelling, setIsEmergencySelling] = useState(false); // NEW STATE
     const [isFullscreen, setIsFullscreen] = useState(false); // NEW STATE
     const [showCVD, setShowCVD] = useState(false); // NEW STATE
+    const [isOrderBookModalOpen, setIsOrderBookModalOpen] = useState(false);
     const { bids, asks, walls, currentPrice, tradeEvent } = useLevel2MarketData(symbol, exchange);
     const { volumeThreshold, setVolumeThreshold, volumeMode, setVolumeMode } = useVolumeFilter(5000000);
     const { statusData: botStatus, isConnected: botWsConnected } = useWallHunterStatus(activeWallHunterId);
@@ -2310,10 +2311,10 @@ const OrderFlowHeatmap: React.FC = () => {
                 onAdvancedMetricsChange={onAdvancedMetricsChange}
             />
 
-            <div className={isFullscreen ? 'fixed inset-0 z-[200] bg-gray-50 dark:bg-[#000000] p-4 overflow-y-auto page-scrollbar' : 'flex-1 p-4 overflow-y-auto page-scrollbar relative bg-gray-50 dark:bg-[#000000]'}>
+            <div className={isFullscreen ? 'fixed inset-0 z-[200] flex flex-col bg-gray-50 dark:bg-[#000000] p-4 overflow-y-auto hide-scrollbar' : 'flex-1 flex flex-col p-4 overflow-y-auto hide-scrollbar relative bg-gray-50 dark:bg-[#000000]'}>
                 {/* IN FULLSCREEN MODE, RENDER ONLY THE MAIN CHART WITHOUT THE LEFT PADDING. OTHERWISE RENDER NORMALLY */}
-                <div className={`flex flex-col gap-4 min-h-full`}>
-                    <div className={`${isFullscreen ? 'h-screen' : 'h-[85vh]'} flex-shrink-0 w-full bg-white dark:bg-[#000000] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col`}>
+                <div className="flex-1 w-full">
+                    <div className="h-full w-full bg-white dark:bg-[#000000] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
                         <div className="p-3 border-b border-gray-200 dark:border-white/5 flex justify-between items-center">
                             <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Order Flow Chart</h3>
                             <button
@@ -2331,16 +2332,7 @@ const OrderFlowHeatmap: React.FC = () => {
                             <OrderFlowChart exchange={exchange} symbol={symbol} interval={interval} walls={filteredWalls} currentPrice={currentPrice} showFootprint={showFootprint} showCVD={showCVD} indicatorSettings={indicatorSettings} tradeEvent={tradeEvent} botStatus={botStatus} openOrders={openOrders} advancedMetrics={advancedMetrics} advancedMetricsData={advancedMetricsData} />
                         </div>
                     </div>
-                    {!isFullscreen && (
-                        <div className="h-[65vh] flex-shrink-0 w-full bg-white dark:bg-[#000000] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
-                            <div className="p-3 border-b border-gray-200 dark:border-white/5 flex justify-between items-center">
-                                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Level 2 Order Book</h3>
-                            </div>
-                            <div className="flex-1 overflow-hidden p-2">
-                                <OrderBook bids={bids} asks={asks} maxTotal={maxTotal} volumeThreshold={volumeThreshold} />
-                            </div>
-                        </div>
-                    )}
+                    {/* Level 2 Order Book moved to floating modal */}
                 </div>
 
                 {/* ACTIVE BOT STATUS HUD */}
@@ -2516,6 +2508,35 @@ const OrderFlowHeatmap: React.FC = () => {
 
             {/* MANUAL TRADE MODAL */}
             <ManualTradeModal symbol={symbol} currentPrice={currentPrice} onApiKeyChange={setSelectedApiKeyId} />
+
+            {/* FLOATING LEVEL 2 ORDER BOOK BUTTON (above TVChart button) */}
+            <button
+                onClick={() => setIsOrderBookModalOpen(true)}
+                className="fixed bottom-[276px] right-8 w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 border border-blue-400/30 text-white shadow-[0_0_24px_rgba(59,130,246,0.5)] z-[100] transition-transform hover:scale-110 focus:outline-none group"
+                title="Level 2 Order Book"
+            >
+                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+            </button>
+
+            {/* LEVEL 2 ORDER BOOK MODAL */}
+            {isOrderBookModalOpen && (
+                <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
+                    <div className="relative w-[90%] md:w-[70%] lg:w-[60%] max-w-4xl h-[75vh] bg-white dark:bg-[#000000] rounded-xl shadow-2xl border border-gray-200 dark:border-white/10 overflow-hidden flex flex-col transform transition-all scale-100">
+                        <div className="flex justify-between items-center p-4 border-b border-gray-200 dark:border-white/10 shrink-0">
+                            <h2 className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-cyan-500">Level 2 Order Book</h2>
+                            <button
+                                onClick={() => setIsOrderBookModalOpen(false)}
+                                className="p-2 text-gray-500 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10 rounded-lg transition-colors"
+                            >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                            </button>
+                        </div>
+                        <div className="flex-1 overflow-hidden p-2">
+                            <OrderBook bids={bids} asks={asks} maxTotal={maxTotal} volumeThreshold={volumeThreshold} />
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {/* FLOATING ORDER FLOW CHART BUTTON (above Manual Trade button) */}
             <FloatingTVChartButton symbol={symbol} exchange={exchange} />
