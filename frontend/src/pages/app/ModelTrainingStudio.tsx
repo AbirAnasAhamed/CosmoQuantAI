@@ -42,6 +42,7 @@ const ModelTrainingStudio: React.FC = () => {
     const [suggestedFeatures, setSuggestedFeatures] = useState<any[]>([]);
     const [selectedL2Features, setSelectedL2Features] = useState<string[]>(['obi', 'spread', 'microprice']);
     const [analysisStats, setAnalysisStats] = useState<{rows: number, features: number} | null>(null);
+    const [showManualFeatures, setShowManualFeatures] = useState(false);
     
     const [currentJob, setCurrentJob] = useState<TrainingJob | null>(null);
     const logsEndRef = useRef<HTMLDivElement>(null);
@@ -49,6 +50,31 @@ const ModelTrainingStudio: React.FC = () => {
     const INDICATORS = ['RSI', 'MACD', 'BBANDS'];
     const ALGORITHMS = ['Random Forest', 'XGBoost', 'LSTM'];
     const TIMEFRAMES = ['5m', '15m', '1h', '4h', '1d'];
+
+    const ALL_L2_FEATURES = [
+        { internal: "Effective_Spread", name: "Effective Spread" },
+        { internal: "Spread_ROC", name: "Spread ROC" },
+        { internal: "Mid_Price_Acceleration", name: "Mid-Price Acceleration" },
+        { internal: "Spread_Asymmetry", name: "Spread Asymmetry" },
+        { internal: "WAP_Top_5", name: "WAP Top 5" },
+        { internal: "WAP_Top_10", name: "WAP Top 10" },
+        { internal: "Multi_Level_Imbalance_Top5", name: "Multi-Level Imbalance (Top 5)" },
+        { internal: "Multi_Level_Imbalance_Top10", name: "Multi-Level Imbalance (Top 10)" },
+        { internal: "Depth_Ratio", name: "Depth Ratio (Bid/Ask)" },
+        { internal: "Ask_Wall_Distance", name: "Wall Distance (Ask)" },
+        { internal: "Bid_Wall_Distance", name: "Wall Distance (Bid)" },
+        { internal: "Order_Book_Skewness", name: "Order Book Skewness (Sk)" },
+        { internal: "Level_1_Imbalance", name: "Level-1 Imbalance" },
+        { internal: "Imbalance_Momentum", name: "Imbalance Momentum" },
+        { internal: "Order_Flow_Imbalance", name: "Order Flow Imbalance (OFI)" },
+        { internal: "CVD_Proxy", name: "Cumulative Volume Delta (CVD)" },
+        { internal: "CVD_Acceleration", name: "CVD Acceleration" },
+        { internal: "Realized_Micro_Volatility", name: "Realized Micro-Volatility" },
+        { internal: "Tick_Test_Roll", name: "Tick Test Roll (Auto-correlation)" },
+        { internal: "obi", name: "Order Book Imbalance (OBI)" },
+        { internal: "spread", name: "Quoted Spread" },
+        { internal: "microprice", name: "Micro-Price" }
+    ];
 
     // Auto-scroll logs
     useEffect(() => {
@@ -456,6 +482,45 @@ const ModelTrainingStudio: React.FC = () => {
                                             </motion.div>
                                         )}
                                     </AnimatePresence>
+
+                                    {/* Manual Selection Toggle */}
+                                    <div className="mt-4 border-t border-indigo-500/20 pt-4">
+                                        <button 
+                                            onClick={() => setShowManualFeatures(!showManualFeatures)}
+                                            className="w-full flex items-center justify-between text-xs font-bold text-indigo-400 hover:text-indigo-300 transition-colors"
+                                        >
+                                            <span>Or Select Manually ({selectedL2Features.length}/{ALL_L2_FEATURES.length} Selected)</span>
+                                            <span className="text-[10px] bg-indigo-500/10 px-2 py-0.5 rounded border border-indigo-500/20">
+                                                {showManualFeatures ? 'Hide' : 'Show All'}
+                                            </span>
+                                        </button>
+                                        
+                                        <AnimatePresence>
+                                            {showManualFeatures && (
+                                                <motion.div 
+                                                    initial={{ opacity: 0, height: 0 }} 
+                                                    animate={{ opacity: 1, height: 'auto' }} 
+                                                    exit={{ opacity: 0, height: 0 }}
+                                                    className="mt-3 grid grid-cols-2 gap-2 overflow-hidden"
+                                                >
+                                                    {ALL_L2_FEATURES.map((feat, idx) => (
+                                                        <div 
+                                                            key={idx} 
+                                                            onClick={() => !isTraining && handleToggleL2Feature(feat.internal)}
+                                                            className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition-all ${selectedL2Features.includes(feat.internal) ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-200' : 'bg-black/30 border-white/5 text-slate-400 hover:bg-white/5'}`}
+                                                        >
+                                                            <div className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center transition-colors flex-shrink-0 ${selectedL2Features.includes(feat.internal) ? 'bg-indigo-500 border-indigo-400' : 'border-white/20'}`}>
+                                                                {selectedL2Features.includes(feat.internal) && <CheckCircle2 className="w-2.5 h-2.5 text-black" />}
+                                                            </div>
+                                                            <span className="text-[10px] font-medium leading-tight truncate" title={feat.name}>
+                                                                {feat.name}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
+                                    </div>
                                 </div>
                             )}
                         </div>
