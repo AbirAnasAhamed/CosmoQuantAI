@@ -126,7 +126,9 @@ def train_model_task(job_id: str, db: Session):
                 df['Target'] = df['Close'].shift(-1)
                 
             df.dropna(inplace=True)
-            
+            if len(df) < 10:
+                raise Exception(f"Not enough L2 data to train a model. Found {len(df)} rows after processing. Please let the system run longer to collect more OrderBook snapshots.")
+                
         else:
             ohlcv_period = config.get("ohlcv_period")
             exchange_name = config.get("exchange", "binance")
@@ -157,6 +159,9 @@ def train_model_task(job_id: str, db: Session):
             features = [col for col in df.columns if col not in ['Target', 'Open', 'High', 'Low', 'Close', 'Volume', 'Adj Close']]
             if not features:
                 features = ['Close']
+                
+            if len(df) < 10:
+                raise Exception(f"Not enough market data to train a model. Found {len(df)} rows. Please increase the dataset period or lookback time.")
         
         job.progress = 30.0
         
@@ -187,6 +192,25 @@ def train_model_task(job_id: str, db: Session):
         max_depth = int(config.get("max_depth", 6))
         prediction_target = config.get("prediction_target", "classification")
         
+        import json
+        import time
+        final_accuracy = None
+        final_f1 = None
+        final_latency = None
+
+        def process_metrics(metrics_str, is_classification):
+            nonlocal final_accuracy, final_f1
+            add_log(metrics_str)
+            try:
+                metrics_dict = json.loads(metrics_str.replace("[METRICS] ", ""))
+                if is_classification:
+                    final_accuracy = metrics_dict.get("Accuracy")
+                    final_f1 = metrics_dict.get("F1_Score")
+                else:
+                    final_accuracy = metrics_dict.get("R2_Score") # Use R2 for accuracy display
+            except Exception:
+                pass
+
         # 4. Train Model
         if job.algorithm == "Random Forest":
             add_log(f"Training Random Forest ({prediction_target.capitalize()})...")
@@ -194,14 +218,20 @@ def train_model_task(job_id: str, db: Session):
                 from sklearn.ensemble import RandomForestClassifier
                 model = RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42)
                 model.fit(X_train, y_train.ravel())
+                start_time = time.time()
                 y_pred = model.predict(X_test)
-                add_log(calculate_classification_metrics(y_test.ravel(), y_pred))
+                end_time = time.time()
+                final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
+                process_metrics(calculate_classification_metrics(y_test.ravel(), y_pred), True)
             else:
                 from sklearn.ensemble import RandomForestRegressor
                 model = RandomForestRegressor(n_estimators=epochs, max_depth=max_depth, random_state=42)
                 model.fit(X_train, y_train.ravel())
+                start_time = time.time()
                 y_pred = model.predict(X_test)
-                add_log(calculate_regression_metrics(y_test.ravel(), y_pred))
+                end_time = time.time()
+                final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
+                process_metrics(calculate_regression_metrics(y_test.ravel(), y_pred), False)
                 
             job.progress = 80.0
             joblib.dump(model, model_path)
@@ -216,14 +246,20 @@ def train_model_task(job_id: str, db: Session):
                 from xgboost import XGBClassifier
                 model = XGBClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
                 model.fit(X_train, y_train.ravel(), eval_set=[(X_test, y_test.ravel())], verbose=False)
+                start_time = time.time()
                 y_pred = model.predict(X_test)
-                add_log(calculate_classification_metrics(y_test.ravel(), y_pred))
+                end_time = time.time()
+                final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
+                process_metrics(calculate_classification_metrics(y_test.ravel(), y_pred), True)
             else:
                 from xgboost import XGBRegressor
                 model = XGBRegressor(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
                 model.fit(X_train, y_train.ravel(), eval_set=[(X_test, y_test.ravel())], verbose=False)
+                start_time = time.time()
                 y_pred = model.predict(X_test)
-                add_log(calculate_regression_metrics(y_test.ravel(), y_pred))
+                end_time = time.time()
+                final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
+                process_metrics(calculate_regression_metrics(y_test.ravel(), y_pred), False)
                 
             job.progress = 80.0
             joblib.dump(model, model_path)
@@ -287,12 +323,15 @@ def train_model_task(job_id: str, db: Session):
             model.eval()
             with torch.no_grad():
                 X_test_t = torch.FloatTensor(X_test).unsqueeze(1)
+                start_time = time.time()
                 preds = model(X_test_t).numpy()
+                end_time = time.time()
+                final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
                 if prediction_target == "classification":
                     preds_class = (1 / (1 + np.exp(-preds)) > 0.5).astype(int)
-                    add_log(calculate_classification_metrics(y_test, preds_class))
+                    process_metrics(calculate_classification_metrics(y_test, preds_class), True)
                 else:
-                    add_log(calculate_regression_metrics(y_test, preds))
+                    process_metrics(calculate_regression_metrics(y_test, preds), False)
                     
             add_log("PyTorch LSTM training complete.")
             
@@ -325,7 +364,10 @@ def train_model_task(job_id: str, db: Session):
                 version=new_v_num,
                 description=f"Auto-retrained using {job.algorithm} on {job.symbol}",
                 file_path=model_path,
-                status=models.ModelStatus.READY
+                status=models.ModelStatus.READY,
+                accuracy=final_accuracy,
+                f1_score=final_f1,
+                latency=final_latency
             )
             db.add(db_version)
             db.flush()
@@ -357,7 +399,10 @@ def train_model_task(job_id: str, db: Session):
                 version=1.0,
                 description=f"Auto-trained using {job.algorithm} on {job.symbol} {job.timeframe}",
                 file_path=model_path,
-                status=models.ModelStatus.READY
+                status=models.ModelStatus.READY,
+                accuracy=final_accuracy,
+                f1_score=final_f1,
+                latency=final_latency
             )
             db.add(db_version)
             db.flush()

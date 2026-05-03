@@ -15,6 +15,9 @@ class ModelVersionResponse(ModelVersionBase):
     file_path: str
     upload_date: datetime
     status: str
+    accuracy: Optional[float] = None
+    f1_score: Optional[float] = None
+    latency: Optional[float] = None
 
     model_config = ConfigDict(from_attributes=True)
 

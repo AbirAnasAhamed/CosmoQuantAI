@@ -285,6 +285,9 @@ export interface ModelVersion {
   uploadDate: string;
   status: 'Ready' | 'Processing' | 'Error';
   description: string;
+  accuracy?: number;
+  f1_score?: number;
+  latency?: number;
 }
 export interface CustomMLModel {
   id: string;

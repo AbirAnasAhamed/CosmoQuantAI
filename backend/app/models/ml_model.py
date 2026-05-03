@@ -40,5 +40,8 @@ class ModelVersion(Base):
     upload_date = Column(DateTime(timezone=True), server_default=func.now())
     status = Column(Enum(ModelStatus), default=ModelStatus.PROCESSING)
     description = Column(String, nullable=True)
+    accuracy = Column(Float, nullable=True)
+    f1_score = Column(Float, nullable=True)
+    latency = Column(Float, nullable=True)
 
     model = relationship("CustomMLModel", back_populates="versions", foreign_keys=[model_id])

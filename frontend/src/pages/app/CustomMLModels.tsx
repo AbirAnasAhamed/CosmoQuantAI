@@ -166,9 +166,15 @@ const ModelCard: React.FC<{
 
     const activeVersion = model.versions.find(v => v.id === model.activeVersionId);
 
-    // Mock Metrics Generator based on model type/name hash (for visual consistency)
-    const accuracy = activeVersion?.status === 'Ready' ? (85 + (model.name.length % 10) + Math.random() * 3).toFixed(1) : '--';
-    const latency = activeVersion?.status === 'Ready' ? (12 + (model.name.length % 5)).toFixed(0) : '--';
+    // Real Metrics from API
+    const rawAccuracy = activeVersion?.accuracy;
+    const accuracyDisplay = rawAccuracy !== undefined && rawAccuracy !== null ? `${(rawAccuracy * 100).toFixed(1)}%` : '--';
+    
+    const rawF1 = activeVersion?.f1_score;
+    const f1Display = rawF1 !== undefined && rawF1 !== null ? rawF1.toFixed(4) : '--';
+
+    const rawLatency = activeVersion?.latency;
+    const latencyDisplay = rawLatency !== undefined && rawLatency !== null ? `${Math.round(rawLatency)}ms` : '--';
 
     return (
         <div
@@ -206,9 +212,9 @@ const ModelCard: React.FC<{
                     <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-0 pointer-events-none bg-[length:100%_2px,3px_100%] opacity-30"></div>
 
                     <div className="flex justify-between items-center relative z-10">
-                        <MetricBadge label="Accuracy" value={`${accuracy}%`} color="text-emerald-400" />
-                        <MetricBadge label="F1 Score" value={(Number(accuracy) / 105).toFixed(2)} color="text-blue-400" />
-                        <MetricBadge label="Latency" value={`${latency}ms`} color="text-purple-400" />
+                        <MetricBadge label="Accuracy" value={accuracyDisplay} color="text-emerald-400" />
+                        <MetricBadge label="F1 Score" value={f1Display} color="text-blue-400" />
+                        <MetricBadge label="Latency" value={latencyDisplay} color="text-purple-400" />
                     </div>
                 </div>
 
