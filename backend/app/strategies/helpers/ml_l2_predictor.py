@@ -20,7 +20,17 @@ class MLL2Predictor:
         self.model_type = None
         self.prediction_target = "classification"  # default
         self.is_loaded = False
+        self._feature_mismatch_logged = False  # throttle warning — log once only
         self._load_model()
+
+        # State for stateful features (OFI, CVD need previous tick)
+        self._prev_bb_p = None
+        self._prev_bb_v = None
+        self._prev_ba_p = None
+        self._prev_ba_v = None
+        self._cumulative_ofi = 0.0
+        self._ofi_prev = 0.0
+        self._prev_level1_imb = 0.5
 
     def _load_model(self):
         if not self.ai_model_id:
@@ -100,43 +110,99 @@ class MLL2Predictor:
             return True
 
         try:
-            # 1. Extract L2 Features
-            bids = orderbook.get('bids', [])[:10]
-            asks = orderbook.get('asks', [])[:10]
+            # 1. Extract L2 Features — all 8 training features
+            bids_raw = orderbook.get('bids', [])[:20]
+            asks_raw = orderbook.get('asks', [])[:20]
 
-            if not bids or not asks:
+            if not bids_raw or not asks_raw:
                 logger.warning("MLL2Predictor: Missing bids/asks in orderbook. Skipping AI filter.")
                 return True
 
+            bids = [[float(x[0]), float(x[1])] for x in bids_raw if len(x) >= 2]
+            asks = [[float(x[0]), float(x[1])] for x in asks_raw if len(x) >= 2]
+
             best_bid = bids[0][0]
+            best_bid_v = bids[0][1]
             best_ask = asks[0][0]
-            
-            bid_vol = sum([level[1] for level in bids])
-            ask_vol = sum([level[1] for level in asks])
-            total_vol = bid_vol + ask_vol
-            
-            # obi (Orderbook Imbalance) -> Bid volume ratio
-            obi = bid_vol / total_vol if total_vol > 0 else 0.5
-            
-            # spread
-            spread = (best_ask - best_bid) / best_bid
-            
-            # microprice = (BidVol*Ask + AskVol*Bid)/(TotalVol)
+            best_ask_v = asks[0][1]
+
+            bid_vol_10 = sum(x[1] for x in bids[:10])
+            ask_vol_10 = sum(x[1] for x in asks[:10])
+            total_vol_10 = bid_vol_10 + ask_vol_10
+            bid_vol_5 = sum(x[1] for x in bids[:5])
+            ask_vol_5 = sum(x[1] for x in asks[:5])
+            total_vol_5 = bid_vol_5 + ask_vol_5
+
+            bid_vol_all = sum(x[1] for x in bids)
+            ask_vol_all = sum(x[1] for x in asks)
+
+            # Feature 1: obi
+            obi = bid_vol_10 / (total_vol_10 + 1e-9)
+
+            # Feature 2: spread
+            spread = (best_ask - best_bid) / (best_bid + 1e-9)
+
+            # Feature 3: microprice
+            total_vol = bid_vol_10 + ask_vol_10
             if total_vol > 0:
-                microprice = ((bid_vol * best_ask) + (ask_vol * best_bid)) / total_vol
+                microprice = ((bid_vol_10 * best_ask) + (ask_vol_10 * best_bid)) / total_vol
             else:
                 microprice = (best_bid + best_ask) / 2
-                
-            # Note: The model expects scaled features, but we don't store the scaler currently.
-            # In live prediction, since they are ratios/normalized, we feed them directly or approximate.
-            # Spread is very small, obi is 0-1.
-            features_list = [obi, spread, microprice]
+
+            # Feature 4: OFI_Acceleration (needs prev tick state)
+            if self._prev_bb_p is not None:
+                if best_bid >= self._prev_bb_p: e_b = best_bid_v
+                elif best_bid == self._prev_bb_p: e_b = best_bid_v - self._prev_bb_v
+                else: e_b = -self._prev_bb_v
+
+                if best_ask <= self._prev_ba_p: e_a = best_ask_v
+                elif best_ask == self._prev_ba_p: e_a = best_ask_v - self._prev_ba_v
+                else: e_a = -self._prev_ba_v
+
+                ofi = e_b - e_a
+            else:
+                ofi = 0.0
+            ofi_acceleration = ofi - self._ofi_prev
+
+            # Feature 5: Imbalance_Momentum
+            level1_imb = best_bid_v / (best_bid_v + best_ask_v + 1e-9)
+            imbalance_momentum = level1_imb - self._prev_level1_imb
+
+            # Feature 6: Depth_Ratio
+            depth_ratio = bid_vol_all / (ask_vol_all + 1e-9)
+
+            # Feature 7: CVD_Proxy (cumulative OFI)
+            self._cumulative_ofi += ofi
+            cvd_proxy = self._cumulative_ofi
+
+            # Feature 8: Multi_Level_Imbalance_Top5
+            multi_level_imb_top5 = bid_vol_5 / (total_vol_5 + 1e-9)
+
+            # Update state for next tick
+            self._prev_bb_p = best_bid
+            self._prev_bb_v = best_bid_v
+            self._prev_ba_p = best_ask
+            self._prev_ba_v = best_ask_v
+            self._ofi_prev = ofi
+            self._prev_level1_imb = level1_imb
+
+            features_list = [
+                obi, spread, microprice,
+                ofi_acceleration, imbalance_momentum,
+                depth_ratio, cvd_proxy, multi_level_imb_top5
+            ]
             
             # Check if model expects more features (e.g. trained on Kline data instead of L2 data)
             if hasattr(self.model, 'n_features_in_'):
                 expected_features = self.model.n_features_in_
                 if expected_features > len(features_list):
-                    logger.warning(f"MLL2Predictor: Model expects {expected_features} features, but L2 provides {len(features_list)}. Padding with zeros.")
+                    if not self._feature_mismatch_logged:
+                        logger.warning(
+                            f"MLL2Predictor: Model expects {expected_features} features, but L2 provides "
+                            f"{len(features_list)}. Padding with zeros. "
+                            f"(This warning will only appear once — retrain model with L2-only features for best accuracy.)"
+                        )
+                        self._feature_mismatch_logged = True
                     features_list.extend([0.0] * (expected_features - len(features_list)))
                 elif expected_features < len(features_list):
                     features_list = features_list[:expected_features]
@@ -167,9 +233,12 @@ class MLL2Predictor:
 
             logger.info(f"🤖 MLL2Predictor: Target={target_side.upper()}, Bullish={is_bullish}, Pred={pred:.4f}")
 
-            if target_side.lower() == "long":
+            # Normalize: accept both "buy"/"long" and "sell"/"short"
+            normalized_side = target_side.lower()
+            is_long = normalized_side in ("long", "buy")
+            if is_long:
                 return is_bullish
-            else:  # short
+            else:  # short / sell
                 return not is_bullish
 
         except Exception as e:

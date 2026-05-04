@@ -284,6 +284,18 @@ class WallHunterBot:
         self.wick_sr_listener = WickSRStandaloneListener(self)
         # ----------------------------------------
         
+        # --- ML L2 Filter ---
+        self.enable_ml_filter = config.get("enable_ml_filter", False)
+        self.ai_model_id = config.get("ai_model_id", "")
+        self.ml_predictor = None
+        if self.enable_ml_filter and self.ai_model_id:
+            try:
+                from app.strategies.helpers.ml_l2_predictor import MLL2Predictor
+                self.ml_predictor = MLL2Predictor(self.ai_model_id)
+                self.logger.info(f"🤖 [WallHunter {self.bot_id}] ML L2 Filter initialized with model: {self.ai_model_id}")
+            except Exception as e:
+                self.logger.error(f"[WallHunter {self.bot_id}] Failed to initialize ML Predictor: {e}")
+
         self.engine = OrderBlockExecutionEngine(config, logger=self.logger, bot_id=self.bot_id)
         self.active_pos = None
         self.unlocked_supertrend_dir = None
