@@ -581,6 +581,12 @@ def train_model_task(job_id: str, db: Session):
             db_model.active_version_id = version_id
             
         job.output_model_id = registry_id
+        
+        # Save features metadata for the predictor
+        metadata_path = model_path.replace(".pkl", ".json").replace(".pt", ".json")
+        with open(metadata_path, "w") as f:
+            json.dump({"features": features}, f)
+            
         job.progress = 100.0
         job.status = models.TrainingStatus.COMPLETED
         job.completed_at = func.now()

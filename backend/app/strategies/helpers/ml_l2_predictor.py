@@ -60,6 +60,19 @@ class MLL2Predictor:
                 return
 
             logger.info(f"🤖 Loading L2 AI Model {self.model_type} from {file_path}...")
+            
+            # Attempt to load metadata (features list)
+            self.model_features = None
+            metadata_path = file_path.replace(".pkl", ".json").replace(".pt", ".json")
+            if os.path.exists(metadata_path):
+                import json
+                try:
+                    with open(metadata_path, "r") as f:
+                        meta = json.load(f)
+                        self.model_features = meta.get("features")
+                except Exception as e:
+                    logger.warning(f"MLL2Predictor: Failed to load metadata: {e}")
+
             if self.model_type in ["Random Forest", "XGBoost"]:
                 self.model = joblib.load(file_path)
                 self.is_loaded = True
@@ -79,8 +92,9 @@ class MLL2Predictor:
                         out = self.fc(out[:, -1, :])
                         return out
                 
-                # Input size is 3 for L2 data (obi, spread, microprice)
-                self.model = SimpleLSTM(input_size=3, hidden_size=64, num_layers=2, output_size=1)
+                # Determine input size
+                input_size = len(self.model_features) if self.model_features else 3
+                self.model = SimpleLSTM(input_size=input_size, hidden_size=64, num_layers=2, output_size=1)
                 try:
                     self.model.load_state_dict(torch.load(file_path))
                     self.model.eval()
@@ -186,27 +200,43 @@ class MLL2Predictor:
             self._ofi_prev = ofi
             self._prev_level1_imb = level1_imb
 
-            features_list = [
-                obi, spread, microprice,
-                ofi_acceleration, imbalance_momentum,
-                depth_ratio, cvd_proxy, multi_level_imb_top5
-            ]
-            
-            # Check if model expects more features (e.g. trained on Kline data instead of L2 data)
-            if hasattr(self.model, 'n_features_in_'):
-                expected_features = self.model.n_features_in_
-                if expected_features > len(features_list):
-                    if not self._feature_mismatch_logged:
-                        logger.warning(
-                            f"MLL2Predictor: Model expects {expected_features} features, but L2 provides "
-                            f"{len(features_list)}. Padding with zeros. "
-                            f"(This warning will only appear once — retrain model with L2-only features for best accuracy.)"
-                        )
-                        self._feature_mismatch_logged = True
-                    features_list.extend([0.0] * (expected_features - len(features_list)))
-                elif expected_features < len(features_list):
-                    features_list = features_list[:expected_features]
-                    
+            # 1.5 Prepare Features Array
+            if self.model_features:
+                # NEW WAY: Use exact features from metadata
+                calculated_features = {
+                    "obi": obi,
+                    "spread": spread,
+                    "microprice": microprice,
+                    "ofi_acceleration": ofi_acceleration,
+                    "imbalance_momentum": imbalance_momentum,
+                    "depth_ratio": depth_ratio,
+                    "cvd_proxy": cvd_proxy,
+                    "multi_level_imb_top5": multi_level_imb_top5,
+                    "Close": microprice  # fallback for Close if used
+                }
+                features_list = [calculated_features.get(f, 0.0) for f in self.model_features]
+            else:
+                # OLD WAY: Fallback for older models without metadata
+                features_list = [
+                    obi, spread, microprice,
+                    ofi_acceleration, imbalance_momentum,
+                    depth_ratio, cvd_proxy, multi_level_imb_top5
+                ]
+                
+                # Check if model expects more/fewer features
+                if hasattr(self.model, 'n_features_in_'):
+                    expected_features = self.model.n_features_in_
+                    if expected_features > len(features_list):
+                        if not self._feature_mismatch_logged:
+                            logger.warning(
+                                f"MLL2Predictor: Model expects {expected_features} features, but L2 provides "
+                                f"{len(features_list)}. Padding with zeros. "
+                            )
+                            self._feature_mismatch_logged = True
+                        features_list.extend([0.0] * (expected_features - len(features_list)))
+                    elif expected_features < len(features_list):
+                        features_list = features_list[:expected_features]
+                        
             features = np.array(features_list).reshape(1, -1)
 
             # 2. Predict
