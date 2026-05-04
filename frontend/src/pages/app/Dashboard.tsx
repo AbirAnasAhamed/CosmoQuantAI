@@ -186,7 +186,7 @@ const Dashboard: React.FC = () => {
 
     // Websocket Connection
     useEffect(() => {
-        const token = localStorage.getItem('accessToken');
+        const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
         const wsUrl = token
             ? `${protocol}//${window.location.host}/api/v1/dashboard/ws?token=${token}`

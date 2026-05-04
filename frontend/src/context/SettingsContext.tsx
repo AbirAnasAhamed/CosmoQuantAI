@@ -58,7 +58,7 @@ export const SettingsProvider: React.FC<{ children: ReactNode }> = ({ children }
     const [is2faEnabled, set2faEnabled] = useState(false);
 
     const loadUserData = useCallback(async () => {
-        const token = localStorage.getItem('accessToken');
+        const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
         if (!token) return;
 
         try {

@@ -8,7 +8,7 @@ const apiClient = axios.create({
 
 apiClient.interceptors.request.use(
     (config) => {
-        const token = localStorage.getItem('accessToken');
+        const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
         }
@@ -26,7 +26,8 @@ apiClient.interceptors.response.use(
             originalRequest._retry = true;
 
             try {
-                const refreshToken = localStorage.getItem('refreshToken');
+                const isSessionStorage = !!sessionStorage.getItem('refreshToken');
+                const refreshToken = sessionStorage.getItem('refreshToken') || localStorage.getItem('refreshToken');
 
                 if (!refreshToken) {
                     throw new Error("No refresh token");
@@ -35,10 +36,16 @@ apiClient.interceptors.response.use(
                 // পাথ আপডেট: /v1/auth/refresh-token
                 const { data } = await axios.post('/api/v1/auth/refresh-token', { refresh_token: refreshToken });
 
-                localStorage.setItem('accessToken', data.access_token);
-
-                if (data.refresh_token) {
-                    localStorage.setItem('refreshToken', data.refresh_token);
+                if (isSessionStorage) {
+                    sessionStorage.setItem('accessToken', data.access_token);
+                    if (data.refresh_token) {
+                        sessionStorage.setItem('refreshToken', data.refresh_token);
+                    }
+                } else {
+                    localStorage.setItem('accessToken', data.access_token);
+                    if (data.refresh_token) {
+                        localStorage.setItem('refreshToken', data.refresh_token);
+                    }
                 }
 
                 apiClient.defaults.headers.common['Authorization'] = `Bearer ${data.access_token}`;
@@ -48,6 +55,8 @@ apiClient.interceptors.response.use(
 
             } catch (refreshError) {
                 console.error("Session expired", refreshError);
+                sessionStorage.removeItem('accessToken');
+                sessionStorage.removeItem('refreshToken');
                 localStorage.removeItem('accessToken');
                 localStorage.removeItem('refreshToken');
                 window.location.href = '/';

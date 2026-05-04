@@ -188,7 +188,7 @@ const ArbitrageBot = () => {
         // NOTE: Port 8000 is typical for backend dev. Adjust if using proxy.
 
         const connectWs = () => {
-            const token = localStorage.getItem('accessToken');
+            const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
             const wsUrlWithToken = token ? `${wsUrl}?token=${token}` : wsUrl;
             wsRef.current = new WebSocket(wsUrlWithToken);
 

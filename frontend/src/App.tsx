@@ -27,9 +27,9 @@ function App() {
 
   useEffect(() => {
     // ✅ এই অংশটি আবার চালু (Uncomment) করে দিন
-    // এটি চেক করবে লোকাল স্টোরেজে টোকেন আছে কি না।
+    // এটি চেক করবে সেশন বা লোকাল স্টোরেজে টোকেন আছে কি না।
     // টোকেন থাকলে সরাসরি ড্যাশবোর্ডে নিয়ে যাবে (রিফ্রেশ দিলেও)।
-    const token = localStorage.getItem('accessToken');
+    const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
     if (token) {
       setAppState(AppState.LOGGED_IN);
       return;
@@ -81,7 +81,10 @@ function App() {
   }, []);
 
   const handleLogout = useCallback(() => {
-    localStorage.removeItem('accessToken'); // টোকেন মুছে ফেলুন
+    sessionStorage.removeItem('accessToken');
+    sessionStorage.removeItem('refreshToken');
+    localStorage.removeItem('accessToken');
+    localStorage.removeItem('refreshToken');
     setAppState(AppState.PUBLIC);
     setCurrentView(AppView.DASHBOARD);
     // পেজ রিফ্রেশ করে দিলে সব ক্লিন হয়ে যাবে (Context reset)

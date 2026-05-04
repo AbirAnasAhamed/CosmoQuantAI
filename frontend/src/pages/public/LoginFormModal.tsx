@@ -14,6 +14,7 @@ const LoginFormModal: React.FC<LoginFormModalProps> = ({ onClose, onLoginSuccess
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [showPassword, setShowPassword] = useState(false);
+    const [rememberMe, setRememberMe] = useState(false);
 
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -35,8 +36,9 @@ const LoginFormModal: React.FC<LoginFormModalProps> = ({ onClose, onLoginSuccess
                 password: password
             });
 
-            localStorage.setItem('accessToken', data.access_token);
-            localStorage.setItem('refreshToken', data.refresh_token);
+            const storage = rememberMe ? localStorage : sessionStorage;
+            storage.setItem('accessToken', data.access_token);
+            storage.setItem('refreshToken', data.refresh_token);
 
             console.log('Login Successful!', data);
             onLoginSuccess();
@@ -139,7 +141,12 @@ const LoginFormModal: React.FC<LoginFormModalProps> = ({ onClose, onLoginSuccess
 
                         <div className="flex justify-between items-center text-sm px-1">
                             <label className="flex items-center space-x-2.5 cursor-pointer">
-                                <input type="checkbox" className="w-3.5 h-3.5 rounded border-white/20 bg-transparent text-cyan-500 focus:ring-cyan-500/50 focus:ring-offset-0 transition-colors" />
+                                <input 
+                                    type="checkbox" 
+                                    checked={rememberMe}
+                                    onChange={(e) => setRememberMe(e.target.checked)}
+                                    className="w-3.5 h-3.5 rounded border-white/20 bg-transparent text-cyan-500 focus:ring-cyan-500/50 focus:ring-offset-0 transition-colors" 
+                                />
                                 <span className="text-slate-400 text-sm">Remember credentials</span>
                             </label>
                             <button type="button" onClick={onSwitchToForgotPassword} className="text-cyan-400 text-sm hover:text-cyan-300 transition-colors">Access Recovery?</button>

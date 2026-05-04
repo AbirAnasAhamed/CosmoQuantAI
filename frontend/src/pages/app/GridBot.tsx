@@ -490,7 +490,7 @@ const GridBot = () => {
         const host = window.location.host;
         // Connect to Bot Logs WS
         const wsUrl = `${protocol}//${host}/api/v1/grid-bot/ws/logs/${selectedBotId}`;
-        const token = localStorage.getItem('accessToken');
+        const token = sessionStorage.getItem('accessToken') || localStorage.getItem('accessToken');
         const url = token ? `${wsUrl}?token=${token}` : wsUrl;
 
         let ws: WebSocket | null = null;
