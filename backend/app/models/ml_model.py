@@ -21,7 +21,7 @@ class CustomMLModel(Base):
     
     is_auto_retrain = Column(Integer, default=0) # 0 = False, 1 = True (Using Integer for SQLite compatibility if needed, or Boolean)
     retrain_interval_hours = Column(Integer, default=6)
-    data_lookback_hours = Column(Integer, default=6)
+    data_lookback_hours = Column(Float, default=6.0)
     
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())

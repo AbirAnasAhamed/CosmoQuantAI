@@ -8,6 +8,7 @@ import AdvancedHyperparameters from '@/components/ml/AdvancedHyperparameters';
 import FeatureImportanceChart from '@/components/ml/FeatureImportanceChart';
 import { HeatmapSymbolSelector } from '../../components/features/market/HeatmapSymbolSelector';
 import LiveMarketPulse from '@/components/ml/LiveMarketPulse';
+import { FloatingTVChartButton } from '@/components/features/market/FloatingTVChartButton';
 
 const ModelTrainingStudio: React.FC = () => {
     const [symbol, setSymbol] = useState('BTC/USDT');
@@ -386,7 +387,11 @@ const ModelTrainingStudio: React.FC = () => {
                                                 disabled={isTraining}
                                                 className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400 outline-none transition-all disabled:opacity-50"
                                             >
+                                                <option className="bg-gray-900 text-white" value={0.08333}>Last 5 Minutes</option>
+                                                <option className="bg-gray-900 text-white" value={0.25}>Last 15 Minutes</option>
+                                                <option className="bg-gray-900 text-white" value={0.5}>Last 30 Minutes</option>
                                                 <option className="bg-gray-900 text-white" value={1}>Last 1 Hour</option>
+                                                <option className="bg-gray-900 text-white" value={4}>Last 4 Hours</option>
                                                 <option className="bg-gray-900 text-white" value={6}>Last 6 Hours</option>
                                                 <option className="bg-gray-900 text-white" value={12}>Last 12 Hours</option>
                                                 <option className="bg-gray-900 text-white" value={24}>Last 24 Hours</option>
@@ -753,6 +758,9 @@ const ModelTrainingStudio: React.FC = () => {
                     )}
                 </div>
             </div>
+
+            {/* ── Floating Training Chart FAB ─────────────────────────────────── */}
+            <FloatingTVChartButton symbol={symbol} exchange={exchange} />
         </div>
     );
 };

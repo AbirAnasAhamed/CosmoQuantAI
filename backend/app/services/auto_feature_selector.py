@@ -15,12 +15,35 @@ def calculate_l2_advanced_features(df: pd.DataFrame) -> pd.DataFrame:
     Calculates 50 advanced L2 orderbook features from raw snapshot data.
     Input df must contain: timestamp, bids (JSON string or list), asks (JSON string or list), Close (or microprice)
     """
-    # Ensure bids/asks are parsed
+    # Ensure bids/asks are parsed and normalized to [[price, qty], ...] format
     def parse_book(x):
         if isinstance(x, str):
-            try: return json.loads(x)
-            except: return []
-        return x if isinstance(x, list) else []
+            try:
+                x = json.loads(x)
+            except:
+                return []
+        if not isinstance(x, list):
+            return []
+        if not x:
+            return []
+        # Normalize: handle both [[price, qty], ...] and [{"price": p, "quantity": q}, ...]
+        first = x[0]
+        if isinstance(first, dict):
+            # dict format — try common key names
+            def _extract(item):
+                p = item.get('price', item.get('p', item.get('0', 0)))
+                q = item.get('quantity', item.get('qty', item.get('q', item.get('1', 0))))
+                return [float(p), float(q)]
+            return [_extract(item) for item in x]
+        elif isinstance(first, (list, tuple)):
+            return [[float(item[0]), float(item[1])] for item in x if len(item) >= 2]
+        elif isinstance(first, (int, float, str)):
+            # Flat list like [price, qty, price, qty, ...]
+            result = []
+            for i in range(0, len(x) - 1, 2):
+                result.append([float(x[i]), float(x[i+1])])
+            return result
+        return []
 
     df['bids_list'] = df['bids'].apply(parse_book)
     df['asks_list'] = df['asks'].apply(parse_book)
