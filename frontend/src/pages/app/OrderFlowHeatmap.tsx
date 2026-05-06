@@ -2624,7 +2624,7 @@ const OrderFlowHeatmap: React.FC = () => {
             {/* WALLHUNTER FLOATING ACTION BUTTON */}
             {
                 activeWallHunterId ? (
-                    <div className="fixed bottom-8 right-8 z-[100] flex flex-row gap-4 items-center">
+                    <div className="fixed bottom-8 right-8 z-[100] flex flex-row gap-4 items-center opacity-25 hover:opacity-100 transition-opacity duration-300">
                         <button
                             onClick={() => setIsWallHunterOpen(true)}
                             className="group relative w-12 h-12"
@@ -2660,7 +2660,7 @@ const OrderFlowHeatmap: React.FC = () => {
                 ) : (
                     <button
                         onClick={() => setIsWallHunterOpen(true)}
-                        className="fixed bottom-8 right-8 z-[100] group"
+                        className="fixed bottom-8 right-8 z-[100] group opacity-25 hover:opacity-100 transition-opacity duration-300"
                         title="Deploy WallHunter"
                     >
                         <div className="absolute inset-0 bg-yellow-500 rounded-full blur-xl opacity-40 group-hover:opacity-100 transition-opacity animate-pulse" />
@@ -2679,7 +2679,7 @@ const OrderFlowHeatmap: React.FC = () => {
             {/* FLOATING AI DEPLOYMENT BUTTON (above Level 2 Order Book) */}
             <button
                 onClick={() => setIsAIDeploymentModalOpen(true)}
-                className="fixed bottom-[356px] right-8 w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-br from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 border border-purple-400/30 text-white shadow-[0_0_24px_rgba(168,85,247,0.5)] z-[100] transition-transform hover:scale-110 focus:outline-none group"
+                className="fixed bottom-[356px] right-8 w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-br from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 border border-purple-400/30 text-white shadow-[0_0_24px_rgba(168,85,247,0.5)] z-[100] transition-all opacity-25 hover:opacity-100 hover:scale-110 focus:outline-none group"
                 title="Deploy AI Trading Model"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
@@ -2700,7 +2700,7 @@ const OrderFlowHeatmap: React.FC = () => {
             {/* FLOATING LEVEL 2 ORDER BOOK BUTTON (above TVChart button) */}
             <button
                 onClick={() => setIsOrderBookModalOpen(true)}
-                className="fixed bottom-[276px] right-8 w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 border border-blue-400/30 text-white shadow-[0_0_24px_rgba(59,130,246,0.5)] z-[100] transition-transform hover:scale-110 focus:outline-none group"
+                className="fixed bottom-[276px] right-8 w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 border border-blue-400/30 text-white shadow-[0_0_24px_rgba(59,130,246,0.5)] z-[100] transition-all opacity-25 hover:opacity-100 hover:scale-110 focus:outline-none group"
                 title="Level 2 Order Book"
             >
                 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
