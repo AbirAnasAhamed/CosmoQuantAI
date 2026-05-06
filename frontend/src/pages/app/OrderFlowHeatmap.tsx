@@ -1385,6 +1385,9 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                 isDown = true;
                 draggingOrderIdRef.current = clickedOrder.id;
                 
+                // Disable chart panning while dragging
+                chartRef.current?.applyOptions({ handleScroll: false, handleScale: false });
+                
                 if (!ghostLineRef.current) {
                     const isBuy = clickedOrder.side === 'buy';
                     ghostLineRef.current = candlestickSeriesRef.current.createPriceLine({
@@ -1426,10 +1429,13 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             if (!isDown || !draggingOrderIdRef.current || !ghostLineRef.current) {
                 isDown = false;
                 draggingOrderIdRef.current = null;
+                // Re-enable panning just in case
+                chartRef.current?.applyOptions({ handleScroll: true, handleScale: true });
                 return;
             }
             
             isDown = false;
+            chartRef.current?.applyOptions({ handleScroll: true, handleScale: true });
             container.style.cursor = 'crosshair';
             
             const chartRect = container.getBoundingClientRect();
@@ -1482,13 +1488,13 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             } catch (err: any) {
                 console.error('Edit order failed', err);
                 toast.error('Failed to update order: ' + (err.response?.data?.detail || err.message));
-                // Revert optimistic update
+            } finally {
+                // Always remove the optimistic modifying line after the API call completes
                 const modifyingKey = `${key}-modifying`;
                 if (wallLinesRef.current.has(modifyingKey)) {
                     try { candlestickSeriesRef.current?.removePriceLine(wallLinesRef.current.get(modifyingKey)); } catch (e) {}
                     wallLinesRef.current.delete(modifyingKey);
                 }
-            } finally {
                 setIsModifyingOrder(false);
                 isModifyingRef.current = false;
             }
