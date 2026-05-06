@@ -1564,3 +1564,103 @@ export const calculateWickRejectionSR = (
     result.levels = deduplicated;
     return result;
 };
+
+// --- VWAP Standard Deviation (Mean Reversion) ---
+
+export interface VWAPSDDataPoint {
+    time: string | number;
+    vwap: number;
+    upper1: number;
+    lower1: number;
+    upper2: number;
+    lower2: number;
+    upper3: number;
+    lower3: number;
+}
+
+/**
+ * Calculates Anchored VWAP and its Standard Deviation Bands
+ * @param data Candlestick data
+ * @param anchor Type of anchor ('Session', 'Daily', 'Weekly') - defaults to 'Daily'
+ * @param timezoneOffset Minutes offset from UTC
+ * @param mult1 Multiplier for Band 1 (default 1.0)
+ * @param mult2 Multiplier for Band 2 (default 2.0)
+ * @param mult3 Multiplier for Band 3 (default 2.5)
+ */
+export const calculateVWAPSD = (
+    data: { time: any; high: number; low: number; close: number; volume: number }[],
+    anchor: 'Session' | 'Daily' | 'Weekly' = 'Daily',
+    timezoneOffset: number = 0,
+    mult1: number = 1.0,
+    mult2: number = 2.0,
+    mult3: number = 2.5
+): VWAPSDDataPoint[] => {
+    const result: VWAPSDDataPoint[] = [];
+    if (data.length === 0) return result;
+
+    let cumVolume = 0;
+    let cumPriceVolume = 0;
+    let cumPriceVolumeSq = 0; // For variance: sum(vol * price^2)
+
+    let currentAnchorId = -1;
+
+    // Helper to determine the anchor ID (e.g. Day of year, Week of year)
+    const getAnchorId = (timestamp: number, type: 'Session' | 'Daily' | 'Weekly'): number => {
+        const ms = timestamp < 10000000000 ? timestamp * 1000 : timestamp;
+        const date = new Date(ms + timezoneOffset * 60 * 1000);
+        
+        if (type === 'Daily' || type === 'Session') { // Defaulting session to daily for now unless external session string provided
+            return Math.floor(ms / 86400000); 
+        } else if (type === 'Weekly') {
+            // roughly week id
+            return Math.floor(ms / (7 * 86400000));
+        }
+        return Math.floor(ms / 86400000);
+    };
+
+    for (let i = 0; i < data.length; i++) {
+        const bar = data[i];
+        const timeMs = (typeof bar.time === 'number' && bar.time < 10000000000) ? bar.time * 1000 : bar.time;
+        const anchorId = getAnchorId(timeMs, anchor);
+
+        // Reset cumulative values at new anchor period
+        if (anchorId !== currentAnchorId) {
+            cumVolume = 0;
+            cumPriceVolume = 0;
+            cumPriceVolumeSq = 0;
+            currentAnchorId = anchorId;
+        }
+
+        const typicalPrice = (bar.high + bar.low + bar.close) / 3;
+        const vol = bar.volume || 1; // avoid division by zero
+
+        cumVolume += vol;
+        cumPriceVolume += typicalPrice * vol;
+        cumPriceVolumeSq += (typicalPrice * typicalPrice) * vol;
+
+        let vwap = 0;
+        let stdDev = 0;
+
+        if (cumVolume > 0) {
+            vwap = cumPriceVolume / cumVolume;
+            
+            // Variance formula: E[X^2] - (E[X])^2
+            // weighted by volume: (sum(P^2 * V) / sum(V)) - VWAP^2
+            const variance = Math.max(0, (cumPriceVolumeSq / cumVolume) - (vwap * vwap));
+            stdDev = Math.sqrt(variance);
+        }
+
+        result.push({
+            time: bar.time,
+            vwap,
+            upper1: vwap + (stdDev * mult1),
+            lower1: vwap - (stdDev * mult1),
+            upper2: vwap + (stdDev * mult2),
+            lower2: vwap - (stdDev * mult2),
+            upper3: vwap + (stdDev * mult3),
+            lower3: vwap - (stdDev * mult3),
+        });
+    }
+
+    return result;
+};

@@ -189,6 +189,12 @@ export interface IndicatorSettings {
     wickSRAtrMultiplier: number;
     wickSRShowZones: boolean;
     wickSRShowLabels: boolean;
+    // ── VWAP SD Bands ──
+    showVWAPSD: boolean;
+    vwapSDMultiplier1: number;
+    vwapSDMultiplier2: number;
+    vwapSDMultiplier3: number;
+    vwapAnchor: 'Session' | 'Daily' | 'Weekly';
 }
 
 interface IndicatorSelectorProps {
@@ -683,6 +689,62 @@ export const IndicatorSelector: React.FC<IndicatorSelectorProps> = ({ settings, 
                                     <div className="bg-gray-50 dark:bg-white/5 rounded p-1.5 text-[9px] text-gray-500 leading-relaxed">
                                         <span className="text-red-400 font-bold">R</span> Resistance (wick tops) | <span className="text-emerald-400 font-bold">S</span> Support (wick bottoms)<br/>
                                         Strength: weak / strong / ultra | [X] = broken
+                                    </div>
+                                </div>
+                            )}
+                         </div>
+
+                         {/* VWAP Standard Deviation Bands */}
+                         <div className="flex flex-col gap-2 p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-colors group border-t border-gray-100 dark:border-white/5 mt-1 pt-3">
+                            <div className="flex items-center justify-between">
+                             <label className="flex items-center cursor-pointer flex-1">
+                                 <input
+                                     type="checkbox"
+                                     checked={settings.showVWAPSD}
+                                     onChange={() => toggleIndicator('showVWAPSD')}
+                                     className="w-4 h-4 text-brand-primary bg-gray-100 border-gray-300 rounded focus:ring-brand-primary dark:focus:ring-brand-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                 />
+                                 <span className="ml-3 text-sm font-bold bg-clip-text text-transparent bg-gradient-to-r from-yellow-400 via-orange-400 to-red-500 group-hover:brightness-125 transition-all">
+                                     🎯 VWAP SD Bands
+                                 </span>
+                             </label>
+                            </div>
+                            {settings.showVWAPSD && (
+                                <div className="flex flex-col gap-2 pl-7 animate-in slide-in-from-top-1 duration-200">
+                                    <div className="flex items-center gap-1 bg-gray-100 dark:bg-white/10 px-1.5 py-1 rounded">
+                                        <span className="text-gray-500 font-bold text-[10px]">Anchor:</span>
+                                        <select 
+                                            value={settings.vwapAnchor || 'Daily'}
+                                            onChange={(e) => onSettingsChange({ ...settings, vwapAnchor: e.target.value as any })}
+                                            className="w-full bg-transparent text-gray-700 dark:text-gray-300 focus:outline-none focus:text-yellow-500 text-center text-[10px]"
+                                        >
+                                            <option className="bg-white dark:bg-[#000000]" value="Session">Session</option>
+                                            <option className="bg-white dark:bg-[#000000]" value="Daily">Daily (00:00)</option>
+                                            <option className="bg-white dark:bg-[#000000]" value="Weekly">Weekly</option>
+                                        </select>
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-2 text-[10px]">
+                                        <div className="flex flex-col items-center gap-1 bg-gray-100 dark:bg-white/10 px-1 py-1 rounded">
+                                            <span className="text-sky-400 font-bold">1st SD</span>
+                                            <input type="number" value={settings.vwapSDMultiplier1}
+                                                onChange={(e) => updateSetting('vwapSDMultiplier1', parseFloat(e.target.value))}
+                                                className="w-full bg-transparent text-gray-700 dark:text-gray-300 focus:outline-none focus:text-sky-400 text-center"
+                                                min={0.1} max={5.0} step={0.1} title="Band 1 Multiplier" />
+                                        </div>
+                                        <div className="flex flex-col items-center gap-1 bg-gray-100 dark:bg-white/10 px-1 py-1 rounded">
+                                            <span className="text-purple-400 font-bold">2nd SD</span>
+                                            <input type="number" value={settings.vwapSDMultiplier2}
+                                                onChange={(e) => updateSetting('vwapSDMultiplier2', parseFloat(e.target.value))}
+                                                className="w-full bg-transparent text-gray-700 dark:text-gray-300 focus:outline-none focus:text-purple-400 text-center"
+                                                min={0.1} max={5.0} step={0.1} title="Band 2 Multiplier" />
+                                        </div>
+                                        <div className="flex flex-col items-center gap-1 bg-gray-100 dark:bg-white/10 px-1 py-1 rounded">
+                                            <span className="text-red-400 font-bold">3rd SD</span>
+                                            <input type="number" value={settings.vwapSDMultiplier3}
+                                                onChange={(e) => updateSetting('vwapSDMultiplier3', parseFloat(e.target.value))}
+                                                className="w-full bg-transparent text-gray-700 dark:text-gray-300 focus:outline-none focus:text-red-400 text-center"
+                                                min={0.1} max={5.0} step={0.1} title="Band 3 Multiplier (Extreme)" />
+                                        </div>
                                     </div>
                                 </div>
                             )}

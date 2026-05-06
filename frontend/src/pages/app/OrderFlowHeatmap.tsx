@@ -23,7 +23,7 @@ import { IchimokuRenderer } from '../../components/features/market/IchimokuRende
 import { calculateQuantumAi, QuantumAiResult } from '../../utils/quantumAi';
 import { IndicatorSelector, IndicatorSettings } from '../../components/features/market/IndicatorSelector';
 import { MACDRenderer } from '../../components/features/market/MACDRenderer';
-import { calculateEMA, calculateBollingerBands, BollingerBandsDataPoint, calculateMACD, calculateRSI, updateEMA, updateBollingerBands, updateRSI, calculateIchimoku, IchimokuDataPoint, calculateAdaptiveTrendFinder, TrendFinderResult, calculateUTBotAlerts, UTBotDataPoint, calculateSessions, SessionData, calculateSupertrend, SupertrendDataPoint, calculateMsbOb, MsbObResult, calculateWickRejectionSR, WickSRResult } from '../../utils/indicators';
+import { calculateEMA, calculateBollingerBands, BollingerBandsDataPoint, calculateMACD, calculateRSI, updateEMA, updateBollingerBands, updateRSI, calculateIchimoku, IchimokuDataPoint, calculateAdaptiveTrendFinder, TrendFinderResult, calculateUTBotAlerts, UTBotDataPoint, calculateSessions, SessionData, calculateSupertrend, SupertrendDataPoint, calculateMsbOb, MsbObResult, calculateWickRejectionSR, WickSRResult, calculateVWAPSD, VWAPSDDataPoint } from '../../utils/indicators';
 import { TrendFinderRenderer } from '../../components/features/market/TrendFinderRenderer';
 import { SessionsRenderer } from '../../components/features/market/SessionsRenderer';
 import { SupertrendRenderer } from '../../components/features/market/SupertrendRenderer';
@@ -50,6 +50,7 @@ import { FootprintImbalanceRenderer } from '../../components/features/market/Adv
 import { TradeBubbleChartRenderer } from '../../components/features/market/AdvancedMetrics/TradeBubbleChartRenderer';
 import { SpoofingDetectionRenderer } from '../../components/features/market/AdvancedMetrics/SpoofingDetectionRenderer';
 import { AnchoredVWAPRenderer } from '../../components/features/market/AdvancedMetrics/AnchoredVWAPRenderer';
+import { VWAPSDRenderer } from '../../components/features/market/AdvancedMetrics/VWAPSDRenderer';
 import { OIBOscillatorRenderer } from '../../components/features/market/AdvancedMetrics/OIBOscillatorRenderer';
 import { TPOProfileRenderer } from '../../components/features/market/AdvancedMetrics/TPOProfileRenderer';
 import { DeltaDivergenceRenderer } from '../../components/features/market/AdvancedMetrics/DeltaDivergenceRenderer';
@@ -124,6 +125,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
     const [wickSRData, setWickSRData] = useState<WickSRResult | null>(null);
     const [wickSRCandles, setWickSRCandles] = useState<any[]>([]);
     const [bbData, setBbData] = useState<BollingerBandsDataPoint[]>([]);
+    const [vwapSDData, setVwapSDData] = useState<VWAPSDDataPoint[]>([]);
 
     // Default to the right side (rough estimate, can be adjusted by screen size)
     const [quantumAiHudPos, setQuantumAiHudPos] = useState(() => {
@@ -787,6 +789,38 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
 
         setTimeout(runQuantumCalc, 0);
         const intervalId = setInterval(runQuantumCalc, 2000);
+
+        return () => clearInterval(intervalId);
+    }, [indicatorSettings]);
+
+    // ── VWAP Standard Deviation Bands Effect ──
+    useEffect(() => {
+        if (!indicatorSettings.showVWAPSD) {
+            setVwapSDData([]);
+            return;
+        }
+
+        const runVwapSDCalc = () => {
+            const candles = allCandlesRef.current;
+            if (!candles || candles.length < 5) return;
+            try {
+                const results = calculateVWAPSD(
+                    candles,
+                    indicatorSettings.vwapAnchor,
+                    indicatorSettings.timezoneOffset || 0,
+                    indicatorSettings.vwapSDMultiplier1,
+                    indicatorSettings.vwapSDMultiplier2,
+                    indicatorSettings.vwapSDMultiplier3
+                );
+                setVwapSDData(results);
+            } catch (err) {
+                console.warn('[VWAP SD] calculation error:', err);
+            }
+        };
+
+        setTimeout(runVwapSDCalc, 0);
+        // Refresh every second for live VWAP tracking
+        const intervalId = setInterval(runVwapSDCalc, 1000);
 
         return () => clearInterval(intervalId);
     }, [indicatorSettings]);
@@ -1791,6 +1825,13 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                         showZones={indicatorSettings.wickSRShowZones}
                         showLabels={indicatorSettings.wickSRShowLabels}
                         visible={indicatorSettings.showWickSR}
+                    />
+
+                    {/* VWAP Standard Deviation Bands */}
+                    <VWAPSDRenderer
+                        chart={chartRef.current}
+                        visible={indicatorSettings.showVWAPSD}
+                        data={vwapSDData}
                     />
                 </div>
                 <SessionsDashboard settings={indicatorSettings} statuses={sessionStatuses} />
