@@ -79,7 +79,7 @@ const parseIntervalToMs = (interval: string): number => {
 };
 
 // Chart Component
-const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: string; walls: { price: number, type: 'buy' | 'sell', size?: number }[]; currentPrice: number; showFootprint: boolean; showCVD: boolean; indicatorSettings: IndicatorSettings; tradeEvent: any; botStatus: any; openOrders: OpenLimitOrder[]; advancedMetrics: AdvancedMetricsSettings; advancedMetricsData: any; selectedApiKeyId: string | null }> = ({ exchange, symbol, interval, walls, currentPrice, showFootprint, showCVD, indicatorSettings, tradeEvent, botStatus, openOrders, advancedMetrics, advancedMetricsData, selectedApiKeyId }) => {
+const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: string; walls: { price: number, type: 'buy' | 'sell', size?: number }[]; currentPrice: number; showFootprint: boolean; showCVD: boolean; showVPVR: boolean; indicatorSettings: IndicatorSettings; tradeEvent: any; botStatus: any; openOrders: OpenLimitOrder[]; advancedMetrics: AdvancedMetricsSettings; advancedMetricsData: any; selectedApiKeyId: string | null }> = ({ exchange, symbol, interval, walls, currentPrice, showFootprint, showCVD, showVPVR, indicatorSettings, tradeEvent, botStatus, openOrders, advancedMetrics, advancedMetricsData, selectedApiKeyId }) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<any>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -1794,7 +1794,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                     />
                 </div>
                 <SessionsDashboard settings={indicatorSettings} statuses={sessionStatuses} />
-                <VolumeProfileWidget chart={chartRef.current} series={candlestickSeriesRef.current} data={vpvrData} />
+                {showVPVR && <VolumeProfileWidget chart={chartRef.current} series={candlestickSeriesRef.current} data={vpvrData} />}
 
                 {/* ── Quantum AI v8 Dashboard HUD ── */}
                 {indicatorSettings.showQuantumAI && quantumAiData.length > 0 && (() => {
@@ -2359,6 +2359,7 @@ const OrderFlowHeatmap: React.FC = () => {
     const [isEmergencySelling, setIsEmergencySelling] = useState(false); // NEW STATE
     const [isFullscreen, setIsFullscreen] = useState(false); // NEW STATE
     const [showCVD, setShowCVD] = useState(false); // NEW STATE
+    const [showVPVR, setShowVPVR] = useState(true); // NEW STATE
     const [isOrderBookModalOpen, setIsOrderBookModalOpen] = useState(false);
     const [isAIDeploymentModalOpen, setIsAIDeploymentModalOpen] = useState(false);
     const { bids, asks, walls, currentPrice, tradeEvent } = useLevel2MarketData(symbol, exchange);
@@ -2449,6 +2450,14 @@ const OrderFlowHeatmap: React.FC = () => {
                         {botWsConnected ? `Bot ${activeWallHunterId} Connected` : 'Live Data Socket'}
                     </span>
                     <button
+                        onClick={() => setShowVPVR(!showVPVR)}
+                        className={`text-xs font-semibold px-4 py-2 rounded-lg border transition-all ${showVPVR
+                            ? 'bg-blue-600 text-white border-blue-600 shadow-[0_0_15px_rgba(37,99,235,0.3)]'
+                            : 'bg-white dark:bg-black/20 text-gray-600 dark:text-gray-300 border-gray-200 dark:border-white/10 hover:bg-gray-50 dark:hover:bg-white/5'}`}
+                    >
+                        {showVPVR ? 'Hide Heatmap' : 'Show Heatmap'}
+                    </button>
+                    <button
                         onClick={() => setShowCVD(!showCVD)}
                         className={`text-xs font-semibold px-4 py-2 rounded-lg border transition-all ${showCVD
                             ? 'bg-purple-600 text-white border-purple-600 shadow-[0_0_15px_rgba(147,51,234,0.3)]'
@@ -2496,7 +2505,7 @@ const OrderFlowHeatmap: React.FC = () => {
                             </button>
                         </div>
                         <div className="flex-1 relative">
-                            <OrderFlowChart exchange={exchange} symbol={symbol} interval={interval} walls={filteredWalls} currentPrice={currentPrice} showFootprint={showFootprint} showCVD={showCVD} indicatorSettings={indicatorSettings} tradeEvent={tradeEvent} botStatus={botStatus} openOrders={openOrders} advancedMetrics={advancedMetrics} advancedMetricsData={advancedMetricsData} selectedApiKeyId={selectedApiKeyId} />
+                            <OrderFlowChart exchange={exchange} symbol={symbol} interval={interval} walls={filteredWalls} currentPrice={currentPrice} showFootprint={showFootprint} showCVD={showCVD} showVPVR={showVPVR} indicatorSettings={indicatorSettings} tradeEvent={tradeEvent} botStatus={botStatus} openOrders={openOrders} advancedMetrics={advancedMetrics} advancedMetricsData={advancedMetricsData} selectedApiKeyId={selectedApiKeyId} />
                         </div>
                     </div>
                     {/* Level 2 Order Book moved to floating modal */}
