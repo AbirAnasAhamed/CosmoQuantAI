@@ -600,8 +600,9 @@ def train_model_task(job_id: str, db: Session):
                 loss.backward()
                 optimizer.step()
                 
-            model_filename = model_path.replace(".pkl", ".pt")
-            torch.save(model.state_dict(), model_filename)
+            model_filename = model_filename.replace(".pkl", ".pt")
+            model_path = model_path.replace(".pkl", ".pt")
+            torch.save(model.state_dict(), model_path)
             
             model.eval()
             with torch.no_grad():
@@ -662,8 +663,9 @@ def train_model_task(job_id: str, db: Session):
                 loss.backward()
                 optimizer.step()
                 
-            model_filename = model_path.replace(".pkl", ".pt")
-            torch.save(model.state_dict(), model_filename)
+            model_filename = model_filename.replace(".pkl", ".pt")
+            model_path = model_path.replace(".pkl", ".pt")
+            torch.save(model.state_dict(), model_path)
             
             model.eval()
             with torch.no_grad():
@@ -719,8 +721,9 @@ def train_model_task(job_id: str, db: Session):
                 loss.backward()
                 optimizer.step()
                 
-            model_filename = model_path.replace(".pkl", ".pt")
-            torch.save(model.state_dict(), model_filename)
+            model_filename = model_filename.replace(".pkl", ".pt")
+            model_path = model_path.replace(".pkl", ".pt")
+            torch.save(model.state_dict(), model_path)
             
             model.eval()
             with torch.no_grad():

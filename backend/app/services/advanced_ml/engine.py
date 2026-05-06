@@ -153,6 +153,10 @@ class AdvancedMLEngine:
         start_time = time.time()
         model.learn(total_timesteps=total_timesteps)
         
+        # Save model
+        model_filename = f"model_{job.id}.zip"
+        model_path = os.path.join("uploads", "models", model_filename)
+        os.makedirs(os.path.dirname(model_path), exist_ok=True)
         model.save(model_path)
         
         # ✅ Log Equity Curve for Frontend Visualization
