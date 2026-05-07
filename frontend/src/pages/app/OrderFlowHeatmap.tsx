@@ -1474,7 +1474,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             
             const chartRect = container.getBoundingClientRect();
             const y = e.clientY - chartRect.top;
-            const newPrice = candlestickSeriesRef.current?.coordinateToPrice(y);
+            let newPrice = candlestickSeriesRef.current?.coordinateToPrice(y as any) as number | null | undefined;
             
             const orderId = draggingOrderIdRef.current;
             const targetOrder = openOrdersRef.current.find(o => o.id === orderId);
@@ -1486,6 +1486,15 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             } catch (err) {}
             
             if (!newPrice || !targetOrder || !selectedApiKeyId) return;
+
+            // Auto-adjust price to prevent PostOnly rejection (Capping at current market price)
+            if (targetOrder.side === 'buy' && newPrice > currentPrice) {
+                newPrice = currentPrice;
+                toast.success('Buy price capped at current market price (PostOnly)');
+            } else if (targetOrder.side === 'sell' && newPrice < currentPrice) {
+                newPrice = currentPrice;
+                toast.success('Sell price floored at current market price (PostOnly)');
+            }
             
             // Skip if moved less than a fraction
             if (Math.abs(targetOrder.price - newPrice) < (targetOrder.price * 0.0001)) return;

@@ -18,6 +18,7 @@ from app.services.ml_utils import extract_feature_importance, calculate_classifi
 from app.services.auto_feature_selector import calculate_l2_advanced_features
 from app.services.advanced_ml.engine import AdvancedMLEngine # ✅ Import New Engine
 from app.services.helpers.vwap_calculator import calculate_vwap_sd_features
+from app.services.helpers.institutional_features import add_smc_fvg, add_ict_killzones, add_wick_rejection, add_swing_structure, add_order_blocks
 
 def fetch_l2_data(symbol: str, db: Session, lookback_hours: int = 6, timeframe: str = None) -> pd.DataFrame:
     from app.models.orderbook_snapshot import OrderBookSnapshot
@@ -309,19 +310,66 @@ def train_model_task(job_id: str, db: Session):
             add_log(f"Fetched {len(df)} rows of market data.")
             job.progress = 15.0
             
-            # 2. Feature Engineering
+            # 2. Modular Feature Engineering
             indicators = config.get("indicators", ["RSI", "MACD"])
             add_log(f"Calculating technical indicators: {', '.join(indicators)}")
             
-            if "RSI" in indicators:
-                df.ta.rsi(append=True)
-            if "MACD" in indicators:
-                df.ta.macd(append=True)
-            if "BBANDS" in indicators:
-                df.ta.bbands(append=True)
-            if "VWAP_SD" in indicators:
-                vwap_feats = calculate_vwap_sd_features(df, anchor='Daily')
-                df['VWAP_Z_Score'] = vwap_feats['VWAP_Z_Score']
+            INDICATOR_REGISTRY = {
+                # Momentum
+                "RSI": lambda d: d.ta.rsi(append=True),
+                "Stoch": lambda d: d.ta.stoch(append=True),
+                "ROC": lambda d: d.ta.roc(append=True),
+                "CCI": lambda d: d.ta.cci(append=True),
+                "WillR": lambda d: d.ta.willr(append=True),
+                "MFI": lambda d: d.ta.mfi(append=True),
+                
+                # Trend
+                "MACD": lambda d: d.ta.macd(append=True),
+                "EMA": lambda d: d.ta.ema(append=True),
+                "SMA": lambda d: d.ta.sma(append=True),
+                "ADX": lambda d: d.ta.adx(append=True),
+                "Supertrend": lambda d: d.ta.supertrend(append=True),
+                "Parabolic SAR": lambda d: d.ta.psar(append=True),
+                
+                # Volatility
+                "BBANDS": lambda d: d.ta.bbands(append=True),
+                "ATR": lambda d: d.ta.atr(append=True),
+                "Keltner Channel": lambda d: d.ta.kc(append=True),
+                "Donchian Channel": lambda d: d.ta.donchian(append=True),
+                
+                # Volume
+                "OBV": lambda d: d.ta.obv(append=True),
+                "VWAP": lambda d: d.ta.vwap(append=True),
+                "CMF": lambda d: d.ta.cmf(append=True),
+                "ADOSC": lambda d: d.ta.adosc(append=True),
+                
+                # Institutional & Price Action
+                "SMC FVG": lambda d: add_smc_fvg(d),
+                "ICT Killzones": lambda d: add_ict_killzones(d),
+                "Wick Rejection": lambda d: add_wick_rejection(d),
+                "Market Structure": lambda d: add_swing_structure(d),
+                "Order Blocks": lambda d: add_order_blocks(d)
+            }
+            
+            successful_indicators = []
+            for ind in indicators:
+                if ind == "VWAP_SD":
+                    try:
+                        vwap_feats = calculate_vwap_sd_features(df, anchor='Daily')
+                        df['VWAP_Z_Score'] = vwap_feats['VWAP_Z_Score']
+                        successful_indicators.append(ind)
+                    except Exception as e:
+                        add_log(f"⚠️ Skipped indicator '{ind}': {str(e)}")
+                elif ind in INDICATOR_REGISTRY:
+                    try:
+                        INDICATOR_REGISTRY[ind](df)
+                        successful_indicators.append(ind)
+                    except Exception as e:
+                        add_log(f"⚠️ Skipped indicator '{ind}': {str(e)}")
+                else:
+                    add_log(f"⚠️ Unknown indicator requested: '{ind}'")
+                    
+            add_log(f"Successfully calculated {len(successful_indicators)} features.")
                 
             prediction_target = config.get("prediction_target", "classification")
             if prediction_target == "classification":

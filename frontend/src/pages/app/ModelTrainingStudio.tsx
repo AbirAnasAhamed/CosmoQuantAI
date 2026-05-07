@@ -52,7 +52,20 @@ const ModelTrainingStudio: React.FC = () => {
     const [currentJob, setCurrentJob] = useState<TrainingJob | null>(null);
     const logsEndRef = useRef<HTMLDivElement>(null);
 
-    const INDICATORS = ['RSI', 'MACD', 'BBANDS'];
+    const INDICATOR_CATEGORIES = [
+        { name: 'Institutional & SMC', indicators: ['SMC FVG', 'ICT Killzones', 'Order Blocks', 'Market Structure', 'Wick Rejection', 'VWAP_SD'] },
+        { name: 'Momentum', indicators: ['RSI', 'Stoch', 'ROC', 'CCI', 'WillR', 'MFI'] },
+        { name: 'Trend', indicators: ['MACD', 'EMA', 'SMA', 'ADX', 'Supertrend', 'Parabolic SAR'] },
+        { name: 'Volatility', indicators: ['BBANDS', 'ATR', 'Keltner Channel', 'Donchian Channel'] },
+        { name: 'Volume', indicators: ['OBV', 'VWAP', 'CMF', 'ADOSC'] }
+    ];
+
+    const PRESET_PACKS = [
+        { name: 'Institutional', icon: '🏦', list: ['SMC FVG', 'ICT Killzones', 'Order Blocks', 'Market Structure', 'Wick Rejection', 'VWAP_SD'] },
+        { name: 'Momentum', icon: '🚀', list: ['RSI', 'ROC', 'Stoch', 'MFI', 'WillR'] },
+        { name: 'Trend', icon: '📈', list: ['MACD', 'EMA', 'SMA', 'ADX', 'Supertrend'] },
+        { name: 'Kitchen Sink', icon: '🏆', list: ['SMC FVG', 'ICT Killzones', 'Order Blocks', 'Market Structure', 'Wick Rejection', 'VWAP_SD', 'RSI', 'Stoch', 'ROC', 'CCI', 'WillR', 'MFI', 'MACD', 'EMA', 'SMA', 'ADX', 'Supertrend', 'Parabolic SAR', 'BBANDS', 'ATR', 'Keltner Channel', 'Donchian Channel', 'OBV', 'VWAP', 'CMF', 'ADOSC'] }
+    ];
     const ALGORITHM_CATEGORIES = [
         { name: "Indicator & Tabular Engines", desc: "Fastest. Best for Technical Indicators & L2 Snapshots", algos: ['Random Forest', 'XGBoost', 'LightGBM', 'CatBoost'] },
         { name: "Trend & Sequence Memory", desc: "Best for tracking long-term trends & historical patterns", algos: ['LSTM', 'GRU'] },
@@ -117,6 +130,10 @@ const ModelTrainingStudio: React.FC = () => {
         setSelectedIndicators(prev => 
             prev.includes(ind) ? prev.filter(i => i !== ind) : [...prev, ind]
         );
+    };
+
+    const applyPresetPack = (packList: string[]) => {
+        setSelectedIndicators(packList);
     };
 
     const handleStartTraining = async () => {
@@ -633,20 +650,53 @@ const ModelTrainingStudio: React.FC = () => {
                                     <p className="text-xs text-slate-500 mt-1.5 ml-1 font-medium">Total history to download from Yahoo Finance.</p>
                                 </div>
 
-                            <div className="mt-4">
-                                <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
-                                    <Activity className="w-4 h-4 text-cyan-400" /> Feature Engineering
-                                </label>
-                                <div className="flex flex-wrap gap-2">
-                                    {INDICATORS.map(ind => (
-                                        <button
-                                            key={ind}
-                                            disabled={isTraining}
-                                            onClick={() => handleToggleIndicator(ind)}
-                                            className={`px-4 py-2 rounded-xl text-xs font-bold border transition-all duration-300 ${selectedIndicators.includes(ind) ? 'bg-cyan-500/20 text-cyan-400 border-cyan-400/50 shadow-[0_0_10px_rgba(34,211,238,0.2)]' : 'bg-white/5 text-slate-400 border-white/5 hover:border-white/20 hover:text-white hover:bg-white/10'}`}
-                                        >
-                                            {ind}
-                                        </button>
+                            <div className="mt-4 bg-black/40 border border-white/10 rounded-2xl p-5 shadow-inner">
+                                <div className="flex items-center justify-between mb-4">
+                                    <label className="block text-sm font-medium text-slate-300 flex items-center gap-2">
+                                        <Activity className="w-4 h-4 text-cyan-400" /> Feature Engineering Studio
+                                    </label>
+                                    <span className="text-xs font-bold text-cyan-400 bg-cyan-500/10 px-2.5 py-1 rounded-md border border-cyan-500/20">
+                                        {selectedIndicators.length} Selected
+                                    </span>
+                                </div>
+
+                                {/* Preset Packs */}
+                                <div className="mb-5 bg-white/5 p-3 rounded-xl border border-white/5">
+                                    <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-2">Preset Packs</p>
+                                    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                                        {PRESET_PACKS.map(pack => (
+                                            <button
+                                                key={pack.name}
+                                                disabled={isTraining}
+                                                onClick={() => applyPresetPack(pack.list)}
+                                                className="py-2 px-2 rounded-lg text-xs font-semibold bg-black/50 border border-white/10 hover:bg-white/10 hover:border-cyan-500/30 text-slate-300 transition-all flex items-center justify-center gap-1.5 disabled:opacity-50"
+                                            >
+                                                <span>{pack.icon}</span> <span className="truncate">{pack.name}</span>
+                                            </button>
+                                        ))}
+                                    </div>
+                                </div>
+
+                                {/* Categorized Indicators */}
+                                <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
+                                    {INDICATOR_CATEGORIES.map(category => (
+                                        <div key={category.name} className="space-y-2">
+                                            <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5 pb-1">
+                                                {category.name}
+                                            </p>
+                                            <div className="flex flex-wrap gap-2">
+                                                {category.indicators.map(ind => (
+                                                    <button
+                                                        key={ind}
+                                                        disabled={isTraining}
+                                                        onClick={() => handleToggleIndicator(ind)}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all duration-300 ${selectedIndicators.includes(ind) ? 'bg-cyan-500/20 text-cyan-400 border-cyan-400/50 shadow-[0_0_10px_rgba(34,211,238,0.2)]' : 'bg-black/60 text-slate-400 border-white/10 hover:border-white/30 hover:text-white hover:bg-white/10'}`}
+                                                    >
+                                                        {ind}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
                                     ))}
                                 </div>
                             </div>
