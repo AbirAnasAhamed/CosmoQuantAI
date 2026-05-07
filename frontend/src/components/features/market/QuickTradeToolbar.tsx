@@ -24,6 +24,7 @@ export const QuickTradeToolbar: React.FC<QuickTradeToolbarProps> = ({
   const [selectedApi, setSelectedApi] = useState<string>('');
   const [balanceData, setBalanceData] = useState<FastBalanceResponse | null>(null);
   const [isLoadingBalance, setIsLoadingBalance] = useState(false);
+  const [isMinimized, setIsMinimized] = useState(false);
   
   const [percentage, setPercentage] = useState<number>(0);
   const [dragState, setDragState] = useState<{ side: 'Buy' | 'Sell', x: number, y: number } | null>(null);
@@ -171,7 +172,7 @@ export const QuickTradeToolbar: React.FC<QuickTradeToolbarProps> = ({
       >
         {/* Drag Handle */}
         <div 
-          className="w-full flex flex-col justify-center items-center py-2 cursor-grab active:cursor-grabbing opacity-30 hover:opacity-100 transition-opacity"
+          className="w-full flex flex-col justify-center items-center pt-2 pb-1 cursor-grab active:cursor-grabbing opacity-30 hover:opacity-100 transition-opacity"
           onPointerDown={(e) => dragControls.start(e)}
           title="Drag Toolbar"
         >
@@ -179,50 +180,73 @@ export const QuickTradeToolbar: React.FC<QuickTradeToolbarProps> = ({
           <div className="w-5 h-1 bg-white rounded-full" />
         </div>
 
-        {/* Balance Indicator */}
-        <div className="flex flex-col items-center gap-1 border-b border-white/10 pb-2 mb-1 cursor-help" title={`Quote Balance: ${(balanceData?.quote_free || 0).toFixed(2)} ${quoteCurrency}`}>
-          <div className={`w-8 h-8 rounded-full flex items-center justify-center border transition-colors ${isLoadingBalance ? 'border-brand-primary/50 text-brand-primary animate-pulse' : 'border-white/20 text-gray-400 hover:text-white hover:border-white/40'}`}>
-            <Wallet className="w-4 h-4" />
-          </div>
-        </div>
-
-        {/* Percentages */}
-        {[25, 50, 75, 100].map(pct => (
-          <button
-            key={pct}
-            onClick={() => setPercentage(pct)}
-            className={`w-10 h-10 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center ${
-              percentage === pct 
-                ? 'bg-brand-primary text-white shadow-[0_0_10px_rgba(99,102,241,0.5)] border-transparent scale-110' 
-                : 'bg-black/40 text-gray-400 border border-white/10 hover:text-white hover:border-white/30 hover:bg-white/5'
-            }`}
-          >
-            {pct}%
-          </button>
-        ))}
-
-        {/* Selected Value Hint */}
-        <div className="text-[8px] text-center font-mono text-gray-500 my-1 min-h-[12px]">
-          {percentage > 0 ? `$${getDollarValue().toFixed(0)}` : 'Size'}
-        </div>
-
-        {/* Draggable Buy */}
-        <div 
-          className="w-10 h-10 rounded-xl bg-green-500/20 border border-green-500/50 text-green-400 hover:bg-green-500 hover:text-white transition-all flex flex-col items-center justify-center cursor-grab active:cursor-grabbing group shadow-[0_0_10px_rgba(34,197,94,0.15)]"
-          title="Drag to place Buy Limit"
-          onPointerDown={(e) => handlePointerDown(e, 'Buy')}
+        {/* Minimize Toggle */}
+        <button 
+          onClick={() => setIsMinimized(!isMinimized)}
+          className="w-full flex justify-center pb-2 opacity-50 hover:opacity-100 text-white transition-opacity"
+          title={isMinimized ? "Expand" : "Minimize"}
         >
-          <span className="text-[9px] font-black uppercase tracking-widest">Buy</span>
-        </div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform duration-300 ${isMinimized ? '-rotate-90' : 'rotate-90'}`}>
+             <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </button>
 
-        {/* Draggable Sell */}
-        <div 
-          className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/50 text-red-400 hover:bg-red-500 hover:text-white transition-all flex flex-col items-center justify-center cursor-grab active:cursor-grabbing group shadow-[0_0_10px_rgba(239,68,68,0.15)]"
-          title="Drag to place Sell Limit"
-          onPointerDown={(e) => handlePointerDown(e, 'Sell')}
-        >
-          <span className="text-[9px] font-black uppercase tracking-widest">Sell</span>
-        </div>
+        <AnimatePresence initial={false}>
+          {!isMinimized && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="flex flex-col gap-2 overflow-hidden"
+            >
+              {/* Balance Indicator */}
+              <div className="flex flex-col items-center gap-1 border-b border-white/10 pb-2 mb-1 cursor-help" title={`Quote Balance: ${(balanceData?.quote_free || 0).toFixed(2)} ${quoteCurrency}`}>
+                <div className={`w-8 h-8 rounded-full flex items-center justify-center border transition-colors ${isLoadingBalance ? 'border-brand-primary/50 text-brand-primary animate-pulse' : 'border-white/20 text-gray-400 hover:text-white hover:border-white/40'}`}>
+                  <Wallet className="w-4 h-4" />
+                </div>
+              </div>
+
+              {/* Percentages */}
+              {[25, 50, 75, 100].map(pct => (
+                <button
+                  key={pct}
+                  onClick={() => setPercentage(pct)}
+                  className={`w-10 h-10 rounded-xl text-[10px] font-bold transition-all flex items-center justify-center ${
+                    percentage === pct 
+                      ? 'bg-brand-primary text-white shadow-[0_0_10px_rgba(99,102,241,0.5)] border-transparent scale-110' 
+                      : 'bg-black/40 text-gray-400 border border-white/10 hover:text-white hover:border-white/30 hover:bg-white/5'
+                  }`}
+                >
+                  {pct}%
+                </button>
+              ))}
+
+              {/* Selected Value Hint */}
+              <div className="text-[8px] text-center font-mono text-gray-500 my-1 min-h-[12px]">
+                {percentage > 0 ? `$${getDollarValue().toFixed(0)}` : 'Size'}
+              </div>
+
+              {/* Draggable Buy */}
+              <div 
+                className="w-10 h-10 rounded-xl bg-green-500/20 border border-green-500/50 text-green-400 hover:bg-green-500 hover:text-white transition-all flex flex-col items-center justify-center cursor-grab active:cursor-grabbing group shadow-[0_0_10px_rgba(34,197,94,0.15)]"
+                title="Drag to place Buy Limit"
+                onPointerDown={(e) => handlePointerDown(e, 'Buy')}
+              >
+                <span className="text-[9px] font-black uppercase tracking-widest">Buy</span>
+              </div>
+
+              {/* Draggable Sell */}
+              <div 
+                className="w-10 h-10 rounded-xl bg-red-500/20 border border-red-500/50 text-red-400 hover:bg-red-500 hover:text-white transition-all flex flex-col items-center justify-center cursor-grab active:cursor-grabbing group shadow-[0_0_10px_rgba(239,68,68,0.15)]"
+                title="Drag to place Sell Limit"
+                onPointerDown={(e) => handlePointerDown(e, 'Sell')}
+              >
+                <span className="text-[9px] font-black uppercase tracking-widest">Sell</span>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </motion.div>
     </>
   );
