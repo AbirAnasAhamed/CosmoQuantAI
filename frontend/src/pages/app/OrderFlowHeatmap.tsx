@@ -435,12 +435,12 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
 
             // Cap/Floor for PostOnly logic
             // We calculate 1 tick = smallest price unit to ensure we stay maker side
-            const currentMarketPrice = currentPrice || dropPrice;
+            // Use smcDataRef to avoid stale closure (always has the latest live price)
+            const currentMarketPrice = smcDataRef.current.currentPrice || currentPrice || dropPrice;
             let priceWasCapped = false;
 
             if (side === 'Buy' && dropPrice >= currentMarketPrice) {
                 // BUY above or at market price → snap to just below current price (Best Bid)
-                // Use a small tick: for prices > 1, use 0.0001 precision; for prices < 1, use 0.00001
                 const tick = currentMarketPrice >= 1 ? 0.0001 : 0.00001;
                 dropPrice = currentMarketPrice - tick;
                 priceWasCapped = true;

@@ -279,6 +279,12 @@ class ManualTradeService:
                         logger.error(f"Failed to auto-detect best limit price: {e}")
                         raise HTTPException(status_code=500, detail=f"Failed to auto-fetch best limit price: {e}")
 
+                # PostOnly/timeInForce support — for all limit orders, not just autoBestLimit
+                time_in_force = params.get('timeInForce', '')
+                if time_in_force.lower() in ('postonly', 'post_only', 'post-only'):
+                    ex_params['postOnly'] = True
+                    logger.info(f"PostOnly flag set for {order_req.symbol} {order_req.side} limit order")
+
                 if not getattr(order_req, 'price', None) or order_req.price <= 0:
                     raise HTTPException(status_code=400, detail="Price is required for limit orders")
                 
