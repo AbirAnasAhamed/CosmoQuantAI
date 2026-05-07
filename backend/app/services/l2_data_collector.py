@@ -1,123 +1,224 @@
+"""
+Dynamic L2 Data Collector
+=========================
+- Automatically loads symbols from all is_auto_retrain=1 models in DB
+- Supports both Binance Spot and Binance Futures (USDT-M) WebSocket streams
+- Gracefully handles reconnection on disconnect
+"""
+
 import asyncio
 import json
 import websockets
 import time
-from sqlalchemy.orm import Session
+import logging
 from app.db.session import SessionLocal
 from app.models.orderbook_snapshot import OrderBookSnapshot
 
-class L2DataCollector:
-    def __init__(self, symbols=["btcusdt"], exchange="Binance"):
-        self.symbols = symbols
-        self.exchange = exchange
-        self.running = False
-        self.task = None
-        self._url = "wss://stream.binance.com:9443/ws"
+logger = logging.getLogger(__name__)
 
-    def calculate_micro_features(self, bids, asks):
-        # bids/asks format from binance: [["price", "volume"], ...]
+
+class L2DataCollector:
+    # Binance WebSocket base URLs
+    _SPOT_URL    = "wss://stream.binance.com:9443/stream"
+    _FUTURES_URL = "wss://fstream.binance.com/stream"
+
+    def __init__(self):
+        self.spot_symbols: list[str]    = []   # e.g. ["btcusdt"]
+        self.futures_symbols: list[str] = []   # e.g. ["dogeusdt"]
+        self.running = False
+        self._tasks: list[asyncio.Task] = []
+
+    # ── Symbol Helpers ─────────────────────────────────────────────────────
+
+    @staticmethod
+    def parse_symbol(raw: str) -> tuple[str, bool]:
+        """
+        Convert any ccxt-style symbol to (binance_stream_symbol, is_futures).
+        Examples:
+          "DOGE/USDT:USDT" → ("dogeusdt", True)
+          "BTC/USDT:USDT"  → ("btcusdt",  True)
+          "BTC/USDT"       → ("btcusdt",  False)
+          "DOGEUSDT"       → ("dogeusdt", False)
+        """
+        is_futures = ":" in raw
+        clean = raw.upper().split(":")[0].replace("/", "").lower()
+        return clean, is_futures
+
+    @staticmethod
+    def _build_url(base: str, symbols: list[str]) -> str:
+        """Build a Binance combined-stream URL for the given symbols."""
+        streams = "/".join(f"{s}@depth20@100ms" for s in symbols)
+        return f"{base}?streams={streams}"
+
+    # ── DB Symbol Loader ───────────────────────────────────────────────────
+
+    def load_symbols_from_db(self) -> tuple[list[str], list[str]]:
+        """
+        Query DB for ALL models in ML Registry and extract their symbols.
+        Returns (spot_symbols, futures_symbols) as lowercase Binance stream names.
+        """
+        from app.models.ml_model import CustomMLModel
+        db = SessionLocal()
+        spot, futures = [], []
+        try:
+            # ✅ ALL models — auto-retrain on OR off
+            models = db.query(CustomMLModel).all()
+
+            for m in models:
+                raw = m.name.split(" ")[0] if " " in m.name else m.name
+                stream_sym, is_fut = self.parse_symbol(raw)
+                if not stream_sym:
+                    continue
+                target = futures if is_fut else spot
+                if stream_sym not in target:
+                    target.append(stream_sym)
+                    logger.info(
+                        f"[L2Collector] {'Futures' if is_fut else 'Spot'} symbol "
+                        f"from model '{m.name}': {stream_sym}"
+                    )
+
+            if not spot and not futures:
+                logger.info("[L2Collector] No models in ML Registry. Collector will stay idle.")
+
+            return spot, futures
+        except Exception as e:
+            logger.error(f"[L2Collector] DB symbol load failed: {e}")
+            return [], []
+        finally:
+            db.close()
+
+    # ── Micro-Feature Calculator ───────────────────────────────────────────
+
+    @staticmethod
+    def calculate_micro_features(bids, asks) -> tuple[float, float, float]:
         if not bids or not asks:
             return 0.0, 0.0, 0.0
-            
         try:
-            best_bid_price = float(bids[0][0])
-            best_ask_price = float(asks[0][0])
-            spread = best_ask_price - best_bid_price
-            
-            # Sum volume for top 10 levels
+            best_bid = float(bids[0][0])
+            best_ask = float(asks[0][0])
+            spread   = best_ask - best_bid
+
             bid_vol = sum(float(b[1]) for b in bids[:10])
             ask_vol = sum(float(a[1]) for a in asks[:10])
-            
-            obi = (bid_vol - ask_vol) / (bid_vol + ask_vol) if (bid_vol + ask_vol) > 0 else 0.0
-            
-            # Microprice: Volume weighted mid price
-            microprice = (best_bid_price * ask_vol + best_ask_price * bid_vol) / (bid_vol + ask_vol) if (bid_vol + ask_vol) > 0 else (best_bid_price + best_ask_price) / 2
-            
+            total   = bid_vol + ask_vol
+
+            obi        = (bid_vol - ask_vol) / total if total > 0 else 0.0
+            microprice = (best_bid * ask_vol + best_ask * bid_vol) / total if total > 0 \
+                         else (best_bid + best_ask) / 2
+
             return obi, spread, microprice
         except Exception:
             return 0.0, 0.0, 0.0
 
-    async def _save_to_db(self, symbol, bids, asks, obi, spread, microprice):
+    # ── DB Save ────────────────────────────────────────────────────────────
+
+    async def _save_to_db(self, symbol: str, bids, asks,
+                          obi: float, spread: float, microprice: float,
+                          exchange: str):
         db = SessionLocal()
         try:
-            # We don't save every 100ms as it will crash the DB.
-            # We save every 1 second (1000ms). The caller will rate limit it.
-            snapshot = OrderBookSnapshot(
-                exchange=self.exchange,
-                symbol=symbol.upper(),
-                bids=bids[:20],  # Save only top 20 levels
+            snap = OrderBookSnapshot(
+                exchange=exchange,
+                symbol=symbol.upper(),   # stored as e.g. "DOGEUSDT"
+                bids=bids[:20],
                 asks=asks[:20],
                 obi=obi,
                 spread=spread,
-                microprice=microprice
+                microprice=microprice,
             )
-            db.add(snapshot)
+            db.add(snap)
             db.commit()
         except Exception as e:
-            print(f"Error saving L2 data to DB: {e}")
+            logger.error(f"[L2Collector] DB save error for {symbol}: {e}")
             db.rollback()
         finally:
             db.close()
 
-    async def start_collector(self):
-        self.running = True
-        
-        streams = [f"{s.lower()}@depth20@100ms" for s in self.symbols]
-        stream_url = self._url + "/" + "/".join(streams)
-        
-        last_save_time = {}
-        
+    # ── Stream Runner ──────────────────────────────────────────────────────
+
+    async def _run_stream(self, base_url: str, symbols: list[str], label: str):
+        """Connect to a Binance combined WebSocket stream and persist snapshots."""
+        url = self._build_url(base_url, symbols)
+        last_save: dict[str, float] = {}
+
         while self.running:
             try:
-                print(f"🚀 L2DataCollector connecting to {stream_url}...")
-                async with websockets.connect(stream_url) as ws:
-                    print("✅ L2DataCollector connected successfully.")
+                logger.info(f"[L2Collector] [{label}] Connecting → {symbols}")
+                async with websockets.connect(url, ping_interval=20, ping_timeout=30) as ws:
+                    logger.info(f"[L2Collector] [{label}] ✅ Connected.")
+                    print(f"✅ L2DataCollector [{label}] connected successfully.")
+
                     while self.running:
-                        message = await ws.recv()
-                        data = json.loads(message)
-                        
-                        # Handle multi-stream payload format if used, else direct payload
-                        # Binance format for @depth20:
-                        # {
-                        #   "lastUpdateId": 160,
-                        #   "bids": [ [ "4.00000000", "431.00000000" ] ],
-                        #   "asks": [ [ "4.00000200", "12.00000000" ] ]
-                        # }
-                        # Wait, since we are subscribing directly, the symbol isn't in the root unless it's a combined stream.
-                        # If we use a combined stream, it looks like: {"stream":"btcusdt@depth20@100ms","data":{...}}
-                        # Wait, we used `wss://stream.binance.com:9443/ws/btcusdt@depth20@100ms`, which is a single stream if there is only 1 symbol.
-                        # Let's handle both just in case.
-                        if "data" in data and "stream" in data:
-                            symbol = data["stream"].split("@")[0].upper()
+                        raw = await ws.recv()
+                        data = json.loads(raw)
+
+                        # Combined stream payload: {"stream": "...", "data": {...}}
+                        if "stream" in data and "data" in data:
+                            sym     = data["stream"].split("@")[0].upper()
                             payload = data["data"]
                         else:
-                            symbol = self.symbols[0].upper() # Fallback for single stream
+                            # Fallback for single-stream (shouldn't happen with ?streams=)
+                            sym     = symbols[0].upper()
                             payload = data
-                            
+
                         bids = payload.get("bids", [])
                         asks = payload.get("asks", [])
-                        
-                        current_time = time.time()
-                        # Only save 1 snapshot per second per symbol to DB
-                        if symbol not in last_save_time or (current_time - last_save_time[symbol]) >= 1.0:
-                            obi, spread, microprice = self.calculate_micro_features(bids, asks)
-                            asyncio.create_task(self._save_to_db(symbol, bids, asks, obi, spread, microprice))
-                            last_save_time[symbol] = current_time
-                            
+
+                        now = time.time()
+                        # Rate-limit: 1 DB save per symbol per second
+                        if sym not in last_save or (now - last_save[sym]) >= 1.0:
+                            obi, spread, mp = self.calculate_micro_features(bids, asks)
+                            asyncio.create_task(
+                                self._save_to_db(sym, bids, asks, obi, spread, mp, label)
+                            )
+                            last_save[sym] = now
+
+            except asyncio.CancelledError:
+                logger.info(f"[L2Collector] [{label}] Stream cancelled.")
+                break
             except Exception as e:
-                print(f"❌ L2DataCollector WebSocket Error: {e}")
+                logger.warning(f"[L2Collector] [{label}] ⚠️ Stream error: {e}")
                 if self.running:
-                    await asyncio.sleep(5)  # Reconnect delay
+                    await asyncio.sleep(5)   # Reconnect delay
 
-    def start(self):
-        if not self.task:
-            self.task = asyncio.create_task(self.start_collector())
-            
+    # ── Public API ─────────────────────────────────────────────────────────
+
+    def start(self, spot_symbols: list[str] = None, futures_symbols: list[str] = None):
+        """Start collector tasks for the given symbol lists."""
+        self.running         = True
+        self.spot_symbols    = spot_symbols    or ["btcusdt"]
+        self.futures_symbols = futures_symbols or []
+
+        if self.spot_symbols:
+            t = asyncio.create_task(
+                self._run_stream(self._SPOT_URL, self.spot_symbols, "Binance Spot")
+            )
+            self._tasks.append(t)
+
+        if self.futures_symbols:
+            t = asyncio.create_task(
+                self._run_stream(self._FUTURES_URL, self.futures_symbols, "Binance Futures")
+            )
+            self._tasks.append(t)
+
+        logger.info(
+            f"[L2Collector] Started — Spot: {self.spot_symbols} | "
+            f"Futures: {self.futures_symbols}"
+        )
+
     def stop(self):
+        """Cancel all running stream tasks."""
         self.running = False
-        if self.task:
-            self.task.cancel()
-            self.task = None
+        for t in self._tasks:
+            t.cancel()
+        self._tasks.clear()
+        logger.info("[L2Collector] Stopped.")
 
-# Global instance
+    def symbols_changed(self, new_spot: list[str], new_futures: list[str]) -> bool:
+        """Return True if the symbol lists have changed."""
+        return set(new_spot) != set(self.spot_symbols) or \
+               set(new_futures) != set(self.futures_symbols)
+
+
+# Global singleton
 l2_collector = L2DataCollector()

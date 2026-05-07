@@ -263,6 +263,16 @@ def train_model_task(job_id: str, db: Session):
         config = job.config or {}
         dataset_type = config.get("dataset_type", "ohlcv")
         lookback_hours = config.get("data_lookback_hours", 6)
+
+        # ── Fine-Tune Detection ─────────────────────────────────────────────
+        _prev_path = config.get("previous_model_path")
+        is_fine_tune = (
+            bool(config.get("fine_tune", False)) and
+            _prev_path is not None and
+            os.path.exists(str(_prev_path))
+        )
+        ft_label = f"🔄 Fine-Tune from: {_prev_path}" if is_fine_tune else "🆕 Fresh Training (no prior checkpoint)"
+        add_log(ft_label)
         
         if dataset_type == "l2_orderbook":
             resample_l2 = config.get("resample_l2", True)
@@ -441,7 +451,17 @@ def train_model_task(job_id: str, db: Session):
             add_log(f"Training Random Forest ({prediction_target.capitalize()})...")
             if prediction_target == "classification":
                 from sklearn.ensemble import RandomForestClassifier
-                model = RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42)
+                if is_fine_tune:
+                    try:
+                        model = joblib.load(_prev_path)
+                        model.warm_start = True
+                        model.n_estimators += epochs
+                        add_log(f"✅ Fine-Tuning RF: adding {epochs} trees → total {model.n_estimators}")
+                    except Exception as _ft_e:
+                        add_log(f"⚠️ Fine-tune load failed ({_ft_e}), falling back to fresh.")
+                        model = RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42)
+                else:
+                    model = RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42)
                 model.fit(X_train, y_train.ravel())
                 start_time = time.time()
                 y_pred = model.predict(X_test)
@@ -450,7 +470,17 @@ def train_model_task(job_id: str, db: Session):
                 process_metrics(calculate_classification_metrics(y_test.ravel(), y_pred), True)
             else:
                 from sklearn.ensemble import RandomForestRegressor
-                model = RandomForestRegressor(n_estimators=epochs, max_depth=max_depth, random_state=42)
+                if is_fine_tune:
+                    try:
+                        model = joblib.load(_prev_path)
+                        model.warm_start = True
+                        model.n_estimators += epochs
+                        add_log(f"✅ Fine-Tuning RF Regressor: adding {epochs} trees → total {model.n_estimators}")
+                    except Exception as _ft_e:
+                        add_log(f"⚠️ Fine-tune load failed ({_ft_e}), falling back to fresh.")
+                        model = RandomForestRegressor(n_estimators=epochs, max_depth=max_depth, random_state=42)
+                else:
+                    model = RandomForestRegressor(n_estimators=epochs, max_depth=max_depth, random_state=42)
                 model.fit(X_train, y_train.ravel())
                 start_time = time.time()
                 y_pred = model.predict(X_test)
@@ -467,10 +497,18 @@ def train_model_task(job_id: str, db: Session):
             
         elif job.algorithm == "XGBoost":
             add_log(f"Training XGBoost ({prediction_target.capitalize()})...")
+            _xgb_init = None
+            if is_fine_tune:
+                try:
+                    _prev_xgb = joblib.load(_prev_path)
+                    _xgb_init = _prev_xgb.get_booster()
+                    add_log(f"✅ Fine-Tuning XGBoost: continuing from previous booster")
+                except Exception as _ft_e:
+                    add_log(f"⚠️ XGBoost fine-tune load failed ({_ft_e}), training fresh.")
             if prediction_target == "classification":
                 from xgboost import XGBClassifier
                 model = XGBClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
-                model.fit(X_train, y_train.ravel(), eval_set=[(X_test, y_test.ravel())], verbose=False)
+                model.fit(X_train, y_train.ravel(), eval_set=[(X_test, y_test.ravel())], verbose=False, xgb_model=_xgb_init)
                 start_time = time.time()
                 y_pred = model.predict(X_test)
                 end_time = time.time()
@@ -479,7 +517,7 @@ def train_model_task(job_id: str, db: Session):
             else:
                 from xgboost import XGBRegressor
                 model = XGBRegressor(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
-                model.fit(X_train, y_train.ravel(), eval_set=[(X_test, y_test.ravel())], verbose=False)
+                model.fit(X_train, y_train.ravel(), eval_set=[(X_test, y_test.ravel())], verbose=False, xgb_model=_xgb_init)
                 start_time = time.time()
                 y_pred = model.predict(X_test)
                 end_time = time.time()
@@ -518,12 +556,26 @@ def train_model_task(job_id: str, db: Session):
             
             model = SimpleLSTM(input_size=X_train.shape[1], hidden_size=64, num_layers=2, output_size=1)
             
+            # ── Fine-Tune: load previous weights ───────────────────────────
+            _ft_lr = learning_rate
+            if is_fine_tune:
+                _pt_path = _prev_path.replace('.pkl', '.pt') if _prev_path.endswith('.pkl') else _prev_path
+                if os.path.exists(_pt_path):
+                    try:
+                        model.load_state_dict(torch.load(_pt_path, map_location='cpu'))
+                        _ft_lr = learning_rate * 0.1
+                        add_log(f"✅ Fine-Tuning LSTM from {_pt_path} (LR: {_ft_lr:.6f})")
+                    except Exception as _ft_e:
+                        add_log(f"⚠️ LSTM weight load failed ({_ft_e}), training fresh.")
+                else:
+                    add_log("⚠️ No .pt checkpoint found, training LSTM fresh.")
+            
             if prediction_target == "classification":
                 criterion = nn.BCEWithLogitsLoss()
             else:
                 criterion = nn.MSELoss()
                 
-            optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+            optimizer = torch.optim.Adam(model.parameters(), lr=_ft_lr)
             
             add_log(f"Starting LSTM training for {epochs} epochs...")
             for epoch in range(epochs):
@@ -563,9 +615,16 @@ def train_model_task(job_id: str, db: Session):
         elif job.algorithm == "LightGBM":
             add_log(f"Training LightGBM ({prediction_target.capitalize()})...")
             import lightgbm as lgb
+            _lgb_init = None
+            if is_fine_tune:
+                try:
+                    _lgb_init = joblib.load(_prev_path)
+                    add_log(f"✅ Fine-Tuning LightGBM: continuing from previous model")
+                except Exception as _ft_e:
+                    add_log(f"⚠️ LightGBM fine-tune load failed ({_ft_e}), training fresh.")
             if prediction_target == "classification":
                 model = lgb.LGBMClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
-                model.fit(X_train, y_train.ravel(), eval_set=[(X_test, y_test.ravel())])
+                model.fit(X_train, y_train.ravel(), eval_set=[(X_test, y_test.ravel())], init_model=_lgb_init)
                 start_time = time.time()
                 y_pred = model.predict(X_test)
                 end_time = time.time()
@@ -573,7 +632,7 @@ def train_model_task(job_id: str, db: Session):
                 process_metrics(calculate_classification_metrics(y_test.ravel(), y_pred), True)
             else:
                 model = lgb.LGBMRegressor(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
-                model.fit(X_train, y_train.ravel(), eval_set=[(X_test, y_test.ravel())])
+                model.fit(X_train, y_train.ravel(), eval_set=[(X_test, y_test.ravel())], init_model=_lgb_init)
                 start_time = time.time()
                 y_pred = model.predict(X_test)
                 end_time = time.time()
@@ -590,9 +649,16 @@ def train_model_task(job_id: str, db: Session):
         elif job.algorithm == "CatBoost":
             add_log(f"Training CatBoost ({prediction_target.capitalize()})...")
             import catboost as cb
+            _cb_init = None
+            if is_fine_tune:
+                try:
+                    _cb_init = joblib.load(_prev_path)
+                    add_log(f"✅ Fine-Tuning CatBoost: initialising from previous model")
+                except Exception as _ft_e:
+                    add_log(f"⚠️ CatBoost fine-tune load failed ({_ft_e}), training fresh.")
             if prediction_target == "classification":
                 model = cb.CatBoostClassifier(iterations=epochs, learning_rate=learning_rate, depth=max_depth, random_seed=42, verbose=False)
-                model.fit(X_train, y_train.ravel(), eval_set=(X_test, y_test.ravel()))
+                model.fit(X_train, y_train.ravel(), eval_set=(X_test, y_test.ravel()), init_model=_cb_init)
                 start_time = time.time()
                 y_pred = model.predict(X_test)
                 end_time = time.time()
@@ -600,7 +666,7 @@ def train_model_task(job_id: str, db: Session):
                 process_metrics(calculate_classification_metrics(y_test.ravel(), y_pred), True)
             else:
                 model = cb.CatBoostRegressor(iterations=epochs, learning_rate=learning_rate, depth=max_depth, random_seed=42, verbose=False)
-                model.fit(X_train, y_train.ravel(), eval_set=(X_test, y_test.ravel()))
+                model.fit(X_train, y_train.ravel(), eval_set=(X_test, y_test.ravel()), init_model=_cb_init)
                 start_time = time.time()
                 y_pred = model.predict(X_test)
                 end_time = time.time()
@@ -639,12 +705,26 @@ def train_model_task(job_id: str, db: Session):
             
             model = SimpleGRU(input_size=X_train.shape[1], hidden_size=64, num_layers=2, output_size=1)
             
+            # ── Fine-Tune: load previous weights ───────────────────────────
+            _ft_lr = learning_rate
+            if is_fine_tune:
+                _pt_path = _prev_path.replace('.pkl', '.pt') if _prev_path.endswith('.pkl') else _prev_path
+                if os.path.exists(_pt_path):
+                    try:
+                        model.load_state_dict(torch.load(_pt_path, map_location='cpu'))
+                        _ft_lr = learning_rate * 0.1
+                        add_log(f"✅ Fine-Tuning GRU from {_pt_path} (LR: {_ft_lr:.6f})")
+                    except Exception as _ft_e:
+                        add_log(f"⚠️ GRU weight load failed ({_ft_e}), training fresh.")
+                else:
+                    add_log("⚠️ No .pt checkpoint found, training GRU fresh.")
+            
             if prediction_target == "classification":
                 criterion = nn.BCEWithLogitsLoss()
             else:
                 criterion = nn.MSELoss()
                 
-            optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+            optimizer = torch.optim.Adam(model.parameters(), lr=_ft_lr)
             
             add_log(f"Starting GRU training for {epochs} epochs...")
             for epoch in range(epochs):
@@ -703,12 +783,26 @@ def train_model_task(job_id: str, db: Session):
             
             model = CNN1D(input_size=X_train.shape[1], output_size=1)
             
+            # ── Fine-Tune: load previous weights ───────────────────────────
+            _ft_lr = learning_rate
+            if is_fine_tune:
+                _pt_path = _prev_path.replace('.pkl', '.pt') if _prev_path.endswith('.pkl') else _prev_path
+                if os.path.exists(_pt_path):
+                    try:
+                        model.load_state_dict(torch.load(_pt_path, map_location='cpu'))
+                        _ft_lr = learning_rate * 0.1
+                        add_log(f"✅ Fine-Tuning 1D-CNN from {_pt_path} (LR: {_ft_lr:.6f})")
+                    except Exception as _ft_e:
+                        add_log(f"⚠️ 1D-CNN weight load failed ({_ft_e}), training fresh.")
+                else:
+                    add_log("⚠️ No .pt checkpoint found, training 1D-CNN fresh.")
+            
             if prediction_target == "classification":
                 criterion = nn.BCEWithLogitsLoss()
             else:
                 criterion = nn.MSELoss()
                 
-            optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+            optimizer = torch.optim.Adam(model.parameters(), lr=_ft_lr)
             
             for epoch in range(epochs):
                 outputs = model(X_train_t)
@@ -761,12 +855,26 @@ def train_model_task(job_id: str, db: Session):
             y_train_t = torch.FloatTensor(y_train)
             model = DeepLOB(input_size=X_train.shape[1], output_size=1)
             
+            # ── Fine-Tune: load previous weights ───────────────────────────
+            _ft_lr = learning_rate
+            if is_fine_tune:
+                _pt_path = _prev_path.replace('.pkl', '.pt') if _prev_path.endswith('.pkl') else _prev_path
+                if os.path.exists(_pt_path):
+                    try:
+                        model.load_state_dict(torch.load(_pt_path, map_location='cpu'))
+                        _ft_lr = learning_rate * 0.1
+                        add_log(f"✅ Fine-Tuning DeepLOB from {_pt_path} (LR: {_ft_lr:.6f})")
+                    except Exception as _ft_e:
+                        add_log(f"⚠️ DeepLOB weight load failed ({_ft_e}), training fresh.")
+                else:
+                    add_log("⚠️ No .pt checkpoint found, training DeepLOB fresh.")
+            
             if prediction_target == "classification":
                 criterion = nn.BCEWithLogitsLoss()
             else:
                 criterion = nn.MSELoss()
                 
-            optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+            optimizer = torch.optim.Adam(model.parameters(), lr=_ft_lr)
             
             for epoch in range(epochs):
                 outputs = model(X_train_t)
@@ -796,8 +904,11 @@ def train_model_task(job_id: str, db: Session):
         elif job.algorithm == "Transformer":
             add_log("🚀 Routing to Advanced ML Engine: Transformer...")
             try:
-                model, model_path = AdvancedMLEngine.train_transformer(job, df, features, db, add_log)
-                final_latency = 5.0 # Placeholder
+                model, model_path = AdvancedMLEngine.train_transformer(
+                    job, df, features, db, add_log,
+                    previous_model_path=_prev_path if is_fine_tune else None
+                )
+                final_latency = 5.0
                 add_log("✅ Advanced Transformer Training complete.")
             except Exception as e:
                 add_log(f"❌ Advanced Transformer Error: {e}")
@@ -806,8 +917,11 @@ def train_model_task(job_id: str, db: Session):
         elif job.algorithm == "PPO-RL":
             add_log("🚀 Routing to Advanced ML Engine: PPO-RL...")
             try:
-                model, model_path = AdvancedMLEngine.train_ppo_rl(job, df, features, db, add_log)
-                final_latency = 10.0 # Placeholder
+                model, model_path = AdvancedMLEngine.train_ppo_rl(
+                    job, df, features, db, add_log,
+                    previous_model_path=_prev_path if is_fine_tune else None
+                )
+                final_latency = 10.0
                 add_log("✅ Advanced RL Training complete.")
             except Exception as e:
                 add_log(f"❌ Advanced RL Error: {e}")

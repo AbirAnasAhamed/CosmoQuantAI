@@ -480,8 +480,42 @@ async def startup_event():
     # Task I: Portfolio Price Service (Started on demand via WS, but we can pre-init)
     # Actually, it's started in the websocket_prices endpoint in portfolio.py
 
-    # Task L: L2 Data Collector
-    l2_collector.start()
+    # Task L: L2 Data Collector — Dynamic (loads symbols from ML Registry)
+    try:
+        _spot_syms, _futures_syms = l2_collector.load_symbols_from_db()
+        l2_collector.start(_spot_syms, _futures_syms)
+        print(f"✅ L2 Collector started | Spot: {_spot_syms} | Futures: {_futures_syms}")
+    except Exception as _l2_err:
+        logger.error(f"⚠️ L2 Collector startup failed: {_l2_err}. Falling back to BTC-only.")
+        l2_collector.start(["btcusdt"], [])
+
+    # Task M: Dynamic Symbol Watcher (re-checks DB every 30 min)
+    async def dynamic_l2_symbol_watcher():
+        """
+        Periodically re-reads auto-retrain model symbols from the DB.
+        If new symbols appear (or old ones removed), restarts the L2 collector.
+        """
+        while True:
+            await asyncio.sleep(30 * 60)   # 30 minutes
+            try:
+                new_spot, new_futures = l2_collector.load_symbols_from_db()
+                if l2_collector.symbols_changed(new_spot, new_futures):
+                    logger.info(
+                        f"[L2Watcher] Symbol list changed! "
+                        f"Spot: {new_spot} | Futures: {new_futures}. Restarting collector..."
+                    )
+                    l2_collector.stop()
+                    await asyncio.sleep(2)   # let tasks cancel cleanly
+                    l2_collector.start(new_spot, new_futures)
+                    print(f"✅ L2 Collector restarted | Spot: {new_spot} | Futures: {new_futures}")
+                else:
+                    logger.info(f"[L2Watcher] Symbols unchanged: {new_spot + new_futures}")
+            except Exception as _we:
+                logger.warning(f"[L2Watcher] Re-check error: {_we}")
+
+    watcher_task = asyncio.create_task(dynamic_l2_symbol_watcher())
+    running_tasks.add(watcher_task)
+    watcher_task.add_done_callback(running_tasks.discard)
     
     # Task D: Active Bot PnL Broadcast
     async def broadcast_active_bot_pnl():

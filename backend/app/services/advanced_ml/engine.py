@@ -24,7 +24,7 @@ class AdvancedMLEngine:
     """
 
     @staticmethod
-    def train_transformer(job, df, features, db, add_log):
+    def train_transformer(job, df, features, db, add_log, previous_model_path=None):
         """Supervised Training for Transformer Model."""
         config = job.config or {}
         seq_len = int(config.get("sequence_length", 30))
@@ -34,7 +34,6 @@ class AdvancedMLEngine:
         
         add_log(f"Preparing sequence data (Window Size: {seq_len})...")
         
-        # ✅ Smart Validation: Check if we have enough data for the chosen sequence length
         if len(df) < seq_len:
             error_msg = f"❌ Not enough data: You have {len(df)} candles but sequence length is {seq_len}. Suggestion: Decrease 'Sequence Length' to {max(1, len(df)-1)} or use a lower 'Timeframe' to generate more candles."
             add_log(error_msg)
@@ -42,7 +41,6 @@ class AdvancedMLEngine:
 
         X, y = AdvancedDataHandler.create_sequences(df, features, sequence_length=seq_len)
         
-        # Split
         split = int(len(X) * 0.8)
         X_train, X_test = torch.FloatTensor(X[:split]), torch.FloatTensor(X[split:])
         y_train, y_test = torch.FloatTensor(y[:split]).view(-1, 1), torch.FloatTensor(y[split:]).view(-1, 1)
@@ -51,6 +49,17 @@ class AdvancedMLEngine:
         
         add_log(f"Initializing Transformer Architecture (Input Dim: {len(features)})...")
         model = TimeSeriesTransformer(input_dim=len(features), d_model=64, nhead=4, num_layers=3)
+        
+        # ── Fine-Tune: load previous weights ───────────────────────────
+        if previous_model_path and os.path.exists(previous_model_path):
+            try:
+                model.load_state_dict(torch.load(previous_model_path, map_location='cpu'))
+                lr = lr * 0.1  # Lower LR for fine-tuning
+                add_log(f"✅ Fine-Tuning Transformer from checkpoint (LR: {lr:.6f})")
+            except Exception as _ft_e:
+                add_log(f"⚠️ Transformer weight load failed ({_ft_e}), training fresh.")
+        else:
+            add_log("🆕 Fresh Transformer Training")
         
         criterion = nn.MSELoss() if config.get("prediction_target") != "classification" else nn.BCEWithLogitsLoss()
         optimizer = optim.Adam(model.parameters(), lr=lr)
@@ -109,7 +118,7 @@ class AdvancedMLEngine:
         return model, model_path
 
     @staticmethod
-    def train_ppo_rl(job, df, features, db, add_log):
+    def train_ppo_rl(job, df, features, db, add_log, previous_model_path=None):
         """Reinforcement Learning Training for PPO Agent."""
         config = job.config or {}
         epochs = int(config.get("epochs", 10))
@@ -117,16 +126,13 @@ class AdvancedMLEngine:
         initial_balance = float(config.get("initial_balance", 10000))
         commission = float(config.get("commission", 0.001))
         
-        # Prepare Data for Env
         env_df = AdvancedDataHandler.prepare_rl_data(df, features)
         
-        # ✅ Smart Validation for RL
         if len(env_df) < 100:
             error_msg = f"❌ Not enough data for RL: You have {len(env_df)} candles. Please collect more rows or use a lower 'Timeframe'."
             add_log(error_msg)
             raise Exception(error_msg)
         
-        # Create Vectorized Environment
         def make_env():
             return AdvancedTradingEnv(
                 df=env_df, 
@@ -135,18 +141,25 @@ class AdvancedMLEngine:
             )
         
         env = DummyVecEnv([make_env])
-        
-        add_log("Initializing PPO Agent with MLP Policy...")
-        # Note: In future we can use TransformerRLFeatureExtractor here
-        model = PPO(
-            "MlpPolicy", 
-            env, 
-            verbose=0, 
-            learning_rate=lr,
-            tensorboard_log="./logs/ppo_trading/"
-        )
-        
         total_timesteps = epochs * len(df)
+        
+        # ── Fine-Tune: continue from previous checkpoint ──────────────────
+        if previous_model_path and os.path.exists(previous_model_path):
+            try:
+                add_log(f"✅ Continuing PPO-RL from checkpoint: {previous_model_path}")
+                model = PPO.load(previous_model_path, env=env, learning_rate=lr)
+                model.set_env(env)
+                add_log(f"🔄 PPO Agent loaded. Continuing training for {total_timesteps} more timesteps...")
+            except Exception as _ft_e:
+                add_log(f"⚠️ PPO checkpoint load failed ({_ft_e}), starting fresh agent.")
+                add_log(f"Initializing fresh PPO Agent with MLP Policy...")
+                model = PPO("MlpPolicy", env, verbose=0, learning_rate=lr,
+                            tensorboard_log="./logs/ppo_trading/")
+        else:
+            add_log("Initializing fresh PPO Agent with MLP Policy...")
+            model = PPO("MlpPolicy", env, verbose=0, learning_rate=lr,
+                        tensorboard_log="./logs/ppo_trading/")
+        
         add_log(f"Starting RL Training (Total Timesteps: {total_timesteps})...")
         
         # We use a callback or simple loop to update progress

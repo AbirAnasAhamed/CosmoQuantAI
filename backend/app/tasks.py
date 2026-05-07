@@ -1013,6 +1013,18 @@ def auto_retrain_models():
                 job_id = f"train_auto_{int(time.time() * 1000)}"
                 symbol = model.name.split(" ")[0] if " " in model.name else "BTC/USDT"
                 
+                # ── Fetch previous model file path for fine-tuning ──────────
+                prev_model_path = None
+                if model.active_version_id:
+                    active_v = db.query(ModelVersion).filter(
+                        ModelVersion.id == model.active_version_id
+                    ).first()
+                    if active_v and active_v.file_path and os.path.exists(active_v.file_path):
+                        prev_model_path = active_v.file_path
+                        logger.info(f"Fine-tune checkpoint found: {prev_model_path}")
+                    else:
+                        logger.info(f"No valid checkpoint for model {model.id}. Will train fresh.")
+                
                 job = ModelTrainingJob(
                     id=job_id,
                     user_id=model.user_id,
@@ -1025,7 +1037,10 @@ def auto_retrain_models():
                         "is_auto_retrain": True,
                         "retrain_interval_hours": model.retrain_interval_hours,
                         "data_lookback_hours": getattr(model, "data_lookback_hours", 6),
-                        "epochs": 10
+                        "epochs": 10,
+                        # ✅ Fine-tuning params — passed to train_model_task
+                        "previous_model_path": prev_model_path,
+                        "fine_tune": prev_model_path is not None,
                     },
                     status=TrainingStatus.PENDING,
                     progress=0.0,
