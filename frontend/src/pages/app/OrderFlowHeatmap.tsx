@@ -42,6 +42,7 @@ import { BotLogsTab } from '../../components/features/market/BotLogsTab';
 import { WallHunterModal } from '../../components/features/market/WallHunterModal';
 import { ManualTradeModal } from '../../components/features/market/ManualTradeModal';
 import { FloatingTVChartButton } from '../../components/features/market/FloatingTVChartButton';
+import { QuickTradeToolbar } from '../../components/features/market/QuickTradeToolbar';
 import { AIModelDeploymentModal } from '../../components/features/market/AIModelDeploymentModal';
 import { DualEngineDashboard } from '../../components/features/market/DualEngineDashboard';
 import { WatchlistScanner } from '../../components/features/market/WatchlistScanner';
@@ -84,6 +85,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<any>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
+    const quickTradeGhostLineRef = useRef<any>(null);
     const emaSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
     const bbUpperSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
     const bbMiddleSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
@@ -370,6 +372,101 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                 if (isMounted) console.error("Failed to fetch klines for heatmap:", err);
             }
         };
+
+        const handleQuickTradeDragStart = (side: 'Buy' | 'Sell') => {
+            // we don't strictly need state for this, ghost line creation happens on move
+        };
+
+        const handleQuickTradeDragMove = (y: number) => {
+            if (!candlestickSeriesRef.current || !chartContainerRef.current) return;
+            const rect = chartContainerRef.current.getBoundingClientRect();
+            // y is clientY. Get chart-relative coordinate
+            const coordinate = y - rect.top;
+            
+            // If mouse is outside chart vertically, remove line
+            if (coordinate < 0 || coordinate > rect.height) {
+                if (quickTradeGhostLineRef.current) {
+                    candlestickSeriesRef.current.removePriceLine(quickTradeGhostLineRef.current);
+                    quickTradeGhostLineRef.current = null;
+                }
+                return;
+            }
+
+            const rawPrice = candlestickSeriesRef.current.coordinateToPrice(coordinate as any);
+            const price = typeof rawPrice === 'number' ? rawPrice : parseFloat(rawPrice as any);
+            if (isNaN(price)) return;
+
+            if (!quickTradeGhostLineRef.current) {
+                quickTradeGhostLineRef.current = candlestickSeriesRef.current.createPriceLine({
+                    price: price,
+                    color: '#6366f1', // Indigo color for drag
+                    lineWidth: 2,
+                    lineStyle: LineStyle.Dashed,
+                    axisLabelVisible: true,
+                    title: 'DROP TO LIMIT',
+                });
+            } else {
+                quickTradeGhostLineRef.current.applyOptions({ price: price });
+            }
+        };
+
+        const handleQuickTradeDragEnd = async (side: 'Buy' | 'Sell', y: number, size: string, apiId: string) => {
+            if (quickTradeGhostLineRef.current && candlestickSeriesRef.current) {
+                candlestickSeriesRef.current.removePriceLine(quickTradeGhostLineRef.current);
+                quickTradeGhostLineRef.current = null;
+            }
+
+            if (!candlestickSeriesRef.current || !chartContainerRef.current) return;
+            if (Number(size) <= 0) {
+                toast.error("Size must be greater than 0");
+                return;
+            }
+
+            const rect = chartContainerRef.current.getBoundingClientRect();
+            const coordinate = y - rect.top;
+            if (coordinate < 0 || coordinate > rect.height) {
+                // dropped outside chart
+                return;
+            }
+
+            const rawPrice = candlestickSeriesRef.current.coordinateToPrice(coordinate as any);
+            let dropPrice = typeof rawPrice === 'number' ? rawPrice : parseFloat(rawPrice as any);
+            if (isNaN(dropPrice)) return;
+
+            // Cap/Floor for PostOnly logic
+            const currentMarketPrice = currentPrice || dropPrice;
+            if (side === 'Buy' && dropPrice >= currentMarketPrice) {
+                dropPrice = currentMarketPrice * 0.9999;
+            } else if (side === 'Sell' && dropPrice <= currentMarketPrice) {
+                dropPrice = currentMarketPrice * 1.0001;
+            }
+
+            toast.loading(`Placing ${side} Limit at ${dropPrice.toFixed(4)}...`, { id: 'quick-trade' });
+
+            try {
+                // Place Order
+                await manualTradeService.placeOrder({
+                    symbol: symbol,
+                    side: side,
+                    type: 'Limit',
+                    amount: Number(size),
+                    price: dropPrice,
+                    exchange_id: exchange,
+                    api_key_id: Number(apiId),
+                    params: { timeInForce: 'PostOnly' } as any,
+                    client_timestamp: Date.now()
+                });
+
+                toast.success(`✅ Quick ${side} Limit Placed at ${dropPrice.toFixed(4)}`, { id: 'quick-trade' });
+            } catch (error: any) {
+                toast.error(`❌ Order Failed: ${error.message || 'Unknown Error'}`, { id: 'quick-trade' });
+            }
+        };
+
+        // Attach handlers to window for access inside QuickTradeToolbar
+        (window as any)._handleQuickTradeDragStart = handleQuickTradeDragStart;
+        (window as any)._handleQuickTradeDragMove = handleQuickTradeDragMove;
+        (window as any)._handleQuickTradeDragEnd = handleQuickTradeDragEnd;
 
         fetchKlines();
 
@@ -2787,6 +2884,16 @@ const OrderFlowHeatmap: React.FC = () => {
 
             {/* FLOATING ORDER FLOW CHART BUTTON (above Manual Trade button) */}
             <FloatingTVChartButton symbol={symbol} exchange={exchange} />
+
+            {/* QUICK TRADE DRAG & DROP TOOLBAR */}
+            <QuickTradeToolbar 
+                symbol={symbol} 
+                currentPrice={currentPrice}
+                isFullscreen={isFullscreen}
+                onDragStart={(side) => (window as any)._handleQuickTradeDragStart(side)}
+                onDragMove={(y) => (window as any)._handleQuickTradeDragMove(y)}
+                onDragEnd={(side, y, size, apiId) => (window as any)._handleQuickTradeDragEnd(side, y, size, apiId)}
+            />
 
             <WallHunterModal
                 isOpen={isWallHunterOpen}
