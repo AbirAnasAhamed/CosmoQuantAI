@@ -434,14 +434,32 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             if (isNaN(dropPrice)) return;
 
             // Cap/Floor for PostOnly logic
+            // We calculate 1 tick = smallest price unit to ensure we stay maker side
             const currentMarketPrice = currentPrice || dropPrice;
+            let priceWasCapped = false;
+
             if (side === 'Buy' && dropPrice >= currentMarketPrice) {
-                dropPrice = currentMarketPrice * 0.9999;
+                // BUY above or at market price → snap to just below current price (Best Bid)
+                // Use a small tick: for prices > 1, use 0.0001 precision; for prices < 1, use 0.00001
+                const tick = currentMarketPrice >= 1 ? 0.0001 : 0.00001;
+                dropPrice = currentMarketPrice - tick;
+                priceWasCapped = true;
             } else if (side === 'Sell' && dropPrice <= currentMarketPrice) {
-                dropPrice = currentMarketPrice * 1.0001;
+                // SELL below or at market price → snap to just above current price (Best Ask)
+                const tick = currentMarketPrice >= 1 ? 0.0001 : 0.00001;
+                dropPrice = currentMarketPrice + tick;
+                priceWasCapped = true;
             }
 
-            toast.loading(`Placing ${side} Limit at ${dropPrice.toFixed(4)}...`, { id: 'quick-trade' });
+            if (priceWasCapped) {
+                toast(`⚠️ Price capped for PostOnly — placing at ${dropPrice.toFixed(5)}`, {
+                    icon: '🔒',
+                    duration: 2000,
+                    style: { background: '#1e293b', color: '#fbbf24', border: '1px solid #f59e0b' }
+                });
+            }
+
+            toast.loading(`Placing ${side} Limit at ${dropPrice.toFixed(5)}...`, { id: 'quick-trade' });
 
             try {
                 // Place Order
