@@ -377,8 +377,8 @@ const AppDashboard: React.FC<AppDashboardProps> = ({ currentView, onNavigate, on
             case AppView.QUANT_SCREENER: return <QuantScreener />;
             case AppView.ALERTS_WATCHLIST: return <AlertsWatchlist />;
             case AppView.ANALYST_RESEARCH: return <AnalystResearch />;
-            case AppView.CUSTOM_ML_MODELS: return <CustomMLModels />;
-            case AppView.MODEL_TRAINING_STUDIO: return <ModelTrainingStudio />;
+            case AppView.CUSTOM_ML_MODELS: return <CustomMLModels onNavigate={onNavigate} />;
+            case AppView.MODEL_TRAINING_STUDIO: return <ModelTrainingStudio retrainModelId={activeSettingsSection} />;
             case AppView.ML_MODEL_MARKETPLACE: return <MLModelMarketplace />;
             case AppView.CUSTOM_INDICATOR_STUDIO: return <CustomIndicatorStudio />;
             case AppView.PINE_SCRIPT_STUDIO: return <PineScriptStudio />;

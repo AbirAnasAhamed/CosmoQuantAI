@@ -160,6 +160,114 @@ const UploadModelModal: React.FC<{
     );
 };
 
+const ModelDetailsModal: React.FC<{
+    modelId: string;
+    modelName: string;
+    onClose: () => void;
+}> = ({ modelId, modelName, onClose }) => {
+    const [config, setConfig] = useState<any>(null);
+    const [loading, setLoading] = useState(true);
+
+    React.useEffect(() => {
+        mlModelsService.getModelConfig(modelId).then((res: any) => {
+            setConfig(res);
+            setLoading(false);
+        }).catch(err => {
+            console.error("Failed to load details", err);
+            setLoading(false);
+        });
+    }, [modelId]);
+
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-backdrop-fade-in" onClick={onClose}>
+            <div className="bg-[#0A0A0A] w-full max-w-2xl rounded-3xl shadow-2xl border border-gray-800 flex flex-col overflow-hidden relative animate-modal-content-slide-down" onClick={e => e.stopPropagation()}>
+                {/* Decoration */}
+                <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600"></div>
+
+                <div className="p-6 border-b border-gray-800 flex justify-between items-center bg-white/5">
+                    <h2 className="text-xl font-bold text-white flex items-center gap-3">
+                        <svg className="w-6 h-6 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                        Training Details: <span className="text-cyan-400">{modelName}</span>
+                    </h2>
+                    <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">&times;</button>
+                </div>
+
+                <div className="p-6 overflow-y-auto max-h-[70vh] custom-scrollbar">
+                    {loading ? (
+                        <div className="flex justify-center py-10">
+                            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-cyan-500"></div>
+                        </div>
+                    ) : config ? (
+                        <div className="space-y-6">
+                            {/* General Stats */}
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                                    <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Target Asset</p>
+                                    <p className="text-sm font-mono text-white">{config.symbol || 'N/A'}</p>
+                                </div>
+                                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                                    <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Timeframe</p>
+                                    <p className="text-sm font-mono text-white">{config.timeframe || 'N/A'}</p>
+                                </div>
+                                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                                    <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Algorithm</p>
+                                    <p className="text-sm font-mono text-purple-400 font-bold">{config.algorithm || 'N/A'}</p>
+                                </div>
+                                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                                    <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Epochs/Trees</p>
+                                    <p className="text-sm font-mono text-white">{config.config?.epochs || 'N/A'}</p>
+                                </div>
+                            </div>
+
+                            {/* Features */}
+                            {config.config?.indicators && config.config.indicators.length > 0 && (
+                                <div>
+                                    <h3 className="text-sm font-bold text-gray-400 mb-3 border-b border-gray-800 pb-2 flex items-center gap-2">
+                                        <svg className="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>
+                                        Technical Indicators (OHLCV)
+                                    </h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {config.config.indicators.map((ind: string) => (
+                                            <span key={ind} className="px-3 py-1 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded-lg text-xs font-bold shadow-sm">
+                                                {ind}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {/* L2 Features */}
+                            {config.config?.l2_features && config.config.l2_features.length > 0 && (
+                                <div className="mt-6">
+                                    <h3 className="text-sm font-bold text-gray-400 mb-3 border-b border-gray-800 pb-2 flex items-center gap-2">
+                                        <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>
+                                        Orderbook Features (L2)
+                                    </h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {config.config.l2_features.map((feat: string) => (
+                                            <span key={feat} className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-bold shadow-sm">
+                                                {feat}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {(!config.config?.indicators?.length && !config.config?.l2_features?.length) && (
+                                <div className="text-center py-6 text-gray-500 text-sm">
+                                    No detailed feature information available for this model. (It might have been uploaded manually or trained without custom features).
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div className="text-center py-10 text-red-400 font-bold">Failed to load configuration.</div>
+                    )}
+                </div>
+            </div>
+        </div>
+    );
+};
+
 // --- Model Card ---
 
 const ModelCard: React.FC<{
@@ -167,8 +275,10 @@ const ModelCard: React.FC<{
     onDelete: (id: string) => void;
     onUploadVersion: (model: CustomMLModel) => void;
     onSetActiveVersion: (modelId: string, versionId: string) => void;
+    onRetrain: (modelId: string) => void;
+    onViewDetails: (modelId: string, modelName: string) => void;
     animationDelay: number;
-}> = ({ model, onDelete, onUploadVersion, onSetActiveVersion, animationDelay }) => {
+}> = ({ model, onDelete, onUploadVersion, onSetActiveVersion, onRetrain, onViewDetails, animationDelay }) => {
     const [isExpanded, setIsExpanded] = useState(false);
 
     const modelIcons: Record<CustomMLModel['modelType'], React.ReactNode> = {
@@ -242,6 +352,22 @@ const ModelCard: React.FC<{
 
                 <div className="flex items-center justify-between">
                     <StatusPill status={activeVersion?.status || 'Error'} />
+                    <div className="flex gap-2">
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onViewDetails(model.id, model.name); }}
+                            className="px-3 py-1.5 bg-gray-500/10 hover:bg-gray-500/20 text-gray-400 hover:text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-sm border border-gray-500/20 flex items-center gap-1.5"
+                        >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            Details
+                        </button>
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onRetrain(model.id); }}
+                            className="px-4 py-1.5 bg-brand-primary/10 hover:bg-brand-primary text-brand-primary hover:text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-sm hover:shadow-brand-primary/20 flex items-center gap-2"
+                        >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                            Retrain
+                        </button>
+                    </div>
                     <button
                         onClick={() => setIsExpanded(!isExpanded)}
                         className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-brand-primary transition-colors uppercase tracking-wider"
@@ -290,9 +416,12 @@ const ModelCard: React.FC<{
 
 // --- Main Page ---
 
-const CustomMLModels: React.FC = () => {
+import { AppView } from '@/types';
+
+const CustomMLModels: React.FC<{ onNavigate?: (view: AppView, section?: string) => void }> = ({ onNavigate }) => {
     const queryClient = useQueryClient();
     const [modalState, setModalState] = useState<{ isOpen: boolean; modelToUpdate?: CustomMLModel }>({ isOpen: false });
+    const [detailsModalState, setDetailsModalState] = useState<{ isOpen: boolean; modelId: string; modelName: string }>({ isOpen: false, modelId: '', modelName: '' });
 
     // Fetch models
     const { data: models = [], isLoading } = useQuery({
@@ -362,11 +491,24 @@ const CustomMLModels: React.FC = () => {
         setVersionMutation.mutate({ modelId, versionId });
     };
 
+    const handleRetrain = (modelId: string) => {
+        if (onNavigate) {
+            onNavigate(AppView.MODEL_TRAINING_STUDIO, modelId);
+        } else {
+            toast.error("Navigation not available");
+        }
+    };
+
+    const handleViewDetails = (modelId: string, modelName: string) => {
+        setDetailsModalState({ isOpen: true, modelId, modelName });
+    };
+
     return (
         <div className="relative min-h-[calc(100vh-140px)]">
             <NeuralMeshBackground />
 
             {modalState.isOpen && <UploadModelModal onClose={() => setModalState({ isOpen: false })} onUpload={handleUpload} existingModel={modalState.modelToUpdate} />}
+            {detailsModalState.isOpen && <ModelDetailsModal modelId={detailsModalState.modelId} modelName={detailsModalState.modelName} onClose={() => setDetailsModalState({ ...detailsModalState, isOpen: false })} />}
 
             <div className="relative z-10 flex flex-col gap-8">
                 <div className="flex flex-col md:flex-row justify-between items-center gap-4 bg-white/80 dark:bg-[#0A0A0A]/60 backdrop-blur-lg border border-gray-200 dark:border-gray-800 p-6 rounded-2xl shadow-lg">
@@ -403,6 +545,8 @@ const CustomMLModels: React.FC = () => {
                                     onDelete={handleDelete}
                                     onUploadVersion={(m) => setModalState({ isOpen: true, modelToUpdate: m })}
                                     onSetActiveVersion={handleSetActiveVersion}
+                                    onRetrain={handleRetrain}
+                                    onViewDetails={handleViewDetails}
                                     animationDelay={index * 100}
                                 />
                             ))}

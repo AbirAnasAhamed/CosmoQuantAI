@@ -176,26 +176,36 @@ def build_hybrid_dataset(job, db: Session, config: dict, add_log) -> tuple[pd.Da
 
     # 5. Define Feature Sets
     l2_selected = config.get("l2_features", ["obi", "spread", "microprice"])
-    # Features are everything not explicitly removed
     exclude_cols = ['Target', 'Open', 'High', 'Low', 'Close', 'Volume', 'Adj Close']
     
-    # Gather requested features that actually exist in the dataframe
+    KNOWN_L2_FEATURES = {
+        'Effective_Spread', 'Spread_ROC', 'Mid_Price_Acceleration', 'Spread_Asymmetry',
+        'WAP_Top_5', 'WAP_Top_10', 'Multi_Level_Imbalance_Top5', 'Multi_Level_Imbalance_Top10',
+        'Depth_Ratio', 'Ask_Wall_Distance', 'Bid_Wall_Distance', 'Order_Book_Skewness',
+        'Level_1_Imbalance', 'Imbalance_Momentum', 'Order_Flow_Imbalance', 'OFI_Acceleration',
+        'CVD_Proxy', 'CVD_Acceleration', 'Realized_Micro_Volatility', 'Tick_Test_Roll',
+        'obi', 'spread', 'microprice'
+    }
+    
     final_features = []
     all_possible = df.columns.tolist()
     
     for col in all_possible:
-        if col not in exclude_cols:
-            # For Hybrid, we just include all valid technical indicators and chosen L2 features
-            # Many technical indicators create multiple columns (e.g. MACD_12_26_9, MACDh_12_26_9)
-            # So we keep everything that isn't excluded, but we can also filter purely by the selection.
-            # Easiest is to keep all generated non-OHLCV columns + selected L2 columns.
+        if col in exclude_cols:
+            continue
+            
+        if col in KNOWN_L2_FEATURES:
+            # Only include L2 features if the user explicitly selected them
+            if col in l2_selected:
+                final_features.append(col)
+        else:
+            # This is a Technical Indicator (e.g., RSI_14, MACD_12_26_9) or other column
             final_features.append(col)
 
-    # To be safe, ensure we have at least 'Close' if somehow empty
     if not final_features:
         final_features = ['Close']
 
-    add_log(f"[HYBRID] Using {len(final_features)} combined features for training.")
+    add_log(f"[HYBRID] Using {len(final_features)} combined features for training (L2: {sum(1 for f in final_features if f in KNOWN_L2_FEATURES)}, TA: {sum(1 for f in final_features if f not in KNOWN_L2_FEATURES)}).")
     
     # Broadcast final dataset preview
     try:

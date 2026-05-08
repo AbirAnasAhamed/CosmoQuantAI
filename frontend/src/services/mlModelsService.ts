@@ -75,5 +75,11 @@ export const mlModelsService = {
     // Delete a model
     deleteModel: async (modelId: string): Promise<void> => {
         await api.delete(`/ml-models/${modelId}`);
+    },
+
+    // Get model config for retraining/fine-tuning
+    getModelConfig: async (modelId: string): Promise<any> => {
+        const response = await api.get(`/ml-models/${modelId}/config`);
+        return response.data;
     }
 };

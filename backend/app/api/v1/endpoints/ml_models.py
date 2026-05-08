@@ -190,3 +190,42 @@ def delete_model(
     db.commit()
 
     return {"status": "success"}
+
+@router.get("/{model_id}/config")
+def get_model_config(
+    model_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Get the training configuration for a specific model by finding its most recent successful training job.
+    """
+    db_model = db.query(models.CustomMLModel).filter(
+        models.CustomMLModel.id == model_id, 
+        models.CustomMLModel.user_id == current_user.id
+    ).first()
+    
+    if not db_model:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+    # Find the most recent COMPLETED training job for this model
+    job = db.query(models.ModelTrainingJob).filter(
+        models.ModelTrainingJob.output_model_id == model_id,
+        models.ModelTrainingJob.status == models.TrainingStatus.COMPLETED
+    ).order_by(models.ModelTrainingJob.completed_at.desc()).first()
+
+    if not job:
+        # Fallback if no job found, try to return basic model info
+        return {
+            "symbol": "BTC/USDT", # Default fallback
+            "algorithm": db_model.model_type,
+            "config": {}
+        }
+
+    return {
+        "model_name": db_model.name,
+        "symbol": job.symbol,
+        "timeframe": job.timeframe,
+        "algorithm": job.algorithm,
+        "config": job.config or {}
+    }

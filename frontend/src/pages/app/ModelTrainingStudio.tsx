@@ -12,7 +12,9 @@ import { FloatingTVChartButton } from '@/components/features/market/FloatingTVCh
 import EquityCurveChart from '@/components/ml/EquityCurveChart'; // ✅ New
 import { DatasetVisualizerModal } from '@/components/DatasetVisualizerModal';
 
-const ModelTrainingStudio: React.FC = () => {
+import { mlModelsService } from '@/services/mlModelsService';
+
+const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ retrainModelId }) => {
     const [symbol, setSymbol] = useState('BTC/USDT');
     const [exchange, setExchange] = useState('binance');
     const [timeframe, setTimeframe] = useState('1d');
@@ -53,6 +55,41 @@ const ModelTrainingStudio: React.FC = () => {
     const [currentJob, setCurrentJob] = useState<TrainingJob | null>(null);
     const logsEndRef = useRef<HTMLDivElement>(null);
     const [showVisualizer, setShowVisualizer] = useState(false);
+    const [isRetrainMode, setIsRetrainMode] = useState(false);
+    
+    // UI states for Retrain Mode highlighting
+    const [retrainModelName, setRetrainModelName] = useState<string>('');
+    const [initialLoadedIndicators, setInitialLoadedIndicators] = useState<string[]>([]);
+    const [initialLoadedL2Features, setInitialLoadedL2Features] = useState<string[]>([]);
+    const [initialAlgorithm, setInitialAlgorithm] = useState<string>('');
+
+    useEffect(() => {
+        if (retrainModelId) {
+            setIsRetrainMode(true);
+            mlModelsService.getModelConfig(retrainModelId).then((config: any) => {
+                if (config.model_name) setRetrainModelName(config.model_name);
+                if (config.symbol) setSymbol(config.symbol);
+                if (config.timeframe) setTimeframe(config.timeframe);
+                if (config.algorithm) {
+                    setAlgorithm(config.algorithm);
+                    setInitialAlgorithm(config.algorithm);
+                }
+                if (config.config?.indicators) {
+                    setSelectedIndicators(config.config.indicators);
+                    setInitialLoadedIndicators(config.config.indicators);
+                }
+                if (config.config?.l2_features) {
+                    setSelectedL2Features(config.config.l2_features);
+                    setInitialLoadedL2Features(config.config.l2_features);
+                }
+                if (config.config?.dataset_type) setDataSource(config.config.dataset_type);
+                if (config.config?.exchange) setExchange(config.config.exchange);
+                if (config.config?.epochs) setEpochs(config.config.epochs);
+            }).catch(err => {
+                console.error("Failed to load retrain config", err);
+            });
+        }
+    }, [retrainModelId]);
 
     const INDICATOR_CATEGORIES = [
         { name: 'Institutional & SMC', indicators: ['SMC FVG', 'ICT Killzones', 'Order Blocks', 'Market Structure', 'Wick Rejection', 'VWAP_SD'] },
@@ -165,7 +202,9 @@ const ModelTrainingStudio: React.FC = () => {
                     exchange: exchange,
                     is_deep_training: (dataSource === 'l2_orderbook' || dataSource === 'hybrid') ? isDeepTraining : false,
                     target_rows: ((dataSource === 'l2_orderbook' || dataSource === 'hybrid') && isDeepTraining) ? targetRowOptions[targetRowsIndex] : 0,
-                    l2_features: selectedL2Features
+                    l2_features: selectedL2Features,
+                    target_model_id: isRetrainMode ? (retrainModelId || undefined) : undefined,
+                    fine_tune: isRetrainMode
                 }
             });
             setCurrentJob(job);
@@ -228,13 +267,30 @@ const ModelTrainingStudio: React.FC = () => {
 
             <header className="flex items-center justify-between relative z-10">
                 <div>
+                    {isRetrainMode && (
+                        <motion.div 
+                            initial={{ opacity: 0, y: -20 }} 
+                            animate={{ opacity: 1, y: 0 }} 
+                            className="mb-4 py-2 px-5 bg-purple-500/10 border border-purple-500/30 rounded-full inline-flex items-center gap-3 shadow-[0_0_15px_rgba(168,85,247,0.2)] relative overflow-hidden"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/0 via-purple-500/20 to-purple-500/0 animate-pulse"></div>
+                            <div className="w-2 h-2 rounded-full bg-purple-400 animate-ping shadow-[0_0_8px_#c084fc] relative z-10"></div>
+                            <span className="text-purple-300 font-bold tracking-wide text-[11px] uppercase relative z-10">Fine-Tuning Active:</span>
+                            <span className="text-white font-black text-xs drop-shadow-[0_0_5px_rgba(255,255,255,0.5)] relative z-10">{retrainModelName || retrainModelId}</span>
+                        </motion.div>
+                    )}
                     <h2 className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 flex items-center gap-4 drop-shadow-[0_0_15px_rgba(56,189,248,0.4)]">
-                        <div className="p-3 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 shadow-[0_0_20px_rgba(56,189,248,0.2)]">
+                        <div className="p-3 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 shadow-[0_0_20px_rgba(56,189,248,0.2)] relative">
                             <BrainCircuit className="w-8 h-8 text-cyan-400" />
+                            {isRetrainMode && <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-500 rounded-full animate-ping"></div>}
                         </div>
-                        MACHINE LEARNING ENGINE CORE
+                        {isRetrainMode ? "MODEL RETRAINING STUDIO" : "MACHINE LEARNING ENGINE CORE"}
                     </h2>
-                    <p className="text-slate-400 mt-2 text-sm font-medium tracking-wide ml-16">Advanced L2/OHLCV Machine Learning Synchronization Studio.</p>
+                    <p className="text-slate-400 mt-2 text-sm font-medium tracking-wide ml-16">
+                        {isRetrainMode 
+                            ? `Fine-tuning existing model. Add new features to increase intelligence.`
+                            : `Advanced L2/OHLCV Machine Learning Synchronization Studio.`}
+                    </p>
                 </div>
             </header>
 
@@ -315,12 +371,17 @@ const ModelTrainingStudio: React.FC = () => {
                                                 <div 
                                                     key={algo} 
                                                     onClick={() => !isTraining && setAlgorithm(algo)}
-                                                    className={`flex items-center p-3 rounded-xl border cursor-pointer transition-all duration-300 ${algorithm === algo ? 'border-purple-500 bg-purple-500/10 shadow-[0_0_15px_rgba(168,85,247,0.15)]' : 'border-white/10 bg-white/5 hover:bg-white/10'} ${isTraining ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                    className={`flex items-center p-3 rounded-xl border cursor-pointer transition-all duration-300 relative overflow-hidden ${algorithm === algo ? (isRetrainMode && initialAlgorithm === algo ? 'border-purple-400 bg-purple-500/20 shadow-[0_0_20px_rgba(168,85,247,0.3)]' : 'border-purple-500 bg-purple-500/10 shadow-[0_0_15px_rgba(168,85,247,0.15)]') : 'border-white/10 bg-white/5 hover:bg-white/10'} ${isTraining ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                 >
                                                     <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 ${algorithm === algo ? 'border-purple-400' : 'border-white/30'}`}>
                                                         {algorithm === algo && <div className="w-1.5 h-1.5 rounded-full bg-purple-400 shadow-[0_0_5px_#a855f7]"></div>}
                                                     </div>
-                                                    <span className="ml-3 text-sm text-slate-200 font-semibold tracking-wide">{algo}</span>
+                                                    <span className={`ml-3 text-sm font-semibold tracking-wide ${algorithm === algo && isRetrainMode && initialAlgorithm === algo ? 'text-purple-300' : 'text-slate-200'}`}>{algo}</span>
+                                                    {isRetrainMode && initialAlgorithm === algo && (
+                                                        <span className="absolute right-3 text-[9px] font-black uppercase text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/30 flex items-center gap-1">
+                                                            <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-ping"></div> Original
+                                                        </span>
+                                                    )}
                                                 </div>
                                             ))}
                                         </div>
@@ -571,10 +632,13 @@ const ModelTrainingStudio: React.FC = () => {
                                                         className={`flex items-center justify-between p-2.5 rounded-lg border cursor-pointer transition-all ${selectedL2Features.includes(feat.internal) ? 'bg-emerald-500/10 border-emerald-500/50 shadow-[0_0_10px_rgba(16,185,129,0.15)]' : 'bg-black/40 border-white/10 hover:border-white/20'}`}
                                                     >
                                                         <div className="flex items-center gap-3">
-                                                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors ${selectedL2Features.includes(feat.internal) ? 'bg-emerald-500 border-emerald-400' : 'border-white/30'}`}>
+                                                            <div className={`w-4 h-4 rounded border flex items-center justify-center transition-colors relative ${selectedL2Features.includes(feat.internal) ? (isRetrainMode && initialLoadedL2Features.includes(feat.internal) ? 'bg-purple-500 border-purple-400' : 'bg-emerald-500 border-emerald-400') : 'border-white/30'}`}>
                                                                 {selectedL2Features.includes(feat.internal) && <CheckCircle2 className="w-3 h-3 text-black" />}
+                                                                {isRetrainMode && initialLoadedL2Features.includes(feat.internal) && selectedL2Features.includes(feat.internal) && (
+                                                                    <div className="absolute -top-1 -right-1 w-2 h-2 bg-purple-300 rounded-full animate-ping"></div>
+                                                                )}
                                                             </div>
-                                                            <span className={`text-xs font-bold ${selectedL2Features.includes(feat.internal) ? 'text-emerald-100' : 'text-slate-300'}`}>
+                                                            <span className={`text-xs font-bold ${selectedL2Features.includes(feat.internal) ? (isRetrainMode && initialLoadedL2Features.includes(feat.internal) ? 'text-purple-300' : 'text-emerald-100') : 'text-slate-300'}`}>
                                                                 {feat.name}
                                                             </span>
                                                         </div>
@@ -616,8 +680,11 @@ const ModelTrainingStudio: React.FC = () => {
                                                             onClick={() => !isTraining && handleToggleL2Feature(feat.internal)}
                                                             className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition-all ${selectedL2Features.includes(feat.internal) ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-200' : 'bg-black/30 border-white/5 text-slate-400 hover:bg-white/5'}`}
                                                         >
-                                                            <div className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center transition-colors flex-shrink-0 ${selectedL2Features.includes(feat.internal) ? 'bg-indigo-500 border-indigo-400' : 'border-white/20'}`}>
+                                                            <div className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center transition-colors flex-shrink-0 relative ${selectedL2Features.includes(feat.internal) ? (isRetrainMode && initialLoadedL2Features.includes(feat.internal) ? 'bg-purple-500 border-purple-400' : 'bg-indigo-500 border-indigo-400') : 'border-white/20'}`}>
                                                                 {selectedL2Features.includes(feat.internal) && <CheckCircle2 className="w-2.5 h-2.5 text-black" />}
+                                                                {isRetrainMode && initialLoadedL2Features.includes(feat.internal) && selectedL2Features.includes(feat.internal) && (
+                                                                    <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-purple-300 rounded-full animate-ping"></div>
+                                                                )}
                                                             </div>
                                                             <span className="text-[10px] font-medium leading-tight truncate" title={feat.name}>
                                                                 {feat.name}
@@ -704,9 +771,12 @@ const ModelTrainingStudio: React.FC = () => {
                                                         key={ind}
                                                         disabled={isTraining}
                                                         onClick={() => handleToggleIndicator(ind)}
-                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all duration-300 ${selectedIndicators.includes(ind) ? 'bg-cyan-500/20 text-cyan-400 border-cyan-400/50 shadow-[0_0_10px_rgba(34,211,238,0.2)]' : 'bg-black/60 text-slate-400 border-white/10 hover:border-white/30 hover:text-white hover:bg-white/10'}`}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all duration-300 relative overflow-visible ${selectedIndicators.includes(ind) ? (isRetrainMode && initialLoadedIndicators.includes(ind) ? 'bg-purple-500/20 text-purple-300 border-purple-400/50 shadow-[0_0_15px_rgba(168,85,247,0.4)] scale-105' : 'bg-cyan-500/20 text-cyan-400 border-cyan-400/50 shadow-[0_0_10px_rgba(34,211,238,0.2)]') : 'bg-black/60 text-slate-400 border-white/10 hover:border-white/30 hover:text-white hover:bg-white/10'}`}
                                                     >
                                                         {ind}
+                                                        {isRetrainMode && initialLoadedIndicators.includes(ind) && selectedIndicators.includes(ind) && (
+                                                            <div className="absolute -top-1 -right-1 w-2 h-2 bg-purple-400 rounded-full animate-ping"></div>
+                                                        )}
                                                     </button>
                                                 ))}
                                             </div>
@@ -761,12 +831,12 @@ const ModelTrainingStudio: React.FC = () => {
                         <button 
                             onClick={handleStartTraining}
                             disabled={isTraining || !symbol}
-                            className={`w-full py-4 rounded-2xl font-black text-[15px] flex items-center justify-center gap-3 transition-all duration-300 shadow-xl ${isTraining ? 'bg-white/5 text-slate-500 cursor-not-allowed border border-white/5' : 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 text-white hover:shadow-[0_0_30px_rgba(56,189,248,0.5)] border border-white/20 hover:scale-[1.02]'}`}
+                            className={`w-full py-4 rounded-2xl font-black text-[15px] flex items-center justify-center gap-3 transition-all duration-300 shadow-xl ${isTraining ? 'bg-white/5 text-slate-500 cursor-not-allowed border border-white/5' : isRetrainMode ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 text-white hover:shadow-[0_0_30px_rgba(236,72,153,0.5)] border border-white/20 hover:scale-[1.02]' : 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 text-white hover:shadow-[0_0_30px_rgba(56,189,248,0.5)] border border-white/20 hover:scale-[1.02]'}`}
                         >
                             {isTraining ? (
-                                <><Loader2 className="w-5 h-5 animate-spin text-cyan-500" /> INITIALIZING NEURAL NETWORK...</>
+                                <><Loader2 className="w-5 h-5 animate-spin text-cyan-500" /> {isRetrainMode ? "FINE-TUNING NEURAL NETWORK..." : "INITIALIZING NEURAL NETWORK..."}</>
                             ) : (
-                                <><Play className="w-5 h-5 fill-current" /> START DEEP TRAINING</>
+                                <><Play className="w-5 h-5 fill-current" /> {isRetrainMode ? "START INCREMENTAL FINE-TUNING" : "START DEEP TRAINING"}</>
                             )}
                         </button>
                     </div>

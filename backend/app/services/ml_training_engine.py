@@ -290,6 +290,15 @@ def train_model_task(job_id: str, db: Session):
 
         # ── Fine-Tune Detection ─────────────────────────────────────────────
         _prev_path = config.get("previous_model_path")
+        _target_model_id = config.get("target_model_id")
+        
+        if _target_model_id and not _prev_path:
+            target_model = db.query(models.CustomMLModel).filter(models.CustomMLModel.id == _target_model_id).first()
+            if target_model and target_model.active_version_id:
+                version = db.query(models.ModelVersion).filter(models.ModelVersion.id == target_model.active_version_id).first()
+                if version:
+                    _prev_path = version.file_path
+
         is_fine_tune = (
             bool(config.get("fine_tune", False)) and
             _prev_path is not None and
@@ -483,6 +492,8 @@ def train_model_task(job_id: str, db: Session):
                 if is_fine_tune:
                     try:
                         model = joblib.load(_prev_path)
+                        if hasattr(model, 'n_features_in_') and model.n_features_in_ != X_train.shape[1]:
+                            raise ValueError(f"Feature mismatch: old model expected {model.n_features_in_}, new data has {X_train.shape[1]}")
                         model.warm_start = True
                         model.n_estimators += epochs
                         add_log(f"✅ Fine-Tuning RF: adding {epochs} trees → total {model.n_estimators}")
@@ -491,7 +502,15 @@ def train_model_task(job_id: str, db: Session):
                         model = RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42)
                 else:
                     model = RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42)
-                model.fit(X_train, y_train.ravel())
+                try:
+                    model.fit(X_train, y_train.ravel())
+                except ValueError as e:
+                    if is_fine_tune and "feature" in str(e).lower():
+                        add_log(f"⚠️ Fine-tune fit failed: {e}. Falling back to fresh training.")
+                        model = RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42)
+                        model.fit(X_train, y_train.ravel())
+                    else:
+                        raise e
                 start_time = time.time()
                 y_pred = model.predict(X_test)
                 end_time = time.time()
@@ -502,6 +521,8 @@ def train_model_task(job_id: str, db: Session):
                 if is_fine_tune:
                     try:
                         model = joblib.load(_prev_path)
+                        if hasattr(model, 'n_features_in_') and model.n_features_in_ != X_train.shape[1]:
+                            raise ValueError(f"Feature mismatch: old model expected {model.n_features_in_}, new data has {X_train.shape[1]}")
                         model.warm_start = True
                         model.n_estimators += epochs
                         add_log(f"✅ Fine-Tuning RF Regressor: adding {epochs} trees → total {model.n_estimators}")
@@ -510,7 +531,15 @@ def train_model_task(job_id: str, db: Session):
                         model = RandomForestRegressor(n_estimators=epochs, max_depth=max_depth, random_state=42)
                 else:
                     model = RandomForestRegressor(n_estimators=epochs, max_depth=max_depth, random_state=42)
-                model.fit(X_train, y_train.ravel())
+                try:
+                    model.fit(X_train, y_train.ravel())
+                except ValueError as e:
+                    if is_fine_tune and "feature" in str(e).lower():
+                        add_log(f"⚠️ Fine-tune fit failed: {e}. Falling back to fresh training.")
+                        model = RandomForestRegressor(n_estimators=epochs, max_depth=max_depth, random_state=42)
+                        model.fit(X_train, y_train.ravel())
+                    else:
+                        raise e
                 start_time = time.time()
                 y_pred = model.predict(X_test)
                 end_time = time.time()
@@ -530,6 +559,8 @@ def train_model_task(job_id: str, db: Session):
             if is_fine_tune:
                 try:
                     _prev_xgb = joblib.load(_prev_path)
+                    if hasattr(_prev_xgb, 'n_features_in_') and _prev_xgb.n_features_in_ != X_train.shape[1]:
+                        raise ValueError(f"Feature mismatch: old expected {_prev_xgb.n_features_in_}, new has {X_train.shape[1]}")
                     _xgb_init = _prev_xgb.get_booster()
                     add_log(f"✅ Fine-Tuning XGBoost: continuing from previous booster")
                 except Exception as _ft_e:
@@ -537,7 +568,15 @@ def train_model_task(job_id: str, db: Session):
             if prediction_target == "classification":
                 from xgboost import XGBClassifier
                 model = XGBClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
-                model.fit(X_train, y_train.ravel(), eval_set=[(X_test, y_test.ravel())], verbose=False, xgb_model=_xgb_init)
+                try:
+                    model.fit(X_train, y_train.ravel(), eval_set=[(X_test, y_test.ravel())], verbose=False, xgb_model=_xgb_init)
+                except ValueError as e:
+                    if is_fine_tune and "feature" in str(e).lower():
+                        add_log(f"⚠️ XGBoost fine-tune fit failed: {e}. Falling back to fresh training.")
+                        model = XGBClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
+                        model.fit(X_train, y_train.ravel(), eval_set=[(X_test, y_test.ravel())], verbose=False)
+                    else:
+                        raise e
                 start_time = time.time()
                 y_pred = model.predict(X_test)
                 end_time = time.time()
@@ -546,7 +585,15 @@ def train_model_task(job_id: str, db: Session):
             else:
                 from xgboost import XGBRegressor
                 model = XGBRegressor(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
-                model.fit(X_train, y_train.ravel(), eval_set=[(X_test, y_test.ravel())], verbose=False, xgb_model=_xgb_init)
+                try:
+                    model.fit(X_train, y_train.ravel(), eval_set=[(X_test, y_test.ravel())], verbose=False, xgb_model=_xgb_init)
+                except ValueError as e:
+                    if is_fine_tune and "feature" in str(e).lower():
+                        add_log(f"⚠️ XGBoost fine-tune fit failed: {e}. Falling back to fresh training.")
+                        model = XGBRegressor(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
+                        model.fit(X_train, y_train.ravel(), eval_set=[(X_test, y_test.ravel())], verbose=False)
+                    else:
+                        raise e
                 start_time = time.time()
                 y_pred = model.predict(X_test)
                 end_time = time.time()
