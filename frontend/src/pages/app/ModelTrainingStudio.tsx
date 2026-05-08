@@ -10,6 +10,7 @@ import { HeatmapSymbolSelector } from '../../components/features/market/HeatmapS
 import LiveMarketPulse from '@/components/ml/LiveMarketPulse';
 import { FloatingTVChartButton } from '@/components/features/market/FloatingTVChartButton';
 import EquityCurveChart from '@/components/ml/EquityCurveChart'; // ✅ New
+import { DatasetVisualizerModal } from '@/components/DatasetVisualizerModal';
 
 const ModelTrainingStudio: React.FC = () => {
     const [symbol, setSymbol] = useState('BTC/USDT');
@@ -51,6 +52,7 @@ const ModelTrainingStudio: React.FC = () => {
     
     const [currentJob, setCurrentJob] = useState<TrainingJob | null>(null);
     const logsEndRef = useRef<HTMLDivElement>(null);
+    const [showVisualizer, setShowVisualizer] = useState(false);
 
     const INDICATOR_CATEGORIES = [
         { name: 'Institutional & SMC', indicators: ['SMC FVG', 'ICT Killzones', 'Order Blocks', 'Market Structure', 'Wick Rejection', 'VWAP_SD'] },
@@ -151,8 +153,8 @@ const ModelTrainingStudio: React.FC = () => {
                     is_auto_retrain: isAutoRetrain,
                     retrain_interval_hours: isAutoRetrain ? retrainInterval : undefined,
                     data_lookback_hours: dataLookback,
-                    ohlcv_period: dataSource === 'ohlcv' ? ohlcvPeriod : undefined,
-                    resample_l2: dataSource === 'l2_orderbook' ? isResampleL2 : undefined,
+                    ohlcv_period: (dataSource === 'ohlcv' || dataSource === 'hybrid') ? ohlcvPeriod : undefined,
+                    resample_l2: (dataSource === 'l2_orderbook' || dataSource === 'hybrid') ? isResampleL2 : undefined,
                     prediction_target: predictionTarget,
                     learning_rate: learningRate,
                     max_depth: maxDepth,
@@ -161,12 +163,17 @@ const ModelTrainingStudio: React.FC = () => {
                     commission: tradingFees, // ✅ New
                     sequence_length: sequenceLength, // ✅ New
                     exchange: exchange,
-                    is_deep_training: dataSource === 'l2_orderbook' ? isDeepTraining : false,
-                    target_rows: isDeepTraining ? targetRowOptions[targetRowsIndex] : 0,
+                    is_deep_training: (dataSource === 'l2_orderbook' || dataSource === 'hybrid') ? isDeepTraining : false,
+                    target_rows: ((dataSource === 'l2_orderbook' || dataSource === 'hybrid') && isDeepTraining) ? targetRowOptions[targetRowsIndex] : 0,
                     l2_features: selectedL2Features
                 }
             });
             setCurrentJob(job);
+            
+            // Auto-open visualizer for live scraping or hybrid
+            if (isDeepTraining || dataSource === 'hybrid' || dataSource === 'l2_orderbook') {
+                setShowVisualizer(true);
+            }
         } catch (error) {
             console.error("Failed to start training", error);
             setIsTraining(false);
@@ -276,7 +283,7 @@ const ModelTrainingStudio: React.FC = () => {
                             isTraining={isTraining}
                         />
 
-                        {(dataSource === 'ohlcv' || isResampleL2) && (
+                        {(dataSource === 'ohlcv' || dataSource === 'hybrid' || isResampleL2) && (
                             <div>
                                 <label className="block text-sm font-medium text-slate-300 mb-1">Candle Interval</label>
                                 <div className="grid grid-cols-5 gap-2">
@@ -406,7 +413,7 @@ const ModelTrainingStudio: React.FC = () => {
                                     Clear L2 Cache
                                 </button>
                             </div>
-                            <div className="grid grid-cols-2 gap-3 mb-5">
+                            <div className="grid grid-cols-3 gap-3 mb-5">
                                 <button
                                     onClick={() => setDataSource('ohlcv')}
                                     disabled={isTraining}
@@ -421,9 +428,16 @@ const ModelTrainingStudio: React.FC = () => {
                                 >
                                     Level 2 Orderbook
                                 </button>
+                                <button
+                                    onClick={() => setDataSource('hybrid')}
+                                    disabled={isTraining}
+                                    className={`py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${dataSource === 'hybrid' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'}`}
+                                >
+                                    Hybrid (OHLCV + L2)
+                                </button>
                             </div>
                             
-                            {dataSource === 'l2_orderbook' && (
+                            {(dataSource === 'l2_orderbook' || dataSource === 'hybrid') && (
                                 <div className="space-y-4">
                                     <div className="flex items-center justify-between p-4 bg-purple-500/10 rounded-xl border border-purple-500/20 shadow-inner">
                                         <div>
@@ -490,7 +504,7 @@ const ModelTrainingStudio: React.FC = () => {
                                 </div>
                             )}
 
-                            {dataSource === 'l2_orderbook' && (
+                            {(dataSource === 'l2_orderbook' || dataSource === 'hybrid') && (
                                 <div className="flex items-center justify-between p-4 bg-purple-500/5 rounded-xl border border-purple-500/20 shadow-inner">
                                     <div>
                                         <h4 className="text-sm font-bold text-purple-400">Resample to Candle Interval</h4>
@@ -509,7 +523,7 @@ const ModelTrainingStudio: React.FC = () => {
                                 </div>
                             )}
 
-                            {dataSource === 'l2_orderbook' && (
+                            {(dataSource === 'l2_orderbook' || dataSource === 'hybrid') && (
                                 <div className="mt-4 p-4 bg-indigo-900/20 border border-indigo-500/30 rounded-2xl shadow-inner relative overflow-hidden">
                                     {/* Background glow */}
                                     <div className="absolute top-[-50%] right-[-50%] w-[100%] h-[100%] bg-indigo-500/10 blur-[50px] rounded-full pointer-events-none"></div>
@@ -618,7 +632,7 @@ const ModelTrainingStudio: React.FC = () => {
                             )}
                         </div>
 
-                        {dataSource === 'ohlcv' && (
+                        {(dataSource === 'ohlcv' || dataSource === 'hybrid') && (
                             <>
                                 <div>
                                     <label className="block text-sm font-medium text-slate-300 mb-1">Historical Period (OHLCV)</label>
@@ -889,6 +903,13 @@ const ModelTrainingStudio: React.FC = () => {
 
             {/* ── Floating Training Chart FAB ─────────────────────────────────── */}
             <FloatingTVChartButton symbol={symbol} exchange={exchange} />
+            
+            {/* Dataset Visualizer Floating Modal */}
+            <DatasetVisualizerModal 
+                isOpen={showVisualizer} 
+                onClose={() => setShowVisualizer(false)} 
+                symbol={symbol} 
+            />
         </div>
     );
 };

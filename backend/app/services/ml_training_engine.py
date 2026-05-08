@@ -76,8 +76,16 @@ def fetch_l2_data(symbol: str, db: Session, lookback_hours: int = 6, timeframe: 
     return df
 
 def fetch_data(symbol: str, timeframe: str, period: str = None, exchange_name: str = 'binance') -> pd.DataFrame:
-    tf_map = {"5m": "5m", "15m": "15m", "1h": "1h", "4h": "4h", "1d": "1d"}
-    tf = tf_map.get(timeframe, "1d")
+    # Most common CCXT timeframes
+    tf_map = {
+        "1s": "1s", "1m": "1m", "3m": "3m", "5m": "5m", 
+        "15m": "15m", "30m": "30m", "1h": "1h", "2h": "2h", 
+        "4h": "4h", "6h": "6h", "8h": "8h", "12h": "12h", 
+        "1d": "1d", "3d": "3d", "1w": "1w", "1M": "1M"
+    }
+    # If timeframe is not in map, just pass it to CCXT directly (e.g. 5s if supported)
+    # But if CCXT fails, we catch it below.
+    tf = tf_map.get(timeframe, timeframe)
     
     try:
         ex_class = getattr(ccxt, exchange_name)
@@ -127,6 +135,8 @@ async def _async_live_scraper(symbol: str, target_rows: int, db: Session, job: m
     
     retry_count = 0
     max_retries = 5
+    
+    from app.services.websocket_manager import manager
     
     while scraped_count < target_rows and retry_count < max_retries:
         try:
@@ -181,6 +191,20 @@ async def _async_live_scraper(symbol: str, target_rows: int, db: Session, job: m
                     )
                     buffer.append(snapshot)
                     scraped_count += 1
+                    
+                    # Broadcast live tick to the frontend Visualizer
+                    try:
+                        payload = {
+                            "type": "live_tick",
+                            "symbol": symbol,
+                            "timestamp": ts.isoformat(),
+                            "Close": microprice,
+                            "obi": obi,
+                            "spread": spread
+                        }
+                        await manager.broadcast(json.dumps(payload), channel_id="training_visualizer")
+                    except Exception as e:
+                        pass
                     
                     if len(buffer) >= 500:
                         db.bulk_save_objects(buffer)
@@ -274,7 +298,12 @@ def train_model_task(job_id: str, db: Session):
         ft_label = f"🔄 Fine-Tune from: {_prev_path}" if is_fine_tune else "🆕 Fresh Training (no prior checkpoint)"
         add_log(ft_label)
         
-        if dataset_type == "l2_orderbook":
+        if dataset_type == "hybrid":
+            from app.services.hybrid_pipeline import build_hybrid_dataset
+            df, features = build_hybrid_dataset(job, db, config, add_log)
+            job.progress = 15.0
+            
+        elif dataset_type == "l2_orderbook":
             resample_l2 = config.get("resample_l2", True)
             timeframe_to_pass = job.timeframe if resample_l2 else None
             

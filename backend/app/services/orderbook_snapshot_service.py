@@ -41,6 +41,7 @@ class OrderbookSnapshotService:
         NON_MARKET_CHANNELS = {
             "general", "backtest", "block_trades", "dashboard",
             "options_live", "correlation_feed", "system_alerts", "container_logs",
+            "training_visualizer"
         }
         symbols_to_record = set()
         for s in active_symbols:

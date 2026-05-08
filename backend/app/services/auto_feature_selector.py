@@ -244,9 +244,11 @@ async def fetch_sample_l2_data(symbol: str, db: Session, target_rows=1000):
         OrderBookSnapshot.symbol == clean_symbol
     ).order_by(OrderBookSnapshot.timestamp.desc()).limit(target_rows).all()
     
-    if len(snapshots) >= 100: # We have enough cached
+    valid_snapshots = [s for s in snapshots if s.bids and len(s.bids) > 0 and s.asks and len(s.asks) > 0]
+    
+    if len(valid_snapshots) >= 100: # We have enough cached
         data = []
-        for s in reversed(snapshots): # chron order
+        for s in reversed(valid_snapshots): # chron order
             data.append({
                 "timestamp": s.timestamp,
                 "Close": s.microprice,

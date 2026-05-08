@@ -1,7 +1,8 @@
 import time
 from typing import List, Any
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
+from app.services.websocket_manager import manager
 
 from app import models, schemas
 from app.api import deps
@@ -91,3 +92,19 @@ def suggest_l2_features(
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
     return result
+
+@router.websocket("/ws/training-visualizer")
+async def websocket_training_visualizer(websocket: WebSocket):
+    """
+    WebSocket endpoint for the Dataset Visualizer.
+    Streams live ticks from the scraper and final merged dataset.
+    """
+    await manager.connect(websocket, channel_id="training_visualizer")
+    try:
+        while True:
+            # Keep connection alive
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, channel_id="training_visualizer")
+    except Exception as e:
+        manager.disconnect(websocket, channel_id="training_visualizer")
