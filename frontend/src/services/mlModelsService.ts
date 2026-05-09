@@ -81,5 +81,11 @@ export const mlModelsService = {
     getModelConfig: async (modelId: string): Promise<any> => {
         const response = await api.get(`/ml-models/${modelId}/config`);
         return response.data;
+    },
+
+    // Get model explainability data
+    getModelExplainability: async (modelId: string): Promise<any> => {
+        const response = await api.get(`/ml-models/${modelId}/explainability`);
+        return response.data;
     }
 };

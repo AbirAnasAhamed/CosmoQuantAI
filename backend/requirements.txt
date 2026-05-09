@@ -92,3 +92,4 @@ lightgbm
 catboost
 stable-baselines3
 gymnasium
+shap

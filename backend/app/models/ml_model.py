@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Enum, Integer
+from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Enum, Integer, JSON
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
@@ -43,5 +43,6 @@ class ModelVersion(Base):
     accuracy = Column(Float, nullable=True)
     f1_score = Column(Float, nullable=True)
     latency = Column(Float, nullable=True)
+    explainability = Column(JSON, nullable=True)
 
     model = relationship("CustomMLModel", back_populates="versions", foreign_keys=[model_id])

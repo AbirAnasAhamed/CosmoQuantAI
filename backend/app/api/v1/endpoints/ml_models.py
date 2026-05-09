@@ -18,13 +18,73 @@ os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 async def simulate_processing(db: Session, version_id: str):
     """Background task to simulate model processing"""
+    import random
     # Wait for a few seconds
     await asyncio.sleep(5)
     
-    # Update status to Ready
+    # Update status to Ready and inject mock explainability data
     version = db.query(models.ModelVersion).filter(models.ModelVersion.id == version_id).first()
     if version and version.status == models.ModelStatus.PROCESSING:
         version.status = models.ModelStatus.READY
+        version.accuracy = 0.85 + random.uniform(-0.05, 0.05)
+        version.f1_score = 0.82 + random.uniform(-0.05, 0.05)
+        version.latency = 12.5 + random.uniform(-2, 5)
+        
+        # Generate rich mock explainability data
+        version.explainability = {
+            "featureImportance": [
+                {"name": "Level2_Imbalance", "value": 0.45},
+                {"name": "Volume_Profile", "value": 0.25},
+                {"name": "RSI_14", "value": 0.15},
+                {"name": "MACD_Hist", "value": 0.10},
+                {"name": "Funding_Rate", "value": 0.05}
+            ],
+            "shapSummary": [
+                {"feature": "Level2_Imbalance", "impact": 0.08, "value": "High"},
+                {"feature": "Level2_Imbalance", "impact": -0.05, "value": "Low"},
+                {"feature": "Volume_Profile", "impact": 0.04, "value": "High"},
+                {"feature": "RSI_14", "impact": -0.03, "value": "High"}
+            ],
+            "pdpData": [
+                {"x": 1000, "y": 0.1},
+                {"x": 5000, "y": 0.4},
+                {"x": 10000, "y": 0.8},
+                {"x": 20000, "y": 0.95}
+            ],
+            "timeSeriesData": [
+                {"time": "2026-05-01", "actual": 60000, "predicted": 60100},
+                {"time": "2026-05-02", "actual": 61500, "predicted": 61200},
+                {"time": "2026-05-03", "actual": 59000, "predicted": 59500},
+                {"time": "2026-05-04", "actual": 62000, "predicted": 61800},
+                {"time": "2026-05-05", "actual": 64000, "predicted": 63500}
+            ],
+            "confusionMatrix": {
+                "classes": ["Buy", "Sell", "Hold"],
+                "matrix": [
+                    [85, 5, 10],
+                    [2, 90, 8],
+                    [12, 15, 73]
+                ]
+            },
+            "decisionTree": {
+                "nodes": [
+                    {"id": "1", "label": "Level2 Imbalance > 0.5", "type": "condition"},
+                    {"id": "2", "label": "RSI > 70", "type": "condition"},
+                    {"id": "3", "label": "Volume Profile > 1M", "type": "condition"},
+                    {"id": "4", "label": "SELL", "type": "leaf", "color": "red"},
+                    {"id": "5", "label": "HOLD", "type": "leaf", "color": "gray"},
+                    {"id": "6", "label": "BUY", "type": "leaf", "color": "green"}
+                ],
+                "edges": [
+                    {"source": "1", "target": "2", "label": "Yes"},
+                    {"source": "1", "target": "3", "label": "No"},
+                    {"source": "2", "target": "4", "label": "Yes"},
+                    {"source": "2", "target": "5", "label": "No"},
+                    {"source": "3", "target": "6", "label": "Yes"},
+                    {"source": "3", "target": "5", "label": "No"}
+                ]
+            }
+        }
         db.commit()
 
 @router.get("", response_model=List[schemas.CustomMLModelResponse])
@@ -242,3 +302,32 @@ def get_model_config(
         "algorithm": job.algorithm,
         "config": job.config or {}
     }
+
+@router.get("/{model_id}/explainability")
+def get_model_explainability(
+    model_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Get the explainability data for the currently active version of a model.
+    """
+    db_model = db.query(models.CustomMLModel).filter(
+        models.CustomMLModel.id == model_id, 
+        models.CustomMLModel.user_id == current_user.id
+    ).first()
+    
+    if not db_model:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+    if not db_model.active_version_id:
+        raise HTTPException(status_code=400, detail="Model has no active version")
+
+    version = db.query(models.ModelVersion).filter(models.ModelVersion.id == db_model.active_version_id).first()
+    if not version:
+        raise HTTPException(status_code=404, detail="Active version not found")
+
+    if not version.explainability:
+        return {} # No explainability data available yet
+
+    return version.explainability

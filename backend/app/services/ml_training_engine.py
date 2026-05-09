@@ -14,7 +14,7 @@ from app import models
 import traceback
 from datetime import datetime, timedelta
 import joblib
-from app.services.ml_utils import extract_feature_importance, calculate_classification_metrics, calculate_regression_metrics
+from app.services.ml_utils import extract_feature_importance, calculate_classification_metrics, calculate_regression_metrics, generate_real_explainability
 from app.services.auto_feature_selector import calculate_l2_advanced_features
 from app.services.advanced_ml.engine import AdvancedMLEngine # ✅ Import New Engine
 from app.services.helpers.vwap_calculator import calculate_vwap_sd_features
@@ -471,6 +471,7 @@ def train_model_task(job_id: str, db: Session):
         final_accuracy = None
         final_f1 = None
         final_latency = None
+        final_explainability = None
 
         def process_metrics(metrics_str, is_classification):
             nonlocal final_accuracy, final_f1
@@ -1007,6 +1008,17 @@ def train_model_task(job_id: str, db: Session):
         else:
             raise ValueError(f"Unsupported algorithm: {job.algorithm}")
             
+        # Generate Explainability Data
+        try:
+            if job.algorithm in ["Random Forest", "XGBoost", "LightGBM", "CatBoost"]:
+                add_log("Generating Real Explainability Metrics (SHAP, Feature Importance, etc.)...")
+                is_cls = (prediction_target == "classification")
+                # Wait, y_pred might not be in scope if an error happened, but if we reached here it should be unless it's deep inside the if branch.
+                # Since Python doesn't have block scope, y_pred from the if branches will be accessible here.
+                final_explainability = generate_real_explainability(model, X_test, y_test.ravel(), y_pred, features, is_classification=is_cls)
+        except Exception as e:
+            add_log(f"⚠️ Failed to generate explainability data: {e}")
+            
         # 5. Register in ML Registry
         add_log("Registering newly trained model in ML Registry...")
         timestamp = int(time.time() * 1000)
@@ -1036,7 +1048,8 @@ def train_model_task(job_id: str, db: Session):
                 status=models.ModelStatus.READY,
                 accuracy=final_accuracy,
                 f1_score=final_f1,
-                latency=final_latency
+                latency=final_latency,
+                explainability=final_explainability
             )
             db.add(db_version)
             db.flush()
@@ -1071,7 +1084,8 @@ def train_model_task(job_id: str, db: Session):
                 status=models.ModelStatus.READY,
                 accuracy=final_accuracy,
                 f1_score=final_f1,
-                latency=final_latency
+                latency=final_latency,
+                explainability=final_explainability
             )
             db.add(db_version)
             db.flush()

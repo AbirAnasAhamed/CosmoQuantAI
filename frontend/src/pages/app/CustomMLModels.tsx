@@ -7,7 +7,9 @@ import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
 import { LstmIcon, RandomForestIcon, ArimaIcon, OtherModelIcon, CheckCircleIcon, ClockIcon, ExclamationCircleIcon } from '@/constants';
 import type { CustomMLModel, ModelVersion } from '@/types';
-
+import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, AreaChart, Area, LineChart, Line } from 'recharts';
+import ReactFlow, { Background, Controls } from 'reactflow';
+import 'reactflow/dist/style.css';
 // --- Visual Components ---
 
 const NeuralMeshBackground = () => (
@@ -160,17 +162,184 @@ const UploadModelModal: React.FC<{
     );
 };
 
+const ExplainabilityView: React.FC<{ data: any }> = ({ data }) => {
+    if (!data || Object.keys(data).length === 0) {
+        return <div className="text-center py-10 text-gray-500 font-bold">No explainability data available for this version. Please retrain.</div>;
+    }
+
+    const colors = ['#6366F1', '#8B5CF6', '#EC4899', '#14B8A6', '#F59E0B'];
+
+    return (
+        <div className="space-y-6 animate-fade-in pb-10">
+            {/* 1. Feature Importance */}
+            <div className="bg-white/5 border border-white/10 rounded-xl p-5">
+                <h3 className="text-sm font-bold text-gray-300 mb-4 flex items-center gap-2"><svg className="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg> Feature Importance</h3>
+                <div className="h-64">
+                    <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={data.featureImportance} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
+                            <XAxis type="number" hide />
+                            <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} width={120} />
+                            <RechartsTooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{backgroundColor: '#111', borderColor: '#333', borderRadius: '8px'}} />
+                            <Bar dataKey="value" radius={[0, 4, 4, 0]}>
+                                {data.featureImportance?.map((entry: any, index: number) => (
+                                    <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
+                                ))}
+                            </Bar>
+                        </BarChart>
+                    </ResponsiveContainer>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* 2. Partial Dependence (PDP) */}
+                <div className="bg-white/5 border border-white/10 rounded-xl p-5">
+                    <h3 className="text-sm font-bold text-gray-300 mb-4 flex items-center gap-2">Partial Dependence Plot</h3>
+                    <div className="h-48">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={data.pdpData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
+                                <defs>
+                                    <linearGradient id="colorY" x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor="#14B8A6" stopOpacity={0.3}/>
+                                    <stop offset="95%" stopColor="#14B8A6" stopOpacity={0}/>
+                                    </linearGradient>
+                                </defs>
+                                <XAxis dataKey="x" tick={{fill: '#6B7280', fontSize: 10}} tickLine={false} axisLine={false}/>
+                                <YAxis tick={{fill: '#6B7280', fontSize: 10}} tickLine={false} axisLine={false}/>
+                                <RechartsTooltip contentStyle={{backgroundColor: '#111', borderColor: '#333', borderRadius: '8px'}}/>
+                                <Area type="monotone" dataKey="y" stroke="#14B8A6" fillOpacity={1} fill="url(#colorY)" />
+                            </AreaChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+
+                {/* 3. Actual vs Predicted */}
+                <div className="bg-white/5 border border-white/10 rounded-xl p-5">
+                    <h3 className="text-sm font-bold text-gray-300 mb-4 flex items-center gap-2">Actual vs Predicted (Test Set)</h3>
+                    <div className="h-48">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={data.timeSeriesData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
+                                <XAxis dataKey="time" hide />
+                                <YAxis domain={['auto', 'auto']} tick={{fill: '#6B7280', fontSize: 10}} tickLine={false} axisLine={false}/>
+                                <RechartsTooltip contentStyle={{backgroundColor: '#111', borderColor: '#333', borderRadius: '8px'}}/>
+                                <Line type="monotone" dataKey="actual" stroke="#6B7280" strokeWidth={2} dot={false} name="Actual" />
+                                <Line type="monotone" dataKey="predicted" stroke="#6366F1" strokeWidth={2} strokeDasharray="3 3" dot={false} name="Predicted" />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
+                </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* 4. Confusion Matrix */}
+                <div className="bg-white/5 border border-white/10 rounded-xl p-5 flex flex-col">
+                    <h3 className="text-sm font-bold text-gray-300 mb-4 flex items-center gap-2">Confusion Matrix</h3>
+                    <div className="flex-1 flex items-center justify-center">
+                        <div className="grid grid-cols-4 gap-1 w-full max-w-[240px]">
+                            <div className="col-span-1"></div>
+                            {data.confusionMatrix?.classes.map((c: string) => <div key={`col-${c}`} className="text-center text-[10px] text-gray-500 font-bold">{c}</div>)}
+                            
+                            {data.confusionMatrix?.matrix.map((row: number[], i: number) => (
+                                <React.Fragment key={`row-${i}`}>
+                                    <div className="text-right text-[10px] text-gray-500 font-bold pr-2 flex items-center justify-end">{data.confusionMatrix.classes[i]}</div>
+                                    {row.map((val: number, j: number) => {
+                                        const intensity = val / 100;
+                                        return (
+                                            <div key={`cell-${i}-${j}`} className="aspect-square flex items-center justify-center rounded text-sm font-mono font-bold" style={{ backgroundColor: i===j ? `rgba(16, 185, 129, ${0.1 + intensity*0.9})` : `rgba(239, 68, 68, ${0.1 + intensity*0.5})`, color: intensity > 0.5 ? 'white' : '#9CA3AF' }}>
+                                                {val}
+                                            </div>
+                                        )
+                                    })}
+                                </React.Fragment>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+
+                {/* 5. SHAP Summary */}
+                <div className="bg-white/5 border border-white/10 rounded-xl p-5">
+                    <h3 className="text-sm font-bold text-gray-300 mb-4 flex items-center gap-2">SHAP Summary (Impact)</h3>
+                    <div className="space-y-4">
+                        {['Level2_Imbalance', 'Volume_Profile', 'RSI_14'].map(feature => {
+                            const dots = data.shapSummary?.filter((s:any) => s.feature === feature) || [];
+                            return (
+                                <div key={feature} className="flex items-center gap-2">
+                                    <div className="w-28 text-[10px] text-gray-400 truncate text-right font-bold">{feature}</div>
+                                    <div className="flex-1 relative h-6 bg-white/5 rounded">
+                                        <div className="absolute top-0 bottom-0 left-1/2 w-px bg-gray-600"></div>
+                                        {dots.map((d:any, i:number) => {
+                                            const left = 50 + (d.impact * 500); 
+                                            const color = d.value === 'High' ? '#EF4444' : '#3B82F6';
+                                            return (
+                                                <div key={i} className="absolute top-1.5 w-3 h-3 rounded-full opacity-80" style={{ left: `${Math.min(Math.max(left, 0), 95)}%`, backgroundColor: color }}></div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        <div className="flex justify-between text-[10px] text-gray-500 pt-2 border-t border-gray-800">
+                            <span>Negative</span>
+                            <span>Value: <span className="text-blue-500">Low</span> / <span className="text-red-500">High</span></span>
+                            <span>Positive</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* 6. Decision Tree */}
+            <div className="bg-white/5 border border-white/10 rounded-xl p-5 h-80 flex flex-col">
+                <h3 className="text-sm font-bold text-gray-300 mb-2 flex items-center gap-2">Decision Tree Logic</h3>
+                <div className="flex-1 border border-white/5 rounded-lg overflow-hidden bg-[#050505]">
+                    <ReactFlow 
+                        nodes={data.decisionTree?.nodes.map((n:any) => ({
+                            id: n.id,
+                            position: { 
+                                x: n.id === '1' ? 250 : n.id === '2' ? 100 : n.id === '3' ? 400 : n.id === '4' ? 0 : n.id === '5' ? 250 : 500, 
+                                y: n.id === '1' ? 20 : ['2','3'].includes(n.id) ? 120 : 220 
+                            },
+                            data: { label: n.label },
+                            style: { background: n.type === 'leaf' ? (n.color === 'green' ? '#10B981' : n.color==='red'?'#EF4444':'#6B7280') : '#1E1B4B', color: '#fff', border: '1px solid #4338CA', borderRadius: '8px', padding: '8px 10px', fontSize: '10px', fontWeight: 'bold', width: 140, textAlign: 'center' }
+                        })) || []}
+                        edges={data.decisionTree?.edges.map((e:any) => ({
+                            id: `e${e.source}-${e.target}`,
+                            source: e.source,
+                            target: e.target,
+                            label: e.label,
+                            labelStyle: { fill: '#9CA3AF', fontSize: 10, fontWeight: 'bold' },
+                            style: { stroke: '#4B5563' },
+                            animated: true
+                        })) || []}
+                        fitView
+                        attributionPosition="bottom-right"
+                    >
+                        <Background color="#333" gap={16} />
+                        <Controls className="bg-white/10 border-white/20 fill-white" showInteractive={false} />
+                    </ReactFlow>
+                </div>
+            </div>
+
+        </div>
+    );
+};
+
 const ModelDetailsModal: React.FC<{
     modelId: string;
     modelName: string;
     onClose: () => void;
 }> = ({ modelId, modelName, onClose }) => {
     const [config, setConfig] = useState<any>(null);
+    const [explainData, setExplainData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [activeTab, setActiveTab] = useState<'config'|'explain'>('config');
 
     React.useEffect(() => {
-        mlModelsService.getModelConfig(modelId).then((res: any) => {
-            setConfig(res);
+        setLoading(true);
+        Promise.all([
+            mlModelsService.getModelConfig(modelId),
+            mlModelsService.getModelExplainability(modelId).catch(() => ({}))
+        ]).then(([configRes, explainRes]) => {
+            setConfig(configRes);
+            setExplainData(explainRes);
             setLoading(false);
         }).catch(err => {
             console.error("Failed to load details", err);
@@ -192,75 +361,84 @@ const ModelDetailsModal: React.FC<{
                     <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">&times;</button>
                 </div>
 
-                <div className="p-6 overflow-y-auto max-h-[70vh] custom-scrollbar">
+                <div className="flex border-b border-gray-800 bg-[#0A0A0A]">
+                    <button onClick={() => setActiveTab('config')} className={`flex-1 py-3 text-sm font-bold uppercase tracking-wider transition-all ${activeTab === 'config' ? 'text-cyan-400 border-b-2 border-cyan-400 bg-cyan-500/5' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}>Configuration</button>
+                    <button onClick={() => setActiveTab('explain')} className={`flex-1 py-3 text-sm font-bold uppercase tracking-wider transition-all ${activeTab === 'explain' ? 'text-purple-400 border-b-2 border-purple-400 bg-purple-500/5' : 'text-gray-500 hover:text-gray-300 hover:bg-white/5'}`}>Model Insights</button>
+                </div>
+
+                <div className="p-6 overflow-y-auto max-h-[70vh] custom-scrollbar bg-[#0A0A0A]">
                     {loading ? (
-                        <div className="flex justify-center py-10">
+                        <div className="flex justify-center py-20">
                             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-cyan-500"></div>
                         </div>
-                    ) : config ? (
-                        <div className="space-y-6">
-                            {/* General Stats */}
-                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                                    <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Target Asset</p>
-                                    <p className="text-sm font-mono text-white">{config.symbol || 'N/A'}</p>
+                    ) : activeTab === 'config' ? (
+                        config ? (
+                            <div className="space-y-6">
+                                {/* General Stats */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                    <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                                        <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Target Asset</p>
+                                        <p className="text-sm font-mono text-white">{config.symbol || 'N/A'}</p>
+                                    </div>
+                                    <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                                        <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Timeframe</p>
+                                        <p className="text-sm font-mono text-white">{config.timeframe || 'N/A'}</p>
+                                    </div>
+                                    <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                                        <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Algorithm</p>
+                                        <p className="text-sm font-mono text-purple-400 font-bold">{config.algorithm || 'N/A'}</p>
+                                    </div>
+                                    <div className="bg-white/5 border border-white/10 rounded-xl p-4">
+                                        <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Epochs/Trees</p>
+                                        <p className="text-sm font-mono text-white">{config.config?.epochs || 'N/A'}</p>
+                                    </div>
                                 </div>
-                                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                                    <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Timeframe</p>
-                                    <p className="text-sm font-mono text-white">{config.timeframe || 'N/A'}</p>
-                                </div>
-                                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                                    <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Algorithm</p>
-                                    <p className="text-sm font-mono text-purple-400 font-bold">{config.algorithm || 'N/A'}</p>
-                                </div>
-                                <div className="bg-white/5 border border-white/10 rounded-xl p-4">
-                                    <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Epochs/Trees</p>
-                                    <p className="text-sm font-mono text-white">{config.config?.epochs || 'N/A'}</p>
-                                </div>
+
+                                {/* Features */}
+                                {config.config?.indicators && config.config.indicators.length > 0 && (
+                                    <div>
+                                        <h3 className="text-sm font-bold text-gray-400 mb-3 border-b border-gray-800 pb-2 flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>
+                                            Technical Indicators (OHLCV)
+                                        </h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            {config.config.indicators.map((ind: string) => (
+                                                <span key={ind} className="px-3 py-1 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded-lg text-xs font-bold shadow-sm">
+                                                    {ind}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* L2 Features */}
+                                {config.config?.l2_features && config.config.l2_features.length > 0 && (
+                                    <div className="mt-6">
+                                        <h3 className="text-sm font-bold text-gray-400 mb-3 border-b border-gray-800 pb-2 flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>
+                                            Orderbook Features (L2)
+                                        </h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            {config.config.l2_features.map((feat: string) => (
+                                                <span key={feat} className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-bold shadow-sm">
+                                                    {feat}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {(!config.config?.indicators?.length && !config.config?.l2_features?.length) && (
+                                    <div className="text-center py-6 text-gray-500 text-sm border border-dashed border-gray-800 rounded-xl">
+                                        No detailed feature information available for this model. (It might have been uploaded manually or trained without custom features).
+                                    </div>
+                                )}
                             </div>
-
-                            {/* Features */}
-                            {config.config?.indicators && config.config.indicators.length > 0 && (
-                                <div>
-                                    <h3 className="text-sm font-bold text-gray-400 mb-3 border-b border-gray-800 pb-2 flex items-center gap-2">
-                                        <svg className="w-4 h-4 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z" /></svg>
-                                        Technical Indicators (OHLCV)
-                                    </h3>
-                                    <div className="flex flex-wrap gap-2">
-                                        {config.config.indicators.map((ind: string) => (
-                                            <span key={ind} className="px-3 py-1 bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 rounded-lg text-xs font-bold shadow-sm">
-                                                {ind}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {/* L2 Features */}
-                            {config.config?.l2_features && config.config.l2_features.length > 0 && (
-                                <div className="mt-6">
-                                    <h3 className="text-sm font-bold text-gray-400 mb-3 border-b border-gray-800 pb-2 flex items-center gap-2">
-                                        <svg className="w-4 h-4 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" /></svg>
-                                        Orderbook Features (L2)
-                                    </h3>
-                                    <div className="flex flex-wrap gap-2">
-                                        {config.config.l2_features.map((feat: string) => (
-                                            <span key={feat} className="px-3 py-1 bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-lg text-xs font-bold shadow-sm">
-                                                {feat}
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-                            )}
-
-                            {(!config.config?.indicators?.length && !config.config?.l2_features?.length) && (
-                                <div className="text-center py-6 text-gray-500 text-sm">
-                                    No detailed feature information available for this model. (It might have been uploaded manually or trained without custom features).
-                                </div>
-                            )}
-                        </div>
+                        ) : (
+                            <div className="text-center py-10 text-red-400 font-bold">Failed to load configuration.</div>
+                        )
                     ) : (
-                        <div className="text-center py-10 text-red-400 font-bold">Failed to load configuration.</div>
+                        <ExplainabilityView data={explainData} />
                     )}
                 </div>
             </div>
