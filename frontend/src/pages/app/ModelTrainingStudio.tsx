@@ -179,9 +179,13 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
         try {
             setIsTraining(true);
             setCurrentJob(null);
+            
+            // Fix: Send "Tick" instead of the default timeframe if we are using raw unresampled L2 data
+            const actualTimeframe = (dataSource === 'l2_orderbook' && !isResampleL2) ? 'Tick' : timeframe;
+            
             const job = await mlTrainingService.startTraining({
                 symbol,
-                timeframe,
+                timeframe: actualTimeframe,
                 algorithm,
                 config: {
                     indicators: (dataSource === 'ohlcv' || dataSource === 'hybrid') ? selectedIndicators : [],
