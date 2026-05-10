@@ -305,14 +305,16 @@ const AppDashboard: React.FC<AppDashboardProps> = ({ onLogout }) => {
     const navigate = useNavigate();
     const currentView = getViewFromPath(location.pathname);
     
-    // Parse settings section from URL (e.g. /settings/profile)
-    const getActiveSettingsSection = () => {
-        if (location.pathname.startsWith('/settings/')) {
-            return location.pathname.split('/')[2] || null;
+    // Parse dynamic section from URL
+    const getDynamicSection = (basePath: string) => {
+        if (location.pathname.startsWith(basePath + '/')) {
+            const section = location.pathname.substring((basePath + '/').length);
+            return section || null;
         }
         return null;
     };
-    const activeSettingsSection = getActiveSettingsSection();
+    const activeSettingsSection = getDynamicSection('/settings');
+    const retrainModelIdParam = getDynamicSection('/model-training-studio');
 
     const [walletAddress, setWalletAddress] = useState<string | null>(null);
     const [isAssistantOpen, setIsAssistantOpen] = useState(false);
@@ -400,7 +402,7 @@ const AppDashboard: React.FC<AppDashboardProps> = ({ onLogout }) => {
             case AppView.ALERTS_WATCHLIST: return <AlertsWatchlist />;
             case AppView.ANALYST_RESEARCH: return <AnalystResearch />;
             case AppView.CUSTOM_ML_MODELS: return <CustomMLModels onNavigate={handleNavigate} />;
-            case AppView.MODEL_TRAINING_STUDIO: return <ModelTrainingStudio retrainModelId={activeSettingsSection} />;
+            case AppView.MODEL_TRAINING_STUDIO: return <ModelTrainingStudio retrainModelId={retrainModelIdParam} />;
             case AppView.ML_MODEL_MARKETPLACE: return <MLModelMarketplace />;
             case AppView.CUSTOM_INDICATOR_STUDIO: return <CustomIndicatorStudio />;
             case AppView.PINE_SCRIPT_STUDIO: return <PineScriptStudio />;

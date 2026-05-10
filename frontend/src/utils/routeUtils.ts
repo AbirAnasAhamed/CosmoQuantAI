@@ -62,9 +62,12 @@ export const getViewFromPath = (path: string): AppView => {
     return AppView.DASHBOARD;
   }
 
-  // Handle settings which might have dynamic sections like /settings/profile
+  // Handle paths which might have dynamic sections like /settings/profile or /model-training-studio/id
   if (normalizedPath.startsWith('/settings')) {
     return AppView.SETTINGS;
+  }
+  if (normalizedPath.startsWith('/model-training-studio')) {
+    return AppView.MODEL_TRAINING_STUDIO;
   }
 
   const allViews = Object.values(AppView);
