@@ -2795,90 +2795,100 @@ const OrderFlowHeatmap: React.FC = () => {
                 )}
             </div>
 
-            {/* WALLHUNTER FLOATING ACTION BUTTON */}
-            {
-                activeWallHunterId ? (
-                    <div className="fixed bottom-8 right-8 z-[999] flex flex-row gap-4 items-center opacity-25 hover:opacity-100 transition-opacity duration-300">
+            {/* FLOATING ACTION BUTTONS CONTAINER */}
+            <div className="fixed bottom-8 right-8 z-[999] flex flex-row-reverse gap-4 items-center">
+                {/* WALLHUNTER FLOATING ACTION BUTTON */}
+                {
+                    activeWallHunterId ? (
+                        <div className="flex flex-row gap-4 items-center opacity-100 transition-opacity duration-300">
+                            <button
+                                onClick={() => setIsWallHunterOpen(true)}
+                                className="group relative w-12 h-12 shrink-0"
+                                title="Update WallHunter Config"
+                            >
+                                <div className="absolute inset-0 bg-indigo-500 rounded-full blur-xl opacity-40 group-hover:opacity-100 transition-opacity animate-pulse" />
+                                <div className="relative w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center border-2 border-white/20 shadow-[0_0_30px_rgba(99,102,241,0.5)] group-hover:scale-110 transition-transform cursor-pointer">
+                                    <svg className="w-5 h-5 text-white group-hover:rotate-90 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                                    </svg>
+                                </div>
+                            </button>
+                            <button
+                                onClick={async () => {
+                                    try {
+                                        await botService.controlBot(activeWallHunterId, 'stop');
+                                        setActiveWallHunterId(null);
+                                    } catch (err) {
+                                        console.error("Failed to stop WallHunter bot", err);
+                                    }
+                                }}
+                                className="group relative w-16 h-16 shrink-0"
+                                title="Abort WallHunter"
+                            >
+                                <div className="absolute inset-0 bg-red-500 rounded-full blur-xl opacity-40 group-hover:opacity-100 transition-opacity animate-pulse" />
+                                <div className="relative w-16 h-16 bg-gradient-to-br from-red-500 to-red-700 rounded-full flex items-center justify-center border-4 border-white/20 shadow-[0_0_30px_rgba(239,68,68,0.5)] group-hover:scale-110 transition-transform cursor-pointer">
+                                    <svg className="w-8 h-8 text-white group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" />
+                                    </svg>
+                                </div>
+                            </button>
+                        </div>
+                    ) : (
                         <button
                             onClick={() => setIsWallHunterOpen(true)}
-                            className="group relative w-12 h-12"
-                            title="Update WallHunter Config"
+                            className="relative w-16 h-16 shrink-0 group opacity-100 transition-opacity duration-300"
+                            title="Deploy WallHunter"
                         >
-                            <div className="absolute inset-0 bg-indigo-500 rounded-full blur-xl opacity-40 group-hover:opacity-100 transition-opacity animate-pulse" />
-                            <div className="relative w-12 h-12 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-full flex items-center justify-center border-2 border-white/20 shadow-[0_0_30px_rgba(99,102,241,0.5)] group-hover:scale-110 transition-transform cursor-pointer">
-                                <svg className="w-5 h-5 text-white group-hover:rotate-90 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+                            <div className="absolute inset-0 bg-yellow-500 rounded-full blur-xl opacity-40 group-hover:opacity-100 transition-opacity animate-pulse" />
+                            <div className="relative w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-600 rounded-full flex items-center justify-center border-4 border-white/20 shadow-2xl group-hover:scale-110 transition-transform cursor-pointer">
+                                <svg className="w-8 h-8 text-white group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 10V3L4 14h7v7l9-11h-7z" />
                                 </svg>
                             </div>
                         </button>
-                        <button
-                            onClick={async () => {
-                                try {
-                                    await botService.controlBot(activeWallHunterId, 'stop');
-                                    setActiveWallHunterId(null);
-                                } catch (err) {
-                                    console.error("Failed to stop WallHunter bot", err);
-                                }
-                            }}
-                            className="group relative w-16 h-16"
-                            title="Abort WallHunter"
-                        >
-                            <div className="absolute inset-0 bg-red-500 rounded-full blur-xl opacity-40 group-hover:opacity-100 transition-opacity animate-pulse" />
-                            <div className="relative w-16 h-16 bg-gradient-to-br from-red-500 to-red-700 rounded-full flex items-center justify-center border-4 border-white/20 shadow-[0_0_30px_rgba(239,68,68,0.5)] group-hover:scale-110 transition-transform cursor-pointer">
-                                <svg className="w-8 h-8 text-white group-hover:rotate-180 transition-transform duration-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M6 18L18 6M6 6l12 12" />
-                                </svg>
-                            </div>
-                        </button>
-                    </div>
-                ) : (
-                    <button
-                        onClick={() => setIsWallHunterOpen(true)}
-                        className="fixed bottom-8 right-8 z-[999] group opacity-25 hover:opacity-100 transition-opacity duration-300"
-                        title="Deploy WallHunter"
-                    >
-                        <div className="absolute inset-0 bg-yellow-500 rounded-full blur-xl opacity-40 group-hover:opacity-100 transition-opacity animate-pulse" />
-                        <div className="relative w-16 h-16 bg-gradient-to-br from-yellow-400 to-orange-600 rounded-full flex items-center justify-center border-4 border-white/20 shadow-2xl group-hover:scale-110 transition-transform cursor-pointer">
-                            <svg className="w-8 h-8 text-white group-hover:rotate-12 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M13 10V3L4 14h7v7l9-11h-7z" />
-                            </svg>
-                        </div>
-                    </button>
-                )
-            }
+                    )
+                }
 
-            {/* MANUAL TRADE MODAL */}
-            <ManualTradeModal symbol={symbol} currentPrice={currentPrice} onApiKeyChange={setSelectedApiKeyId} />
+                {/* MANUAL TRADE MODAL */}
+                <div className="w-16 h-16 relative shrink-0">
+                    <ManualTradeModal symbol={symbol} currentPrice={currentPrice} onApiKeyChange={setSelectedApiKeyId} />
+                </div>
 
-            {/* FLOATING AI DEPLOYMENT BUTTON (above Level 2 Order Book) */}
-            <button
-                onClick={() => setIsAIDeploymentModalOpen(true)}
-                className="fixed bottom-[356px] right-8 w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-br from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 border border-purple-400/30 text-white shadow-[0_0_24px_rgba(168,85,247,0.5)] z-[999] transition-all opacity-25 hover:opacity-100 hover:scale-110 focus:outline-none group"
-                title="Deploy AI Trading Model"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
-                {/* Replaced BrainCircuit with a generic lucide equivalent or custom svg just for the icon. Actually, let's use the Brain icon path. */}
-                <svg className="absolute w-8 h-8 group-hover:scale-110 transition-transform bg-transparent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/>
-                    <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/>
-                    <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/>
-                    <path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/>
-                    <path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/>
-                    <path d="M3.477 10.896a4 4 0 0 1 .585-.396"/>
-                    <path d="M19.938 10.5a4 4 0 0 1 .585.396"/>
-                    <path d="M6 18a4 4 0 0 1-1.967-.516"/>
-                    <path d="M19.967 17.484A4 4 0 0 1 18 18"/>
-                </svg>
-            </button>
+                {/* FLOATING ORDER FLOW CHART BUTTON */}
+                <div className="w-16 h-16 relative shrink-0">
+                    <FloatingTVChartButton symbol={symbol} exchange={exchange} />
+                </div>
 
-            {/* FLOATING LEVEL 2 ORDER BOOK BUTTON (above TVChart button) */}
-            <button
-                onClick={() => setIsOrderBookModalOpen(true)}
-                className="fixed bottom-[276px] right-8 w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 border border-blue-400/30 text-white shadow-[0_0_24px_rgba(59,130,246,0.5)] z-[999] transition-all opacity-25 hover:opacity-100 hover:scale-110 focus:outline-none group"
-                title="Level 2 Order Book"
-            >
-                <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
-            </button>
+                {/* FLOATING LEVEL 2 ORDER BOOK BUTTON */}
+                <button
+                    onClick={() => setIsOrderBookModalOpen(true)}
+                    className="relative shrink-0 w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-br from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 border border-blue-400/30 text-white shadow-[0_0_24px_rgba(59,130,246,0.5)] z-[999] transition-all opacity-100 hover:scale-110 focus:outline-none group"
+                    title="Level 2 Order Book"
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="group-hover:scale-110 transition-transform"><path d="M4 6h16M4 12h16M4 18h7"/></svg>
+                </button>
+
+                {/* FLOATING AI DEPLOYMENT BUTTON */}
+                <button
+                    onClick={() => setIsAIDeploymentModalOpen(true)}
+                    className="relative shrink-0 w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-br from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 border border-purple-400/30 text-white shadow-[0_0_24px_rgba(168,85,247,0.5)] z-[999] transition-all opacity-100 hover:scale-110 focus:outline-none group"
+                    title="Deploy AI Trading Model"
+                >
+                    <svg className="absolute w-8 h-8 group-hover:scale-110 transition-transform bg-transparent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/>
+                        <path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/>
+                        <path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/>
+                        <path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/>
+                        <path d="M6.003 5.125A3 3 0 0 0 6.401 6.5"/>
+                        <path d="M3.477 10.896a4 4 0 0 1 .585-.396"/>
+                        <path d="M19.938 10.5a4 4 0 0 1 .585.396"/>
+                        <path d="M6 18a4 4 0 0 1-1.967-.516"/>
+                        <path d="M19.967 17.484A4 4 0 0 1 18 18"/>
+                    </svg>
+                </button>
+            </div>
+
+
 
             {/* LEVEL 2 ORDER BOOK MODAL */}
             {isOrderBookModalOpen && (
@@ -2900,8 +2910,7 @@ const OrderFlowHeatmap: React.FC = () => {
                 </div>
             )}
 
-            {/* FLOATING ORDER FLOW CHART BUTTON (above Manual Trade button) */}
-            <FloatingTVChartButton symbol={symbol} exchange={exchange} />
+
 
             {/* QUICK TRADE DRAG & DROP TOOLBAR */}
             <QuickTradeToolbar 
