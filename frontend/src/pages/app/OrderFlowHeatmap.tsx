@@ -248,9 +248,9 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         });
 
         const emaSeries = chart.addSeries(LineSeries, { color: '#f59e0b', lineWidth: 2, crosshairMarkerVisible: false, lastValueVisible: false, priceScaleId: 'right', visible: indicatorSettings.showEMA });
-        const bbUpperSeries = chart.addSeries(LineSeries, { color: 'rgba(56, 189, 248, 0.5)', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceScaleId: 'right', visible: indicatorSettings.showBB });
-        const bbMiddleSeries = chart.addSeries(LineSeries, { color: 'rgba(56, 189, 248, 0.8)', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceScaleId: 'right', visible: indicatorSettings.showBB });
-        const bbLowerSeries = chart.addSeries(LineSeries, { color: 'rgba(56, 189, 248, 0.5)', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceScaleId: 'right', visible: indicatorSettings.showBB });
+        const bbUpperSeries = chart.addSeries(LineSeries, { color: '#22c55e', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, priceScaleId: 'right', visible: indicatorSettings.showBB });
+        const bbMiddleSeries = chart.addSeries(LineSeries, { color: '#3b82f6', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, priceScaleId: 'right', visible: indicatorSettings.showBB });
+        const bbLowerSeries = chart.addSeries(LineSeries, { color: '#ef4444', lineWidth: 1, crosshairMarkerVisible: false, lastValueVisible: false, priceLineVisible: false, priceScaleId: 'right', visible: indicatorSettings.showBB });
         const utBotSeries = chart.addSeries(LineSeries, { color: '#00ffff', lineWidth: 1, lineStyle: LineStyle.Solid, crosshairMarkerVisible: false, lastValueVisible: false, priceScaleId: 'right', visible: indicatorSettings.showUTBot });
         const rsiSeries = chart.addSeries(LineSeries, { color: '#db2777', lineWidth: 2, priceScaleId: 'left', crosshairMarkerVisible: false, lastValueVisible: false, visible: indicatorSettings.showRSI });
 
@@ -525,13 +525,13 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
 
         const data = allCandlesRef.current;
 
-        emaSeriesRef.current.applyOptions({ visible: indicatorSettings.showEMA });
+        emaSeriesRef.current.applyOptions({ visible: indicatorSettings.showEMA, priceLineVisible: false, lastValueVisible: false });
         const showBB = indicatorSettings.showBB;
-        bbUpperSeriesRef.current.applyOptions({ visible: showBB });
-        bbMiddleSeriesRef.current.applyOptions({ visible: showBB });
-        bbLowerSeriesRef.current.applyOptions({ visible: showBB });
-        rsiSeriesRef.current.applyOptions({ visible: indicatorSettings.showRSI });
-        if (utBotSeriesRef.current) utBotSeriesRef.current.applyOptions({ visible: indicatorSettings.showUTBot });
+        bbUpperSeriesRef.current.applyOptions({ visible: showBB, priceLineVisible: false, lastValueVisible: false });
+        bbMiddleSeriesRef.current.applyOptions({ visible: showBB, priceLineVisible: false, lastValueVisible: false });
+        bbLowerSeriesRef.current.applyOptions({ visible: showBB, priceLineVisible: false, lastValueVisible: false });
+        rsiSeriesRef.current.applyOptions({ visible: indicatorSettings.showRSI, priceLineVisible: false, lastValueVisible: false });
+        if (utBotSeriesRef.current) utBotSeriesRef.current.applyOptions({ visible: indicatorSettings.showUTBot, priceLineVisible: false, lastValueVisible: false });
 
         if (chartRef.current) {
             chartRef.current.priceScale('left').applyOptions({ visible: indicatorSettings.showRSI || indicatorSettings.showMACD });
@@ -1928,6 +1928,28 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                         } as any}
                         visibleLogicalRange={chartRef.current?.timeScale().getVisibleLogicalRange()}
                     />
+                    {indicatorSettings.showBB && bbData.length > 0 && (() => {
+                        const last = bbData[bbData.length - 1];
+                        return (
+                            <div className="absolute top-2 left-2 z-[10] flex flex-col gap-1 pointer-events-none select-none">
+                                <div className="flex items-center gap-2 px-2 py-1 bg-black/60 backdrop-blur-md rounded border border-white/10">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-[#22c55e]" />
+                                    <span className="text-[10px] font-bold text-gray-400">BB UPPER:</span>
+                                    <span className="text-[10px] font-mono font-bold text-[#22c55e]">{last.upper.toFixed(5)}</span>
+                                </div>
+                                <div className="flex items-center gap-2 px-2 py-1 bg-black/60 backdrop-blur-md rounded border border-white/10">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-[#3b82f6]" />
+                                    <span className="text-[10px] font-bold text-gray-400">BB MIDDLE:</span>
+                                    <span className="text-[10px] font-mono font-bold text-[#3b82f6]">{last.middle.toFixed(5)}</span>
+                                </div>
+                                <div className="flex items-center gap-2 px-2 py-1 bg-black/60 backdrop-blur-md rounded border border-white/10">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-[#ef4444]" />
+                                    <span className="text-[10px] font-bold text-gray-400">BB LOWER:</span>
+                                    <span className="text-[10px] font-mono font-bold text-[#ef4444]">{last.lower.toFixed(5)}</span>
+                                </div>
+                            </div>
+                        );
+                    })()}
                     {indicatorSettings.showSupertrend && (
                         <SupertrendRenderer
                             chart={chartRef.current}
