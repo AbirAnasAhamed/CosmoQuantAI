@@ -8,6 +8,7 @@ import AdvancedHyperparameters from '@/components/ml/AdvancedHyperparameters';
 import FeatureImportanceChart from '@/components/ml/FeatureImportanceChart';
 import { HeatmapSymbolSelector } from '../../components/features/market/HeatmapSymbolSelector';
 import LiveMarketPulse from '@/components/ml/LiveMarketPulse';
+import { FloatingTVChartButton } from '@/components/features/market/FloatingTVChartButton';
 import EquityCurveChart from '@/components/ml/EquityCurveChart'; // ✅ New
 import { DatasetVisualizerModal } from '@/components/DatasetVisualizerModal';
 
@@ -846,19 +847,25 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                 </div>
 
                 {/* Live Execution Terminal (Right) */}
-                <div className="lg:col-span-8 flex flex-col bg-black/60 backdrop-blur-2xl border border-cyan-500/20 rounded-3xl shadow-[0_0_50px_rgba(56,189,248,0.1)] overflow-hidden h-full relative relative z-10">
-                    {/* Header */}
-                    <div className="px-6 py-4 bg-gradient-to-r from-cyan-900/40 to-blue-900/20 border-b border-cyan-500/20 flex items-center justify-between">
-                        <div className="flex items-center gap-3">
-                            <Terminal className="w-5 h-5 text-cyan-400" />
-                            <span className="text-sm font-mono text-cyan-100 tracking-widest font-bold">LIVE_CONSOLE_OUTPUT</span>
-                        </div>
-                        <div className="flex gap-2">
-                            <div className="w-3.5 h-3.5 rounded-full bg-red-500/50 border border-red-400 shadow-[0_0_10px_#ef4444]"></div>
-                            <div className="w-3.5 h-3.5 rounded-full bg-yellow-500/50 border border-yellow-400 shadow-[0_0_10px_#eab308]"></div>
-                            <div className="w-3.5 h-3.5 rounded-full bg-green-500/50 border border-green-400 shadow-[0_0_10px_#22c55e]"></div>
-                        </div>
+                <div className="lg:col-span-8 relative h-full min-h-0">
+                    {/* TV Chart Button placed over the terminal header */}
+                    <div className="absolute -top-2 right-24 z-[60]">
+                        <FloatingTVChartButton symbol={symbol} exchange={exchange} />
                     </div>
+
+                    <div className="flex flex-col bg-black/60 backdrop-blur-2xl border border-cyan-500/20 rounded-3xl shadow-[0_0_50px_rgba(56,189,248,0.1)] overflow-hidden h-full relative z-10">
+                        {/* Header */}
+                        <div className="px-6 py-4 bg-gradient-to-r from-cyan-900/40 to-blue-900/20 border-b border-cyan-500/20 flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <Terminal className="w-5 h-5 text-cyan-400" />
+                                <span className="text-sm font-mono text-cyan-100 tracking-widest font-bold">LIVE_CONSOLE_OUTPUT</span>
+                            </div>
+                            <div className="flex gap-2">
+                                <div className="w-3.5 h-3.5 rounded-full bg-red-500/50 border border-red-400 shadow-[0_0_10px_#ef4444]"></div>
+                                <div className="w-3.5 h-3.5 rounded-full bg-yellow-500/50 border border-yellow-400 shadow-[0_0_10px_#eab308]"></div>
+                                <div className="w-3.5 h-3.5 rounded-full bg-green-500/50 border border-green-400 shadow-[0_0_10px_#22c55e]"></div>
+                            </div>
+                        </div>
 
                     {/* Progress Bar */}
                     {currentJob && (
@@ -973,7 +980,7 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                     )}
                 </div>
             </div>
-
+        </div>
 
             {/* Dataset Visualizer Floating Modal */}
             <DatasetVisualizerModal 
