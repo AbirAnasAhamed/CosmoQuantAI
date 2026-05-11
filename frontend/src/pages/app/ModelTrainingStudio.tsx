@@ -227,6 +227,20 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
         }
     };
 
+    const handleCancelTraining = async () => {
+        if (!currentJob) return;
+        if (!window.confirm("Are you sure you want to stop this training job?")) return;
+        
+        try {
+            await mlTrainingService.cancelTraining(currentJob.id);
+            setIsTraining(false);
+            setCurrentJob(prev => prev ? { ...prev, status: 'FAILED', error_message: 'Training cancelled by user.' } : null);
+        } catch (error) {
+            console.error("Failed to cancel training", error);
+            alert("Failed to cancel training job.");
+        }
+    };
+
     const handleClearL2Cache = async () => {
         if (!window.confirm("Are you sure you want to delete all cached L2 orderbook data? This cannot be undone.")) return;
         try {
@@ -957,7 +971,7 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                         </div>
                     </div>
 
-                    <div className="pt-6 mt-2 relative z-10">
+                    <div className="pt-6 mt-2 relative z-10 flex flex-col gap-3">
                         <button 
                             onClick={handleStartTraining}
                             disabled={isTraining || !symbol}
@@ -969,6 +983,15 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                 <><Play className="w-5 h-5 fill-current" /> {isRetrainMode ? "START INCREMENTAL FINE-TUNING" : "START DEEP TRAINING"}</>
                             )}
                         </button>
+
+                        {isTraining && (
+                            <button 
+                                onClick={handleCancelTraining}
+                                className="w-full py-3 rounded-2xl font-black text-[14px] flex items-center justify-center gap-2 bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all"
+                            >
+                                <XCircle className="w-5 h-5" /> STOP TRAINING
+                            </button>
+                        )}
                     </div>
                 </div>
 
