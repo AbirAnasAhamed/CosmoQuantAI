@@ -186,8 +186,13 @@ class L2DataCollector:
     def start(self, spot_symbols: list[str] = None, futures_symbols: list[str] = None):
         """Start collector tasks for the given symbol lists."""
         self.running         = True
-        self.spot_symbols    = spot_symbols    or ["btcusdt"]
-        self.futures_symbols = futures_symbols or []
+        self.spot_symbols    = spot_symbols if spot_symbols is not None else ["btcusdt"]
+        self.futures_symbols = futures_symbols if futures_symbols is not None else []
+
+        if not self.spot_symbols and not self.futures_symbols:
+            logger.info("[L2Collector] No symbols provided. Collector will stay idle.")
+            self.running = False
+            return
 
         if self.spot_symbols:
             t = asyncio.create_task(
