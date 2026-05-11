@@ -371,6 +371,99 @@ def train_model_task(job_id: str, db: Session):
             if len(df) < 10:
                 raise Exception(f"Not enough L2 data to train a model. Found {len(df)} rows after processing. Please lower timeframe or collect more data.")
                 
+        elif dataset_type == "historical_trades":
+            from app.services.trade_data_processor import process_historical_trades
+            trade_file = config.get("trade_file")
+            bar_type = config.get("bar_type", "time")
+            bar_size = config.get("bar_size", "1m")
+            volume_threshold = float(config.get("volume_threshold", 10.0))
+            
+            if not trade_file:
+                raise Exception("No Trade CSV file selected for Historical Trades training.")
+                
+            file_path = os.path.join("app/data_feeds", trade_file)
+            add_log(f"Loading Historical Trades from {file_path}")
+            
+            df = process_historical_trades(
+                file_path=file_path, 
+                bar_type=bar_type, 
+                bar_size=bar_size, 
+                volume_threshold=volume_threshold, 
+                add_log_func=add_log
+            )
+            job.progress = 15.0
+            
+            # Modular Feature Engineering for Trades
+            indicators = config.get("indicators", ["RSI", "MACD"])
+            add_log(f"Calculating technical indicators for trade bars: {', '.join(indicators)}")
+            
+            INDICATOR_REGISTRY = {
+                # Momentum
+                "RSI": lambda d: d.ta.rsi(append=True),
+                "Stoch": lambda d: d.ta.stoch(append=True),
+                "ROC": lambda d: d.ta.roc(append=True),
+                "CCI": lambda d: d.ta.cci(append=True),
+                "WillR": lambda d: d.ta.willr(append=True),
+                "MFI": lambda d: d.ta.mfi(append=True),
+                
+                # Trend
+                "MACD": lambda d: d.ta.macd(append=True),
+                "EMA": lambda d: d.ta.ema(append=True),
+                "SMA": lambda d: d.ta.sma(append=True),
+                "ADX": lambda d: d.ta.adx(append=True),
+                "Supertrend": lambda d: d.ta.supertrend(append=True),
+                "Parabolic SAR": lambda d: d.ta.psar(append=True),
+                
+                # Volatility
+                "BBANDS": lambda d: d.ta.bbands(append=True),
+                "ATR": lambda d: d.ta.atr(append=True),
+                "Keltner Channel": lambda d: d.ta.kc(append=True),
+                "Donchian Channel": lambda d: d.ta.donchian(append=True),
+                
+                # Volume
+                "OBV": lambda d: d.ta.obv(append=True),
+                "VWAP": lambda d: d.ta.vwap(append=True),
+                "CMF": lambda d: d.ta.cmf(append=True),
+                "ADOSC": lambda d: d.ta.adosc(append=True),
+                
+                # Institutional & Price Action
+                "SMC FVG": lambda d: add_smc_fvg(d),
+                "ICT Killzones": lambda d: add_ict_killzones(d),
+                "Wick Rejection": lambda d: add_wick_rejection(d),
+                "Market Structure": lambda d: add_swing_structure(d),
+                "Order Blocks": lambda d: add_order_blocks(d)
+            }
+            
+            successful_indicators = []
+            for ind in indicators:
+                if ind == "VWAP_SD":
+                    try:
+                        vwap_feats = calculate_vwap_sd_features(df, anchor='Daily')
+                        df['VWAP_Z_Score'] = vwap_feats['VWAP_Z_Score']
+                        successful_indicators.append(ind)
+                    except Exception as e:
+                        add_log(f"⚠️ Skipped indicator '{ind}': {str(e)}")
+                elif ind in INDICATOR_REGISTRY:
+                    try:
+                        INDICATOR_REGISTRY[ind](df)
+                        successful_indicators.append(ind)
+                    except Exception as e:
+                        add_log(f"⚠️ Skipped indicator '{ind}': {str(e)}")
+                else:
+                    add_log(f"⚠️ Unknown indicator requested: '{ind}'")
+                    
+            add_log(f"Successfully calculated {len(successful_indicators)} features.")
+                
+            prediction_target = config.get("prediction_target", "classification")
+            if prediction_target == "classification":
+                df['Target'] = (df['Close'].shift(-1) > df['Close']).astype(int)
+            else:
+                df['Target'] = df['Close'].shift(-1)
+                
+            df.dropna(inplace=True)
+            if len(df) < 10:
+                raise Exception(f"Not enough data to train after processing Trades. Found {len(df)} rows.")
+            
         else:
             ohlcv_period = config.get("ohlcv_period")
             exchange_name = config.get("exchange", "binance")

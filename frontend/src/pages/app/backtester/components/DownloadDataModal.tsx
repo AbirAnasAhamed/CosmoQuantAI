@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, Download, AlertCircle, ChevronLeft, ChevronRight, Calendar, Clock, FileJson, RefreshCw } from 'lucide-react';
+import { X, Download, AlertCircle, ChevronLeft, ChevronRight, Calendar, Clock, FileJson, RefreshCw, BarChart3, ArrowRightLeft, Zap } from 'lucide-react';
 import { getYear, getMonth } from 'date-fns';
 import Button from '@/components/common/Button';
 import SearchableSelect from '@/components/common/SearchableSelect';
@@ -146,222 +146,326 @@ export const DownloadDataModal: React.FC<DownloadDataModalProps> = ({
         );
     };
 
+    // Tab configuration
+    const tabs = [
+        { key: 'candles' as const, label: 'Candles', icon: <BarChart3 size={14} /> },
+        { key: 'trades' as const, label: 'Trades', icon: <Zap size={14} /> },
+        { key: 'convert' as const, label: 'Convert', icon: <ArrowRightLeft size={14} /> },
+    ];
+
     if (!isOpen) return null;
 
     return (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 backdrop-blur-sm p-4 pt-16 animate-fade-in">
-            <div className="bg-white dark:bg-[#1e222d] rounded-2xl shadow-2xl w-full max-w-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
-                {/* Header */}
-                <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 relative">
-                    <button onClick={onClose} className="absolute top-4 right-4 text-white/80 hover:text-white transition-colors">
-                        <X size={24} />
-                    </button>
-                    <h3 className="text-xl font-bold text-white flex items-center gap-2">
-                        {downloadType === 'convert' ? <RefreshCw className="text-blue-200" /> : <Download className="text-blue-200" />}
-                        {downloadType === 'convert' ? 'Convert Market Data' : 'Download Market Data'}
-                    </h3>
-                    <p className="text-blue-100 text-sm mt-1">
-                        {downloadType === 'convert'
-                            ? "Convert trade data (ticks) to candle bars (OHLCV)."
-                            : "Fetch historical data from exchanges to local storage."}
-                    </p>
-                </div>
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/60 backdrop-blur-md p-4 pt-16 animate-backdrop-fade-in">
+            <div className="animate-modal-content-slide-down w-full max-w-lg">
+                {/* Main Card */}
+                <div className="relative bg-white dark:bg-[#111827] rounded-2xl shadow-2xl border border-gray-200 dark:border-gray-700/50 overflow-hidden"
+                     style={{ boxShadow: '0 25px 60px -12px rgba(0, 0, 0, 0.5), 0 0 40px -15px rgba(99, 102, 241, 0.3)' }}>
 
-                {/* Body */}
-                <div className="p-6 space-y-6">
-                    {/* Tabs */}
-                    <div className="flex bg-gray-100 dark:bg-gray-800 p-1 rounded-lg">
-                        <button
-                            onClick={() => setDownloadType('candles')}
-                            className={`flex-1 py-2 rounded-md text-sm font-semibold transition-all ${downloadType === 'candles' ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
-                        >
-                            Candles
-                        </button>
-                        <button
-                            onClick={() => setDownloadType('trades')}
-                            className={`flex-1 py-2 rounded-md text-sm font-semibold transition-all ${downloadType === 'trades' ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
-                        >
-                            Trades
-                        </button>
-                        {/* ✅ Convert Tab */}
-                        <button
-                            onClick={() => setDownloadType('convert')}
-                            className={`flex-1 py-2 rounded-md text-sm font-semibold transition-all ${downloadType === 'convert' ? 'bg-white dark:bg-blue-600 text-blue-600 dark:text-white shadow-sm' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700'}`}
-                        >
-                            Convert
-                        </button>
-                    </div>
+                    {/* ───────── Header with animated gradient ───────── */}
+                    <div className="relative overflow-hidden">
+                        {/* Animated gradient background */}
+                        <div className="absolute inset-0 bg-gradient-to-br from-brand-primary via-indigo-600 to-violet-700" />
 
-                    {/* ✅ Condition based Rendering */}
-                    {downloadType === 'convert' ? (
-                        <div className="space-y-4">
-                            <div>
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Select Trade File</label>
-                                <select
-                                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={selectedTradeFile}
-                                    onChange={(e) => setSelectedTradeFile(e.target.value)}
-                                >
-                                    <option value="" disabled>Select a file...</option>
-                                    <option value="all">All Files (Batch Convert)</option>
-                                    {tradeFiles.map(file => (
-                                        <option key={file} value={file}>{file}</option>
-                                    ))}
-                                </select>
-                            </div>
-                            <div className="col-span-2">
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Target Timeframe</label>
-                                <div className="flex flex-wrap gap-2">
-                                    {['1m', '5m', '15m', '1h', '4h', '1d'].map(tf => (
-                                        <button
-                                            key={tf}
-                                            onClick={() => setDlTimeframe(tf)}
-                                            className={`px-3 py-1.5 rounded text-xs font-medium border ${dlTimeframe === tf ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300' : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:bg-gray-50'}`}
-                                        >
-                                            {tf}
-                                        </button>
-                                    ))}
+                        {/* Subtle animated grid overlay */}
+                        <div className="absolute inset-0 opacity-10"
+                             style={{
+                                 backgroundImage: 'linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)',
+                                 backgroundSize: '24px 24px',
+                             }} />
+
+                        {/* Floating orbs */}
+                        <div className="absolute -top-4 -right-4 w-24 h-24 bg-white/10 rounded-full blur-xl" />
+                        <div className="absolute -bottom-6 -left-6 w-32 h-32 bg-violet-400/15 rounded-full blur-2xl" />
+
+                        {/* Header Content */}
+                        <div className="relative px-6 py-5 flex items-start justify-between">
+                            <div className="flex items-center gap-3">
+                                {/* Icon Badge */}
+                                <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-white/15 backdrop-blur-sm border border-white/20 shadow-lg">
+                                    {downloadType === 'convert'
+                                        ? <RefreshCw size={20} className="text-white" />
+                                        : <Download size={20} className="text-white" />}
+                                </div>
+                                <div>
+                                    <h3 className="text-lg font-bold text-white tracking-tight">
+                                        {downloadType === 'convert' ? 'Convert Market Data' : 'Download Market Data'}
+                                    </h3>
+                                    <p className="text-indigo-200 text-xs mt-0.5">
+                                        {downloadType === 'convert'
+                                            ? "Convert trade ticks → OHLCV candle bars"
+                                            : "Fetch historical data from exchanges"}
+                                    </p>
                                 </div>
                             </div>
-                            <div className="flex items-start gap-2 p-3 bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-200 rounded-lg text-xs">
-                                <FileJson size={16} className="mt-0.5 shrink-0" />
-                                <p>This will convert raw trade data (.csv) into OHLCV candles for the selected timeframe.</p>
-                            </div>
+                            <button
+                                onClick={onClose}
+                                className="flex items-center justify-center w-8 h-8 rounded-lg bg-white/10 hover:bg-white/20 border border-white/10 text-white/80 hover:text-white transition-all duration-200 hover:scale-105 mt-0.5"
+                            >
+                                <X size={16} />
+                            </button>
                         </div>
-                    ) : (
-                        // Standard Download Form
-                        <div className="grid grid-cols-2 gap-4">
-                            <div className="col-span-2 md:col-span-1">
-                                <label className="block text-xs font-medium text-gray-500 mb-1">Exchange</label>
-                                <select
-                                    className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-2.5 text-sm outline-none focus:ring-2 focus:ring-blue-500"
-                                    value={dlExchange}
-                                    onChange={(e) => setDlExchange(e.target.value)}
-                                >
-                                    {exchanges.map(ex => <option key={ex} value={ex}>{ex.toUpperCase()}</option>)}
-                                </select>
-                            </div>
-                            <div className="col-span-2 md:col-span-1">
-                                <label className="block text-xs font-medium text-gray-500 mb-1">
-                                    {isLoadingDlMarkets ? "Loading Markets..." : "Market Pair"}
-                                </label>
-                                <SearchableSelect options={dlMarkets} value={dlSymbol} onChange={setDlSymbol} />
-                            </div>
+                    </div>
 
-                            {downloadType === 'candles' && (
-                                <div className="col-span-2">
-                                    <label className="block text-xs font-medium text-gray-500 mb-1">Timeframe</label>
-                                    <div className="flex flex-wrap gap-2">
+                    {/* ───────── Segmented Tabs ───────── */}
+                    <div className="px-6 pt-5 pb-1">
+                        <div className="flex bg-gray-100 dark:bg-[#0d1117] p-1 rounded-xl border border-gray-200 dark:border-gray-700/50">
+                            {tabs.map((tab) => (
+                                <button
+                                    key={tab.key}
+                                    onClick={() => setDownloadType(tab.key)}
+                                    className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-xs font-semibold transition-all duration-300 ${
+                                        downloadType === tab.key
+                                            ? 'bg-white dark:bg-brand-primary text-brand-primary dark:text-white shadow-md dark:shadow-brand-primary/30'
+                                            : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'
+                                    }`}
+                                >
+                                    {tab.icon}
+                                    {tab.label}
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+
+                    {/* ───────── Body ───────── */}
+                    <div className="px-6 py-5 space-y-5">
+
+                        {/* ✅ Condition based Rendering */}
+                        {downloadType === 'convert' ? (
+                            <div className="space-y-4">
+                                {/* Trade File Select */}
+                                <div>
+                                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Select Trade File</label>
+                                    <div className="relative">
+                                        <select
+                                            className="w-full appearance-none bg-gray-50 dark:bg-[#0d1117] border border-gray-200 dark:border-gray-700/60 rounded-xl px-3.5 py-2.5 text-sm text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-primary/40 focus:border-brand-primary/60 transition-all duration-200"
+                                            value={selectedTradeFile}
+                                            onChange={(e) => setSelectedTradeFile(e.target.value)}
+                                        >
+                                            <option value="" disabled>Select a file...</option>
+                                            <option value="all">All Files (Batch Convert)</option>
+                                            {tradeFiles.map(file => (
+                                                <option key={file} value={file}>{file}</option>
+                                            ))}
+                                        </select>
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                            <ChevronRight size={14} className="text-gray-400 rotate-90" />
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Timeframe */}
+                                <div>
+                                    <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Target Timeframe</label>
+                                    <div className="flex flex-wrap gap-1.5">
                                         {['1m', '5m', '15m', '1h', '4h', '1d'].map(tf => (
                                             <button
                                                 key={tf}
                                                 onClick={() => setDlTimeframe(tf)}
-                                                className={`px-3 py-1.5 rounded text-xs font-medium border ${dlTimeframe === tf ? 'bg-blue-50 dark:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300' : 'border-gray-200 dark:border-gray-700 text-gray-500 hover:bg-gray-50'}`}
+                                                className={`px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200 ${
+                                                    dlTimeframe === tf
+                                                        ? 'bg-brand-primary/10 dark:bg-brand-primary/20 border-brand-primary/40 text-brand-primary dark:text-indigo-300 shadow-sm shadow-brand-primary/10'
+                                                        : 'border-gray-200 dark:border-gray-700/50 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                                                }`}
                                             >
                                                 {tf}
                                             </button>
                                         ))}
                                     </div>
                                 </div>
-                            )}
 
-                            {/* Date Selection Grid */}
-                            <div className="col-span-2 grid grid-cols-2 gap-4 mb-4">
-                                <div className="relative group">
-                                    <label className="text-xs font-semibold text-gray-500 mb-1.5 block ml-1">Start Date</label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                                            <Calendar size={14} className="text-gray-400 group-focus-within:text-brand-primary transition-colors" />
-                                        </div>
-                                        <DatePicker
-                                            selected={dlStartDate ? new Date(dlStartDate) : null}
-                                            onChange={(date: Date) => setDlStartDate(date?.toISOString().split('T')[0] || '')}
-                                            className={`${inputBaseClasses} pl-9 font-medium transition-all hover:border-brand-primary/50 cursor-pointer`}
-                                            dateFormat="yyyy-MM-dd"
-                                            placeholderText="Select start"
-                                            renderCustomHeader={CustomInputHeader}
-                                            calendarClassName="!bg-white dark:!bg-[#050505] !border-gray-200 dark:!border-gray-700 !font-sans !text-slate-900 dark:!text-slate-100 shadow-xl rounded-xl overflow-hidden"
-                                            dayClassName={() => "dark:text-slate-200 hover:!bg-brand-primary hover:!text-white rounded-full"}
-                                            popperClassName="!z-50"
-                                        />
+                                {/* Info Card */}
+                                <div className="flex items-start gap-3 p-3.5 bg-gradient-to-r from-indigo-50 to-violet-50 dark:from-indigo-900/15 dark:to-violet-900/10 text-indigo-700 dark:text-indigo-300 rounded-xl text-xs border border-indigo-100 dark:border-indigo-800/30">
+                                    <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 shrink-0">
+                                        <FileJson size={14} />
                                     </div>
-                                </div>
-
-                                <div className="relative group">
-                                    <label className="text-xs font-semibold text-gray-500 mb-1.5 block ml-1">End Date</label>
-                                    <div className="relative">
-                                        <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
-                                            <Clock size={14} className="text-gray-400 group-focus-within:text-brand-primary transition-colors" />
-                                        </div>
-                                        <DatePicker
-                                            selected={dlEndDate ? new Date(dlEndDate) : null}
-                                            onChange={(date: Date) => setDlEndDate(date?.toISOString().split('T')[0] || '')}
-                                            className={`${inputBaseClasses} pl-9 font-medium transition-all hover:border-brand-primary/50 cursor-pointer`}
-                                            dateFormat="yyyy-MM-dd"
-                                            placeholderText="Select end"
-                                            renderCustomHeader={CustomInputHeader}
-                                            calendarClassName="!bg-white dark:!bg-[#050505] !border-gray-200 dark:!border-gray-700 !font-sans !text-slate-900 dark:!text-slate-100 shadow-xl rounded-xl overflow-hidden"
-                                            dayClassName={() => "dark:text-slate-200 hover:!bg-brand-primary hover:!text-white rounded-full"}
-                                            popperClassName="!z-50"
-                                        />
-                                    </div>
+                                    <p className="leading-relaxed pt-1">This will convert raw trade data (.csv) into OHLCV candles for the selected timeframe.</p>
                                 </div>
                             </div>
-                        </div>
-                    )}
-
-                    {/* Progress Bar (Only for Download) */}
-                    {isDownloading && (
-                        <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-4 animate-pulse">
-                            <div className="flex justify-between text-xs font-bold text-blue-600 mb-2">
-                                <span>Downloading...</span>
-                                <span>{downloadProgress}%</span>
-                            </div>
-                            <div className="h-2 bg-blue-200 dark:bg-blue-800 rounded-full overflow-hidden">
-                                <div className="h-full bg-blue-600 transition-all duration-300" style={{ width: `${downloadProgress}%` }}></div>
-                            </div>
-                        </div>
-                    )}
-
-                    {/* Processing State for Convert */}
-                    {isConverting && (
-                        <div className="bg-purple-50 dark:bg-purple-900/20 rounded-lg p-4 animate-pulse">
-                            <div className="flex justify-center text-xs font-bold text-purple-600 mb-2">
-                                <span>Converting Data... Please Wait</span>
-                            </div>
-                        </div>
-                    )}
-
-                    {downloadType === 'trades' && !isConverting && (
-                        <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-200 rounded-lg text-xs">
-                            <AlertCircle size={16} className="mt-0.5 shrink-0" />
-                            <p>Trade data is massive. Downloading large ranges may take a while and consume significant validation time.</p>
-                        </div>
-                    )}
-                </div>
-
-                {/* Footer */}
-                <div className="p-6 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
-                    <Button variant="outline" onClick={onClose} disabled={isDownloading || isConverting}>Cancel</Button>
-
-                    {/* ✅ Dynamic Buttons based on Type */}
-                    {downloadType === 'convert' ? (
-                        <Button
-                            onClick={handleConvertData}
-                            disabled={isConverting}
-                            className="bg-purple-600 hover:bg-purple-700 text-white shadow-lg shadow-purple-500/30"
-                        >
-                            {isConverting ? 'Converting...' : 'Start Conversion'}
-                        </Button>
-                    ) : (
-                        isDownloading ? (
-                            <Button variant="secondary" onClick={handleStopDownload} className="text-red-500 border-red-500 hover:bg-red-50">Stop Download</Button>
                         ) : (
-                            <Button onClick={handleStartDownload} className="bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/30">
-                                Start Download
-                            </Button>
-                        )
-                    )}
+                            // Standard Download Form
+                            <div className="space-y-4">
+                                {/* Exchange & Market Pair Row */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                        <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Exchange</label>
+                                        <div className="relative">
+                                            <select
+                                                className="w-full appearance-none bg-gray-50 dark:bg-[#0d1117] border border-gray-200 dark:border-gray-700/60 rounded-xl px-3.5 py-2.5 text-sm font-medium text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-brand-primary/40 focus:border-brand-primary/60 transition-all duration-200"
+                                                value={dlExchange}
+                                                onChange={(e) => setDlExchange(e.target.value)}
+                                            >
+                                                {exchanges.map(ex => <option key={ex} value={ex}>{ex.toUpperCase()}</option>)}
+                                            </select>
+                                            <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none">
+                                                <ChevronRight size={14} className="text-gray-400 rotate-90" />
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div>
+                                        <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">
+                                            {isLoadingDlMarkets ? "Loading Markets..." : "Market Pair"}
+                                        </label>
+                                        <SearchableSelect options={dlMarkets} value={dlSymbol} onChange={setDlSymbol} />
+                                    </div>
+                                </div>
+
+                                {/* Timeframe Chips */}
+                                {downloadType === 'candles' && (
+                                    <div>
+                                        <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-2">Timeframe</label>
+                                        <div className="flex flex-wrap gap-1.5">
+                                            {['1m', '5m', '15m', '1h', '4h', '1d'].map(tf => (
+                                                <button
+                                                    key={tf}
+                                                    onClick={() => setDlTimeframe(tf)}
+                                                    className={`px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all duration-200 ${
+                                                        dlTimeframe === tf
+                                                            ? 'bg-brand-primary/10 dark:bg-brand-primary/20 border-brand-primary/40 text-brand-primary dark:text-indigo-300 shadow-sm shadow-brand-primary/10'
+                                                            : 'border-gray-200 dark:border-gray-700/50 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:border-gray-300 dark:hover:border-gray-600'
+                                                    }`}
+                                                >
+                                                    {tf}
+                                                </button>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+
+                                {/* Date Selection */}
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div className="relative group">
+                                        <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">Start Date</label>
+                                        <div className="relative">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                                                <Calendar size={14} className="text-gray-400 group-focus-within:text-brand-primary transition-colors" />
+                                            </div>
+                                            <DatePicker
+                                                selected={dlStartDate ? new Date(dlStartDate) : null}
+                                                onChange={(date: Date) => setDlStartDate(date?.toISOString().split('T')[0] || '')}
+                                                className={`${inputBaseClasses} !rounded-xl pl-9 font-medium transition-all hover:border-brand-primary/50 cursor-pointer`}
+                                                dateFormat="yyyy-MM-dd"
+                                                placeholderText="Select start"
+                                                renderCustomHeader={CustomInputHeader}
+                                                calendarClassName="!bg-white dark:!bg-[#050505] !border-gray-200 dark:!border-gray-700 !font-sans !text-slate-900 dark:!text-slate-100 shadow-xl rounded-xl overflow-hidden"
+                                                dayClassName={() => "dark:text-slate-200 hover:!bg-brand-primary hover:!text-white rounded-full"}
+                                                popperClassName="!z-50"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="relative group">
+                                        <label className="block text-[11px] font-semibold text-gray-400 uppercase tracking-wider mb-1.5">End Date</label>
+                                        <div className="relative">
+                                            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none z-10">
+                                                <Clock size={14} className="text-gray-400 group-focus-within:text-brand-primary transition-colors" />
+                                            </div>
+                                            <DatePicker
+                                                selected={dlEndDate ? new Date(dlEndDate) : null}
+                                                onChange={(date: Date) => setDlEndDate(date?.toISOString().split('T')[0] || '')}
+                                                className={`${inputBaseClasses} !rounded-xl pl-9 font-medium transition-all hover:border-brand-primary/50 cursor-pointer`}
+                                                dateFormat="yyyy-MM-dd"
+                                                placeholderText="Select end"
+                                                renderCustomHeader={CustomInputHeader}
+                                                calendarClassName="!bg-white dark:!bg-[#050505] !border-gray-200 dark:!border-gray-700 !font-sans !text-slate-900 dark:!text-slate-100 shadow-xl rounded-xl overflow-hidden"
+                                                dayClassName={() => "dark:text-slate-200 hover:!bg-brand-primary hover:!text-white rounded-full"}
+                                                popperClassName="!z-50"
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ───────── Progress Bar (Download) ───────── */}
+                        {isDownloading && (
+                            <div className="bg-gradient-to-r from-indigo-50 to-blue-50 dark:from-indigo-900/15 dark:to-blue-900/10 rounded-xl p-4 border border-indigo-100 dark:border-indigo-800/30">
+                                <div className="flex justify-between text-xs font-bold mb-2.5">
+                                    <span className="text-indigo-600 dark:text-indigo-300 flex items-center gap-1.5">
+                                        <span className="w-1.5 h-1.5 bg-indigo-500 rounded-full animate-pulse" />
+                                        Downloading...
+                                    </span>
+                                    <span className="text-indigo-500 dark:text-indigo-400 font-mono">{downloadProgress}%</span>
+                                </div>
+                                <div className="h-2 bg-indigo-100 dark:bg-indigo-900/40 rounded-full overflow-hidden">
+                                    <div
+                                        className="h-full rounded-full bg-gradient-to-r from-brand-primary to-violet-500 transition-all duration-500 ease-out"
+                                        style={{ width: `${downloadProgress}%` }}
+                                    />
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ───────── Processing State (Convert) ───────── */}
+                        {isConverting && (
+                            <div className="bg-gradient-to-r from-purple-50 to-fuchsia-50 dark:from-purple-900/15 dark:to-fuchsia-900/10 rounded-xl p-4 border border-purple-100 dark:border-purple-800/30">
+                                <div className="flex justify-center items-center gap-2 text-xs font-bold text-purple-600 dark:text-purple-300">
+                                    <RefreshCw size={14} className="animate-spin" />
+                                    Converting Data... Please Wait
+                                </div>
+                            </div>
+                        )}
+
+                        {/* ───────── Trade Warning ───────── */}
+                        {downloadType === 'trades' && !isConverting && (
+                            <div className="flex items-start gap-3 p-3.5 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-900/15 dark:to-orange-900/10 text-amber-700 dark:text-amber-300 rounded-xl text-xs border border-amber-100 dark:border-amber-800/30">
+                                <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/40 shrink-0">
+                                    <AlertCircle size={14} />
+                                </div>
+                                <p className="leading-relaxed pt-1">Trade data is massive. Downloading large ranges may take a while and consume significant validation time.</p>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* ───────── Footer ───────── */}
+                    <div className="px-6 py-4 bg-gray-50/80 dark:bg-[#0a0f1a] border-t border-gray-200 dark:border-gray-700/40 flex justify-end gap-2.5">
+                        <button
+                            onClick={onClose}
+                            disabled={isDownloading || isConverting}
+                            className="px-4 py-2 rounded-xl text-sm font-semibold text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 border border-gray-200 dark:border-gray-700/50 transition-all duration-200 disabled:opacity-40"
+                        >
+                            Cancel
+                        </button>
+
+                        {/* ✅ Dynamic Buttons based on Type */}
+                        {downloadType === 'convert' ? (
+                            <button
+                                onClick={handleConvertData}
+                                disabled={isConverting}
+                                className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] disabled:opacity-50 disabled:hover:scale-100 flex items-center gap-2"
+                            >
+                                {isConverting ? (
+                                    <>
+                                        <RefreshCw size={14} className="animate-spin" />
+                                        Converting...
+                                    </>
+                                ) : (
+                                    <>
+                                        <ArrowRightLeft size={14} />
+                                        Start Conversion
+                                    </>
+                                )}
+                            </button>
+                        ) : (
+                            isDownloading ? (
+                                <button
+                                    onClick={handleStopDownload}
+                                    className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-red-500 to-rose-600 hover:from-red-400 hover:to-rose-500 shadow-lg shadow-red-500/25 hover:shadow-red-500/40 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] flex items-center gap-2"
+                                >
+                                    <X size={14} />
+                                    Stop Download
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={handleStartDownload}
+                                    className="px-5 py-2 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-brand-primary to-violet-600 hover:from-indigo-400 hover:to-violet-500 shadow-lg shadow-brand-primary/25 hover:shadow-brand-primary/40 transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] flex items-center gap-2"
+                                >
+                                    <Download size={14} />
+                                    Start Download
+                                </button>
+                            )
+                        )}
+                    </div>
                 </div>
             </div>
         </div>

@@ -60,6 +60,13 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
     const [showVisualizer, setShowVisualizer] = useState(false);
     const [isRetrainMode, setIsRetrainMode] = useState(false);
     
+    // Historical Trades CSV States
+    const [tradeFiles, setTradeFiles] = useState<string[]>([]);
+    const [selectedTradeFile, setSelectedTradeFile] = useState('');
+    const [tradeBarType, setTradeBarType] = useState('time');
+    const [tradeBarSize, setTradeBarSize] = useState('1m');
+    const [tradeVolumeThreshold, setTradeVolumeThreshold] = useState('10.0');
+    
     // UI states for Retrain Mode highlighting
     const [retrainModelName, setRetrainModelName] = useState<string>('');
     const [initialLoadedIndicators, setInitialLoadedIndicators] = useState<string[]>([]);
@@ -93,6 +100,17 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
             });
         }
     }, [retrainModelId]);
+
+    useEffect(() => {
+        if (dataSource === 'historical_trades') {
+            apiClient.get('/backtest/trade-files').then((res) => {
+                setTradeFiles(res.data);
+                if (res.data.length > 0 && !selectedTradeFile) {
+                    setSelectedTradeFile(res.data[0]);
+                }
+            }).catch(e => console.error("Failed to load trade files", e));
+        }
+    }, [dataSource, selectedTradeFile]);
 
     const INDICATOR_CATEGORIES = [
         { name: 'Institutional & SMC', indicators: ['SMC FVG', 'ICT Killzones', 'Order Blocks', 'Market Structure', 'Wick Rejection', 'VWAP_SD'] },
@@ -191,7 +209,7 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                 timeframe: actualTimeframe,
                 algorithm,
                 config: {
-                    indicators: (dataSource === 'ohlcv' || dataSource === 'hybrid') ? selectedIndicators : [],
+                    indicators: (dataSource === 'ohlcv' || dataSource === 'hybrid' || dataSource === 'historical_trades') ? selectedIndicators : [],
                     epochs,
                     dataset_type: dataSource,
                     is_auto_retrain: isAutoRetrain,
@@ -212,7 +230,12 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                     target_rows: ((dataSource === 'l2_orderbook' || dataSource === 'hybrid') && isDeepTraining) ? (parseInt(manualTargetRows, 10) || targetRowOptions[targetRowsIndex]) : 0,
                     l2_features: (dataSource === 'l2_orderbook' || dataSource === 'hybrid') ? selectedL2Features : [],
                     target_model_id: isRetrainMode ? (retrainModelId || undefined) : undefined,
-                    fine_tune: isRetrainMode
+                    fine_tune: isRetrainMode,
+                    // Trade CSV params
+                    trade_file: dataSource === 'historical_trades' ? selectedTradeFile : undefined,
+                    bar_type: dataSource === 'historical_trades' ? tradeBarType : undefined,
+                    bar_size: dataSource === 'historical_trades' ? tradeBarSize : undefined,
+                    volume_threshold: dataSource === 'historical_trades' ? tradeVolumeThreshold : undefined
                 }
             });
             setCurrentJob(job);
@@ -533,7 +556,7 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                     Clear L2 Cache
                                 </button>
                             </div>
-                            <div className="grid grid-cols-3 gap-3 mb-5">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
                                 <button
                                     onClick={() => setDataSource('ohlcv')}
                                     disabled={isTraining}
@@ -555,7 +578,70 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                 >
                                     Hybrid (OHLCV + L2)
                                 </button>
+                                <button
+                                    onClick={() => setDataSource('historical_trades')}
+                                    disabled={isTraining}
+                                    className={`py-2.5 rounded-xl text-sm font-bold transition-all duration-300 ${dataSource === 'historical_trades' ? 'bg-gradient-to-r from-amber-600 to-orange-600 text-white shadow-[0_0_15px_rgba(245,158,11,0.4)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'}`}
+                                >
+                                    Historical Trades (CSV)
+                                </button>
                             </div>
+                            
+                            {dataSource === 'historical_trades' && (
+                                <div className="mb-5 space-y-4 p-4 bg-amber-500/10 rounded-xl border border-amber-500/20 shadow-inner">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-300 mb-1">Select Downloaded Trade Data</label>
+                                        <select 
+                                            value={selectedTradeFile} 
+                                            onChange={(e) => setSelectedTradeFile(e.target.value)}
+                                            className="w-full bg-[#0A0A0A] border border-amber-500/30 rounded-lg p-2.5 text-slate-200"
+                                            disabled={isTraining}
+                                        >
+                                            {tradeFiles.length === 0 ? <option value="">No trade files available in Backtester</option> : null}
+                                            {tradeFiles.map(f => <option key={f} value={f}>{f}</option>)}
+                                        </select>
+                                    </div>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-300 mb-1">Bar Generation Mode</label>
+                                            <select 
+                                                value={tradeBarType} 
+                                                onChange={(e) => setTradeBarType(e.target.value)}
+                                                className="w-full bg-[#0A0A0A] border border-amber-500/30 rounded-lg p-2.5 text-slate-200"
+                                                disabled={isTraining}
+                                            >
+                                                <option value="time">Time Bars (Time-based aggregation)</option>
+                                                <option value="volume">Volume Bars (Volume-based aggregation)</option>
+                                            </select>
+                                        </div>
+                                        {tradeBarType === 'time' ? (
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-300 mb-1">Bar Timeframe</label>
+                                                <select 
+                                                    value={tradeBarSize} 
+                                                    onChange={(e) => setTradeBarSize(e.target.value)}
+                                                    className="w-full bg-[#0A0A0A] border border-amber-500/30 rounded-lg p-2.5 text-slate-200"
+                                                    disabled={isTraining}
+                                                >
+                                                    {TIMEFRAMES.map(t => <option key={t} value={t}>{t}</option>)}
+                                                </select>
+                                            </div>
+                                        ) : (
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-300 mb-1">Volume Threshold (Units)</label>
+                                                <input 
+                                                    type="number"
+                                                    value={tradeVolumeThreshold} 
+                                                    onChange={(e) => setTradeVolumeThreshold(e.target.value)}
+                                                    className="w-full bg-[#0A0A0A] border border-amber-500/30 rounded-lg p-2.5 text-slate-200"
+                                                    disabled={isTraining}
+                                                    step="0.1"
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            )}
                             
                             {(dataSource === 'l2_orderbook' || dataSource === 'hybrid') && (
                                 <div className="space-y-4">
@@ -844,8 +930,7 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                         </div>
 
                         {(dataSource === 'ohlcv' || dataSource === 'hybrid') && (
-                            <>
-                                <div>
+                                <div className="mb-4">
                                     <label className="block text-sm font-medium text-slate-300 mb-1">Historical Period (OHLCV)</label>
                                     <select 
                                         value={ohlcvPeriod}
@@ -874,7 +959,9 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                     </select>
                                     <p className="text-xs text-slate-500 mt-1.5 ml-1 font-medium">Total history to download from Yahoo Finance.</p>
                                 </div>
+                        )}
 
+                        {(dataSource === 'ohlcv' || dataSource === 'hybrid' || dataSource === 'historical_trades') && (
                             <div className="mt-4 bg-black/40 border border-white/10 rounded-2xl p-5 shadow-inner">
                                 <div className="flex items-center justify-between mb-4">
                                     <label className="flex items-center gap-2 text-sm font-medium text-slate-300 mb-3">
@@ -928,7 +1015,6 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                     ))}
                                 </div>
                             </div>
-                            </>
                         )}
 
 
