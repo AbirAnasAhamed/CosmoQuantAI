@@ -674,7 +674,8 @@ def train_model_task(job_id: str, db: Session):
             for epoch in range(epochs):
                 outputs = model(X_train_t)
                 optimizer.zero_grad()
-                loss = criterion(outputs, y_train_t)
+                # FIX: ensure y and outputs have matching shapes (N,1) for BCEWithLogitsLoss
+                loss = criterion(outputs, y_train_t.view(-1, 1))
                 loss.backward()
                 optimizer.step()
                 
@@ -824,6 +825,7 @@ def train_model_task(job_id: str, db: Session):
             for epoch in range(epochs):
                 outputs = model(X_train_t)
                 optimizer.zero_grad()
+                # FIX: ensure y and outputs have matching shapes (N,1) for BCEWithLogitsLoss
                 loss = criterion(outputs.squeeze(-1), y_train_t.view(-1))
                 loss.backward()
                 optimizer.step()
@@ -973,6 +975,7 @@ def train_model_task(job_id: str, db: Session):
             for epoch in range(epochs):
                 outputs = model(X_train_t)
                 optimizer.zero_grad()
+                # FIX: ensure y and outputs have matching shapes (N,1) for BCEWithLogitsLoss
                 loss = criterion(outputs.squeeze(-1), y_train_t.view(-1))
                 loss.backward()
                 optimizer.step()
@@ -1029,9 +1032,89 @@ def train_model_task(job_id: str, db: Session):
             if job.algorithm in ["Random Forest", "XGBoost", "LightGBM", "CatBoost"]:
                 add_log("Generating Real Explainability Metrics (SHAP, Feature Importance, etc.)...")
                 is_cls = (prediction_target == "classification")
-                # Wait, y_pred might not be in scope if an error happened, but if we reached here it should be unless it's deep inside the if branch.
-                # Since Python doesn't have block scope, y_pred from the if branches will be accessible here.
                 final_explainability = generate_real_explainability(model, X_test, y_test.ravel(), y_pred, features, is_classification=is_cls)
+            
+            elif job.algorithm in ["LSTM", "GRU", "1D-CNN", "DeepLOB"]:
+                add_log("Generating Basic Explainability Metrics for Deep Learning model...")
+                import torch
+                is_cls = (prediction_target == "classification")
+                dl_explain = {}
+                
+                # 1. Confusion Matrix
+                try:
+                    if is_cls:
+                        from sklearn.metrics import confusion_matrix
+                        y_true_int = np.round(y_test.ravel()).astype(int)
+                        y_pred_int = np.round(preds_class.ravel()).astype(int) if is_cls else None
+                        if y_pred_int is not None:
+                            cm = confusion_matrix(y_true_int, y_pred_int)
+                            dl_explain["confusionMatrix"] = {
+                                "classes": ["Hold/Down", "Up"] if cm.shape[0] == 2 else ["Class 0", "Class 1"],
+                                "matrix": cm.tolist()
+                            }
+                except Exception as _e:
+                    add_log(f"[DL Explain] Confusion matrix failed: {_e}")
+                
+                # 2. Actual vs Predicted time series
+                try:
+                    subset_len = min(50, len(y_test.ravel()))
+                    y_t = y_test.ravel()
+                    y_p = preds_class.ravel() if is_cls else preds.ravel()
+                    ts_data = []
+                    for i in range(subset_len):
+                        ts_data.append({
+                            "time": f"T-{subset_len-i}",
+                            "actual": float(y_t[len(y_t)-subset_len+i]),
+                            "predicted": float(y_p[len(y_p)-subset_len+i])
+                        })
+                    dl_explain["timeSeriesData"] = ts_data
+                except Exception as _e:
+                    add_log(f"[DL Explain] Time series data failed: {_e}")
+                
+                # 3. Permutation Feature Importance (works for any black-box model)
+                try:
+                    model.eval()
+                    baseline_preds = preds_class.ravel() if is_cls else preds.ravel()
+                    from sklearn.metrics import accuracy_score, mean_squared_error
+                    if is_cls:
+                        baseline_score = accuracy_score(y_test.ravel().astype(int), baseline_preds.astype(int))
+                    else:
+                        baseline_score = -mean_squared_error(y_test.ravel(), baseline_preds)
+                    
+                    perm_importances = []
+                    for feat_idx, feat_name in enumerate(features):
+                        X_permuted = X_test.copy()
+                        np.random.shuffle(X_permuted[:, feat_idx])
+                        with torch.no_grad():
+                            if job.algorithm in ["LSTM", "GRU"]:
+                                X_perm_t = torch.FloatTensor(X_permuted).unsqueeze(1)
+                            else:
+                                X_perm_t = torch.FloatTensor(X_permuted)
+                            perm_out = model(X_perm_t).numpy()
+                        
+                        if is_cls:
+                            perm_preds = (1 / (1 + np.exp(-perm_out)) > 0.5).astype(int).ravel()
+                            perm_score = accuracy_score(y_test.ravel().astype(int), perm_preds)
+                        else:
+                            perm_preds = perm_out.ravel()
+                            perm_score = -mean_squared_error(y_test.ravel(), perm_preds)
+                        
+                        importance = max(0.0, baseline_score - perm_score)
+                        perm_importances.append({"name": feat_name, "value": float(importance)})
+                    
+                    # Normalize
+                    total_imp = sum(p["value"] for p in perm_importances)
+                    if total_imp > 0:
+                        for p in perm_importances:
+                            p["value"] = p["value"] / total_imp
+                    perm_importances.sort(key=lambda x: x["value"], reverse=True)
+                    dl_explain["featureImportance"] = perm_importances
+                except Exception as _e:
+                    add_log(f"[DL Explain] Permutation importance failed: {_e}")
+                
+                final_explainability = dl_explain
+                add_log("Deep Learning explainability generated successfully.")
+
         except Exception as e:
             add_log(f"⚠️ Failed to generate explainability data: {e}")
             
