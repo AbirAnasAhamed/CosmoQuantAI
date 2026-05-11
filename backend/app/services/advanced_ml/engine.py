@@ -81,6 +81,10 @@ class AdvancedMLEngine:
             db.commit()
             add_log(f"Epoch [{epoch+1}/{epochs}], Avg Loss: {avg_loss:.6f}")
             
+            db.refresh(job)
+            if job.status == models.TrainingStatus.FAILED and job.error_message and "cancelled" in job.error_message.lower():
+                raise Exception("Training cancelled by user.")
+            
         # Save model
         model_filename = f"model_{job.id}.pt"
         model_dir = os.path.join("uploads", "models", f"job_{job.id}")
@@ -171,7 +175,21 @@ class AdvancedMLEngine:
         
         # We use a callback or simple loop to update progress
         start_time = time.time()
-        model.learn(total_timesteps=total_timesteps)
+        
+        from stable_baselines3.common.callbacks import BaseCallback
+        class CancelCheckCallback(BaseCallback):
+            def __init__(self, check_interval=1000):
+                super().__init__(verbose=0)
+                self.check_interval = check_interval
+            def _on_step(self) -> bool:
+                if self.num_timesteps % self.check_interval == 0:
+                    db.refresh(job)
+                    if job.status == models.TrainingStatus.FAILED and job.error_message and "cancelled" in job.error_message.lower():
+                        raise Exception("Training cancelled by user.")
+                return True
+                
+        callback = CancelCheckCallback(check_interval=max(100, total_timesteps // 20))
+        model.learn(total_timesteps=total_timesteps, callback=callback)
         
         # Save model
         model_filename = f"model_{job.id}.zip"

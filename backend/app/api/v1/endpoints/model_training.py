@@ -79,6 +79,37 @@ def get_training_job_status(
         raise HTTPException(status_code=404, detail="Training job not found")
     return job
 
+@router.post("/jobs/{job_id}/cancel", response_model=schemas.TrainingJobResponse)
+def cancel_training_job(
+    job_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Cancel an ongoing training job.
+    """
+    job = db.query(models.ModelTrainingJob).filter(
+        models.ModelTrainingJob.id == job_id,
+        models.ModelTrainingJob.user_id == current_user.id
+    ).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Training job not found")
+        
+    if job.status in [models.TrainingStatus.COMPLETED, models.TrainingStatus.FAILED]:
+        raise HTTPException(status_code=400, detail="Job is already finished")
+
+    job.status = models.TrainingStatus.FAILED
+    job.error_message = "Training cancelled by user."
+    
+    logs = list(job.logs) if job.logs else []
+    import datetime
+    logs.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] 🛑 Training cancelled by user.")
+    job.logs = logs
+
+    db.commit()
+    db.refresh(job)
+    return job
+
 @router.post("/suggest-features")
 def suggest_l2_features(
     request: SuggestFeaturesRequest,

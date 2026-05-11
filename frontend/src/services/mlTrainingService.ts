@@ -59,5 +59,10 @@ export const mlTrainingService = {
     getJobStatus: async (jobId: string): Promise<TrainingJob> => {
         const response = await apiClient.get(`/model-training/jobs/${jobId}`);
         return response.data;
+    },
+
+    cancelTraining: async (jobId: string): Promise<TrainingJob> => {
+        const response = await apiClient.post(`/model-training/jobs/${jobId}/cancel`);
+        return response.data;
     }
 };

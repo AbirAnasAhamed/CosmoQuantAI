@@ -211,6 +211,10 @@ async def _async_live_scraper(symbol: str, target_rows: int, db: Session, job: m
                         db.commit()
                         buffer.clear()
                         
+                        db.refresh(job)
+                        if job.status == models.TrainingStatus.FAILED and job.error_message and "cancelled" in job.error_message.lower():
+                            raise Exception("Training cancelled by user during live scraping.")
+                        
                     if scraped_count % log_interval == 0:
                         pct = min(100.0, (scraped_count / target_rows) * 10.0)
                         job.progress = pct
@@ -279,7 +283,13 @@ def train_model_task(job_id: str, db: Session):
         job.logs = logs
         db.commit()
 
+    def check_cancelled():
+        db.refresh(job)
+        if job.status == models.TrainingStatus.FAILED and job.error_message and "cancelled" in job.error_message.lower():
+            raise Exception("Training cancelled by user.")
+
     try:
+        check_cancelled()
         job.status = models.TrainingStatus.RUNNING
         job.progress = 5.0
         add_log(f"Starting training job for {job.symbol} using {job.algorithm}")
@@ -437,6 +447,7 @@ def train_model_task(job_id: str, db: Session):
                 raise Exception(f"Not enough market data to train a model. Found {len(df)} rows. Please increase the dataset period or lookback time.")
         
         job.progress = 30.0
+        check_cancelled()
         
         # 3. Prepare Data
         add_log("Preparing and scaling data...")
@@ -502,6 +513,7 @@ def train_model_task(job_id: str, db: Session):
                 pass
 
         # 4. Train Model
+        check_cancelled()
         if job.algorithm == "Random Forest":
             add_log(f"Training Random Forest ({prediction_target.capitalize()})...")
             if prediction_target == "classification":
