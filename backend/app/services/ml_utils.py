@@ -41,6 +41,10 @@ def calculate_regression_metrics(y_true, y_pred):
 def generate_real_explainability(model, X_test, y_test, y_pred, feature_names, is_classification=True):
     """Generate real explainability metrics for the model."""
     import traceback
+    import pandas as pd
+    
+    # Ensure feature_names is a plain list for safe .index() calls
+    feature_names = list(feature_names)
     
     result = {}
     
@@ -92,11 +96,14 @@ def generate_real_explainability(model, X_test, y_test, y_pred, feature_names, i
     try:
         import shap
         # Sample data to speed up SHAP calculation
-        X_sample = X_test[:min(100, len(X_test))]
+        # FIX: Use DataFrame to preserve feature names -> eliminates "X does not have valid feature names" warnings
+        sample_size = min(100, len(X_test))
+        X_sample_np = X_test[:sample_size]
+        X_sample_df = pd.DataFrame(X_sample_np, columns=feature_names)
         
         if type(model).__name__ in ['RandomForestClassifier', 'RandomForestRegressor', 'XGBClassifier', 'XGBRegressor', 'LGBMClassifier', 'LGBMRegressor', 'CatBoostClassifier', 'CatBoostRegressor']:
             explainer = shap.TreeExplainer(model)
-            shap_values = explainer.shap_values(X_sample)
+            shap_values = explainer.shap_values(X_sample_df)
             
             if isinstance(shap_values, list):
                 shap_values = shap_values[1] # Use positive class
@@ -114,7 +121,7 @@ def generate_real_explainability(model, X_test, y_test, y_pred, feature_names, i
                 if feature in feature_names:
                     f_idx = feature_names.index(feature)
                     f_shap = shap_values[:, f_idx]
-                    f_val = X_sample[:, f_idx]
+                    f_val = X_sample_np[:, f_idx]  # use numpy for indexing
                     
                     val_min, val_max = np.min(f_val), np.max(f_val)
                     for i in range(len(f_shap)):
@@ -140,7 +147,9 @@ def generate_real_explainability(model, X_test, y_test, y_pred, feature_names, i
             if top_feature in feature_names:
                 f_idx = feature_names.index(top_feature)
                 
-                pd_results = partial_dependence(model, X_test, features=[f_idx], grid_resolution=20)
+                # FIX: Use DataFrame for PDP to avoid feature name warning
+                X_test_df = pd.DataFrame(X_test, columns=feature_names)
+                pd_results = partial_dependence(model, X_test_df, features=[f_idx], grid_resolution=20)
                 
                 if isinstance(pd_results, dict):
                     if 'values' in pd_results:

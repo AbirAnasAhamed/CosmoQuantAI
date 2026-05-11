@@ -441,6 +441,7 @@ def train_model_task(job_id: str, db: Session):
         # 3. Prepare Data
         add_log("Preparing and scaling data...")
         from sklearn.preprocessing import MinMaxScaler
+        import pandas as pd
         
         X = df[features].values
         y = df['Target'].values
@@ -448,11 +449,24 @@ def train_model_task(job_id: str, db: Session):
         scaler_x = MinMaxScaler()
         scaler_y = MinMaxScaler()
         X_scaled = scaler_x.fit_transform(X)
-        y_scaled = scaler_y.fit_transform(y.reshape(-1, 1))
+        
+        prediction_target_early = config.get("prediction_target", "classification")
+        if prediction_target_early == "classification":
+            # FIX: Classification labels must NOT be scaled.
+            # Scaling y to floats breaks LightGBM/SHAP and causes "Class 0 only" output.
+            y_scaled = y.reshape(-1, 1).astype(int)
+            scaler_y = None  # no y scaler needed for classification
+        else:
+            y_scaled = scaler_y.fit_transform(y.reshape(-1, 1))
         
         split = int(len(X) * 0.8)
         X_train, X_test = X_scaled[:split], X_scaled[split:]
         y_train, y_test = y_scaled[:split], y_scaled[split:]
+        
+        # FIX: Wrap X in DataFrame to preserve feature names.
+        # This eliminates the SHAP / sklearn "X does not have valid feature names" warning spam.
+        X_train_df = pd.DataFrame(X_train, columns=features)
+        X_test_df  = pd.DataFrame(X_test,  columns=features)
         
         job.progress = 40.0
         
@@ -702,18 +716,19 @@ def train_model_task(job_id: str, db: Session):
                 except Exception as _ft_e:
                     add_log(f"⚠️ LightGBM fine-tune load failed ({_ft_e}), training fresh.")
             if prediction_target == "classification":
-                model = lgb.LGBMClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
-                model.fit(X_train, y_train.ravel(), eval_set=[(X_test, y_test.ravel())], init_model=_lgb_init)
+                model = lgb.LGBMClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, verbose=-1)
+                # FIX: Use DataFrame (X_train_df) so feature names are preserved -> eliminates warning spam
+                model.fit(X_train_df, y_train.ravel(), eval_set=[(X_test_df, y_test.ravel())], init_model=_lgb_init)
                 start_time = time.time()
-                y_pred = model.predict(X_test)
+                y_pred = model.predict(X_test_df)
                 end_time = time.time()
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
                 process_metrics(calculate_classification_metrics(y_test.ravel(), y_pred), True)
             else:
-                model = lgb.LGBMRegressor(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
-                model.fit(X_train, y_train.ravel(), eval_set=[(X_test, y_test.ravel())], init_model=_lgb_init)
+                model = lgb.LGBMRegressor(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, verbose=-1)
+                model.fit(X_train_df, y_train.ravel(), eval_set=[(X_test_df, y_test.ravel())], init_model=_lgb_init)
                 start_time = time.time()
-                y_pred = model.predict(X_test)
+                y_pred = model.predict(X_test_df)
                 end_time = time.time()
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
                 process_metrics(calculate_regression_metrics(y_test.ravel(), y_pred), False)
