@@ -31,6 +31,8 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
     // Deep Training States
     const targetRowOptions = [1000, 10000, 50000, 100000, 500000, 1000000, 5000000, 10000000, 50000000, 100000000];
     const [targetRowsIndex, setTargetRowsIndex] = useState(3); // Default 100k
+    const [manualTargetRows, setManualTargetRows] = useState<string>('100000'); // Manual input mirror
+    const [isManualInputMode, setIsManualInputMode] = useState(false);
     const [isDeepTraining, setIsDeepTraining] = useState(false);
     
     // New Feature States
@@ -207,7 +209,7 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                     sequence_length: sequenceLength, // ✅ New
                     exchange: exchange,
                     is_deep_training: (dataSource === 'l2_orderbook' || dataSource === 'hybrid') ? isDeepTraining : false,
-                    target_rows: ((dataSource === 'l2_orderbook' || dataSource === 'hybrid') && isDeepTraining) ? targetRowOptions[targetRowsIndex] : 0,
+                    target_rows: ((dataSource === 'l2_orderbook' || dataSource === 'hybrid') && isDeepTraining) ? (parseInt(manualTargetRows, 10) || targetRowOptions[targetRowsIndex]) : 0,
                     l2_features: (dataSource === 'l2_orderbook' || dataSource === 'hybrid') ? selectedL2Features : [],
                     target_model_id: isRetrainMode ? (retrainModelId || undefined) : undefined,
                     fine_tune: isRetrainMode
@@ -263,6 +265,33 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
         setSelectedL2Features(prev => 
             prev.includes(featureInternal) ? prev.filter(f => f !== featureInternal) : [...prev, featureInternal]
         );
+    };
+
+    // Snap a raw number to the nearest preset index
+    const snapToNearestPreset = (value: number): number => {
+        let closestIdx = 0;
+        let closestDiff = Math.abs(targetRowOptions[0] - value);
+        for (let i = 1; i < targetRowOptions.length; i++) {
+            const diff = Math.abs(targetRowOptions[i] - value);
+            if (diff < closestDiff) { closestDiff = diff; closestIdx = i; }
+        }
+        return closestIdx;
+    };
+
+    // Handle the manual number input
+    const handleManualRowInput = (raw: string) => {
+        setManualTargetRows(raw);
+        const num = parseInt(raw.replace(/,/g, ''), 10);
+        if (!isNaN(num) && num > 0) {
+            const clamped = Math.max(1, Math.min(100_000_000, num));
+            setTargetRowsIndex(snapToNearestPreset(clamped));
+        }
+    };
+
+    // When slider moves, keep the manual input in sync
+    const handleSliderChange = (idx: number) => {
+        setTargetRowsIndex(idx);
+        setManualTargetRows(String(targetRowOptions[idx]));
     };
 
     return (
@@ -534,28 +563,113 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                     </div>
 
                                     {isDeepTraining ? (
-                                        <div className="p-4 bg-white/5 border border-white/10 rounded-xl">
-                                            <div className="flex justify-between items-center mb-4">
+                                        <div className="p-4 bg-white/5 border border-purple-500/20 rounded-xl space-y-4">
+                                            {/* Header row */}
+                                            <div className="flex justify-between items-center">
                                                 <label className="block text-sm font-medium text-slate-300">Target Rows to Scrape</label>
-                                                <span className="text-sm font-bold text-purple-400 bg-purple-500/10 px-2.5 py-1 rounded-lg border border-purple-500/20">
+                                                <span className="text-sm font-bold text-purple-400 bg-purple-500/10 px-2.5 py-1 rounded-lg border border-purple-500/20 font-mono">
                                                     {targetRowOptions[targetRowsIndex].toLocaleString()} Rows
                                                 </span>
                                             </div>
+
+                                            {/* Range Slider */}
                                             <input 
                                                 type="range" 
                                                 min={0} 
                                                 max={targetRowOptions.length - 1} 
                                                 step={1}
                                                 value={targetRowsIndex}
-                                                onChange={(e) => setTargetRowsIndex(parseInt(e.target.value))}
+                                                onChange={(e) => handleSliderChange(parseInt(e.target.value))}
                                                 disabled={isTraining}
                                                 className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-purple-500"
                                             />
-                                            <div className="flex justify-between text-xs text-slate-500 mt-2 font-medium">
-                                                <span>1K</span>
-                                                <span>1M</span>
-                                                <span>100M</span>
+                                            <div className="flex justify-between text-[10px] text-slate-500 font-medium -mt-1">
+                                                <span>1K</span><span>50K</span><span>500K</span><span>5M</span><span>50M</span><span>100M</span>
                                             </div>
+
+                                            {/* Manual Input Row */}
+                                            <div className="flex items-center gap-2">
+                                                <div className="relative flex-1">
+                                                    <input
+                                                        type="number"
+                                                        min={1}
+                                                        max={100000000}
+                                                        step={1000}
+                                                        value={manualTargetRows}
+                                                        onChange={(e) => handleManualRowInput(e.target.value)}
+                                                        onFocus={() => setIsManualInputMode(true)}
+                                                        onBlur={() => {
+                                                            setIsManualInputMode(false);
+                                                            // On blur clamp & sync slider
+                                                            const num = parseInt(manualTargetRows.replace(/,/g, ''), 10);
+                                                            if (!isNaN(num) && num > 0) {
+                                                                const clamped = Math.max(1, Math.min(100_000_000, num));
+                                                                const idx = snapToNearestPreset(clamped);
+                                                                setTargetRowsIndex(idx);
+                                                                setManualTargetRows(String(clamped));
+                                                            } else {
+                                                                setManualTargetRows(String(targetRowOptions[targetRowsIndex]));
+                                                            }
+                                                        }}
+                                                        disabled={isTraining}
+                                                        placeholder="Enter exact rows..."
+                                                        className="w-full bg-black/50 border border-purple-500/30 rounded-xl px-4 py-2.5 text-sm text-white font-mono focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400 outline-none transition-all disabled:opacity-50 placeholder-white/20 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                                                    />
+                                                    <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-purple-400/60 uppercase tracking-wider pointer-events-none">rows</span>
+                                                </div>
+                                                <button
+                                                    onClick={() => {
+                                                        const num = parseInt(manualTargetRows, 10);
+                                                        if (!isNaN(num) && num > 0) {
+                                                            const clamped = Math.max(1, Math.min(100_000_000, num));
+                                                            const idx = snapToNearestPreset(clamped);
+                                                            setTargetRowsIndex(idx);
+                                                            setManualTargetRows(String(clamped));
+                                                        }
+                                                    }}
+                                                    disabled={isTraining}
+                                                    title="Apply manual value"
+                                                    className="flex-shrink-0 p-2.5 rounded-xl bg-purple-600/20 border border-purple-500/40 text-purple-400 hover:bg-purple-600/40 hover:text-purple-200 transition-all disabled:opacity-40"
+                                                >
+                                                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>
+                                                </button>
+                                            </div>
+
+                                            {/* Quick Preset Chips */}
+                                            <div className="grid grid-cols-6 gap-1.5">
+                                                {[
+                                                    { label: '1K',   val: 1_000 },
+                                                    { label: '10K',  val: 10_000 },
+                                                    { label: '100K', val: 100_000 },
+                                                    { label: '1M',   val: 1_000_000 },
+                                                    { label: '10M',  val: 10_000_000 },
+                                                    { label: '100M', val: 100_000_000 },
+                                                ].map(({ label, val }) => {
+                                                    const isActive = targetRowOptions[targetRowsIndex] === val;
+                                                    return (
+                                                        <button
+                                                            key={label}
+                                                            disabled={isTraining}
+                                                            onClick={() => {
+                                                                const idx = targetRowOptions.indexOf(val);
+                                                                setTargetRowsIndex(idx);
+                                                                setManualTargetRows(String(val));
+                                                            }}
+                                                            className={`py-1 text-[10px] font-black rounded-lg border transition-all ${
+                                                                isActive
+                                                                    ? 'bg-purple-600/30 border-purple-400/60 text-purple-300 shadow-[0_0_8px_rgba(168,85,247,0.3)]'
+                                                                    : 'bg-black/30 border-white/10 text-slate-400 hover:border-purple-500/40 hover:text-purple-300 hover:bg-purple-500/10'
+                                                            }`}
+                                                        >
+                                                            {label}
+                                                        </button>
+                                                    );
+                                                })}
+                                            </div>
+
+                                            <p className="text-[10px] text-slate-500 font-medium leading-relaxed">
+                                                💡 Use the slider for quick selection or type an exact number in the input. Quick chips jump to common milestones.
+                                            </p>
                                         </div>
                                     ) : (
                                         <div>
