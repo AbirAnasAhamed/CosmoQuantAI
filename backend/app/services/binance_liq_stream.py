@@ -44,7 +44,11 @@ class BinanceLiquidationStream:
                             await asyncio.wait_for(pong_waiter, timeout=10)
             except Exception as e:
                 if self.running:
-                    logger.error(f"WebSocket Error: {e}. Reconnecting in {reconnect_delay}s...")
+                    err_msg = str(e) or type(e).__name__
+                    if "1006" in err_msg or "closed by remote server" in err_msg or "Connection closed" in err_msg or "ConnectionClosedError" in err_msg:
+                        logger.warning(f"WebSocket Connection Closed: {err_msg}. Reconnecting in {reconnect_delay}s...")
+                    else:
+                        logger.error(f"WebSocket Error: {err_msg}. Reconnecting in {reconnect_delay}s...")
                     await asyncio.sleep(reconnect_delay)
                     reconnect_delay = min(reconnect_delay * 2, 60)
                 

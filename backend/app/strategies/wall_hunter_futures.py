@@ -1158,7 +1158,7 @@ class WallHunterFuturesStrategy:
                         price, vol = level[0], level[1]
                         bid_vol_total += vol
                         if self.direction in ['long', 'auto'] and vol >= self.vol_threshold:
-                            dist_pct = abs(price - mid_price) / mid_price * 100
+                            dist_pct = (abs(price - mid_price) / mid_price * 100) if mid_price > 0 else 0
                             if dist_pct <= self.max_wall_distance_pct:
                                 current_walls[price] = {'vol': vol, 'type': 'buy'}
                         elif self.direction in ['long', 'auto'] and vol >= (self.vol_threshold * 0.5):
@@ -1170,7 +1170,7 @@ class WallHunterFuturesStrategy:
                         price, vol = level[0], level[1]
                         ask_vol_total += vol
                         if self.direction in ['short', 'auto'] and vol >= self.vol_threshold:
-                            dist_pct = abs(price - mid_price) / mid_price * 100
+                            dist_pct = (abs(price - mid_price) / mid_price * 100) if mid_price > 0 else 0
                             if dist_pct <= self.max_wall_distance_pct:
                                 current_walls[price] = {'vol': vol, 'type': 'sell'}
                         elif self.direction in ['short', 'auto'] and vol >= (self.vol_threshold * 0.5):
@@ -1188,7 +1188,7 @@ class WallHunterFuturesStrategy:
                                 
                                 # VPVR Confirmation
                                 if self.vpvr_enabled and self.top_hvns:
-                                    is_hvn_aligned = any(abs(price - hvn) / hvn <= (self.vpvr_tolerance / 100.0) for hvn in self.top_hvns)
+                                    is_hvn_aligned = any(abs(price - hvn) / hvn <= (self.vpvr_tolerance / 100.0) for hvn in self.top_hvns if hvn > 0)
                                     if not is_hvn_aligned:
                                         if not self.tracked_walls[price].get('hvn_rejected'):
                                             logger.info(f"🚫 Wall at {price} rejected: Not near any HVN.")

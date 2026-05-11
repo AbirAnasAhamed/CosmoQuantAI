@@ -172,7 +172,12 @@ class MarketDataStreamer:
                     await redis.publish(channel, json.dumps(payload))
                 
             except Exception as e:
-                logger.error(f"Error watching orderbook {symbol} on {exchange_id}: {e}")
+                err_msg = str(e)
+                if "1006" in err_msg or "closed by remote server" in err_msg or "Connection closed" in err_msg:
+                    logger.warning(f"Connection closed for orderbook {symbol} on {exchange_id}, reconnecting... ({err_msg})")
+                else:
+                    logger.error(f"Error watching orderbook {symbol} on {exchange_id}: {e}")
+                    
                 if "does not have market symbol" in str(e).lower() or "bad symbol" in str(e).lower():
                     logger.error(f"Invalid symbol {symbol} for exchange {exchange_id}")
                     if redis:
@@ -213,7 +218,11 @@ class MarketDataStreamer:
                     if redis:
                         await redis.publish(channel, json.dumps(payload))
             except Exception as e:
-                logger.error(f"Error watching trades {symbol} on {exchange_id}: {e}")
+                err_msg = str(e)
+                if "1006" in err_msg or "closed by remote server" in err_msg or "Connection closed" in err_msg:
+                    logger.warning(f"Connection closed for trades {symbol} on {exchange_id}, reconnecting... ({err_msg})")
+                else:
+                    logger.error(f"Error watching trades {symbol} on {exchange_id}: {e}")
                 await asyncio.sleep(5)
 
 

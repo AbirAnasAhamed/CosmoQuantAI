@@ -1029,7 +1029,20 @@ def auto_retrain_models():
                 import time
                 
                 job_id = f"train_auto_{int(time.time() * 1000)}"
-                symbol = model.name.split(" ")[0] if " " in model.name else "BTC/USDT"
+                
+                # Try to find the original training job to reuse its config
+                original_job = db.query(ModelTrainingJob).filter(
+                    ModelTrainingJob.output_model_id == model.id
+                ).order_by(ModelTrainingJob.created_at.desc()).first()
+
+                if original_job:
+                    symbol = original_job.symbol
+                    timeframe = original_job.timeframe
+                    base_config = original_job.config.copy() if isinstance(original_job.config, dict) else {}
+                else:
+                    symbol = model.name.split(" ")[0] if " " in model.name else "BTC/USDT"
+                    timeframe = "1m"
+                    base_config = {"dataset_type": "ohlcv"}
                 
                 # ── Fetch previous model file path for fine-tuning ──────────
                 prev_model_path = None
@@ -1043,23 +1056,24 @@ def auto_retrain_models():
                     else:
                         logger.info(f"No valid checkpoint for model {model.id}. Will train fresh.")
                 
+                # Merge auto-retrain overrides into base_config
+                base_config.update({
+                    "target_model_id": model.id,
+                    "is_auto_retrain": True,
+                    "retrain_interval_hours": model.retrain_interval_hours,
+                    "data_lookback_hours": getattr(model, "data_lookback_hours", 6),
+                    "epochs": base_config.get("epochs", 10),
+                    "previous_model_path": prev_model_path,
+                    "fine_tune": prev_model_path is not None,
+                })
+                
                 job = ModelTrainingJob(
                     id=job_id,
                     user_id=model.user_id,
                     symbol=symbol,
-                    timeframe="1m",
+                    timeframe=timeframe,
                     algorithm=model.model_type,
-                    config={
-                        "dataset_type": "l2_orderbook",
-                        "target_model_id": model.id,
-                        "is_auto_retrain": True,
-                        "retrain_interval_hours": model.retrain_interval_hours,
-                        "data_lookback_hours": getattr(model, "data_lookback_hours", 6),
-                        "epochs": 10,
-                        # ✅ Fine-tuning params — passed to train_model_task
-                        "previous_model_path": prev_model_path,
-                        "fine_tune": prev_model_path is not None,
-                    },
+                    config=base_config,
                     status=TrainingStatus.PENDING,
                     progress=0.0,
                     logs=["Auto-retrain job queued..."]
