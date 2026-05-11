@@ -46,6 +46,7 @@ export interface TrainingConfig {
         bar_type?: string;
         bar_size?: string;
         volume_threshold?: string;
+        trade_features?: string[];
     };
 }
 

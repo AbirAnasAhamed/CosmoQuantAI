@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BrainCircuit, Play, Square, Settings, Database, Activity, Terminal, CheckCircle2, XCircle, Loader2, Trash2, Zap } from 'lucide-react';
+import { BrainCircuit, Play, Square, Settings, Database, Activity, Terminal, CheckCircle2, XCircle, Loader2, Trash2, Zap, Layers, Check } from 'lucide-react';
 import { mlTrainingService, TrainingJob } from '@/services/mlTrainingService';
 import apiClient from '@/services/client';
 import TargetSelection from '@/components/ml/TargetSelection';
@@ -66,6 +66,8 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
     const [tradeBarType, setTradeBarType] = useState('time');
     const [tradeBarSize, setTradeBarSize] = useState('1m');
     const [tradeVolumeThreshold, setTradeVolumeThreshold] = useState('10.0');
+    const [selectedTradeFeatures, setSelectedTradeFeatures] = useState<string[]>(['cvd', 'buy_volume', 'sell_volume', 'trade_count']);
+    const [initialLoadedTradeFeatures, setInitialLoadedTradeFeatures] = useState<string[]>([]);
     
     // UI states for Retrain Mode highlighting
     const [retrainModelName, setRetrainModelName] = useState<string>('');
@@ -91,6 +93,10 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                 if (config.config?.l2_features) {
                     setSelectedL2Features(config.config.l2_features);
                     setInitialLoadedL2Features(config.config.l2_features);
+                }
+                if (config.config?.trade_features) {
+                    setSelectedTradeFeatures(config.config.trade_features);
+                    setInitialLoadedTradeFeatures(config.config.trade_features);
                 }
                 if (config.config?.dataset_type) setDataSource(config.config.dataset_type);
                 if (config.config?.exchange) setExchange(config.config.exchange);
@@ -159,6 +165,13 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
         { internal: "microprice", name: "Micro-Price" }
     ];
 
+    const ALL_TRADE_FEATURES = [
+        { internal: "cvd", name: "Cumulative Volume Delta (CVD)" },
+        { internal: "buy_volume", name: "Buy Volume Profile" },
+        { internal: "sell_volume", name: "Sell Volume Profile" },
+        { internal: "trade_count", name: "Trade Count (Tick Velocity)" }
+    ];
+
     // Auto-scroll logs
     useEffect(() => {
         if (logsEndRef.current) {
@@ -221,13 +234,13 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                     learning_rate: learningRate,
                     max_depth: maxDepth,
                     model_name: modelName,
-                    initial_balance: initialBalance, // ✅ New
-                    commission: tradingFees, // ✅ New
-                    slippage: slippage, // ✅ New
-                    sequence_length: sequenceLength, // ✅ New
+                    initial_balance: initialBalance,
+                    commission: tradingFees,
+                    slippage: slippage,
+                    sequence_length: sequenceLength,
                     exchange: exchange,
-                    is_deep_training: (dataSource === 'l2_orderbook' || dataSource === 'hybrid') ? isDeepTraining : false,
-                    target_rows: ((dataSource === 'l2_orderbook' || dataSource === 'hybrid') && isDeepTraining) ? (parseInt(manualTargetRows, 10) || targetRowOptions[targetRowsIndex]) : 0,
+                    is_deep_training: (dataSource === 'l2_orderbook' || dataSource === 'hybrid' || dataSource === 'historical_trades') ? isDeepTraining : false,
+                    target_rows: ((dataSource === 'l2_orderbook' || dataSource === 'hybrid' || dataSource === 'historical_trades') && isDeepTraining) ? (parseInt(manualTargetRows, 10) || targetRowOptions[targetRowsIndex]) : 0,
                     l2_features: (dataSource === 'l2_orderbook' || dataSource === 'hybrid') ? selectedL2Features : [],
                     target_model_id: isRetrainMode ? (retrainModelId || undefined) : undefined,
                     fine_tune: isRetrainMode,
@@ -235,7 +248,8 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                     trade_file: dataSource === 'historical_trades' ? selectedTradeFile : undefined,
                     bar_type: dataSource === 'historical_trades' ? tradeBarType : undefined,
                     bar_size: dataSource === 'historical_trades' ? tradeBarSize : undefined,
-                    volume_threshold: dataSource === 'historical_trades' ? tradeVolumeThreshold : undefined
+                    volume_threshold: dataSource === 'historical_trades' ? tradeVolumeThreshold : undefined,
+                    trade_features: dataSource === 'historical_trades' ? selectedTradeFeatures : undefined,
                 }
             });
             setCurrentJob(job);
@@ -300,6 +314,12 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
 
     const handleToggleL2Feature = (featureInternal: string) => {
         setSelectedL2Features(prev => 
+            prev.includes(featureInternal) ? prev.filter(f => f !== featureInternal) : [...prev, featureInternal]
+        );
+    };
+
+    const handleToggleTradeFeature = (featureInternal: string) => {
+        setSelectedTradeFeatures(prev => 
             prev.includes(featureInternal) ? prev.filter(f => f !== featureInternal) : [...prev, featureInternal]
         );
     };
@@ -708,6 +728,48 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                             </div>
                                         </div>
                                     )}
+
+                                    <div className="bg-white/5 backdrop-blur-md border border-amber-500/10 p-5 rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.2)]">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <div>
+                                                <h3 className="text-sm font-bold text-amber-400 flex items-center gap-2">
+                                                    <Layers className="w-4 h-4" />
+                                                    Trade Feature Engineering
+                                                </h3>
+                                                <p className="text-xs text-slate-400 mt-1">Select highly-predictive features extracted from tick data.</p>
+                                            </div>
+                                            <div className="text-xs font-bold bg-amber-500/10 text-amber-400 px-3 py-1 rounded-full border border-amber-500/20">
+                                                {selectedTradeFeatures.length} / {ALL_TRADE_FEATURES.length} Selected
+                                            </div>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 md:grid-cols-2 gap-3 max-h-[160px] overflow-y-auto pr-2 custom-scrollbar">
+                                            {ALL_TRADE_FEATURES.map((feat) => {
+                                                const isSelected = selectedTradeFeatures.includes(feat.internal);
+                                                return (
+                                                    <button
+                                                        key={feat.internal}
+                                                        onClick={() => handleToggleTradeFeature(feat.internal)}
+                                                        disabled={isTraining}
+                                                        className={`flex items-center gap-3 p-3 rounded-xl border text-left transition-all duration-300 ${
+                                                            isSelected 
+                                                                ? 'bg-amber-500/10 border-amber-500/30 shadow-[0_0_10px_rgba(245,158,11,0.1)]' 
+                                                                : 'bg-[#0A0A0A] border-white/5 hover:border-amber-500/30 hover:bg-white/5'
+                                                        }`}
+                                                    >
+                                                        <div className={`w-4 h-4 rounded-md border flex items-center justify-center transition-colors ${
+                                                            isSelected ? 'bg-amber-500 border-amber-500 text-black' : 'border-slate-600 bg-transparent'
+                                                        }`}>
+                                                            {isSelected && <Check className="w-3 h-3 stroke-[3]" />}
+                                                        </div>
+                                                        <span className={`text-xs font-semibold ${isSelected ? 'text-amber-300' : 'text-slate-400'}`}>
+                                                            {feat.name}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                             

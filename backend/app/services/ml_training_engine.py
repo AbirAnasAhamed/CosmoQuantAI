@@ -557,7 +557,17 @@ def train_model_task(job_id: str, db: Session):
             df.dropna(inplace=True)
             if len(df) < 10:
                 raise Exception(f"Not enough data to train after processing Trades. Found {len(df)} rows.")
+                
+            trade_features_config = config.get("trade_features", ["cvd", "buy_volume", "sell_volume", "trade_count"])
+            available_trade_feats = [f for f in trade_features_config if f in df.columns]
             
+            indicator_cols = [col for col in df.columns if col not in ['Target', 'Open', 'High', 'Low', 'Close', 'Volume', 'cvd', 'buy_volume', 'sell_volume', 'trade_count', 'datetime', 'timestamp']]
+            features = available_trade_feats + indicator_cols
+            
+            if not features:
+                features = ['Close']
+            
+
         else:
             ohlcv_period = config.get("ohlcv_period")
             exchange_name = config.get("exchange", "binance")
