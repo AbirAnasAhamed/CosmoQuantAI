@@ -288,6 +288,78 @@ def generate_real_explainability(model, X_test, y_test, y_pred, feature_names, i
                 "nodes": nodes,
                 "edges": edges
             }
+        elif type(model).__name__ in ['CatBoostClassifier', 'CatBoostRegressor']:
+            import json, tempfile, os as _os
+            
+            # CatBoost uses "oblivious trees" (symmetric trees).
+            # Each level splits ALL branches on the SAME feature.
+            # We export to JSON to read the splits and leaf_values.
+            tmp = tempfile.mktemp(suffix='.json')
+            model.save_model(tmp, format='json')
+            with open(tmp) as f:
+                raw = json.load(f)
+            _os.remove(tmp)
+            
+            float_features = raw.get('features_info', {}).get('float_features', [])
+            # Build feature index -> name mapping from the model JSON
+            feat_idx_to_name = {}
+            for ff in float_features:
+                feat_idx_to_name[ff['feature_index']] = ff.get('feature_id', f"Feat_{ff['feature_index']}")
+            
+            trees = raw.get('oblivious_trees', [])
+            nodes = []
+            edges = []
+            
+            if trees:
+                tree0 = trees[0]
+                splits = tree0.get('splits', [])
+                leaf_values = tree0.get('leaf_values', [])
+                depth = len(splits)
+                
+                # Build top-down condition nodes (one per level in an oblivious tree)
+                for level, sp in enumerate(splits[:3]):  # max 3 levels
+                    feat_idx = sp.get('float_feature_index', 0)
+                    border = sp.get('border', 0.0)
+                    feat_name = feat_idx_to_name.get(feat_idx, f"Feat_{feat_idx}")
+                    
+                    node_id = f"cond_{level}"
+                    nodes.append({
+                        "id": node_id,
+                        "label": f"{feat_name} <= {border:.2f}",
+                        "type": "condition"
+                    })
+                    
+                    if level > 0:
+                        parent_id = f"cond_{level-1}"
+                        edges.append({"source": parent_id, "target": node_id, "label": "Yes"})
+                
+                # Add leaf nodes (2^depth leaves)
+                for i, lv in enumerate(leaf_values[:4]):  # show max 4 leaves
+                    leaf_id = f"leaf_{i}"
+                    if is_classification:
+                        class_idx = 1 if lv > 0 else 0
+                        label = f"Class {class_idx}"
+                        color = "green" if class_idx == 1 else "red"
+                    else:
+                        label = f"Val: {lv:.3f}"
+                        color = "gray"
+                    
+                    nodes.append({
+                        "id": leaf_id,
+                        "label": label,
+                        "type": "leaf",
+                        "color": color
+                    })
+                    
+                    # Connect last condition node to leaves
+                    last_cond = f"cond_{min(len(splits)-1, 2)}"
+                    label_edge = "Yes" if i % 2 == 0 else "No"
+                    edges.append({"source": last_cond, "target": leaf_id, "label": label_edge})
+            
+            result["decisionTree"] = {
+                "nodes": nodes,
+                "edges": edges
+            }
     except Exception as e:
         print(f"Failed to generate decision tree logic: {e}")
 
