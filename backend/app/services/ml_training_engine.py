@@ -493,10 +493,11 @@ def train_model_task(job_id: str, db: Session):
             try:
                 metrics_dict = json.loads(metrics_str.replace("[METRICS] ", ""))
                 if is_classification:
-                    final_accuracy = metrics_dict.get("Accuracy")
-                    final_f1 = metrics_dict.get("F1_Score")
+                    final_accuracy = metrics_dict.get("Accuracy", 0.0)
+                    final_f1 = metrics_dict.get("F1_Score", 0.0)
                 else:
-                    final_accuracy = metrics_dict.get("R2_Score") # Use R2 for accuracy display
+                    final_accuracy = metrics_dict.get("R2_Score", 0.0) # Use R2 for accuracy display
+                    final_f1 = metrics_dict.get("MSE", metrics_dict.get("RMSE", 0.0))
             except Exception:
                 pass
 
@@ -1239,7 +1240,10 @@ def train_model_task(job_id: str, db: Session):
             if job.algorithm == "PPO-RL":
                 metrics_str = f"• রিটার্ন (Return): {final_explainability.get('total_return_pct', 0):.2f}%\n• উইন রেট (Win Rate): {final_explainability.get('win_rate', 0):.2f}%\n• মোট ট্রেড (Trades): {final_explainability.get('trades_count', 0)}"
             else:
-                metrics_str = f"• Accuracy: {final_accuracy*100:.2f}%\n• F1 Score: {final_f1:.4f}\n• Latency: {final_latency:.1f}ms"
+                _acc = final_accuracy if final_accuracy is not None else 0.0
+                _f1 = final_f1 if final_f1 is not None else 0.0
+                _lat = final_latency if final_latency is not None else 0.0
+                metrics_str = f"• Accuracy/R2: {_acc*100:.2f}%\n• Score (F1/MSE): {_f1:.4f}\n• Latency: {_lat:.1f}ms"
                 
             # Prepare logs summary
             logs_array = job.logs or []

@@ -520,9 +520,31 @@ const ModelCard: React.FC<{
 
     const activeVersion = model.versions.find(v => v.id === model.activeVersionId);
 
+    const isPPO = model.modelType === 'PPO-RL';
+    const isClassification = !!activeVersion?.explainability?.confusionMatrix;
+    const isRegression = !isPPO && !isClassification && activeVersion?.explainability;
+
+    let accLabel = "Accuracy";
+    let f1Label = "F1 Score";
+    
+    if (isPPO) {
+        accLabel = "Win Rate";
+        f1Label = "Sharpe Ratio";
+    } else if (isRegression) {
+        accLabel = "R2 Score";
+        f1Label = "MSE / RMSE";
+    }
+
     // Real Metrics from API
     const rawAccuracy = activeVersion?.accuracy;
-    const accuracyDisplay = rawAccuracy !== undefined && rawAccuracy !== null ? `${(rawAccuracy * 100).toFixed(1)}%` : '--';
+    let accuracyDisplay = '--';
+    if (rawAccuracy !== undefined && rawAccuracy !== null) {
+        if (isRegression) {
+            accuracyDisplay = rawAccuracy.toFixed(3);
+        } else {
+            accuracyDisplay = `${(rawAccuracy * 100).toFixed(1)}%`;
+        }
+    }
     
     const rawF1 = activeVersion?.f1_score;
     const f1Display = rawF1 !== undefined && rawF1 !== null ? rawF1.toFixed(4) : '--';
@@ -566,8 +588,8 @@ const ModelCard: React.FC<{
                     <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-0 pointer-events-none bg-[length:100%_2px,3px_100%] opacity-30"></div>
 
                     <div className="flex justify-between items-center relative z-10">
-                        <MetricBadge label="Accuracy" value={accuracyDisplay} color="text-emerald-400" />
-                        <MetricBadge label="F1 Score" value={f1Display} color="text-blue-400" />
+                        <MetricBadge label={accLabel} value={accuracyDisplay} color="text-emerald-400" />
+                        <MetricBadge label={f1Label} value={f1Display} color="text-blue-400" />
                         <MetricBadge label="Latency" value={latencyDisplay} color="text-purple-400" />
                     </div>
                 </div>
