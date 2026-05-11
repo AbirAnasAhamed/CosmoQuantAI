@@ -280,6 +280,83 @@ async def _async_live_scraper(symbol: str, target_rows: int, db: Session, job: m
             
     return df
 
+def _run_live_trade_scraper(symbol: str, target_rows: int, db: Session, job: models.ModelTrainingJob, add_log_func) -> pd.DataFrame:
+    try:
+        return asyncio.run(_async_live_trade_scraper(symbol, target_rows, db, job, add_log_func))
+    except TrainingCancelledException:
+        raise
+    except Exception as e:
+        add_log_func(f"Trade Scraper crashed: {e}")
+        return pd.DataFrame()
+
+async def _async_live_trade_scraper(symbol: str, target_rows: int, db: Session, job: models.ModelTrainingJob, add_log_func) -> pd.DataFrame:
+    clean_symbol = symbol.upper().split(":")[0].replace("/", "")
+    ws_url = f"wss://stream.binance.com:9443/ws/{clean_symbol.lower()}@trade"
+    data = []
+    scraped_count = 0
+    
+    log_interval = max(100, target_rows // 20)
+    retry_count = 0
+    max_retries = 5
+    
+    while scraped_count < target_rows and retry_count < max_retries:
+        try:
+            async with websockets.connect(ws_url, ping_interval=30, ping_timeout=10) as ws:
+                add_log_func(f"Trade WebSocket connected. Scraping started...")
+                retry_count = 0
+                
+                while scraped_count < target_rows:
+                    msg = await asyncio.wait_for(ws.recv(), timeout=15)
+                    msg_data = json.loads(msg)
+                    
+                    if msg_data.get('e') != 'trade':
+                        continue
+                        
+                    ts = msg_data.get('T')
+                    price = float(msg_data.get('p', 0))
+                    amount = float(msg_data.get('q', 0))
+                    is_buyer_maker = msg_data.get('m', False)
+                    side = 'sell' if is_buyer_maker else 'buy'
+                    
+                    data.append({
+                        'timestamp': ts,
+                        'price': price,
+                        'amount': amount,
+                        'side': side
+                    })
+                    scraped_count += 1
+                    
+                    if scraped_count % 50 == 0:
+                        db.refresh(job)
+                        if job.status == models.TrainingStatus.FAILED and job.error_message and "cancelled" in job.error_message.lower():
+                            add_log_func("🛑 Scraper stopped by user cancellation.")
+                            raise TrainingCancelledException("Training cancelled by user during live scraping.")
+                            
+                    if scraped_count % log_interval == 0:
+                        pct = min(100.0, (scraped_count / target_rows) * 10.0)
+                        job.progress = pct
+                        db.commit()
+                        add_log_func(f"[Trade Scraper] Collected {scraped_count} / {target_rows} trades...")
+                        
+        except asyncio.TimeoutError:
+            add_log_func("WebSocket timeout. Reconnecting...")
+            retry_count += 1
+            await asyncio.sleep(2)
+        except websockets.exceptions.ConnectionClosed:
+            add_log_func("WebSocket connection closed. Reconnecting...")
+            retry_count += 1
+            await asyncio.sleep(2)
+        except TrainingCancelledException:
+            raise
+        except Exception as e:
+            add_log_func(f"WebSocket error: {e}. Reconnecting...")
+            retry_count += 1
+            await asyncio.sleep(2)
+            
+    add_log_func(f"Trade Scraping completed. Total rows: {len(data)}")
+    df = pd.DataFrame(data)
+    return df
+
 def train_model_task(job_id: str, db: Session):
     job = db.query(models.ModelTrainingJob).filter(models.ModelTrainingJob.id == job_id).first()
     if not job:
@@ -377,20 +454,37 @@ def train_model_task(job_id: str, db: Session):
             bar_type = config.get("bar_type", "time")
             bar_size = config.get("bar_size", "1m")
             volume_threshold = float(config.get("volume_threshold", 10.0))
+            is_deep_training = config.get("is_deep_training", False)
+            target_rows = config.get("target_rows", 0)
             
-            if not trade_file:
-                raise Exception("No Trade CSV file selected for Historical Trades training.")
+            if is_deep_training and target_rows > 0:
+                add_log(f"Starting Deep Training for Trades. Target: {target_rows} rows from Live Binance WebSocket...")
+                df_raw = _run_live_trade_scraper(job.symbol, target_rows, db, job, add_log)
+                if df_raw.empty:
+                    raise Exception("Deep Training failed. Trade Scraper returned empty dataset.")
                 
-            file_path = os.path.join("app/data_feeds", trade_file)
-            add_log(f"Loading Historical Trades from {file_path}")
-            
-            df = process_historical_trades(
-                file_path=file_path, 
-                bar_type=bar_type, 
-                bar_size=bar_size, 
-                volume_threshold=volume_threshold, 
-                add_log_func=add_log
-            )
+                df = process_historical_trades(
+                    df_raw=df_raw, 
+                    bar_type=bar_type, 
+                    bar_size=bar_size, 
+                    volume_threshold=volume_threshold, 
+                    add_log_func=add_log
+                )
+            else:
+                if not trade_file:
+                    raise Exception("No Trade CSV file selected for Historical Trades training.")
+                    
+                file_path = os.path.join("app/data_feeds", trade_file)
+                add_log(f"Loading Historical Trades from {file_path}")
+                
+                df = process_historical_trades(
+                    file_path=file_path, 
+                    bar_type=bar_type, 
+                    bar_size=bar_size, 
+                    volume_threshold=volume_threshold, 
+                    add_log_func=add_log
+                )
+                
             job.progress = 15.0
             
             # Modular Feature Engineering for Trades

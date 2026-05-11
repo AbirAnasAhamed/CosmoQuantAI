@@ -3,22 +3,24 @@ import numpy as np
 import os
 import pandas_ta as ta
 
-def process_historical_trades(file_path: str, bar_type: str = "time", bar_size: str = "1m", volume_threshold: float = 10.0, apply_indicators: list = None, add_log_func=print) -> pd.DataFrame:
+def process_historical_trades(file_path: str = None, df_raw: pd.DataFrame = None, bar_type: str = "time", bar_size: str = "1m", volume_threshold: float = 10.0, apply_indicators: list = None, add_log_func=print) -> pd.DataFrame:
     """
-    Process raw trade tick data from CSV into ML-ready features.
+    Process raw trade tick data from CSV or DataFrame into ML-ready features.
     Supports both Time Bars and Volume Bars.
     """
-    if not os.path.exists(file_path):
-        raise FileNotFoundError(f"Trade file not found at {file_path}")
-        
-    add_log_func(f"Loading raw trades from {os.path.basename(file_path)}...")
-    
-    # Read the necessary columns. The downloader uses: ['id', 'timestamp', 'datetime', 'symbol', 'side', 'price', 'amount', 'cost']
-    try:
-        df = pd.read_csv(file_path, usecols=['datetime', 'price', 'amount', 'side'])
-    except ValueError:
-        # Fallback if 'side' is missing in some older formats
-        df = pd.read_csv(file_path, usecols=['datetime', 'price', 'amount'])
+    if df_raw is not None and not df_raw.empty:
+        add_log_func(f"Processing {len(df_raw)} live trades from WebSocket...")
+        df = df_raw.copy()
+        if 'timestamp' in df.columns and 'datetime' not in df.columns:
+            df['datetime'] = pd.to_datetime(df['timestamp'], unit='ms')
+    elif file_path and os.path.exists(file_path):
+        add_log_func(f"Loading raw trades from {os.path.basename(file_path)}...")
+        try:
+            df = pd.read_csv(file_path, usecols=['datetime', 'price', 'amount', 'side'])
+        except ValueError:
+            df = pd.read_csv(file_path, usecols=['datetime', 'price', 'amount'])
+    else:
+        raise ValueError("Must provide either a valid file_path or a non-empty df_raw")
         
     df['datetime'] = pd.to_datetime(df['datetime'])
     df['price'] = df['price'].astype(float)
