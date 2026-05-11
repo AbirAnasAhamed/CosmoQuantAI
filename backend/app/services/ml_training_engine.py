@@ -519,16 +519,16 @@ def train_model_task(job_id: str, db: Session):
                 else:
                     model = RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42)
                 try:
-                    model.fit(X_train, y_train.ravel())
+                    model.fit(X_train_df, y_train.ravel())
                 except ValueError as e:
                     if is_fine_tune and "feature" in str(e).lower():
                         add_log(f"⚠️ Fine-tune fit failed: {e}. Falling back to fresh training.")
                         model = RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42)
-                        model.fit(X_train, y_train.ravel())
+                        model.fit(X_train_df, y_train.ravel())
                     else:
                         raise e
                 start_time = time.time()
-                y_pred = model.predict(X_test)
+                y_pred = model.predict(X_test_df)
                 end_time = time.time()
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
                 process_metrics(calculate_classification_metrics(y_test.ravel(), y_pred), True)
@@ -548,16 +548,16 @@ def train_model_task(job_id: str, db: Session):
                 else:
                     model = RandomForestRegressor(n_estimators=epochs, max_depth=max_depth, random_state=42)
                 try:
-                    model.fit(X_train, y_train.ravel())
+                    model.fit(X_train_df, y_train.ravel())
                 except ValueError as e:
                     if is_fine_tune and "feature" in str(e).lower():
                         add_log(f"⚠️ Fine-tune fit failed: {e}. Falling back to fresh training.")
                         model = RandomForestRegressor(n_estimators=epochs, max_depth=max_depth, random_state=42)
-                        model.fit(X_train, y_train.ravel())
+                        model.fit(X_train_df, y_train.ravel())
                     else:
                         raise e
                 start_time = time.time()
-                y_pred = model.predict(X_test)
+                y_pred = model.predict(X_test_df)
                 end_time = time.time()
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
                 process_metrics(calculate_regression_metrics(y_test.ravel(), y_pred), False)
@@ -585,16 +585,16 @@ def train_model_task(job_id: str, db: Session):
                 from xgboost import XGBClassifier
                 model = XGBClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
                 try:
-                    model.fit(X_train, y_train.ravel(), eval_set=[(X_test, y_test.ravel())], verbose=False, xgb_model=_xgb_init)
+                    model.fit(X_train_df, y_train.ravel(), eval_set=[(X_test_df, y_test.ravel())], verbose=False, xgb_model=_xgb_init)
                 except ValueError as e:
                     if is_fine_tune and "feature" in str(e).lower():
                         add_log(f"⚠️ XGBoost fine-tune fit failed: {e}. Falling back to fresh training.")
                         model = XGBClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
-                        model.fit(X_train, y_train.ravel(), eval_set=[(X_test, y_test.ravel())], verbose=False)
+                        model.fit(X_train_df, y_train.ravel(), eval_set=[(X_test_df, y_test.ravel())], verbose=False)
                     else:
                         raise e
                 start_time = time.time()
-                y_pred = model.predict(X_test)
+                y_pred = model.predict(X_test_df)
                 end_time = time.time()
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
                 process_metrics(calculate_classification_metrics(y_test.ravel(), y_pred), True)
@@ -602,16 +602,16 @@ def train_model_task(job_id: str, db: Session):
                 from xgboost import XGBRegressor
                 model = XGBRegressor(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
                 try:
-                    model.fit(X_train, y_train.ravel(), eval_set=[(X_test, y_test.ravel())], verbose=False, xgb_model=_xgb_init)
+                    model.fit(X_train_df, y_train.ravel(), eval_set=[(X_test_df, y_test.ravel())], verbose=False, xgb_model=_xgb_init)
                 except ValueError as e:
                     if is_fine_tune and "feature" in str(e).lower():
                         add_log(f"⚠️ XGBoost fine-tune fit failed: {e}. Falling back to fresh training.")
                         model = XGBRegressor(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
-                        model.fit(X_train, y_train.ravel(), eval_set=[(X_test, y_test.ravel())], verbose=False)
+                        model.fit(X_train_df, y_train.ravel(), eval_set=[(X_test_df, y_test.ravel())], verbose=False)
                     else:
                         raise e
                 start_time = time.time()
-                y_pred = model.predict(X_test)
+                y_pred = model.predict(X_test_df)
                 end_time = time.time()
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
                 process_metrics(calculate_regression_metrics(y_test.ravel(), y_pred), False)
@@ -752,17 +752,17 @@ def train_model_task(job_id: str, db: Session):
                     add_log(f"⚠️ CatBoost fine-tune load failed ({_ft_e}), training fresh.")
             if prediction_target == "classification":
                 model = cb.CatBoostClassifier(iterations=epochs, learning_rate=learning_rate, depth=max_depth, random_seed=42, verbose=False)
-                model.fit(X_train, y_train.ravel(), eval_set=(X_test, y_test.ravel()), init_model=_cb_init)
+                model.fit(X_train_df, y_train.ravel(), eval_set=(X_test_df, y_test.ravel()), init_model=_cb_init)
                 start_time = time.time()
-                y_pred = model.predict(X_test)
+                y_pred = model.predict(X_test_df)
                 end_time = time.time()
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
                 process_metrics(calculate_classification_metrics(y_test.ravel(), y_pred), True)
             else:
                 model = cb.CatBoostRegressor(iterations=epochs, learning_rate=learning_rate, depth=max_depth, random_seed=42, verbose=False)
-                model.fit(X_train, y_train.ravel(), eval_set=(X_test, y_test.ravel()), init_model=_cb_init)
+                model.fit(X_train_df, y_train.ravel(), eval_set=(X_test_df, y_test.ravel()), init_model=_cb_init)
                 start_time = time.time()
-                y_pred = model.predict(X_test)
+                y_pred = model.predict(X_test_df)
                 end_time = time.time()
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
                 process_metrics(calculate_regression_metrics(y_test.ravel(), y_pred), False)

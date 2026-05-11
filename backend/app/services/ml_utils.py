@@ -176,7 +176,65 @@ def generate_real_explainability(model, X_test, y_test, y_pred, feature_names, i
         
     # 6. Decision Tree Logic
     try:
-        if type(model).__name__ in ['RandomForestClassifier', 'RandomForestRegressor']:
+        if type(model).__name__ in ['XGBClassifier', 'XGBRegressor']:
+            # XGBoost: extract first tree from booster using trees_to_dataframe()
+            tree_df = model.get_booster().trees_to_dataframe()
+            # Filter only tree 0
+            tree0 = tree_df[tree_df['Tree'] == 0].copy()
+            
+            nodes = []
+            edges = []
+            node_count = 0
+            
+            # BFS through nodes using Node ID column
+            queue = [('0-0', 1)]  # (node_id, depth)
+            visited = set()
+            
+            while queue and node_count < 7:
+                node_id, depth = queue.pop(0)
+                if node_id in visited:
+                    continue
+                visited.add(node_id)
+                node_count += 1
+                
+                row = tree0[tree0['ID'] == node_id]
+                if row.empty:
+                    continue
+                row = row.iloc[0]
+                
+                feature = str(row.get('Feature', 'Leaf'))
+                
+                if feature == 'Leaf':
+                    val = float(row.get('Gain', 0))
+                    if is_classification:
+                        class_idx = 1 if val > 0 else 0
+                        label = f"Class {class_idx}"
+                        color = "green" if class_idx == 1 else "red"
+                    else:
+                        label = f"Val: {val:.3f}"
+                        color = "gray"
+                    nodes.append({"id": node_id, "label": label, "type": "leaf", "color": color})
+                elif depth <= 3:
+                    split_val = float(row.get('Split', 0))
+                    nodes.append({
+                        "id": node_id,
+                        "label": f"{feature} <= {split_val:.2f}",
+                        "type": "condition"
+                    })
+                    
+                    yes_child = str(row.get('Yes', ''))
+                    no_child  = str(row.get('No', ''))
+                    
+                    if yes_child and yes_child != 'nan':
+                        edges.append({"source": node_id, "target": yes_child, "label": "Yes"})
+                        queue.append((yes_child, depth + 1))
+                    if no_child and no_child != 'nan':
+                        edges.append({"source": node_id, "target": no_child, "label": "No"})
+                        queue.append((no_child, depth + 1))
+            
+            result["decisionTree"] = {"nodes": nodes, "edges": edges}
+        
+        elif type(model).__name__ in ['RandomForestClassifier', 'RandomForestRegressor']:
             tree = model.estimators_[0].tree_
             
             nodes = []
