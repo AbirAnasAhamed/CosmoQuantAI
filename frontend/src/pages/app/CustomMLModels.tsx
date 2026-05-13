@@ -490,6 +490,36 @@ const ModelDetailsModal: React.FC<{
                                     </div>
                                 )}
 
+                                {/* Tick & Volume Features (CVD, Buy/Sell Volume, Trade Count) */}
+                                {config.config?.trade_features && config.config.trade_features.length > 0 && (
+                                    <div className="mt-6">
+                                        <h3 className="text-sm font-bold text-gray-400 mb-3 border-b border-gray-800 pb-2 flex items-center gap-2">
+                                            <svg className="w-4 h-4 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                                            Tick &amp; Volume Features
+                                        </h3>
+                                        <div className="flex flex-wrap gap-2">
+                                            {config.config.trade_features.map((feat: string) => {
+                                                const labelMap: Record<string, string> = {
+                                                    cvd: 'Cumulative Volume Delta (CVD)',
+                                                    buy_volume: 'Buy Volume Profile',
+                                                    sell_volume: 'Sell Volume Profile',
+                                                    trade_count: 'Trade Count (Tick Velocity)',
+                                                    aggressor_ratio: 'Aggressor Ratio',
+                                                    tick_speed: 'Tick Speed',
+                                                    price_impact: 'Price Impact',
+                                                    rolling_cvd_5: 'Rolling CVD (5)',
+                                                    rolling_cvd_20: 'Rolling CVD (20)',
+                                                };
+                                                return (
+                                                    <span key={feat} className="px-3 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-lg text-xs font-bold shadow-sm">
+                                                        {labelMap[feat] || feat}
+                                                    </span>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+                                )}
+
                                 {/* L2 Features */}
                                 {config.config?.l2_features && config.config.l2_features.length > 0 && (
                                     <div className="mt-6">
@@ -507,7 +537,7 @@ const ModelDetailsModal: React.FC<{
                                     </div>
                                 )}
 
-                                {(!config.config?.indicators?.length && !config.config?.l2_features?.length) && (
+                                {(!config.config?.indicators?.length && !config.config?.l2_features?.length && !config.config?.trade_features?.length) && (
                                     <div className="text-center py-6 text-gray-500 text-sm border border-dashed border-gray-800 rounded-xl">
                                         No detailed feature information available for this model. (It might have been uploaded manually or trained without custom features).
                                     </div>
