@@ -295,7 +295,7 @@ async def _async_live_trade_scraper(symbol: str, target_rows: int, db: Session, 
     data = []
     scraped_count = 0
     
-    log_interval = max(100, target_rows // 20)
+    log_interval = max(50, target_rows // 50)  # Log at least 50 times total, minimum every 50 trades
     retry_count = 0
     max_retries = 5
     
@@ -333,10 +333,10 @@ async def _async_live_trade_scraper(symbol: str, target_rows: int, db: Session, 
                             raise TrainingCancelledException("Training cancelled by user during live scraping.")
                             
                     if scraped_count % log_interval == 0:
-                        pct = min(100.0, (scraped_count / target_rows) * 10.0)
-                        job.progress = pct
+                        pct_scraped = min(100.0, (scraped_count / target_rows) * 100.0)
+                        job.progress = min(14.0, (scraped_count / target_rows) * 14.0)  # keep progress in 0-14% range during scrape
                         db.commit()
-                        add_log_func(f"[Trade Scraper] Collected {scraped_count} / {target_rows} trades...")
+                        add_log_func(f"[Trade Scraper] ⬇️  {scraped_count:,} / {target_rows:,} trades collected ({pct_scraped:.1f}%)...")
                         
         except asyncio.TimeoutError:
             add_log_func("WebSocket timeout. Reconnecting...")
@@ -463,6 +463,11 @@ def train_model_task(job_id: str, db: Session):
             is_deep_training = config.get("is_deep_training", False)
             target_rows = config.get("target_rows", 0)
             
+            # ── Timeframe fallback ladder for Time Bars ──────────────────────
+            # Ordered from smallest to largest (retry goes down this list)
+            TIME_BAR_FALLBACK = ['1s', '5s', '1m', '5m', '15m', '1h', '4h', '1d']
+            MIN_BARS_REQUIRED = 50  # Minimum bars needed for meaningful ML training
+
             if is_deep_training and target_rows > 0:
                 add_log(f"Starting Deep Training for Trades. Target: {target_rows} rows from Live Binance WebSocket...")
                 df_raw = _run_live_trade_scraper(job.symbol, target_rows, db, job, add_log)
@@ -476,6 +481,52 @@ def train_model_task(job_id: str, db: Session):
                     volume_threshold=volume_threshold, 
                     add_log_func=add_log
                 )
+
+                # ── Smart Bar Validation: Auto-retry with smaller timeframe ──
+                if bar_type == "time" and len(df) < MIN_BARS_REQUIRED:
+                    add_log(f"⚠️  Only {len(df)} bar(s) generated with '{bar_size}' timeframe from {target_rows} ticks.")
+                    add_log(f"   High-frequency pairs (e.g. BTC/USDT) trade ~300–500 ticks/sec.")
+                    add_log(f"   Trying smaller timeframes automatically...")
+
+                    current_idx = TIME_BAR_FALLBACK.index(bar_size) if bar_size in TIME_BAR_FALLBACK else 2
+                    # Try every timeframe smaller than the chosen one
+                    for fallback_tf in TIME_BAR_FALLBACK[:current_idx]:
+                        add_log(f"   🔄 Retrying with bar_size='{fallback_tf}'...")
+                        df_retry = process_historical_trades(
+                            df_raw=df_raw,
+                            bar_type="time",
+                            bar_size=fallback_tf,
+                            volume_threshold=volume_threshold,
+                            add_log_func=lambda msg: None  # silent retry
+                        )
+                        if len(df_retry) >= MIN_BARS_REQUIRED:
+                            add_log(f"   ✅ Auto-fixed! Generated {len(df_retry)} bars using '{fallback_tf}' timeframe.")
+                            df = df_retry
+                            bar_size = fallback_tf  # update for logging
+                            break
+                    else:
+                        # Still not enough — try volume bars as last resort
+                        add_log(f"   🔄 Time bars insufficient. Trying Volume Bars (threshold: auto)...")
+                        auto_vol_threshold = max(0.1, (df_raw['amount'].sum() / MIN_BARS_REQUIRED))
+                        df_vol = process_historical_trades(
+                            df_raw=df_raw,
+                            bar_type="volume",
+                            volume_threshold=auto_vol_threshold,
+                            add_log_func=lambda msg: None
+                        )
+                        if len(df_vol) >= MIN_BARS_REQUIRED:
+                            add_log(f"   ✅ Auto-fixed! Generated {len(df_vol)} Volume Bars (threshold={auto_vol_threshold:.4f}).")
+                            df = df_vol
+                        else:
+                            # Give up with a helpful message
+                            needed_for_1m = MIN_BARS_REQUIRED * 60 * 400  # ~50 bars × 60s × 400 trades/s
+                            raise Exception(
+                                f"Too few bars generated ({len(df)}) from {target_rows} ticks with '{bar_size}' timeframe. "
+                                f"For '{bar_size}' Time Bars on BTC/USDT, you need at least ~{needed_for_1m:,} ticks. "
+                                f"💡 Fix options: (1) Increase Target Rows significantly, "
+                                f"(2) Switch to '1s' Bar Timeframe, or (3) Use Volume Bars."
+                            )
+
             else:
                 if not trade_file:
                     raise Exception("No Trade CSV file selected for Historical Trades training.")
@@ -490,6 +541,23 @@ def train_model_task(job_id: str, db: Session):
                     volume_threshold=volume_threshold, 
                     add_log_func=add_log
                 )
+
+                # ── Smart Bar Validation for CSV mode too ──────────────────
+                if bar_type == "time" and len(df) < MIN_BARS_REQUIRED:
+                    add_log(f"⚠️  Only {len(df)} bar(s) from CSV with '{bar_size}' timeframe. Trying smaller timeframes...")
+                    current_idx = TIME_BAR_FALLBACK.index(bar_size) if bar_size in TIME_BAR_FALLBACK else 2
+                    for fallback_tf in TIME_BAR_FALLBACK[:current_idx]:
+                        df_retry = process_historical_trades(
+                            file_path=file_path,
+                            bar_type="time",
+                            bar_size=fallback_tf,
+                            volume_threshold=volume_threshold,
+                            add_log_func=lambda msg: None
+                        )
+                        if len(df_retry) >= MIN_BARS_REQUIRED:
+                            add_log(f"   ✅ Auto-fixed! Generated {len(df_retry)} bars using '{fallback_tf}' timeframe.")
+                            df = df_retry
+                            break
                 
             job.progress = 15.0
             
@@ -562,7 +630,12 @@ def train_model_task(job_id: str, db: Session):
                 
             df.dropna(inplace=True)
             if len(df) < 10:
-                raise Exception(f"Not enough data to train after processing Trades. Found {len(df)} rows.")
+                raise Exception(
+                    f"Not enough data to train after processing Trades. Found {len(df)} rows after dropna. "
+                    f"Auto-retry also failed to produce enough bars. "
+                    f"💡 Suggestions: (1) Use '1s' Bar Timeframe with Live Scraping, "
+                    f"(2) Increase Target Rows to 50,000+, or (3) Switch to Volume Bars."
+                )
                 
             trade_features_config = config.get("trade_features", ["cvd", "buy_volume", "sell_volume", "trade_count"])
             available_trade_feats = [f for f in trade_features_config if f in df.columns]

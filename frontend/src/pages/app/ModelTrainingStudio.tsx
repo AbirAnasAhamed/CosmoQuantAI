@@ -1515,6 +1515,8 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                         else if (log.includes("complete") || log.includes("successfully")) textColor = "text-emerald-400 drop-shadow-[0_0_5px_#10b981]";
                                         else if (log.includes("Epoch") || log.includes("Loss")) textColor = "text-cyan-400 drop-shadow-[0_0_5px_#22d3ee]";
                                         else if (log.includes("Fetching") || log.includes("Calculating")) textColor = "text-yellow-400";
+                                        else if (log.includes("[Trade Scraper]") || log.includes("[Scraper]")) textColor = "text-amber-400 drop-shadow-[0_0_5px_#f59e0b]";
+                                        else if (log.includes("🛑") || log.includes("cancelled") || log.includes("stopped")) textColor = "text-orange-400";
 
                                         return (
                                             <motion.div 
@@ -1542,23 +1544,37 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                     </div>
 
                     {/* Footer Status */}
-                    {currentJob && (
-                        <div className={`px-6 py-3 text-xs font-mono font-bold flex items-center justify-between ${
-                            currentJob.status === 'COMPLETED' ? 'bg-emerald-500/20 text-emerald-400 border-t border-emerald-500/30' : 
-                            currentJob.status === 'FAILED' ? 'bg-red-500/20 text-red-400 border-t border-red-500/30' : 
-                            'bg-cyan-500/10 text-cyan-400 border-t border-cyan-500/20'
-                        }`}>
-                            <div className="flex items-center gap-2 tracking-widest">
-                                {currentJob.status === 'COMPLETED' ? <CheckCircle2 className="w-4 h-4" /> : 
-                                 currentJob.status === 'FAILED' ? <XCircle className="w-4 h-4" /> : 
-                                 <Loader2 className="w-4 h-4 animate-spin" />}
-                                SYSTEM_STATUS: {currentJob.status}
+                    {currentJob && (() => {
+                        const isCancelled = currentJob.status === 'FAILED' && 
+                            currentJob.error_message && 
+                            currentJob.error_message.toLowerCase().includes('cancelled');
+                        
+                        const statusLabel = isCancelled ? 'STOPPED BY USER' : currentJob.status;
+                        const statusColor = currentJob.status === 'COMPLETED' 
+                            ? 'bg-emerald-500/20 text-emerald-400 border-t border-emerald-500/30'
+                            : isCancelled 
+                                ? 'bg-orange-500/20 text-orange-400 border-t border-orange-500/30'
+                                : currentJob.status === 'FAILED'
+                                    ? 'bg-red-500/20 text-red-400 border-t border-red-500/30'
+                                    : 'bg-cyan-500/10 text-cyan-400 border-t border-cyan-500/20';
+                        
+                        const StatusIcon = currentJob.status === 'COMPLETED' ? CheckCircle2
+                            : isCancelled ? XCircle
+                            : currentJob.status === 'FAILED' ? XCircle
+                            : Loader2;
+                        
+                        return (
+                            <div className={`px-6 py-3 text-xs font-mono font-bold flex items-center justify-between ${statusColor}`}>
+                                <div className="flex items-center gap-2 tracking-widest">
+                                    <StatusIcon className={`w-4 h-4 ${currentJob.status === 'RUNNING' ? 'animate-spin' : ''}`} />
+                                    SYSTEM_STATUS: {statusLabel}
+                                </div>
+                                <div>
+                                    {currentJob.progress.toFixed(0)}%
+                                </div>
                             </div>
-                            <div>
-                                {currentJob.progress.toFixed(0)}%
-                            </div>
-                        </div>
-                    )}
+                        );
+                    })()}
                 </div>
             </div>
         </div>
