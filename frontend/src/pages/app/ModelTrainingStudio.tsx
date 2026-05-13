@@ -674,61 +674,69 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                         </label>
                                     </div>
                                     
+                                    {/* CSV File Selector — only when NOT live scraping */}
                                     {!isDeepTraining && (
-                                        <div className="space-y-4 p-4 bg-amber-500/10 rounded-xl border border-amber-500/20 shadow-inner">
-                                            <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-1">Select Downloaded Trade Data</label>
-                                        <select 
-                                            value={selectedTradeFile} 
-                                            onChange={(e) => setSelectedTradeFile(e.target.value)}
-                                            className="w-full bg-[#0A0A0A] border border-amber-500/30 rounded-lg p-2.5 text-slate-200"
-                                            disabled={isTraining}
-                                        >
-                                            {tradeFiles.length === 0 ? <option value="">No trade files available in Backtester</option> : null}
-                                            {tradeFiles.map(f => <option key={f} value={f}>{f}</option>)}
-                                        </select>
-                                    </div>
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-300 mb-1">Bar Generation Mode</label>
+                                        <div className="p-4 bg-amber-500/10 rounded-xl border border-amber-500/20 shadow-inner">
+                                            <label className="block text-sm font-medium text-slate-300 mb-1">Select Downloaded Trade Data</label>
                                             <select 
-                                                value={tradeBarType} 
-                                                onChange={(e) => setTradeBarType(e.target.value)}
+                                                value={selectedTradeFile} 
+                                                onChange={(e) => setSelectedTradeFile(e.target.value)}
                                                 className="w-full bg-[#0A0A0A] border border-amber-500/30 rounded-lg p-2.5 text-slate-200"
                                                 disabled={isTraining}
                                             >
-                                                <option value="time">Time Bars (Time-based aggregation)</option>
-                                                <option value="volume">Volume Bars (Volume-based aggregation)</option>
+                                                {tradeFiles.length === 0 ? <option value="">No trade files available in Backtester</option> : null}
+                                                {tradeFiles.map(f => <option key={f} value={f}>{f}</option>)}
                                             </select>
                                         </div>
-                                        {tradeBarType === 'time' ? (
+                                    )}
+
+                                    {/* Bar Generation — always visible so user can control how ticks are aggregated */}
+                                    <div className="space-y-3 p-4 bg-amber-500/10 rounded-xl border border-amber-500/20 shadow-inner">
+                                        {isDeepTraining && (
+                                            <p className="text-[11px] text-amber-400/80 font-semibold flex items-center gap-1.5">
+                                                <span>⚡</span> Live scraped ticks will be aggregated using these bar settings.
+                                            </p>
+                                        )}
+                                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                             <div>
-                                                <label className="block text-sm font-medium text-slate-300 mb-1">Bar Timeframe</label>
+                                                <label className="block text-sm font-medium text-slate-300 mb-1">Bar Generation Mode</label>
                                                 <select 
-                                                    value={tradeBarSize} 
-                                                    onChange={(e) => setTradeBarSize(e.target.value)}
+                                                    value={tradeBarType} 
+                                                    onChange={(e) => setTradeBarType(e.target.value)}
                                                     className="w-full bg-[#0A0A0A] border border-amber-500/30 rounded-lg p-2.5 text-slate-200"
                                                     disabled={isTraining}
                                                 >
-                                                    {TIMEFRAMES.map(t => <option key={t} value={t}>{t}</option>)}
+                                                    <option value="time">Time Bars (Time-based aggregation)</option>
+                                                    <option value="volume">Volume Bars (Volume-based aggregation)</option>
                                                 </select>
                                             </div>
-                                        ) : (
-                                            <div>
-                                                <label className="block text-sm font-medium text-slate-300 mb-1">Volume Threshold (Units)</label>
-                                                <input 
-                                                    type="number"
-                                                    value={tradeVolumeThreshold} 
-                                                    onChange={(e) => setTradeVolumeThreshold(e.target.value)}
-                                                    className="w-full bg-[#0A0A0A] border border-amber-500/30 rounded-lg p-2.5 text-slate-200"
-                                                    disabled={isTraining}
-                                                    step="0.1"
-                                                />
-                                            </div>
-                                        )}
-                                    </div>
+                                            {tradeBarType === 'time' ? (
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-300 mb-1">Bar Timeframe</label>
+                                                    <select 
+                                                        value={tradeBarSize} 
+                                                        onChange={(e) => setTradeBarSize(e.target.value)}
+                                                        className="w-full bg-[#0A0A0A] border border-amber-500/30 rounded-lg p-2.5 text-slate-200"
+                                                        disabled={isTraining}
+                                                    >
+                                                        {TIMEFRAMES.map(t => <option key={t} value={t}>{t}</option>)}
+                                                    </select>
+                                                </div>
+                                            ) : (
+                                                <div>
+                                                    <label className="block text-sm font-medium text-slate-300 mb-1">Volume Threshold (Units)</label>
+                                                    <input 
+                                                        type="number"
+                                                        value={tradeVolumeThreshold} 
+                                                        onChange={(e) => setTradeVolumeThreshold(e.target.value)}
+                                                        className="w-full bg-[#0A0A0A] border border-amber-500/30 rounded-lg p-2.5 text-slate-200"
+                                                        disabled={isTraining}
+                                                        step="0.1"
+                                                    />
+                                                </div>
+                                            )}
                                         </div>
-                                    )}
+                                    </div>
 
                                     {isDeepTraining && (
                                         <div className="p-4 bg-white/5 border border-amber-500/20 rounded-xl space-y-4 shadow-inner">
