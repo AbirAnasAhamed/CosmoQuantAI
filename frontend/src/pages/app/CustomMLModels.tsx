@@ -833,8 +833,6 @@ const ModelDetailsModal: React.FC<{
     );
 };
 
-// --- Model Card ---
-
 const ModelCard: React.FC<{
     model: CustomMLModel;
     onDelete: (id: string) => void;
@@ -863,18 +861,18 @@ const ModelCard: React.FC<{
     };
 
     const modelIcons: Record<CustomMLModel['modelType'], React.ReactNode> = {
-        'LSTM': <LstmIcon className="w-8 h-8" />,
-        'Random Forest': <RandomForestIcon className="w-8 h-8" />,
-        'XGBoost': <OtherModelIcon className="w-8 h-8" />,
-        'LightGBM': <OtherModelIcon className="w-8 h-8" />,
-        'CatBoost': <OtherModelIcon className="w-8 h-8" />,
-        'GRU': <OtherModelIcon className="w-8 h-8" />,
-        '1D-CNN': <OtherModelIcon className="w-8 h-8" />,
-        'DeepLOB': <OtherModelIcon className="w-8 h-8" />,
-        'Transformer': <OtherModelIcon className="w-8 h-8" />,
-        'PPO-RL': <OtherModelIcon className="w-8 h-8" />,
-        'ARIMA': <ArimaIcon className="w-8 h-8" />,
-        'Other': <OtherModelIcon className="w-8 h-8" />,
+        'LSTM': <LstmIcon className="w-8 h-8 drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]" />,
+        'Random Forest': <RandomForestIcon className="w-8 h-8 drop-shadow-[0_0_8px_rgba(56,189,248,0.8)]" />,
+        'XGBoost': <OtherModelIcon className="w-8 h-8 drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]" />,
+        'LightGBM': <OtherModelIcon className="w-8 h-8 drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]" />,
+        'CatBoost': <OtherModelIcon className="w-8 h-8 drop-shadow-[0_0_8px_rgba(168,85,247,0.8)]" />,
+        'GRU': <OtherModelIcon className="w-8 h-8 drop-shadow-[0_0_8px_rgba(16,185,129,0.8)]" />,
+        '1D-CNN': <OtherModelIcon className="w-8 h-8 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]" />,
+        'DeepLOB': <OtherModelIcon className="w-8 h-8 drop-shadow-[0_0_8px_rgba(59,130,246,0.8)]" />,
+        'Transformer': <OtherModelIcon className="w-8 h-8 drop-shadow-[0_0_8px_rgba(236,72,153,0.8)]" />,
+        'PPO-RL': <OtherModelIcon className="w-8 h-8 drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]" />,
+        'ARIMA': <ArimaIcon className="w-8 h-8 drop-shadow-[0_0_8px_rgba(249,115,22,0.8)]" />,
+        'Other': <OtherModelIcon className="w-8 h-8 drop-shadow-[0_0_8px_rgba(148,163,184,0.8)]" />,
     };
 
     const activeVersion = model.versions.find(v => v.id === model.activeVersionId);
@@ -920,14 +918,20 @@ const ModelCard: React.FC<{
 
     return (
         <div
-            className="relative group bg-white dark:bg-[#0A0A0A]/80 backdrop-blur-md border border-gray-200 dark:border-gray-800 rounded-2xl overflow-hidden hover:border-brand-primary/50 transition-all duration-500 animate-fade-in-slide-up shadow-lg hover:shadow-2xl hover:shadow-brand-primary/10"
-            style={{ animationDelay: `${animationDelay}ms` }}
+            className="group relative rounded-3xl overflow-hidden transition-all duration-500 animate-fade-in-slide-up"
+            style={{ 
+                animationDelay: `${animationDelay}ms`,
+                background: 'linear-gradient(145deg, rgba(15,20,30,0.6) 0%, rgba(5,10,15,0.8) 100%)',
+                boxShadow: '0 0 0 1px rgba(255,255,255,0.05), 0 20px 40px -10px rgba(0,0,0,0.5)',
+                backdropFilter: 'blur(16px)'
+            }}
         >
-            {/* Top Glow */}
-            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-brand-primary/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+            {/* Top Glow & Hover Effects */}
+            <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent opacity-50 group-hover:opacity-100 group-hover:shadow-[0_0_20px_rgba(6,182,212,0.8)] transition-all duration-500 z-10"></div>
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(6,182,212,0.1)_0%,transparent_50%)] opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
 
-            <div className="p-6 laptop:p-4 relative z-10">
-                {/* Signal Modal — rendered via Portal so it escapes overflow-hidden */}
+            <div className="p-6 relative z-10">
+                {/* Signal Modal */}
                 {signalResult && ReactDOM.createPortal(
                     <SignalModal
                         result={signalResult}
@@ -940,107 +944,138 @@ const ModelCard: React.FC<{
                 {/* Header */}
                 <div className="flex justify-between items-start mb-6">
                     <div className="flex items-center gap-4">
-                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-800 dark:to-gray-900 border border-gray-200 dark:border-gray-700 flex items-center justify-center text-brand-primary shadow-inner">
+                        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-purple-600/10 border border-white/5 flex items-center justify-center text-white shadow-[inset_0_0_20px_rgba(255,255,255,0.02)] group-hover:border-cyan-500/30 group-hover:shadow-[inset_0_0_20px_rgba(6,182,212,0.1)] transition-all duration-500">
                             {modelIcons[model.modelType]}
                         </div>
                         <div>
-                            <h3 className="text-lg font-bold text-slate-900 dark:text-white group-hover:text-brand-primary transition-colors">{model.name}</h3>
-                            <div className="flex items-center gap-2 mt-1">
-                                <span className="px-2 py-0.5 bg-gray-100 dark:bg-white/5 rounded text-[10px] font-bold uppercase text-gray-500 border border-gray-200 dark:border-white/10">{model.modelType}</span>
-                                <span className="text-xs text-gray-400 font-mono">v{activeVersion?.version.toFixed(1)}</span>
+                            <h3 className="text-xl font-bold text-white group-hover:text-cyan-300 transition-colors tracking-tight">{model.name}</h3>
+                            <div className="flex items-center gap-2 mt-1.5">
+                                <span className="px-2.5 py-1 bg-white/5 rounded-md text-[10px] font-bold uppercase tracking-wider text-gray-400 border border-white/5 shadow-sm">{model.modelType}</span>
+                                <span className="px-2.5 py-1 bg-cyan-500/10 rounded-md text-[10px] font-mono font-bold text-cyan-400 border border-cyan-500/20 shadow-sm">v{activeVersion?.version.toFixed(1)}</span>
                             </div>
                         </div>
                     </div>
-                    <div className="relative">
-                        <button onClick={(e) => { e.stopPropagation(); onDelete(model.id); }} className="text-gray-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-500/10 transition-colors">
-                            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
-                        </button>
+                    <button 
+                        onClick={(e) => { e.stopPropagation(); onDelete(model.id); }} 
+                        className="w-10 h-10 rounded-full bg-white/5 hover:bg-rose-500/20 flex items-center justify-center text-gray-500 hover:text-rose-400 transition-all border border-transparent hover:border-rose-500/30 group/btn"
+                        title="Delete Model"
+                    >
+                        <svg className="w-5 h-5 group-hover/btn:scale-110 transition-transform" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                </div>
+
+                {/* Metrics Grid */}
+                <div className="grid grid-cols-3 gap-3 mb-6">
+                    <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-3 flex flex-col items-center justify-center relative overflow-hidden group/metric">
+                        <div className="absolute inset-0 bg-emerald-500/5 opacity-0 group-hover/metric:opacity-100 transition-opacity"></div>
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-gray-500 mb-1 z-10">{accLabel}</span>
+                        <span className="text-base font-mono font-bold text-emerald-400 drop-shadow-[0_0_5px_rgba(16,185,129,0.4)] z-10">{accuracyDisplay}</span>
+                    </div>
+                    <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-3 flex flex-col items-center justify-center relative overflow-hidden group/metric">
+                        <div className="absolute inset-0 bg-blue-500/5 opacity-0 group-hover/metric:opacity-100 transition-opacity"></div>
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-gray-500 mb-1 z-10">{f1Label}</span>
+                        <span className="text-base font-mono font-bold text-blue-400 drop-shadow-[0_0_5px_rgba(59,130,246,0.4)] z-10">{f1Display}</span>
+                    </div>
+                    <div className="bg-white/[0.02] border border-white/[0.05] rounded-xl p-3 flex flex-col items-center justify-center relative overflow-hidden group/metric">
+                        <div className="absolute inset-0 bg-purple-500/5 opacity-0 group-hover/metric:opacity-100 transition-opacity"></div>
+                        <span className="text-[9px] font-bold uppercase tracking-widest text-gray-500 mb-1 z-10">Latency</span>
+                        <span className="text-base font-mono font-bold text-purple-400 drop-shadow-[0_0_5px_rgba(168,85,247,0.4)] z-10">{latencyDisplay}</span>
                     </div>
                 </div>
 
-                {/* Performance HUD */}
-                <div className="bg-gray-50 dark:bg-[#000000] rounded-xl p-4 border border-gray-200 dark:border-gray-800 mb-6 relative overflow-hidden">
-                    {/* Scanline */}
-                    <div className="absolute inset-0 bg-[linear-gradient(rgba(18,16,16,0)_50%,rgba(0,0,0,0.1)_50%),linear-gradient(90deg,rgba(255,0,0,0.06),rgba(0,255,0,0.02),rgba(0,0,255,0.06))] z-0 pointer-events-none bg-[length:100%_2px,3px_100%] opacity-30"></div>
-
-                    <div className="flex justify-between items-center relative z-10">
-                        <MetricBadge label={accLabel} value={accuracyDisplay} color="text-emerald-400" />
-                        <MetricBadge label={f1Label} value={f1Display} color="text-blue-400" />
-                        <MetricBadge label="Latency" value={latencyDisplay} color="text-purple-400" />
-                    </div>
-                </div>
-
+                {/* Actions Row */}
                 <div className="flex items-center justify-between">
                     <StatusPill status={activeVersion?.status || 'Error'} />
-                    <div className="flex gap-2">
+                    
+                    <div className="flex gap-2.5">
                         <button
-                            id={`btn-details-${model.id}`}
                             onClick={(e) => { e.stopPropagation(); onViewDetails(model.id, model.name); }}
-                            className="px-3 py-1.5 bg-gray-500/10 hover:bg-gray-500/20 text-gray-400 hover:text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-sm border border-gray-500/20 flex items-center gap-1.5"
+                            className="px-4 py-2 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-sm flex items-center gap-2 hover:border-white/20"
                         >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                            <svg className="w-4 h-4 opacity-70" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                             Details
                         </button>
+                        
                         <button
-                            id={`btn-signal-${model.id}`}
                             onClick={handleGetSignal}
                             disabled={signalLoading || activeVersion?.status !== 'Ready'}
-                            className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-sm hover:shadow-amber-500/20 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="relative px-5 py-2 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:border-amber-400/60 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(245,158,11,0.1)] hover:shadow-[0_0_20px_rgba(245,158,11,0.3)] flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed group/signal overflow-hidden"
                         >
+                            <div className="absolute inset-0 bg-gradient-to-r from-amber-400/0 via-amber-400/10 to-amber-400/0 translate-x-[-100%] group-hover/signal:translate-x-[100%] transition-transform duration-1000"></div>
                             {signalLoading ? (
-                                <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                                <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" strokeLinecap="round" strokeLinejoin="round" /></svg>
                             ) : (
-                                <span>⚡</span>
+                                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" /></svg>
                             )}
                             {signalLoading ? 'Loading...' : 'Get Signal'}
                         </button>
+                        
                         <button
-                            id={`btn-retrain-${model.id}`}
                             onClick={(e) => { e.stopPropagation(); onRetrain(model.id); }}
-                            className="px-4 py-1.5 bg-brand-primary/10 hover:bg-brand-primary text-brand-primary hover:text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-sm hover:shadow-brand-primary/20 flex items-center gap-2"
+                            className="px-5 py-2 bg-gradient-to-r from-indigo-500/20 to-cyan-500/20 hover:from-indigo-500/30 hover:to-cyan-500/30 text-cyan-300 border border-cyan-500/30 hover:border-cyan-400/60 rounded-xl text-xs font-bold uppercase tracking-wider transition-all shadow-[0_0_15px_rgba(6,182,212,0.1)] hover:shadow-[0_0_25px_rgba(6,182,212,0.25)] flex items-center gap-2"
                         >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+                            <svg className="w-4 h-4 opacity-80" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                             Retrain
                         </button>
                     </div>
+                </div>
+
+                {/* History Toggle */}
+                <div className="mt-6 flex justify-center">
                     <button
                         onClick={() => setIsExpanded(!isExpanded)}
-                        className="flex items-center gap-1 text-xs font-bold text-gray-500 hover:text-brand-primary transition-colors uppercase tracking-wider"
+                        className="flex items-center gap-2 text-[10px] font-bold text-gray-500 hover:text-cyan-400 transition-colors uppercase tracking-widest px-4 py-1.5 rounded-full bg-white/5 hover:bg-white/10 border border-white/5 hover:border-cyan-500/20"
                     >
                         {isExpanded ? 'Hide History' : 'View History'}
-                        <svg className={`w-4 h-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        <svg className={`w-3.5 h-3.5 transition-transform duration-300 ${isExpanded ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                     </button>
                 </div>
             </div>
 
             {/* Expandable History Panel */}
-            <div className={`bg-gray-50 dark:bg-black/20 border-t border-gray-200 dark:border-gray-800 transition-all duration-500 ease-in-out overflow-hidden ${isExpanded ? 'max-h-80 opacity-100' : 'max-h-0 opacity-0'}`}>
-                <div className="p-4 space-y-2 overflow-y-auto max-h-80 custom-scrollbar">
+            <div className={`transition-all duration-500 ease-in-out overflow-hidden relative ${isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
+                {/* Divider Line */}
+                <div className="absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
+                
+                <div className="p-6 pt-4 space-y-3 bg-black/40 overflow-y-auto max-h-80 custom-scrollbar inset-shadow-sm">
                     {model.versions.map(version => (
-                        <div key={version.id} className="group/row flex items-center justify-between p-3 rounded-lg hover:bg-white dark:hover:bg-white/5 transition-colors border border-transparent hover:border-gray-200 dark:hover:border-white/10">
-                            <div className="flex items-center gap-3">
-                                <div className={`w-1.5 h-8 rounded-full ${version.id === model.activeVersionId ? 'bg-brand-primary' : 'bg-gray-300 dark:bg-gray-700'}`}></div>
+                        <div key={version.id} className="group/row relative flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.05] hover:border-cyan-500/30 transition-all overflow-hidden">
+                            <div className="flex items-center gap-4 relative z-10">
+                                <div className={`w-2 h-10 rounded-full ${version.id === model.activeVersionId ? 'bg-gradient-to-b from-cyan-400 to-blue-500 shadow-[0_0_10px_rgba(6,182,212,0.5)]' : 'bg-gray-700'}`}></div>
                                 <div>
-                                    <div className="flex items-center gap-2">
-                                        <span className="font-mono font-bold text-sm text-slate-900 dark:text-white">v{version.version.toFixed(1)}</span>
-                                        {version.id === model.activeVersionId && <span className="text-[10px] bg-brand-primary/20 text-brand-primary px-1.5 rounded">ACTIVE</span>}
+                                    <div className="flex items-center gap-3 mb-1">
+                                        <span className={`font-mono font-bold text-sm ${version.id === model.activeVersionId ? 'text-white' : 'text-gray-400'}`}>v{version.version.toFixed(1)}</span>
+                                        {version.id === model.activeVersionId && (
+                                            <span className="text-[9px] font-black tracking-widest bg-cyan-500/20 text-cyan-400 px-2 py-0.5 rounded-md border border-cyan-500/30">ACTIVE</span>
+                                        )}
                                     </div>
-                                    <p className="text-xs text-gray-500 truncate w-32">{version.description}</p>
+                                    <p className="text-xs text-gray-500 truncate w-48 font-medium">{version.description}</p>
                                 </div>
                             </div>
 
-                            {version.status === 'Ready' && version.id !== model.activeVersionId ? (
-                                <Button size="sm" variant="secondary" className="text-[10px] h-7 px-2" onClick={() => onSetActiveVersion(model.id, version.id)}>Activate</Button>
-                            ) : (
-                                <span className="text-[10px] text-gray-400 font-mono">{version.uploadDate}</span>
-                            )}
+                            <div className="relative z-10">
+                                {version.status === 'Ready' && version.id !== model.activeVersionId ? (
+                                    <button 
+                                        onClick={() => onSetActiveVersion(model.id, version.id)}
+                                        className="px-4 py-1.5 bg-white/5 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-300 border border-white/10 hover:border-cyan-500/50 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all"
+                                    >
+                                        Activate
+                                    </button>
+                                ) : (
+                                    <span className="text-[10px] text-gray-500 font-mono">{new Date(version.uploadDate).toLocaleString()}</span>
+                                )}
+                            </div>
                         </div>
                     ))}
+                    
                     <button
                         onClick={() => onUploadVersion(model)}
-                        className="w-full py-2 mt-2 border border-dashed border-gray-300 dark:border-gray-700 rounded-lg text-xs font-bold text-gray-500 hover:text-brand-primary hover:border-brand-primary hover:bg-brand-primary/5 transition-all"
+                        className="w-full py-4 mt-2 border border-dashed border-white/10 rounded-2xl text-xs font-bold text-gray-400 hover:text-cyan-300 hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all flex items-center justify-center gap-2 group/upload"
                     >
-                        + Upload New Version
+                        <div className="w-6 h-6 rounded-full bg-white/5 flex items-center justify-center group-hover/upload:bg-cyan-500/20 transition-colors">
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" /></svg>
+                        </div>
+                        Upload New Version
                     </button>
                 </div>
             </div>
