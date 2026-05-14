@@ -423,9 +423,11 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
 
                     <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 flex-1 min-h-0">
                         {/* COLUMN 1: Core Parameters */}
-                        <div className="space-y-6 flex flex-col h-full overflow-y-auto custom-scrollbar pr-2">
-                            <div className="p-6 bg-white/5 border border-white/10 rounded-2xl shadow-inner space-y-6">
+                        <div className="flex flex-col h-full bg-white/5 border border-white/10 rounded-2xl shadow-inner overflow-hidden">
+                            <div className="p-5 bg-black/40 border-b border-white/10 flex-shrink-0 relative z-20">
                                 <h3 className="text-sm font-bold text-cyan-400 flex items-center gap-2 uppercase tracking-widest"><Settings className="w-4 h-4" /> Core Parameters</h3>
+                            </div>
+                            <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar h-full">
                                 <div className="grid grid-cols-2 gap-4 items-end">
                             <div>
                                 <label className="block text-sm font-medium text-slate-300 mb-2">Asset & Exchange</label>
@@ -480,9 +482,11 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                         </div>
 
                         {/* COLUMN 2: Neural Architecture */}
-                        <div className="space-y-6 flex flex-col h-full overflow-y-auto custom-scrollbar pr-2">
-                            <div className="p-6 bg-white/5 border border-white/10 rounded-2xl shadow-inner space-y-6">
+                        <div className="flex flex-col h-full bg-white/5 border border-white/10 rounded-2xl shadow-inner overflow-hidden">
+                            <div className="p-5 bg-black/40 border-b border-white/10 flex-shrink-0 relative z-20">
                                 <h3 className="text-sm font-bold text-purple-400 flex items-center gap-2 uppercase tracking-widest"><Cpu className="w-4 h-4" /> Neural Architecture</h3>
+                            </div>
+                            <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar h-full">
 
                         <div>
                             <label className="block text-sm font-medium text-slate-300 mb-2">Algorithm Engine</label>
@@ -600,9 +604,11 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                         </div>
 
                         {/* COLUMN 3: Data Engine & Features */}
-                        <div className="space-y-6 flex flex-col h-full overflow-y-auto custom-scrollbar pr-2">
-                            <div className="p-6 bg-white/5 border border-white/10 rounded-2xl shadow-inner space-y-6">
+                        <div className="flex flex-col h-full bg-white/5 border border-white/10 rounded-2xl shadow-inner overflow-hidden">
+                            <div className="p-5 bg-black/40 border-b border-white/10 flex-shrink-0 relative z-20">
                                 <h3 className="text-sm font-bold text-emerald-400 flex items-center gap-2 uppercase tracking-widest"><Database className="w-4 h-4" /> Data Engine & Features</h3>
+                            </div>
+                            <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar h-full">
 
                         <div>
                             <div className="flex items-center justify-between mb-3">
