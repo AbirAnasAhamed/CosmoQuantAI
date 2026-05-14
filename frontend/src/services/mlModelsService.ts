@@ -113,4 +113,22 @@ export const mlModelsService = {
         link.remove();
         window.URL.revokeObjectURL(url);
     },
+
+    // Get live prediction signal for a model
+    predictSignal: async (modelId: string, symbol?: string): Promise<{
+        signal: 'BUY' | 'SELL' | 'HOLD';
+        confidence: number;
+        price: number;
+        symbol: string;
+        algorithm: string;
+        timestamp: string;
+        features_used: number;
+        dataset_type: string;
+    }> => {
+        const response = await api.post('/model-training/predict', {
+            model_id: modelId,
+            symbol: symbol || null,
+        });
+        return response.data;
+    },
 };

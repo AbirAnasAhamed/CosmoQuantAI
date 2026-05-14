@@ -19,6 +19,9 @@ from app.services.auto_feature_selector import calculate_l2_advanced_features
 from app.services.advanced_ml.engine import AdvancedMLEngine # ✅ Import New Engine
 from app.services.helpers.vwap_calculator import calculate_vwap_sd_features
 from app.services.helpers.institutional_features import add_smc_fvg, add_ict_killzones, add_wick_rejection, add_swing_structure, add_order_blocks
+# ✅ NEW: Modular ML Pipeline Services
+from app.services.ml_walk_forward_cv import run_walk_forward_cv
+from app.services.ml_backtest_runner import run_post_training_backtest
 
 def fetch_l2_data(symbol: str, db: Session, lookback_hours: int = 6, timeframe: str = None) -> pd.DataFrame:
     from app.models.orderbook_snapshot import OrderBookSnapshot
@@ -765,6 +768,24 @@ def train_model_task(job_id: str, db: Session):
         X_test_df  = pd.DataFrame(X_test,  columns=features)
         
         job.progress = 40.0
+
+        # ── Walk-Forward Cross-Validation (ALL model types) ──────────────────
+        # Runs BEFORE training. Results stored in cv_result for later save.
+        cv_result = {}
+        try:
+            cv_result = run_walk_forward_cv(
+                algorithm=job.algorithm,
+                X_train=X_train,
+                y_train=y_train,
+                features=features,
+                prediction_target=prediction_target_early,
+                epochs=int(config.get("epochs", 10)),
+                learning_rate=float(config.get("learning_rate", 0.1)),
+                max_depth=int(config.get("max_depth", 6)),
+                add_log=add_log
+            )
+        except Exception as _cv_ex:
+            add_log(f"⚠️ Walk-Forward CV failed (non-critical): {_cv_ex}")
         
         model_filename = f"model_{job.id}.pkl"
         model_dir = os.path.join("uploads", "models", f"job_{job.id}")
@@ -1496,12 +1517,74 @@ def train_model_task(job_id: str, db: Session):
             db_model.active_version_id = version_id
             
         job.output_model_id = registry_id
-        
-        # Save features metadata for the predictor
+
+        # ── Fix 1: Save Scaler ────────────────────────────────────────────────
+        try:
+            scaler_save_path = model_path.replace('.pkl', '.scaler').replace('.pt', '.scaler')
+            joblib.dump(scaler_x, scaler_save_path)
+            add_log(f"✅ Scaler saved to: {scaler_save_path}")
+        except Exception as _sc_ex:
+            add_log(f"⚠️ Scaler save failed (non-critical): {_sc_ex}")
+            scaler_save_path = None
+
+        # ── Fix 1 + 2: Save enriched metadata ────────────────────────────────
         metadata_path = model_path.replace(".pkl", ".json").replace(".pt", ".json")
+        metadata_payload = {
+            "features":         features,
+            "dataset_type":     config.get("dataset_type", "ohlcv"),
+            "indicators":       config.get("indicators", []),
+            "timeframe":        job.timeframe,
+            "symbol":           job.symbol,
+            "prediction_target":prediction_target,
+            "algorithm":        job.algorithm,
+            "scaler_path":      scaler_save_path,
+            "cv_result":        cv_result
+        }
         with open(metadata_path, "w") as f:
-            json.dump({"features": features}, f)
-            
+            json.dump(metadata_payload, f)
+
+        # ── Fix 2: Attach CV scores to explainability ─────────────────────────
+        if cv_result and final_explainability is not None:
+            if isinstance(final_explainability, dict):
+                final_explainability["cv_scores"] = cv_result
+        elif cv_result and final_explainability is None:
+            final_explainability = {"cv_scores": cv_result}
+
+        # Update explainability in the version record now that cv_result is ready
+        if cv_result:
+            db_version.explainability = final_explainability
+            db.flush()
+
+        # ── Fix 3: Post-Training Backtest ─────────────────────────────────────
+        try:
+            bt_initial_balance = float(config.get("backtest_initial_balance", 10000.0))
+            bt_commission      = float(config.get("backtest_commission", 0.001))
+            bt_stop_loss       = float(config.get("backtest_stop_loss", 2.0))
+            bt_take_profit     = float(config.get("backtest_take_profit", 4.0))
+
+            backtest_result = run_post_training_backtest(
+                model=model,
+                algorithm=job.algorithm,
+                X_test=X_test,
+                df=df,
+                features=features,
+                prediction_target=prediction_target,
+                initial_balance=bt_initial_balance,
+                commission=bt_commission,
+                stop_loss=bt_stop_loss,
+                take_profit=bt_take_profit,
+                add_log=add_log
+            )
+
+            if backtest_result:
+                # Merge backtest result into explainability
+                current_explain = db_version.explainability or {}
+                current_explain["backtest_result"] = backtest_result
+                db_version.explainability = current_explain
+                db.flush()
+        except Exception as _bt_ex:
+            add_log(f"⚠️ Post-training backtest failed (non-critical): {_bt_ex}")
+
         job.progress = 100.0
         job.status = models.TrainingStatus.COMPLETED
         job.completed_at = func.now()

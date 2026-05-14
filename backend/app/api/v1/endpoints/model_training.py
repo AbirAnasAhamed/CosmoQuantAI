@@ -1,5 +1,5 @@
 import time
-from typing import List, Any
+from typing import List, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 from app.services.websocket_manager import manager
@@ -14,8 +14,12 @@ from pydantic import BaseModel
 class SuggestFeaturesRequest(BaseModel):
     symbol: str
 
+class PredictRequest(BaseModel):
+    model_id: str
+    symbol: Optional[str] = None   # Override symbol (optional)
 
 router = APIRouter()
+
 
 @router.post("/train", response_model=schemas.TrainingJobResponse)
 def start_training_job(
@@ -139,3 +143,33 @@ async def websocket_training_visualizer(websocket: WebSocket):
         manager.disconnect(websocket, channel_id="training_visualizer")
     except Exception as e:
         manager.disconnect(websocket, channel_id="training_visualizer")
+
+@router.post("/predict")
+def predict_signal(
+    request: PredictRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Generate a live prediction signal for a registered ML model.
+    Supports all model types: Random Forest, XGBoost, LightGBM, CatBoost,
+    LSTM, GRU, 1D-CNN, DeepLOB, Transformer.
+    
+    Returns: { signal, confidence, price, symbol, algorithm, timestamp }
+    """
+    from app.services.ml_predictor import predict
+
+    try:
+        result = predict(
+            model_id=request.model_id,
+            symbol_override=request.symbol,
+            db=db
+        )
+        return result
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
+

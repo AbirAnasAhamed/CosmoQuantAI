@@ -162,6 +162,77 @@ const UploadModelModal: React.FC<{
     );
 };
 
+// --- Signal Modal ---
+
+type SignalResult = {
+    signal: 'BUY' | 'SELL' | 'HOLD';
+    confidence: number;
+    price: number;
+    symbol: string;
+    algorithm: string;
+    timestamp: string;
+    features_used?: number;
+    dataset_type?: string;
+};
+
+const SignalModal: React.FC<{
+    result: SignalResult;
+    modelName: string;
+    onClose: () => void;
+}> = ({ result, modelName, onClose }) => {
+    const signalConfig = {
+        BUY:  { bg: 'from-emerald-900/60 to-emerald-800/30', border: 'border-emerald-500/40', text: 'text-emerald-400', emoji: '🟢', label: 'BUY' },
+        SELL: { bg: 'from-rose-900/60 to-rose-800/30', border: 'border-rose-500/40', text: 'text-rose-400', emoji: '🔴', label: 'SELL' },
+        HOLD: { bg: 'from-amber-900/60 to-amber-800/30', border: 'border-amber-500/40', text: 'text-amber-400', emoji: '🟡', label: 'HOLD' },
+    };
+    const cfg = signalConfig[result.signal];
+
+    return (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4" onClick={onClose}>
+            <div className={`bg-gradient-to-br ${cfg.bg} w-full max-w-sm rounded-3xl shadow-2xl border ${cfg.border} p-8 text-center relative animate-modal-content-slide-down`} onClick={e => e.stopPropagation()}>
+                {/* Top accent */}
+                <div className={`absolute top-0 left-0 w-full h-1 rounded-t-3xl bg-gradient-to-r ${result.signal === 'BUY' ? 'from-emerald-500 to-teal-400' : result.signal === 'SELL' ? 'from-rose-500 to-pink-400' : 'from-amber-500 to-yellow-400'}`}></div>
+
+                <div className="text-6xl mb-4">{cfg.emoji}</div>
+                <p className="text-xs text-gray-400 uppercase tracking-widest font-bold mb-1">{modelName}</p>
+                <h3 className={`text-5xl font-black mb-2 ${cfg.text}`}>{cfg.label}</h3>
+                <p className={`text-sm font-bold ${cfg.text} mb-6`}>
+                    Confidence: {(result.confidence * 100).toFixed(1)}%
+                </p>
+
+                <div className="space-y-3 bg-black/30 rounded-2xl p-4 text-left mb-6">
+                    <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-500 font-bold uppercase">Current Price</span>
+                        <span className="text-sm font-mono text-white font-bold">${result.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-500 font-bold uppercase">Symbol</span>
+                        <span className="text-xs font-mono text-gray-300">{result.symbol}</span>
+                    </div>
+                    <div className="flex justify-between items-center">
+                        <span className="text-xs text-gray-500 font-bold uppercase">Algorithm</span>
+                        <span className="text-xs font-mono text-purple-400 font-bold">{result.algorithm}</span>
+                    </div>
+                    {result.features_used && (
+                        <div className="flex justify-between items-center">
+                            <span className="text-xs text-gray-500 font-bold uppercase">Features</span>
+                            <span className="text-xs font-mono text-gray-300">{result.features_used} features</span>
+                        </div>
+                    )}
+                    <div className="flex justify-between items-center pt-2 border-t border-white/5">
+                        <span className="text-xs text-gray-500 font-bold uppercase">Generated At</span>
+                        <span className="text-[10px] font-mono text-gray-500">{new Date(result.timestamp).toLocaleTimeString()}</span>
+                    </div>
+                </div>
+
+                <button onClick={onClose} className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-bold text-gray-400 hover:text-white transition-all">
+                    Close
+                </button>
+            </div>
+        </div>
+    );
+};
+
 const ExplainabilityView: React.FC<{ data: any; algorithm?: string }> = ({ data, algorithm }) => {
     if (!data || Object.keys(data).length === 0) {
         return <div className="text-center py-10 text-gray-500 font-bold">No explainability data available for this version. Please retrain.</div>;
@@ -361,6 +432,61 @@ const ExplainabilityView: React.FC<{ data: any; algorithm?: string }> = ({ data,
                     </ReactFlow>
                 </div>
             </div>
+
+            {/* 7. Backtest Performance Card */}
+            {data.backtest_result && (
+                <div className="bg-emerald-900/10 border border-emerald-500/20 rounded-xl p-5">
+                    <h3 className="text-sm font-bold text-emerald-400 mb-4 flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" /></svg>
+                        Post-Training Backtest Performance
+                        <span className="ml-auto text-[10px] text-gray-500 font-normal">Initial: ${data.backtest_result.initial_balance?.toLocaleString()}</span>
+                    </h3>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div className="bg-black/40 border border-white/5 rounded-lg p-3 text-center">
+                            <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Return</p>
+                            <p className={`text-xl font-mono font-bold ${data.backtest_result.profit_pct >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                                {data.backtest_result.profit_pct >= 0 ? '+' : ''}{data.backtest_result.profit_pct?.toFixed(2)}%
+                            </p>
+                        </div>
+                        <div className="bg-black/40 border border-white/5 rounded-lg p-3 text-center">
+                            <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Win Rate</p>
+                            <p className="text-xl font-mono font-bold text-blue-400">{data.backtest_result.win_rate?.toFixed(1)}%</p>
+                        </div>
+                        <div className="bg-black/40 border border-white/5 rounded-lg p-3 text-center">
+                            <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Max Drawdown</p>
+                            <p className="text-xl font-mono font-bold text-rose-400">-{data.backtest_result.max_drawdown?.toFixed(2)}%</p>
+                        </div>
+                        <div className="bg-black/40 border border-white/5 rounded-lg p-3 text-center">
+                            <p className="text-[10px] text-gray-500 font-bold uppercase mb-1">Trades</p>
+                            <p className="text-xl font-mono font-bold text-purple-400">{data.backtest_result.total_trades}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* 8. Walk-Forward CV Scores */}
+            {data.cv_scores && data.cv_scores.cv_scores?.length > 0 && (
+                <div className="bg-blue-900/10 border border-blue-500/20 rounded-xl p-5">
+                    <h3 className="text-sm font-bold text-blue-400 mb-4 flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" /></svg>
+                        Walk-Forward CV Results
+                    </h3>
+                    <div className="flex gap-2 items-end">
+                        {data.cv_scores.cv_scores.map((score: number, i: number) => (
+                            <div key={i} className="flex-1 text-center">
+                                <div className="bg-blue-500/20 rounded-t" style={{ height: `${Math.max(4, score * 80)}px` }}></div>
+                                <p className="text-[10px] text-blue-400 font-mono mt-1">{(score * 100).toFixed(1)}%</p>
+                                <p className="text-[9px] text-gray-600">F{i+1}</p>
+                            </div>
+                        ))}
+                        <div className="flex-1 text-center border-l border-white/10 pl-2">
+                            <p className="text-[10px] text-gray-500 uppercase font-bold">Avg</p>
+                            <p className="text-sm font-mono font-bold text-blue-400">{((data.cv_scores.cv_avg || 0) * 100).toFixed(1)}%</p>
+                            <p className="text-[9px] text-gray-500">&plusmn;{((data.cv_scores.cv_std || 0) * 100).toFixed(1)}%</p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
         </div>
     );
@@ -567,6 +693,22 @@ const ModelCard: React.FC<{
     animationDelay: number;
 }> = ({ model, onDelete, onUploadVersion, onSetActiveVersion, onRetrain, onViewDetails, animationDelay }) => {
     const [isExpanded, setIsExpanded] = useState(false);
+    const [signalLoading, setSignalLoading] = useState(false);
+    const [signalResult, setSignalResult] = useState<SignalResult | null>(null);
+
+    const handleGetSignal = async (e: React.MouseEvent) => {
+        e.stopPropagation();
+        setSignalLoading(true);
+        try {
+            const result = await mlModelsService.predictSignal(model.id);
+            setSignalResult(result);
+        } catch (err: any) {
+            const msg = err?.response?.data?.detail || 'Prediction failed. Check if model file exists.';
+            toast.error(msg);
+        } finally {
+            setSignalLoading(false);
+        }
+    };
 
     const modelIcons: Record<CustomMLModel['modelType'], React.ReactNode> = {
         'LSTM': <LstmIcon className="w-8 h-8" />,
@@ -633,6 +775,15 @@ const ModelCard: React.FC<{
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-brand-primary/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
 
             <div className="p-6 laptop:p-4 relative z-10">
+                {/* Signal Modal */}
+                {signalResult && (
+                    <SignalModal
+                        result={signalResult}
+                        modelName={model.name}
+                        onClose={() => setSignalResult(null)}
+                    />
+                )}
+
                 {/* Header */}
                 <div className="flex justify-between items-start mb-6">
                     <div className="flex items-center gap-4">
@@ -670,6 +821,7 @@ const ModelCard: React.FC<{
                     <StatusPill status={activeVersion?.status || 'Error'} />
                     <div className="flex gap-2">
                         <button
+                            id={`btn-details-${model.id}`}
                             onClick={(e) => { e.stopPropagation(); onViewDetails(model.id, model.name); }}
                             className="px-3 py-1.5 bg-gray-500/10 hover:bg-gray-500/20 text-gray-400 hover:text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-sm border border-gray-500/20 flex items-center gap-1.5"
                         >
@@ -677,6 +829,20 @@ const ModelCard: React.FC<{
                             Details
                         </button>
                         <button
+                            id={`btn-signal-${model.id}`}
+                            onClick={handleGetSignal}
+                            disabled={signalLoading || activeVersion?.status !== 'Ready'}
+                            className="px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500 text-amber-400 hover:text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-sm hover:shadow-amber-500/20 flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            {signalLoading ? (
+                                <svg className="animate-spin w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                            ) : (
+                                <span>⚡</span>
+                            )}
+                            {signalLoading ? 'Loading...' : 'Get Signal'}
+                        </button>
+                        <button
+                            id={`btn-retrain-${model.id}`}
                             onClick={(e) => { e.stopPropagation(); onRetrain(model.id); }}
                             className="px-4 py-1.5 bg-brand-primary/10 hover:bg-brand-primary text-brand-primary hover:text-white rounded-lg text-xs font-bold uppercase tracking-wider transition-all shadow-sm hover:shadow-brand-primary/20 flex items-center gap-2"
                         >
