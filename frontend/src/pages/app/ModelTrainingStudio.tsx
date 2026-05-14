@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BrainCircuit, Play, Square, Settings, Database, Activity, Terminal, CheckCircle2, XCircle, Loader2, Trash2, Zap, Layers, Check } from 'lucide-react';
+import { BrainCircuit, Play, Square, Settings, Database, Activity, Terminal, CheckCircle2, XCircle, Loader2, Trash2, Zap, Layers, Check, Target, Cpu } from 'lucide-react';
 import { mlTrainingService, TrainingJob } from '@/services/mlTrainingService';
 import apiClient from '@/services/client';
 import TargetSelection from '@/components/ml/TargetSelection';
@@ -60,6 +60,7 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
     const logsEndRef = useRef<HTMLDivElement>(null);
     const [showVisualizer, setShowVisualizer] = useState(false);
     const [isRetrainMode, setIsRetrainMode] = useState(false);
+    const [showTerminal, setShowTerminal] = useState(false);
     
     // Historical Trades CSV States
     const [tradeFiles, setTradeFiles] = useState<string[]>([]);
@@ -239,6 +240,7 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
     const handleStartTraining = async () => {
         try {
             setIsTraining(true);
+            setShowTerminal(true);
             setCurrentJob(null);
             
             // Fix: Send "Tick" instead of the default timeframe if we are using raw unresampled L2 data
@@ -398,28 +400,14 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-brand-primary/20 blur-[120px] rounded-full pointer-events-none"></div>
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full pointer-events-none"></div>
 
-            <header className="flex items-center justify-between relative z-10">
+            <header className="mb-4">
                 <div>
-                    {isRetrainMode && (
-                        <motion.div 
-                            initial={{ opacity: 0, y: -20 }} 
-                            animate={{ opacity: 1, y: 0 }} 
-                            className="mb-4 py-2 px-5 bg-purple-500/10 border border-purple-500/30 rounded-full inline-flex items-center gap-3 shadow-[0_0_15px_rgba(168,85,247,0.2)] relative overflow-hidden"
-                        >
-                            <div className="absolute inset-0 bg-gradient-to-r from-purple-500/0 via-purple-500/20 to-purple-500/0 animate-pulse"></div>
-                            <div className="w-2 h-2 rounded-full bg-purple-400 animate-ping shadow-[0_0_8px_#c084fc] relative z-10"></div>
-                            <span className="text-purple-300 font-bold tracking-wide text-[11px] uppercase relative z-10">Fine-Tuning Active:</span>
-                            <span className="text-white font-black text-xs drop-shadow-[0_0_5px_rgba(255,255,255,0.5)] relative z-10">{retrainModelName || retrainModelId}</span>
-                        </motion.div>
-                    )}
-                    <h2 className="text-4xl font-black bg-clip-text text-transparent bg-gradient-to-r from-cyan-400 via-blue-500 to-purple-600 flex items-center gap-4 drop-shadow-[0_0_15px_rgba(56,189,248,0.4)]">
-                        <div className="p-3 bg-white/5 backdrop-blur-md rounded-2xl border border-white/10 shadow-[0_0_20px_rgba(56,189,248,0.2)] relative">
-                            <BrainCircuit className="w-8 h-8 text-cyan-400" />
-                            {isRetrainMode && <div className="absolute -top-1 -right-1 w-3 h-3 bg-purple-500 rounded-full animate-ping"></div>}
-                        </div>
-                        {isRetrainMode ? "MODEL RETRAINING STUDIO" : "MACHINE LEARNING ENGINE CORE"}
+                    <h2 className="text-3xl font-black text-white flex items-center gap-3">
+                        <BrainCircuit className="w-8 h-8 text-cyan-400" />
+                        {isRetrainMode ? "Model Retraining Studio" : "Machine Learning Engine Core"}
+                        {isRetrainMode && <div className="w-2 h-2 bg-purple-500 rounded-full animate-ping ml-2"></div>}
                     </h2>
-                    <p className="text-slate-400 mt-2 text-sm font-medium tracking-wide ml-16">
+                    <p className="text-slate-400 mt-1 text-sm font-medium tracking-wide">
                         {isRetrainMode 
                             ? `Fine-tuning existing model. Add new features to increase intelligence.`
                             : `Advanced L2/OHLCV Machine Learning Synchronization Studio.`}
@@ -427,19 +415,18 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                 </div>
             </header>
 
-            <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-6 min-h-0 relative z-10">
-                {/* Configuration Panel (Left) */}
-                <div className="lg:col-span-4 flex flex-col bg-black/40 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 shadow-[0_8px_32px_rgba(0,0,0,0.5)] relative overflow-hidden h-full overflow-y-auto custom-scrollbar">
+            <div className="flex-1 flex flex-col min-h-0 relative z-10">
+                {/* Configuration Panel */}
+                <div className="w-full flex flex-col bg-black/40 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 shadow-[0_8px_32px_rgba(0,0,0,0.5)] relative overflow-hidden h-full">
                     {/* Glass reflection */}
                     <div className="absolute top-0 inset-x-0 h-[1px] bg-gradient-to-r from-transparent via-cyan-500/50 to-transparent"></div>
-                    
-                    <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-3 tracking-wide">
-                        <Settings className="w-5 h-5 text-cyan-400" />
-                        TRAINING CONFIGURATION
-                    </h3>
 
-                    <div className="space-y-5 flex-1">
-                        <div className="grid grid-cols-2 gap-4 items-end">
+                    <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 flex-1 min-h-0">
+                        {/* COLUMN 1: Core Parameters */}
+                        <div className="space-y-6 flex flex-col h-full overflow-y-auto custom-scrollbar pr-2">
+                            <div className="p-6 bg-white/5 border border-white/10 rounded-2xl shadow-inner space-y-6">
+                                <h3 className="text-sm font-bold text-cyan-400 flex items-center gap-2 uppercase tracking-widest"><Settings className="w-4 h-4" /> Core Parameters</h3>
+                                <div className="grid grid-cols-2 gap-4 items-end">
                             <div>
                                 <label className="block text-sm font-medium text-slate-300 mb-2">Asset & Exchange</label>
                                 <div className={isTraining ? 'opacity-50 pointer-events-none' : ''}>
@@ -489,6 +476,13 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                             </div>
                         </div>
                         )}
+                            </div>
+                        </div>
+
+                        {/* COLUMN 2: Neural Architecture */}
+                        <div className="space-y-6 flex flex-col h-full overflow-y-auto custom-scrollbar pr-2">
+                            <div className="p-6 bg-white/5 border border-white/10 rounded-2xl shadow-inner space-y-6">
+                                <h3 className="text-sm font-bold text-purple-400 flex items-center gap-2 uppercase tracking-widest"><Cpu className="w-4 h-4" /> Neural Architecture</h3>
 
                         <div>
                             <label className="block text-sm font-medium text-slate-300 mb-2">Algorithm Engine</label>
@@ -602,6 +596,13 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                 </motion.div>
                             )}
                         </div>
+                            </div>
+                        </div>
+
+                        {/* COLUMN 3: Data Engine & Features */}
+                        <div className="space-y-6 flex flex-col h-full overflow-y-auto custom-scrollbar pr-2">
+                            <div className="p-6 bg-white/5 border border-white/10 rounded-2xl shadow-inner space-y-6">
+                                <h3 className="text-sm font-bold text-emerald-400 flex items-center gap-2 uppercase tracking-widest"><Database className="w-4 h-4" /> Data Engine & Features</h3>
 
                         <div>
                             <div className="flex items-center justify-between mb-3">
@@ -1416,41 +1417,62 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                 </div>
                             )}
                         </div>
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="pt-6 mt-2 relative z-10 flex flex-col gap-3">
-                        <button 
-                            onClick={handleStartTraining}
-                            disabled={isTraining || !symbol}
-                            className={`w-full py-4 rounded-2xl font-black text-[15px] flex items-center justify-center gap-3 transition-all duration-300 shadow-xl ${isTraining ? 'bg-white/5 text-slate-500 cursor-not-allowed border border-white/5' : isRetrainMode ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 text-white hover:shadow-[0_0_30px_rgba(236,72,153,0.5)] border border-white/20 hover:scale-[1.02]' : 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 text-white hover:shadow-[0_0_30px_rgba(56,189,248,0.5)] border border-white/20 hover:scale-[1.02]'}`}
-                        >
-                            {isTraining ? (
-                                <><Loader2 className="w-5 h-5 animate-spin text-cyan-500" /> {isRetrainMode ? "FINE-TUNING NEURAL NETWORK..." : "INITIALIZING NEURAL NETWORK..."}</>
-                            ) : (
-                                <><Play className="w-5 h-5 fill-current" /> {isRetrainMode ? "START INCREMENTAL FINE-TUNING" : "START DEEP TRAINING"}</>
-                            )}
-                        </button>
-
-                        {isTraining && (
+                    <div className="pt-6 mt-2 relative z-10 flex flex-col gap-3 border-t border-white/10">
+                        {!isTraining ? (
                             <button 
-                                onClick={handleCancelTraining}
-                                className="w-full py-3 rounded-2xl font-black text-[14px] flex items-center justify-center gap-2 bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all"
+                                onClick={handleStartTraining}
+                                disabled={!symbol}
+                                className={`w-full py-4 rounded-2xl font-black text-[15px] flex items-center justify-center gap-3 transition-all duration-300 shadow-xl ${isRetrainMode ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 text-white hover:shadow-[0_0_30px_rgba(236,72,153,0.5)] border border-white/20 hover:scale-[1.02]' : 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 text-white hover:shadow-[0_0_30px_rgba(56,189,248,0.5)] border border-white/20 hover:scale-[1.02]'}`}
                             >
-                                <XCircle className="w-5 h-5" /> STOP TRAINING
+                                <Play className="w-5 h-5 fill-current" /> {isRetrainMode ? "START INCREMENTAL FINE-TUNING" : "START DEEP TRAINING"}
                             </button>
+                        ) : (
+                            <div className="flex gap-3">
+                                <button 
+                                    onClick={() => setShowTerminal(true)}
+                                    className="flex-1 py-4 rounded-2xl font-black text-[15px] flex items-center justify-center gap-3 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/30 transition-all duration-300 shadow-xl"
+                                >
+                                    <Activity className="w-5 h-5" /> SHOW LIVE TERMINAL
+                                </button>
+                                <button 
+                                    onClick={handleCancelTraining}
+                                    className="flex-1 py-4 rounded-2xl font-black text-[15px] flex items-center justify-center gap-2 bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 hover:border-red-500/50 hover:shadow-[0_0_20px_rgba(239,68,68,0.3)] transition-all"
+                                >
+                                    <XCircle className="w-5 h-5" /> STOP TRAINING
+                                </button>
+                            </div>
                         )}
                     </div>
                 </div>
 
-                {/* Live Execution Terminal (Right) */}
-                <div className="lg:col-span-8 relative h-full min-h-0">
-                    {/* TV Chart Button placed over the terminal header */}
-                    <div className="absolute -top-2 right-24 z-[60]">
-                        <FloatingTVChartButton symbol={symbol} exchange={exchange} />
-                    </div>
+                {/* Live Execution Terminal Modal */}
+                <AnimatePresence>
+                    {showTerminal && (
+                        <motion.div 
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            exit={{ opacity: 0, scale: 0.95 }}
+                            className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+                        >
+                            <div className="w-full max-w-6xl h-[85vh] relative flex flex-col min-h-0">
+                                <button 
+                                    onClick={() => setShowTerminal(false)}
+                                    className="absolute -top-12 right-0 p-2 text-slate-400 hover:text-white transition-colors"
+                                >
+                                    <XCircle className="w-8 h-8" />
+                                </button>
 
-                    <div className="flex flex-col bg-black/60 backdrop-blur-2xl border border-cyan-500/20 rounded-3xl shadow-[0_0_50px_rgba(56,189,248,0.1)] overflow-hidden h-full relative z-10">
-                        {/* Header */}
+                                {/* TV Chart Button placed over the terminal header */}
+                                <div className="absolute -top-2 right-24 z-[60]">
+                                    <FloatingTVChartButton symbol={symbol} exchange={exchange} />
+                                </div>
+
+                                <div className="flex flex-col bg-black/60 backdrop-blur-2xl border border-cyan-500/20 rounded-3xl shadow-[0_0_50px_rgba(56,189,248,0.1)] overflow-hidden h-full relative z-10 w-full">
+                                    {/* Header */}
                         <div className="px-6 py-4 bg-gradient-to-r from-cyan-900/40 to-blue-900/20 border-b border-cyan-500/20 flex items-center justify-between">
                             <div className="flex items-center gap-3">
                                 <Terminal className="w-5 h-5 text-cyan-400" />
@@ -1590,9 +1612,12 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                             </div>
                         );
                     })()}
-                </div>
+                                </div>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
             </div>
-        </div>
 
             {/* Dataset Visualizer Floating Modal */}
             <DatasetVisualizerModal 
