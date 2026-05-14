@@ -82,6 +82,7 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
     const [retrainModelName, setRetrainModelName] = useState<string>('');
     const [initialLoadedIndicators, setInitialLoadedIndicators] = useState<string[]>([]);
     const [initialLoadedL2Features, setInitialLoadedL2Features] = useState<string[]>([]);
+    const [initialLoadedPlpFeatures, setInitialLoadedPlpFeatures] = useState<string[]>([]);
     const [initialAlgorithm, setInitialAlgorithm] = useState<string>('');
 
     useEffect(() => {
@@ -105,10 +106,12 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                 }
                 if (config.config?.trade_features) {
                     setSelectedTradeFeatures(config.config.trade_features);
+                    setSelectedHybridDeepTradeFeatures(config.config.trade_features);
                     setInitialLoadedTradeFeatures(config.config.trade_features);
                 }
                 if (config.config?.plp_features) {
                     setSelectedPlpFeatures(config.config.plp_features);
+                    setInitialLoadedPlpFeatures(config.config.plp_features);
                 }
                 if (config.config?.dataset_type) setDataSource(config.config.dataset_type);
                 if (config.config?.exchange) setExchange(config.config.exchange);
@@ -407,11 +410,15 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                     {isRetrainMode && <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-ping ml-2"></div>}
                 </h2>
                 <div className="w-px h-4 bg-white/20"></div>
-                <p className="text-slate-400 text-xs font-medium tracking-wide">
+                <div className="text-slate-400 text-xs font-medium tracking-wide flex items-center gap-2">
                     {isRetrainMode 
-                        ? `Fine-tuning existing model. Add new features to increase intelligence.`
+                        ? (
+                            <>
+                                Fine-tuning: <span className="text-purple-400 font-bold bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/30">{retrainModelName || retrainModelId}</span> Add new features to increase intelligence.
+                            </>
+                        )
                         : `Advanced L2/OHLCV Machine Learning Synchronization Studio.`}
-                </p>
+                </div>
             </header>
 
             <div className="flex-1 flex flex-col min-h-0 relative z-10">
@@ -953,8 +960,11 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                                         disabled={isTraining}
                                                         className={`flex items-start gap-3 p-3 rounded-xl border text-left transition-all duration-200 ${isSel ? 'bg-rose-500/10 border-rose-500/30' : 'bg-[#0A0A0A] border-white/5 hover:border-rose-500/20 hover:bg-white/5'}`}
                                                     >
-                                                        <div className={`w-4 h-4 mt-0.5 rounded-md border flex-shrink-0 flex items-center justify-center ${isSel ? 'bg-rose-500 border-rose-500' : 'border-slate-600'}`}>
+                                                        <div className={`w-4 h-4 mt-0.5 rounded-md border flex-shrink-0 flex items-center justify-center relative ${isSel ? (isRetrainMode && initialLoadedTradeFeatures.includes(feat.internal) ? 'bg-purple-500 border-purple-400' : 'bg-rose-500 border-rose-500') : 'border-slate-600'}`}>
                                                             {isSel && <Check className="w-3 h-3 stroke-[3] text-white" />}
+                                                            {isRetrainMode && initialLoadedTradeFeatures.includes(feat.internal) && isSel && (
+                                                                <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-purple-300 rounded-full animate-ping"></div>
+                                                            )}
                                                         </div>
                                                         <div>
                                                             <span className={`text-xs font-bold block ${isSel ? 'text-rose-300' : 'text-slate-300'}`}>{feat.name}</span>
@@ -987,8 +997,11 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                                         onClick={() => !isTraining && handleToggleL2Feature(feat.internal)}
                                                         className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition-all ${isSel ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-200' : 'bg-black/30 border-white/5 text-slate-400 hover:bg-white/5'}`}
                                                     >
-                                                        <div className={`w-3.5 h-3.5 rounded-sm border flex-shrink-0 flex items-center justify-center ${isSel ? 'bg-indigo-500 border-indigo-400' : 'border-white/20'}`}>
+                                                        <div className={`w-3.5 h-3.5 rounded-sm border flex-shrink-0 flex items-center justify-center relative ${isSel ? (isRetrainMode && initialLoadedL2Features.includes(feat.internal) ? 'bg-purple-500 border-purple-400' : 'bg-indigo-500 border-indigo-400') : 'border-white/20'}`}>
                                                             {isSel && <Check className="w-2.5 h-2.5 text-white" />}
+                                                            {isRetrainMode && initialLoadedL2Features.includes(feat.internal) && isSel && (
+                                                                <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-purple-300 rounded-full animate-ping"></div>
+                                                            )}
                                                         </div>
                                                         <span className="text-[10px] font-medium leading-tight truncate" title={feat.name}>{feat.name}</span>
                                                     </div>
@@ -1005,6 +1018,8 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                         )}
                                         onSetMultipleFeatures={(ids) => setSelectedPlpFeatures(ids)}
                                         isTraining={isTraining}
+                                        isRetrainMode={isRetrainMode}
+                                        initialLoadedFeatures={initialLoadedPlpFeatures}
                                     />
                                 </motion.div>
                             )}

@@ -118,13 +118,17 @@ interface PredatoryLiquidityPipelineProps {
     onToggleFeature: (featureId: string) => void;
     onSetMultipleFeatures: (featureIds: string[]) => void;
     isTraining: boolean;
+    isRetrainMode?: boolean;
+    initialLoadedFeatures?: string[];
 }
 
 const PredatoryLiquidityPipeline: React.FC<PredatoryLiquidityPipelineProps> = ({
     selectedFeatures,
     onToggleFeature,
     onSetMultipleFeatures,
-    isTraining
+    isTraining,
+    isRetrainMode = false,
+    initialLoadedFeatures = []
 }) => {
     const [expandedModule, setExpandedModule] = useState<string | null>('liquidity_cluster');
     const [isSuggesting, setIsSuggesting] = useState(false);
@@ -283,10 +287,13 @@ const PredatoryLiquidityPipeline: React.FC<PredatoryLiquidityPipelineProps> = ({
                                                                         : 'bg-[#0A0A0A] border-white/5 hover:border-white/20'
                                                                 } ${feat.mandatory && isSelected ? 'cursor-not-allowed opacity-90' : ''}`}
                                                             >
-                                                                <div className={`w-4 h-4 mt-0.5 rounded flex-shrink-0 border flex items-center justify-center transition-colors ${
-                                                                    isSelected ? `bg-${module.color}-500 border-${module.color}-500` : 'border-slate-600'
+                                                                <div className={`w-4 h-4 mt-0.5 rounded flex-shrink-0 border flex items-center justify-center transition-colors relative ${
+                                                                    isSelected ? (isRetrainMode && initialLoadedFeatures.includes(feat.id) ? `bg-${module.color}-500 border-${module.color}-400` : `bg-${module.color}-500 border-${module.color}-500`) : 'border-slate-600'
                                                                 }`}>
-                                                                    {isSelected && <svg className="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                                                                    {isSelected && <svg className="w-3 h-3 text-white relative z-10" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                                                                    {isRetrainMode && initialLoadedFeatures.includes(feat.id) && isSelected && (
+                                                                        <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-white rounded-full animate-ping z-20"></div>
+                                                                    )}
                                                                 </div>
                                                                 <div>
                                                                     <span className={`text-[11px] font-bold block leading-tight ${isSelected ? 'text-white' : 'text-slate-400'}`}>
