@@ -802,7 +802,26 @@ const ModelDetailsModal: React.FC<{
                                         </div>
                                     )}
 
-                                    {(!config.config?.indicators?.length && !config.config?.l2_features?.length && !config.config?.trade_features?.length) && (
+                                    {/* PLP Features */}
+                                    {config.config?.plp_features && config.config.plp_features.length > 0 && (
+                                        <div className="bg-black/20 border border-purple-500/10 rounded-2xl p-5 shadow-inner relative overflow-hidden">
+                                            <div className="absolute top-0 left-0 w-1 h-full bg-purple-500/50 shadow-[0_0_10px_rgba(168,85,247,0.5)]"></div>
+                                            <h3 className="text-sm font-bold text-purple-400 mb-4 flex items-center gap-2">
+                                                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" /></svg>
+                                                Predatory Liquidity Pipeline (PLP)
+                                            </h3>
+                                            <div className="flex flex-wrap gap-2">
+                                                {config.config.plp_features.map((feat: string) => (
+                                                    <div key={feat} className="px-3 py-1.5 bg-purple-500/10 border border-purple-500/20 rounded-xl flex items-center gap-2 hover:bg-purple-500/20 hover:border-purple-400/50 transition-colors shadow-[0_0_10px_rgba(168,85,247,0.1)]">
+                                                        <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shadow-[0_0_5px_rgba(168,85,247,0.8)]"></span>
+                                                        <span className="text-xs font-mono font-bold text-purple-100">{feat}</span>
+                                                    </div>
+                                                ))}
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {(!config.config?.indicators?.length && !config.config?.l2_features?.length && !config.config?.trade_features?.length && !config.config?.plp_features?.length) && (
                                         <div className="flex flex-col items-center justify-center py-10 text-center border border-dashed border-white/10 rounded-2xl bg-white/[0.02]">
                                             <svg className="w-10 h-10 text-gray-600 mb-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
                                             <p className="text-sm font-bold text-gray-400">No Feature Data Available</p>

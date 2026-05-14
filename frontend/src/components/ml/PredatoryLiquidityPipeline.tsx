@@ -12,14 +12,16 @@ export const PLP_MODULES = [
         features: [
             { id: 'abs_long_liq_pool', name: 'Absolute Long Liquidation Pool', mandatory: true },
             { id: 'abs_short_liq_pool', name: 'Absolute Short Liquidation Pool', mandatory: true },
-            { id: 'liq_density_z_score', name: 'Liquidation Density Z-Score' },
-            { id: 'dist_max_pain', name: 'Distance to Max Pain Node' },
-            { id: 'liq_void_gap', name: 'Liquidation Void (Gap)' },
-            { id: 'high_lev_prox', name: 'High-Leverage (100x/50x) Cluster Proximity' },
-            { id: 'low_lev_prox', name: 'Low-Leverage (10x/5x) Cluster Proximity' },
-            { id: 'cum_unclaimed_liq', name: 'Cumulative Unclaimed Liquidity' },
-            { id: 'cross_exch_liq_delta', name: 'Cross-Exchange Liquidation Delta' },
-            { id: 'hist_liq_decay', name: 'Historical Liquidation Heatmap Decay' },
+            { id: 'liquidation_density_z_score', name: 'Liquidation Density Z-Score' },
+            { id: 'leverage_washout_z_score', name: 'Leverage Washout Z-Score' },
+            { id: 'high_leverage_cluster_proximity', name: 'High-Leverage Cluster Proximity' },
+            { id: 'margin_call_proximity_index', name: 'Margin Call Proximity Index' },
+            { id: 'magnetic_liquidity_pull_vector', name: 'Magnetic Liquidity Pull Vector' },
+            { id: 'liq_cluster_density_heatmap', name: 'Liquidation Cluster Density Heatmap' },
+            { id: 'synthetic_leverage_ratio', name: 'Synthetic Leverage Ratio' },
+            { id: 'hidden_liquidity_absorption', name: 'Hidden Liquidity Absorption' },
+            { id: 'stale_liquidity_decay', name: 'Stale Liquidity Decay' },
+            { id: 'cross_margin_cascade_risk', name: 'Cross-Margin Cascade Risk' }
         ]
     },
     {
@@ -29,16 +31,16 @@ export const PLP_MODULES = [
         icon: Zap,
         color: 'orange',
         features: [
-            { id: 'liq_cascade_mult', name: 'Liquidation Cascade Multiplier' },
-            { id: 'vol_trigger_cascade', name: 'Volume Needed to Trigger Cascade' },
-            { id: 'cascade_term_prox', name: 'Cascade Termination Proximity' },
-            { id: 'price_mom_threshold', name: 'Price Momentum at Threshold' },
-            { id: 'liq_exhaustion_idx', name: 'Liquidation Exhaustion Index' },
-            { id: 'post_cascade_rev_prob', name: 'Post-Cascade Reversal Probability' },
-            { id: 'cascade_event_dur', name: 'Cascade Event Duration' },
-            { id: 'implied_cascade_depth', name: 'Implied Cascade Depth' },
-            { id: 'domino_gap_idx', name: 'Domino Gap Index' },
-            { id: 'liq_induced_slip', name: 'Liquidation Induced Slippage Estimate' },
+            { id: 'liquidation_cascade_multiplier', name: 'Liquidation Cascade Multiplier' },
+            { id: 'long_squeeze_probability', name: 'Long Squeeze Probability' },
+            { id: 'short_squeeze_probability', name: 'Short Squeeze Probability' },
+            { id: 'cascade_velocity_index', name: 'Cascade Velocity Index' },
+            { id: 'domino_effect_threshold', name: 'Domino Effect Threshold' },
+            { id: 'cascade_decay_rate', name: 'Cascade Decay Rate' },
+            { id: 'forced_liquidation_trigger_pts', name: 'Forced Liquidation Trigger Points' },
+            { id: 'volatility_expansion_on_liq', name: 'Volatility Expansion on Liquidation' },
+            { id: 'squeeze_exhaustion_metric', name: 'Squeeze Exhaustion Metric' },
+            { id: 'liquidator_bot_activity_proxy', name: 'Liquidator Bot Activity Proxy' }
         ]
     },
     {
@@ -48,16 +50,16 @@ export const PLP_MODULES = [
         icon: Crosshair,
         color: 'red',
         features: [
-            { id: 'swing_high_sl_pool', name: 'Swing High Stop-Loss Pool Estimate' },
-            { id: 'swing_low_sl_pool', name: 'Swing Low Stop-Loss Pool Estimate' },
-            { id: 'stop_hunt_velocity', name: 'Stop-Hunt Velocity' },
-            { id: 'tick_sweep_vol', name: 'Tick-by-Tick Sweep Volume' },
-            { id: 'post_sweep_absorp', name: 'Post-Sweep Absorption Rate' },
+            { id: 'stop_hunt_probability', name: 'Stop-Hunt Probability' },
+            { id: 'liquidity_sweep_velocity', name: 'Liquidity Sweep Velocity' },
             { id: 'fakeout_prob_model', name: 'Fakeout Probability Model (FPM)', mandatory: true },
-            { id: 'wick_pen_depth', name: 'Wick Penetration Depth' },
-            { id: 'time_in_stop_zone', name: 'Time Spent in Stop-Hunt Zone' },
-            { id: 'stop_hunt_rec_speed', name: 'Stop-Hunt Recovery Speed' },
-            { id: 'limit_spoof_stops', name: 'Limit Order Spoofing near Stops' },
+            { id: 'sweep_and_reversal_ratio', name: 'Sweep and Reversal Ratio' },
+            { id: 'stop_loss_trigger_density', name: 'Stop-Loss Trigger Density' },
+            { id: 'predatory_algo_footprint', name: 'Predatory Algo Footprint' },
+            { id: 'institutional_sweep_divergence', name: 'Institutional Sweep Divergence' },
+            { id: 'retail_trap_indicator', name: 'Retail Trap Indicator' },
+            { id: 'high_frequency_hunt_ratio', name: 'High Frequency Hunt Ratio' },
+            { id: 'sweep_efficiency_score', name: 'Sweep Efficiency Score' }
         ]
     },
     {
@@ -67,16 +69,16 @@ export const PLP_MODULES = [
         icon: Activity,
         color: 'purple',
         features: [
-            { id: 'ob_liq_confluence', name: 'OB-Liquidation Confluence' },
-            { id: 'fvg_stop_overlap', name: 'FVG Stop-Hunt Overlap' },
-            { id: 'eqh_eql_mult', name: 'Equal Highs/Lows (EQH/EQL) Multiplier' },
-            { id: 'inducement_prox', name: 'Inducement Level Proximity' },
-            { id: 'retail_tl_liq', name: 'Retail Trendline Liquidity Accumulation' },
-            { id: 'delta_div_liq', name: 'Delta Divergence During Liquidation' },
-            { id: 'smart_money_acc_sweep', name: 'Smart Money Accumulation Post-Sweep' },
-            { id: 'liq_induced_vol_spike', name: 'Liquidation-Induced Volume Spike (LIVS)' },
-            { id: 'absorp_reversal_time', name: 'Absorption-to-Reversal Time' },
-            { id: 'inst_order_tox', name: 'Institutional Order Flow Toxicity' },
+            { id: 'institutional_order_flow_imbalance', name: 'Institutional Order Flow Imbalance' },
+            { id: 'smart_money_accumulation_dist', name: 'Smart Money Accumulation/Distribution' },
+            { id: 'fvg_liquidity_draw_prob', name: 'FVG Liquidity Draw Probability' },
+            { id: 'order_block_mitigation_speed', name: 'Order Block Mitigation Speed' },
+            { id: 'time_weighted_vampire_flow', name: 'Time-Weighted Vampire Flow' },
+            { id: 'bms_confirmation_strength', name: 'BMS Confirmation Strength' },
+            { id: 'choch_volatility_multiplier', name: 'CHoCH Volatility Multiplier' },
+            { id: 'imbalance_to_volume_ratio', name: 'Imbalance to Volume Ratio' },
+            { id: 'sponsor_candle_footprint', name: 'Sponsor Candle Footprint' },
+            { id: 'dark_pool_proxy_index', name: 'Dark Pool Proxy Index' }
         ]
     },
     {
@@ -86,16 +88,17 @@ export const PLP_MODULES = [
         icon: ShieldAlert,
         color: 'pink',
         features: [
-            { id: 'margin_call_prox_idx', name: 'Margin Call Proximity Index (MCPI)' },
-            { id: 'avg_pos_margin_health', name: 'Average Position Margin Health' },
-            { id: 'vol_exp_pre_hunt', name: 'Volatility Expansion Pre-Hunt' },
-            { id: 'funding_rate_shift', name: 'Funding Rate Shift Pre-Liquidation', mandatory: true },
             { id: 'oi_wipeout_ratio', name: 'Open Interest Wipeout Ratio', mandatory: true },
-            { id: 'lev_washout_zscore', name: 'Leverage Washout Z-Score' },
-            { id: 'post_wipeout_oi_reb', name: 'Post-Wipeout OI Rebuild Rate' },
-            { id: 'synth_margin_squeeze', name: 'Synthetic Margin Squeeze Indicator' },
-            { id: 'liq_risk_premium', name: 'Liquidation Risk Premium' },
-            { id: 'dyn_sl_buffer', name: 'Dynamic Stop-Loss Buffer' },
+            { id: 'funding_rate_shift', name: 'Funding Rate Shift', mandatory: true },
+            { id: 'funding_rate_shift_pre_liq', name: 'Funding Rate Shift Pre-Liquidation' },
+            { id: 'implied_margin_pressure', name: 'Implied Margin Pressure' },
+            { id: 'vol_skew_liquidation_bias', name: 'Vol Skew Liquidation Bias' },
+            { id: 'bid_ask_spread_blowout', name: 'Bid-Ask Spread Blowout' },
+            { id: 'flash_crash_probability', name: 'Flash Crash Probability' },
+            { id: 'tail_risk_expansion_index', name: 'Tail Risk Expansion Index' },
+            { id: 'gamma_squeeze_synthetic', name: 'Gamma Squeeze (Synthetic)' },
+            { id: 'leverage_decay_factor', name: 'Leverage Decay Factor' },
+            { id: 'margin_variance_premium', name: 'Margin Variance Premium' }
         ]
     }
 ];
