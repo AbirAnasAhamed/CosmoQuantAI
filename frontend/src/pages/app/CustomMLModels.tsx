@@ -1,5 +1,6 @@
 
 import React, { useState, useMemo } from 'react';
+import ReactDOM from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { mlModelsService } from '@/services/mlModelsService';
 import { toast } from 'react-hot-toast';
@@ -180,58 +181,144 @@ const SignalModal: React.FC<{
     modelName: string;
     onClose: () => void;
 }> = ({ result, modelName, onClose }) => {
-    const signalConfig = {
-        BUY:  { bg: 'from-emerald-900/60 to-emerald-800/30', border: 'border-emerald-500/40', text: 'text-emerald-400', emoji: '🟢', label: 'BUY' },
-        SELL: { bg: 'from-rose-900/60 to-rose-800/30', border: 'border-rose-500/40', text: 'text-rose-400', emoji: '🔴', label: 'SELL' },
-        HOLD: { bg: 'from-amber-900/60 to-amber-800/30', border: 'border-amber-500/40', text: 'text-amber-400', emoji: '🟡', label: 'HOLD' },
+    const cfgMap = {
+        BUY: {
+            outerGlow:   'shadow-emerald-500/30',
+            ring:        'from-emerald-400 to-teal-300',
+            ringBg:      'bg-emerald-500/10',
+            border:      'border-emerald-500/30',
+            text:        'text-emerald-400',
+            badge:       'bg-emerald-500/20 border-emerald-500/40',
+            accent:      'from-emerald-500 via-teal-400 to-emerald-600',
+            label:       'BUY',
+            icon:        '▲',
+            glow:        'rgba(16,185,129,0.15)',
+        },
+        SELL: {
+            outerGlow:   'shadow-rose-500/30',
+            ring:        'from-rose-400 to-pink-300',
+            ringBg:      'bg-rose-500/10',
+            border:      'border-rose-500/30',
+            text:        'text-rose-400',
+            badge:       'bg-rose-500/20 border-rose-500/40',
+            accent:      'from-rose-500 via-pink-400 to-rose-600',
+            label:       'SELL',
+            icon:        '▼',
+            glow:        'rgba(244,63,94,0.15)',
+        },
+        HOLD: {
+            outerGlow:   'shadow-amber-500/30',
+            ring:        'from-amber-400 to-yellow-300',
+            ringBg:      'bg-amber-500/10',
+            border:      'border-amber-500/30',
+            text:        'text-amber-400',
+            badge:       'bg-amber-500/20 border-amber-500/40',
+            accent:      'from-amber-500 via-yellow-400 to-amber-600',
+            label:       'HOLD',
+            icon:        '■',
+            glow:        'rgba(245,158,11,0.15)',
+        },
     };
-    const cfg = signalConfig[result.signal];
+    const cfg = cfgMap[result.signal];
+
+    // Circular progress for confidence
+    const pct    = Math.round(result.confidence * 100);
+    const radius = 40;
+    const circ   = 2 * Math.PI * radius;
+    const dash   = (pct / 100) * circ;
 
     return (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-[200] flex items-center justify-center p-4" onClick={onClose}>
-            <div className={`bg-gradient-to-br ${cfg.bg} w-full max-w-sm rounded-3xl shadow-2xl border ${cfg.border} p-8 text-center relative animate-modal-content-slide-down`} onClick={e => e.stopPropagation()}>
-                {/* Top accent */}
-                <div className={`absolute top-0 left-0 w-full h-1 rounded-t-3xl bg-gradient-to-r ${result.signal === 'BUY' ? 'from-emerald-500 to-teal-400' : result.signal === 'SELL' ? 'from-rose-500 to-pink-400' : 'from-amber-500 to-yellow-400'}`}></div>
+        <div
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4"
+            style={{ backgroundColor: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(12px)' }}
+            onClick={onClose}
+        >
+            <div
+                className={`relative w-full max-w-xs rounded-3xl border ${cfg.border} shadow-2xl ${cfg.outerGlow} overflow-hidden`}
+                style={{ background: 'linear-gradient(135deg, #0a0a0a 60%, #111)', boxShadow: `0 0 80px 0 ${cfg.glow}, 0 25px 50px rgba(0,0,0,0.6)` }}
+                onClick={e => e.stopPropagation()}
+            >
+                {/* Top gradient accent bar */}
+                <div className={`h-1 w-full bg-gradient-to-r ${cfg.accent}`} />
 
-                <div className="text-6xl mb-4">{cfg.emoji}</div>
-                <p className="text-xs text-gray-400 uppercase tracking-widest font-bold mb-1">{modelName}</p>
-                <h3 className={`text-5xl font-black mb-2 ${cfg.text}`}>{cfg.label}</h3>
-                <p className={`text-sm font-bold ${cfg.text} mb-6`}>
-                    Confidence: {(result.confidence * 100).toFixed(1)}%
-                </p>
+                {/* Ambient background glow blob */}
+                <div className="absolute inset-0 pointer-events-none" style={{ background: `radial-gradient(ellipse at 50% 0%, ${cfg.glow} 0%, transparent 70%)` }} />
 
-                <div className="space-y-3 bg-black/30 rounded-2xl p-4 text-left mb-6">
-                    <div className="flex justify-between items-center">
-                        <span className="text-xs text-gray-500 font-bold uppercase">Current Price</span>
-                        <span className="text-sm font-mono text-white font-bold">${result.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                        <span className="text-xs text-gray-500 font-bold uppercase">Symbol</span>
-                        <span className="text-xs font-mono text-gray-300">{result.symbol}</span>
-                    </div>
-                    <div className="flex justify-between items-center">
-                        <span className="text-xs text-gray-500 font-bold uppercase">Algorithm</span>
-                        <span className="text-xs font-mono text-purple-400 font-bold">{result.algorithm}</span>
-                    </div>
-                    {result.features_used && (
-                        <div className="flex justify-between items-center">
-                            <span className="text-xs text-gray-500 font-bold uppercase">Features</span>
-                            <span className="text-xs font-mono text-gray-300">{result.features_used} features</span>
+                <div className="relative z-10 p-7 flex flex-col items-center text-center gap-4">
+
+                    {/* Model name */}
+                    <p className="text-[10px] font-bold tracking-[0.2em] uppercase text-gray-500">{modelName}</p>
+
+                    {/* Confidence ring + Signal label */}
+                    <div className="relative flex items-center justify-center">
+                        {/* SVG ring */}
+                        <svg width="110" height="110" className="-rotate-90">
+                            {/* Track */}
+                            <circle cx="55" cy="55" r={radius} stroke="rgba(255,255,255,0.06)" strokeWidth="8" fill="none" />
+                            {/* Progress */}
+                            <circle
+                                cx="55" cy="55" r={radius}
+                                stroke="url(#ringGrad)" strokeWidth="8" fill="none"
+                                strokeLinecap="round"
+                                strokeDasharray={`${dash} ${circ}`}
+                                style={{ transition: 'stroke-dasharray 1s ease' }}
+                            />
+                            <defs>
+                                <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                                    <stop offset="0%" stopColor={result.signal === 'BUY' ? '#10b981' : result.signal === 'SELL' ? '#f43f5e' : '#f59e0b'} />
+                                    <stop offset="100%" stopColor={result.signal === 'BUY' ? '#2dd4bf' : result.signal === 'SELL' ? '#fb7185' : '#fbbf24'} />
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        {/* Centre content */}
+                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                            <span className={`text-2xl font-black ${cfg.text}`}>{cfg.icon}</span>
+                            <span className="text-xs font-bold text-gray-400 mt-0.5">{pct}%</span>
                         </div>
-                    )}
-                    <div className="flex justify-between items-center pt-2 border-t border-white/5">
-                        <span className="text-xs text-gray-500 font-bold uppercase">Generated At</span>
-                        <span className="text-[10px] font-mono text-gray-500">{new Date(result.timestamp).toLocaleTimeString()}</span>
                     </div>
-                </div>
 
-                <button onClick={onClose} className="w-full py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-sm font-bold text-gray-400 hover:text-white transition-all">
-                    Close
-                </button>
+                    {/* Signal badge */}
+                    <div className={`flex items-center gap-2 px-6 py-2 rounded-full border ${cfg.badge} animate-pulse`}>
+                        <span className={`text-2xl font-black tracking-widest ${cfg.text}`}>{cfg.label}</span>
+                    </div>
+
+                    {/* Confidence label */}
+                    <p className="text-xs text-gray-500">
+                        Confidence — <span className={`font-bold ${cfg.text}`}>{pct}%</span>
+                    </p>
+
+                    {/* Info rows */}
+                    <div className="w-full bg-white/4 rounded-2xl border border-white/6 p-4 space-y-2.5 text-left">
+                        {[
+                            { label: 'Price',     value: `$${result.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`, color: 'text-white' },
+                            { label: 'Symbol',    value: result.symbol,     color: 'text-gray-300' },
+                            { label: 'Algorithm', value: result.algorithm,  color: 'text-purple-400' },
+                            ...(result.features_used ? [{ label: 'Features', value: `${result.features_used} features`, color: 'text-gray-400' }] : []),
+                        ].map(({ label, value, color }) => (
+                            <div key={label} className="flex justify-between items-center">
+                                <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600">{label}</span>
+                                <span className={`text-xs font-mono font-bold ${color}`}>{value}</span>
+                            </div>
+                        ))}
+                        <div className="flex justify-between items-center pt-2 border-t border-white/5">
+                            <span className="text-[10px] font-bold uppercase tracking-wider text-gray-600">Generated</span>
+                            <span className="text-[10px] font-mono text-gray-600">{new Date(result.timestamp).toLocaleTimeString()}</span>
+                        </div>
+                    </div>
+
+                    {/* Close button */}
+                    <button
+                        onClick={onClose}
+                        className="w-full py-2.5 mt-1 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-sm font-bold text-gray-500 hover:text-white transition-all duration-200"
+                    >
+                        Close
+                    </button>
+                </div>
             </div>
         </div>
     );
 };
+
 
 const ExplainabilityView: React.FC<{ data: any; algorithm?: string }> = ({ data, algorithm }) => {
     if (!data || Object.keys(data).length === 0) {
@@ -775,13 +862,14 @@ const ModelCard: React.FC<{
             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-transparent via-brand-primary/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
 
             <div className="p-6 laptop:p-4 relative z-10">
-                {/* Signal Modal */}
-                {signalResult && (
+                {/* Signal Modal — rendered via Portal so it escapes overflow-hidden */}
+                {signalResult && ReactDOM.createPortal(
                     <SignalModal
                         result={signalResult}
                         modelName={model.name}
                         onClose={() => setSignalResult(null)}
-                    />
+                    />,
+                    document.body
                 )}
 
                 {/* Header */}
