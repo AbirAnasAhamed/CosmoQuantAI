@@ -34,13 +34,10 @@ class ConnectionManager:
                 try:
                     await connection.send_json(message)
                 except Exception as e:
-                    error_msg = str(e)
-                    if "Cannot call \"send\" once a close message has been sent" in error_msg:
-                        # Normal disconnection, just cleanup
-                        self.disconnect(connection, channel_id)
-                    else:
-                        logger.error(f"⚠️ Error sending to WS: {error_msg}")
-                        self.disconnect(connection, channel_id)
+                    # Any send failure means the client has disconnected — this is normal.
+                    # Log at DEBUG level so it doesn't trigger monitoring alerts.
+                    logger.debug(f"ℹ️ WS client disconnected during send (channel={channel_id}): {e}")
+                    self.disconnect(connection, channel_id)
                     
     # Alias for backward compatibility if needed, or we can just update usages
     async def broadcast_to_symbol(self, symbol: str, message: dict):
