@@ -119,11 +119,19 @@ def _generate_signals(model, algorithm: str, X_test: np.ndarray, prediction_targ
 
         else:
             # sklearn-compatible: RF, XGBoost, LightGBM, CatBoost
+            # ✅ Wrap in DataFrame to preserve feature names (avoids sklearn UserWarning)
+            X_pred = X_test
+            if hasattr(model, 'feature_names_in_') and model.feature_names_in_ is not None:
+                try:
+                    X_pred = pd.DataFrame(X_test, columns=model.feature_names_in_)
+                except Exception:
+                    pass  # fallback to numpy if column count mismatch
+
             if prediction_target == "classification":
-                raw_preds = model.predict(X_test)
+                raw_preds = model.predict(X_pred)
                 signals = raw_preds.astype(int).tolist()
             else:
-                raw_preds = model.predict(X_test)
+                raw_preds = model.predict(X_pred)
                 signals = (raw_preds > np.median(raw_preds)).astype(int).tolist()
 
         add_log(f"[Post-Backtest] Generated {len(signals)} signals. BUY signals: {sum(signals)} ({sum(signals)/max(1,len(signals))*100:.1f}%)")
