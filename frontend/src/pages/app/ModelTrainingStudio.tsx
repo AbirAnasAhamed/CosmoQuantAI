@@ -11,6 +11,7 @@ import LiveMarketPulse from '@/components/ml/LiveMarketPulse';
 import { FloatingTVChartButton } from '@/components/features/market/FloatingTVChartButton';
 import EquityCurveChart from '@/components/ml/EquityCurveChart'; // ✅ New
 import { DatasetVisualizerModal } from '@/components/DatasetVisualizerModal';
+import PredatoryLiquidityPipeline, { GET_DEFAULT_MANDATORY_PLP_FEATURES } from '@/components/ml/PredatoryLiquidityPipeline';
 
 import { mlModelsService } from '@/services/mlModelsService';
 
@@ -74,7 +75,7 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
         'cvd', 'buy_volume', 'sell_volume', 'trade_count',
         'aggressor_ratio', 'large_trade_flag', 'vwap_deviation',
     ]);
-
+    const [selectedPlpFeatures, setSelectedPlpFeatures] = useState<string[]>(GET_DEFAULT_MANDATORY_PLP_FEATURES());
 
     // UI states for Retrain Mode highlighting
     const [retrainModelName, setRetrainModelName] = useState<string>('');
@@ -104,6 +105,9 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                 if (config.config?.trade_features) {
                     setSelectedTradeFeatures(config.config.trade_features);
                     setInitialLoadedTradeFeatures(config.config.trade_features);
+                }
+                if (config.config?.plp_features) {
+                    setSelectedPlpFeatures(config.config.plp_features);
                 }
                 if (config.config?.dataset_type) setDataSource(config.config.dataset_type);
                 if (config.config?.exchange) setExchange(config.config.exchange);
@@ -280,6 +284,7 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                     trade_features: dataSource === 'historical_trades' ? selectedTradeFeatures : undefined,
                     // Hybrid Deep params (new)
                     hybrid_deep_trade_features: dataSource === 'hybrid_deep' ? selectedHybridDeepTradeFeatures : undefined,
+                    plp_features: dataSource === 'hybrid_deep' ? selectedPlpFeatures : undefined,
                 }
             });
             setCurrentJob(job);
@@ -985,6 +990,16 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                             })}
                                         </div>
                                     </div>
+
+                                    {/* Predatory Liquidity Pipeline (PLP) */}
+                                    <PredatoryLiquidityPipeline 
+                                        selectedFeatures={selectedPlpFeatures}
+                                        onToggleFeature={(id) => setSelectedPlpFeatures(prev => 
+                                            prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
+                                        )}
+                                        onSetMultipleFeatures={(ids) => setSelectedPlpFeatures(ids)}
+                                        isTraining={isTraining}
+                                    />
                                 </motion.div>
                             )}
 

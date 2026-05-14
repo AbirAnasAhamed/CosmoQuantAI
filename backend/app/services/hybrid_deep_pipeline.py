@@ -437,12 +437,15 @@ def build_hybrid_deep_dataset(job, db: Session, config: dict, add_log) -> tuple:
         "cvd", "buy_volume", "sell_volume", "trade_count",
         "aggressor_ratio", "large_trade_flag", "vwap_deviation",
     ])
+    sel_plp         = config.get("plp_features", [])
     pred_target     = config.get("prediction_target", "classification")
 
     add_log(f"[HybridDeep] ═══ Starting Hybrid Deep Training for {symbol} ═══")
     add_log(f"[HybridDeep] Target: {target_rows:,} trade ticks")
     add_log(f"[HybridDeep] L2 features selected: {len(sel_l2)}")
     add_log(f"[HybridDeep] Trade features selected: {len(sel_trade)}")
+    if sel_plp:
+        add_log(f"[HybridDeep] PLP features selected: {len(sel_plp)}")
 
     # ── Step 1: Dual WebSocket Collection ─────────────────────────────────────
     df_trades, df_l2 = _run_hybrid_deep_scraper(
@@ -492,6 +495,19 @@ def build_hybrid_deep_dataset(job, db: Session, config: dict, add_log) -> tuple:
     add_log(f"[HybridDeep] Engineering trade features: {sel_trade}")
     df = calculate_trade_tick_features(df, sel_trade)
 
+    # ── Step 4.5: Predatory Liquidity Pipeline (PLP) Features ────────────────
+    if sel_plp:
+        add_log(f"[HybridDeep] Calculating {len(sel_plp)} Predatory Liquidity Pipeline (PLP) features...")
+        try:
+            from app.services.predatory_liquidity_pipeline import calculate_plp_features
+            plp_df = calculate_plp_features(df, sel_plp)
+            for col in plp_df.columns:
+                if col not in df.columns:
+                    df[col] = plp_df[col]
+            add_log(f"[HybridDeep] Successfully engineered {len(plp_df.columns)} PLP features.")
+        except Exception as e:
+            add_log(f"[HybridDeep] ⚠️ PLP feature generation failed (non-fatal): {e}")
+
     # ── Step 5: Target Variable ────────────────────────────────────────────────
     # Use microprice > price fallback for Close
     if 'Close' not in df.columns:
@@ -525,6 +541,8 @@ def build_hybrid_deep_dataset(job, db: Session, config: dict, add_log) -> tuple:
         elif col in _KNOWN_TRADE_FEATURES:
             if col in sel_trade:
                 final_features.append(col)
+        elif sel_plp and col in sel_plp:
+            final_features.append(col)
         # All other columns (e.g., mid_price from merge) are excluded cleanly
 
     if not final_features:
@@ -532,9 +550,10 @@ def build_hybrid_deep_dataset(job, db: Session, config: dict, add_log) -> tuple:
 
     l2_cnt    = sum(1 for f in final_features if f in _KNOWN_L2_FEATURES)
     trade_cnt = sum(1 for f in final_features if f in _KNOWN_TRADE_FEATURES)
+    plp_cnt   = sum(1 for f in final_features if sel_plp and f in sel_plp)
     add_log(
         f"[HybridDeep] Feature set: {len(final_features)} total "
-        f"(L2: {l2_cnt} | Trade Tick: {trade_cnt})"
+        f"(L2: {l2_cnt} | Trade Tick: {trade_cnt} | PLP: {plp_cnt})"
     )
 
     # ── Broadcast preview to frontend visualizer ───────────────────────────────

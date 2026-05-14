@@ -93,6 +93,7 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session) -> dict:
     timeframe    = metadata.get("timeframe", "1h")
     symbol       = symbol_override or metadata.get("symbol", "BTC/USDT")
     prediction_target = metadata.get("prediction_target", "classification")
+    plp_features = metadata.get("plp_features", [])
 
     if not features:
         raise ValueError("No features found in model metadata.")
@@ -109,7 +110,7 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session) -> dict:
             scaler_x = joblib.load(scaler_path_fallback)
 
     # ── 4. Fetch Live Data ───────────────────────────────────────────────────
-    if dataset_type == "l2_orderbook":
+    if dataset_type in ("l2_orderbook", "hybrid_deep", "hybrid"):
         df = _fetch_live_l2_data(symbol, db)
     else:
         df = _fetch_live_ohlcv(symbol, timeframe)
@@ -117,9 +118,19 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session) -> dict:
     if df is None or df.empty:
         raise RuntimeError(f"Could not fetch live data for {symbol}.")
 
-    # ── 5. Calculate Indicators ──────────────────────────────────────────────
+    # ── 5. Calculate Indicators & PLP ────────────────────────────────────────
     if dataset_type not in ("l2_orderbook", "hybrid_deep"):
         df = _calculate_indicators(df, indicators)
+        
+    if plp_features:
+        try:
+            from app.services.predatory_liquidity_pipeline import calculate_plp_features
+            plp_df = calculate_plp_features(df, plp_features)
+            for col in plp_df.columns:
+                if col not in df.columns:
+                    df[col] = plp_df[col]
+        except Exception as e:
+            print(f"[ml_predictor] Failed to calculate PLP features: {e}")
 
     # ── 6. Prepare Feature Row ───────────────────────────────────────────────
     # Take the last available row for prediction

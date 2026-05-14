@@ -1538,7 +1538,8 @@ def train_model_task(job_id: str, db: Session):
             "prediction_target":prediction_target,
             "algorithm":        job.algorithm,
             "scaler_path":      scaler_save_path,
-            "cv_result":        cv_result
+            "cv_result":        cv_result,
+            "plp_features":     config.get("plp_features", [])
         }
         with open(metadata_path, "w") as f:
             json.dump(metadata_payload, f)
