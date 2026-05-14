@@ -395,24 +395,23 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
     };
 
     return (
-        <div className="h-full flex flex-col space-y-6 relative overflow-hidden">
+        <div className="h-full flex flex-col space-y-3 relative overflow-hidden">
             {/* Background Neon Orbs */}
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-brand-primary/20 blur-[120px] rounded-full pointer-events-none"></div>
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-purple-600/20 blur-[120px] rounded-full pointer-events-none"></div>
 
-            <header className="mb-4">
-                <div>
-                    <h2 className="text-3xl font-black text-white flex items-center gap-3">
-                        <BrainCircuit className="w-8 h-8 text-cyan-400" />
-                        {isRetrainMode ? "Model Retraining Studio" : "Machine Learning Engine Core"}
-                        {isRetrainMode && <div className="w-2 h-2 bg-purple-500 rounded-full animate-ping ml-2"></div>}
-                    </h2>
-                    <p className="text-slate-400 mt-1 text-sm font-medium tracking-wide">
-                        {isRetrainMode 
-                            ? `Fine-tuning existing model. Add new features to increase intelligence.`
-                            : `Advanced L2/OHLCV Machine Learning Synchronization Studio.`}
-                    </p>
-                </div>
+            <header className="flex items-center gap-4 z-10 px-2 mt-2">
+                <h2 className="text-xl font-black text-white flex items-center gap-2">
+                    <BrainCircuit className="w-5 h-5 text-cyan-400" />
+                    {isRetrainMode ? "Model Retraining Studio" : "Machine Learning Engine Core"}
+                    {isRetrainMode && <div className="w-1.5 h-1.5 bg-purple-500 rounded-full animate-ping ml-2"></div>}
+                </h2>
+                <div className="w-px h-4 bg-white/20"></div>
+                <p className="text-slate-400 text-xs font-medium tracking-wide">
+                    {isRetrainMode 
+                        ? `Fine-tuning existing model. Add new features to increase intelligence.`
+                        : `Advanced L2/OHLCV Machine Learning Synchronization Studio.`}
+                </p>
             </header>
 
             <div className="flex-1 flex flex-col min-h-0 relative z-10">
