@@ -1354,10 +1354,56 @@ def train_model_task(job_id: str, db: Session):
                 add_log(f"❌ Advanced Transformer Error: {e}")
                 raise e
 
-        elif job.algorithm == "PPO-RL":
-            add_log("🚀 Routing to Advanced ML Engine: PPO-RL...")
+        elif job.algorithm == "TCN":
+            add_log("🚀 Routing to Advanced ML Engine: TCN...")
             try:
-                model, model_path, metrics = AdvancedMLEngine.train_ppo_rl(
+                model, model_path, metrics = AdvancedMLEngine.train_tcn(
+                    job, df, features, db, add_log,
+                    previous_model_path=_prev_path if is_fine_tune else None
+                )
+                final_latency = 3.0
+                final_accuracy = metrics.get("accuracy", metrics.get("mse", 0))
+                final_f1 = metrics.get("f1_score", metrics.get("rmse", 0))
+                add_log("✅ Advanced TCN Training complete.")
+            except Exception as e:
+                add_log(f"❌ Advanced TCN Error: {e}")
+                raise e
+
+        elif job.algorithm == "TabNet":
+            add_log("🚀 Routing to Advanced ML Engine: TabNet...")
+            try:
+                model, model_path, metrics = AdvancedMLEngine.train_tabnet(
+                    job, df, features, db, add_log,
+                    previous_model_path=_prev_path if is_fine_tune else None
+                )
+                final_latency = 4.0
+                final_accuracy = metrics.get("accuracy", metrics.get("mse", 0))
+                final_f1 = metrics.get("f1_score", metrics.get("rmse", 0))
+                add_log("✅ Advanced TabNet Training complete.")
+            except Exception as e:
+                add_log(f"❌ Advanced TabNet Error: {e}")
+                raise e
+
+        elif job.algorithm == "Auto-Encoder":
+            add_log("🚀 Routing to Advanced ML Engine: Auto-Encoder (Anomaly Detection)...")
+            try:
+                model, model_path, metrics = AdvancedMLEngine.train_autoencoder(
+                    job, df, features, db, add_log,
+                    previous_model_path=_prev_path if is_fine_tune else None
+                )
+                final_latency = 2.0
+                final_accuracy = metrics.get("accuracy", 1.0)
+                final_f1 = metrics.get("anomaly_threshold", 0)  # Store threshold here temporarily
+                final_explainability = {"anomaly_threshold": final_f1, "mse": metrics.get("mse")}
+                add_log("✅ Advanced Auto-Encoder Training complete.")
+            except Exception as e:
+                add_log(f"❌ Advanced Auto-Encoder Error: {e}")
+                raise e
+
+        elif job.algorithm in ["PPO-RL", "SAC-RL"]:
+            add_log(f"🚀 Routing to Advanced ML Engine: {job.algorithm}...")
+            try:
+                model, model_path, metrics = AdvancedMLEngine.train_rl(
                     job, df, features, db, add_log,
                     previous_model_path=_prev_path if is_fine_tune else None
                 )
@@ -1365,9 +1411,9 @@ def train_model_task(job_id: str, db: Session):
                 final_accuracy = metrics.get("win_rate", 0) / 100.0  # Normalize to 0-1
                 final_f1 = metrics.get("sharpe_ratio", 0)  # Using Sharpe for F1/Score field
                 final_explainability = metrics
-                add_log("✅ Advanced RL Training complete.")
+                add_log(f"✅ Advanced {job.algorithm} Training complete.")
             except Exception as e:
-                add_log(f"❌ Advanced RL Error: {e}")
+                add_log(f"❌ Advanced {job.algorithm} Error: {e}")
                 raise e
 
         else:
@@ -1380,7 +1426,7 @@ def train_model_task(job_id: str, db: Session):
                 is_cls = (prediction_target == "classification")
                 final_explainability = generate_real_explainability(model, X_test, y_test.ravel(), y_pred, features, is_classification=is_cls)
             
-            elif job.algorithm in ["LSTM", "GRU", "1D-CNN", "DeepLOB"]:
+            elif job.algorithm in ["LSTM", "GRU", "1D-CNN", "DeepLOB", "TCN", "TabNet"]:
                 add_log("Generating Basic Explainability Metrics for Deep Learning model...")
                 import torch
                 is_cls = (prediction_target == "classification")
@@ -1432,7 +1478,7 @@ def train_model_task(job_id: str, db: Session):
                         X_permuted = X_test.copy()
                         np.random.shuffle(X_permuted[:, feat_idx])
                         with torch.no_grad():
-                            if job.algorithm in ["LSTM", "GRU"]:
+                            if job.algorithm in ["LSTM", "GRU", "TCN"]:
                                 X_perm_t = torch.FloatTensor(X_permuted).unsqueeze(1)
                             else:
                                 X_perm_t = torch.FloatTensor(X_permuted)

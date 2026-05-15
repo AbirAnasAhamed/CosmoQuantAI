@@ -153,10 +153,50 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
         { name: 'Kitchen Sink', icon: '🏆', list: ['SMC FVG', 'ICT Killzones', 'Order Blocks', 'Market Structure', 'Wick Rejection', 'VWAP_SD', 'RSI', 'Stoch', 'ROC', 'CCI', 'WillR', 'MFI', 'MACD', 'EMA', 'SMA', 'ADX', 'Supertrend', 'Parabolic SAR', 'BBANDS', 'ATR', 'Keltner Channel', 'Donchian Channel', 'OBV', 'VWAP', 'CMF', 'ADOSC'] }
     ];
     const ALGORITHM_CATEGORIES = [
-        { name: "Indicator & Tabular Engines", desc: "Fastest. Best for Technical Indicators & L2 Snapshots", algos: ['Random Forest', 'XGBoost', 'LightGBM', 'CatBoost'] },
-        { name: "Trend & Sequence Memory", desc: "Best for tracking long-term trends & historical patterns", algos: ['LSTM', 'GRU'] },
-        { name: "Micro-Pattern & Scalping", desc: "Best for raw Orderbook flow & spatial feature extraction", algos: ['1D-CNN', 'DeepLOB', 'Transformer'] },
-        { name: "Autonomous Agents", desc: "Self-learning environments (Reward-based)", algos: ['PPO-RL'] }
+        { 
+            name: "Indicator & Tabular Engines", 
+            desc: "Fastest. Best for Technical Indicators & L2 Snapshots", 
+            algos: [
+                { id: 'Random Forest', type: 'Supervised', desc: 'Ensemble of decision trees' },
+                { id: 'XGBoost', type: 'Supervised', desc: 'Optimized gradient boosting' },
+                { id: 'LightGBM', type: 'Supervised', desc: 'Fast, distributed gradient boosting' },
+                { id: 'CatBoost', type: 'Supervised', desc: 'Great for categorical and tabular data' },
+                { id: 'TabNet', type: 'Supervised', desc: 'Deep learning for tabular data with attention' }
+            ] 
+        },
+        { 
+            name: "Trend & Sequence Memory", 
+            desc: "Best for tracking long-term trends & historical patterns", 
+            algos: [
+                { id: 'LSTM', type: 'Supervised', desc: 'Long Short-Term Memory networks' },
+                { id: 'GRU', type: 'Supervised', desc: 'Gated Recurrent Units, faster than LSTM' },
+                { id: 'TCN', type: 'Supervised', desc: 'Temporal Convolutional Network' }
+            ] 
+        },
+        { 
+            name: "Micro-Pattern & Scalping", 
+            desc: "Best for raw Orderbook flow & spatial feature extraction", 
+            algos: [
+                { id: '1D-CNN', type: 'Supervised', desc: '1D Convolutional Neural Network' },
+                { id: 'DeepLOB', type: 'Supervised', desc: 'Deep learning model for Limit Order Books' },
+                { id: 'Transformer', type: 'Supervised', desc: 'Attention-based sequence modeling' }
+            ] 
+        },
+        { 
+            name: "Autonomous Agents", 
+            desc: "Self-learning environments (Reward-based)", 
+            algos: [
+                { id: 'PPO-RL', type: 'Reinforcement Learning', desc: 'Proximal Policy Optimization' },
+                { id: 'SAC-RL', type: 'Reinforcement Learning', desc: 'Soft Actor-Critic for continuous action' }
+            ] 
+        },
+        { 
+            name: "Anomaly Detection", 
+            desc: "Unsupervised learning for crash/pump detection", 
+            algos: [
+                { id: 'Auto-Encoder', type: 'Unsupervised', desc: 'Finds anomalies via reconstruction loss' }
+            ] 
+        }
     ];
     const TIMEFRAMES = ['1s', '5s', '1m', '5m', '15m', '1h', '4h', '1d'];
 
@@ -591,16 +631,22 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                         <div className="grid grid-cols-1 gap-2">
                                             {category.algos.map(algo => (
                                                 <div 
-                                                    key={algo} 
-                                                    onClick={() => !isTraining && setAlgorithm(algo)}
-                                                    className={`flex items-center p-3 rounded-xl border cursor-pointer transition-all duration-300 relative overflow-hidden ${algorithm === algo ? (isRetrainMode && initialAlgorithm === algo ? 'border-purple-400 bg-purple-500/20 shadow-[0_0_20px_rgba(168,85,247,0.3)]' : 'border-purple-500 bg-purple-500/10 shadow-[0_0_15px_rgba(168,85,247,0.15)]') : 'border-white/10 bg-white/5 hover:bg-white/10'} ${isTraining ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                    key={algo.id} 
+                                                    onClick={() => !isTraining && setAlgorithm(algo.id)}
+                                                    className={`flex items-start p-3 rounded-xl border cursor-pointer transition-all duration-300 relative overflow-hidden ${algorithm === algo.id ? (isRetrainMode && initialAlgorithm === algo.id ? 'border-purple-400 bg-purple-500/20 shadow-[0_0_20px_rgba(168,85,247,0.3)]' : 'border-purple-500 bg-purple-500/10 shadow-[0_0_15px_rgba(168,85,247,0.15)]') : 'border-white/10 bg-white/5 hover:bg-white/10'} ${isTraining ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                 >
-                                                    <div className={`w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 ${algorithm === algo ? 'border-purple-400' : 'border-white/30'}`}>
-                                                        {algorithm === algo && <div className="w-1.5 h-1.5 rounded-full bg-purple-400 shadow-[0_0_5px_#a855f7]"></div>}
+                                                    <div className={`mt-1 w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 ${algorithm === algo.id ? 'border-purple-400' : 'border-white/30'}`}>
+                                                        {algorithm === algo.id && <div className="w-1.5 h-1.5 rounded-full bg-purple-400 shadow-[0_0_5px_#a855f7]"></div>}
                                                     </div>
-                                                    <span className={`ml-3 text-sm font-semibold tracking-wide ${algorithm === algo && isRetrainMode && initialAlgorithm === algo ? 'text-purple-300' : 'text-slate-200'}`}>{algo}</span>
-                                                    {isRetrainMode && initialAlgorithm === algo && (
-                                                        <span className="absolute right-3 text-[9px] font-black uppercase text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/30 flex items-center gap-1">
+                                                    <div className="ml-3 flex-1 pr-16">
+                                                        <div className="flex items-center gap-2">
+                                                            <span className={`text-sm font-semibold tracking-wide ${algorithm === algo.id && isRetrainMode && initialAlgorithm === algo.id ? 'text-purple-300' : 'text-slate-200'}`}>{algo.id}</span>
+                                                            <span className="text-[8px] font-bold text-slate-400 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded uppercase tracking-widest">{algo.type}</span>
+                                                        </div>
+                                                        <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">{algo.desc}</p>
+                                                    </div>
+                                                    {isRetrainMode && initialAlgorithm === algo.id && (
+                                                        <span className="absolute top-3 right-3 text-[9px] font-black uppercase text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/30 flex items-center gap-1">
                                                             <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-ping"></div> Original
                                                         </span>
                                                     )}

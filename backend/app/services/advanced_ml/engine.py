@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
-from stable_baselines3 import PPO
+from stable_baselines3 import PPO, SAC
 from stable_baselines3.common.vec_env import DummyVecEnv
 import pandas as pd
 import numpy as np
@@ -13,7 +13,7 @@ from datetime import datetime
 from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score, mean_squared_error, mean_absolute_error
 
 from app.services.advanced_ml.trading_env import AdvancedTradingEnv
-from app.services.advanced_ml.architectures import TimeSeriesTransformer, TransformerRLFeatureExtractor
+from app.services.advanced_ml.architectures import TimeSeriesTransformer, TransformerRLFeatureExtractor, TCNModel, TabNetEncoder, AutoEncoder
 from app.services.advanced_ml.data_handler import AdvancedDataHandler
 from app import models
 
@@ -123,7 +123,206 @@ class AdvancedMLEngine:
         return model, model_path, metrics
 
     @staticmethod
-    def train_ppo_rl(job, df, features, db, add_log, previous_model_path=None):
+    def train_tcn(job, df, features, db, add_log, previous_model_path=None):
+        """Supervised Training for TCN Model."""
+        config = job.config or {}
+        seq_len = int(config.get("sequence_length", 30))
+        epochs = int(config.get("epochs", 10))
+        lr = float(config.get("learning_rate", 0.001))
+        batch_size = 64
+        
+        add_log(f"Preparing sequence data for TCN (Window Size: {seq_len})...")
+        X, y = AdvancedDataHandler.create_sequences(df, features, sequence_length=seq_len)
+        
+        split = int(len(X) * 0.8)
+        X_train, X_test = torch.FloatTensor(X[:split]), torch.FloatTensor(X[split:])
+        y_train, y_test = torch.FloatTensor(y[:split]).view(-1, 1), torch.FloatTensor(y[split:]).view(-1, 1)
+        
+        train_loader = DataLoader(TensorDataset(X_train, y_train), batch_size=batch_size, shuffle=True)
+        
+        add_log(f"Initializing TCN Architecture (Input Dim: {len(features)})...")
+        model = TCNModel(input_size=len(features), num_channels=[32, 64, 128], output_size=1)
+        
+        if previous_model_path and os.path.exists(previous_model_path):
+            try:
+                model.load_state_dict(torch.load(previous_model_path, map_location='cpu'))
+                lr = lr * 0.1
+                add_log(f"✅ Fine-Tuning TCN from checkpoint (LR: {lr:.6f})")
+            except Exception as e:
+                add_log(f"⚠️ TCN weight load failed ({e}), training fresh.")
+        
+        criterion = nn.MSELoss() if config.get("prediction_target") != "classification" else nn.BCEWithLogitsLoss()
+        optimizer = optim.Adam(model.parameters(), lr=lr)
+        
+        for epoch in range(epochs):
+            model.train()
+            epoch_loss = 0
+            for batch_X, batch_y in train_loader:
+                optimizer.zero_grad()
+                outputs = model(batch_X)
+                loss = criterion(outputs, batch_y)
+                loss.backward()
+                optimizer.step()
+                epoch_loss += loss.item()
+            
+            job.progress = 40 + (50 * (epoch + 1) / epochs)
+            db.commit()
+            add_log(f"Epoch [{epoch+1}/{epochs}], Avg Loss: {(epoch_loss / len(train_loader)):.6f}")
+            db.refresh(job)
+            if job.status == models.TrainingStatus.FAILED and job.error_message and "cancelled" in job.error_message.lower():
+                raise Exception("Training cancelled by user.")
+            
+        model_filename = f"model_{job.id}.pt"
+        model_dir = os.path.join("uploads", "models", f"job_{job.id}")
+        os.makedirs(model_dir, exist_ok=True)
+        model_path = os.path.join(model_dir, model_filename)
+        torch.save(model.state_dict(), model_path)
+        
+        model.eval()
+        with torch.no_grad():
+            test_outputs = model(X_test)
+            preds = (torch.sigmoid(test_outputs).squeeze() > 0.5).int().numpy() if config.get("prediction_target") == "classification" else test_outputs.squeeze().numpy()
+            y_true = y_test.int().numpy() if config.get("prediction_target") == "classification" else y_test.squeeze().numpy()
+            if config.get("prediction_target") == "classification":
+                metrics = { "accuracy": float(accuracy_score(y_true, preds)), "f1_score": float(f1_score(y_true, preds, zero_division=0)) }
+            else:
+                metrics = { "mse": float(mean_squared_error(y_true, preds)), "rmse": float(np.sqrt(mean_squared_error(y_true, preds))) }
+            add_log(f"[METRICS] {json.dumps(metrics)}")
+        
+        return model, model_path, metrics
+
+    @staticmethod
+    def train_tabnet(job, df, features, db, add_log, previous_model_path=None):
+        """Supervised Training for TabNet Model."""
+        config = job.config or {}
+        epochs = int(config.get("epochs", 10))
+        lr = float(config.get("learning_rate", 0.01))
+        batch_size = 64
+        
+        X = df[features].fillna(0).values
+        y = np.where(df['Target_Up'] == 1, 1, 0) if config.get("prediction_target") == "classification" else df['Target_Return'].fillna(0).values
+        
+        split = int(len(X) * 0.8)
+        X_train, X_test = torch.FloatTensor(X[:split]), torch.FloatTensor(X[split:])
+        y_train, y_test = torch.FloatTensor(y[:split]).view(-1, 1), torch.FloatTensor(y[split:]).view(-1, 1)
+        
+        train_loader = DataLoader(TensorDataset(X_train, y_train), batch_size=batch_size, shuffle=True)
+        
+        model = TabNetEncoder(input_dim=len(features), output_dim=1)
+        
+        if previous_model_path and os.path.exists(previous_model_path):
+            try:
+                model.load_state_dict(torch.load(previous_model_path, map_location='cpu'))
+                lr = lr * 0.1
+                add_log("✅ Fine-Tuning TabNet from checkpoint")
+            except Exception:
+                pass
+                
+        criterion = nn.MSELoss() if config.get("prediction_target") != "classification" else nn.BCEWithLogitsLoss()
+        optimizer = optim.Adam(model.parameters(), lr=lr)
+        
+        for epoch in range(epochs):
+            model.train()
+            epoch_loss = 0
+            for batch_X, batch_y in train_loader:
+                optimizer.zero_grad()
+                outputs = model(batch_X)
+                loss = criterion(outputs, batch_y)
+                loss.backward()
+                optimizer.step()
+                epoch_loss += loss.item()
+            job.progress = 40 + (50 * (epoch + 1) / epochs)
+            db.commit()
+            add_log(f"Epoch [{epoch+1}/{epochs}], Avg Loss: {(epoch_loss / len(train_loader)):.6f}")
+            db.refresh(job)
+            if job.status == models.TrainingStatus.FAILED and job.error_message and "cancelled" in job.error_message.lower():
+                raise Exception("Training cancelled by user.")
+                
+        model_filename = f"model_{job.id}.pt"
+        model_dir = os.path.join("uploads", "models", f"job_{job.id}")
+        os.makedirs(model_dir, exist_ok=True)
+        model_path = os.path.join(model_dir, model_filename)
+        torch.save(model.state_dict(), model_path)
+        
+        model.eval()
+        with torch.no_grad():
+            test_outputs = model(X_test)
+            preds = (torch.sigmoid(test_outputs).squeeze() > 0.5).int().numpy() if config.get("prediction_target") == "classification" else test_outputs.squeeze().numpy()
+            y_true = y_test.int().numpy() if config.get("prediction_target") == "classification" else y_test.squeeze().numpy()
+            metrics = { "accuracy": float(accuracy_score(y_true, preds)) } if config.get("prediction_target") == "classification" else { "mse": float(mean_squared_error(y_true, preds)) }
+            add_log(f"[METRICS] {json.dumps(metrics)}")
+            
+        return model, model_path, metrics
+
+    @staticmethod
+    def train_autoencoder(job, df, features, db, add_log, previous_model_path=None):
+        """Unsupervised Training for AutoEncoder (Anomaly Detection)."""
+        config = job.config or {}
+        epochs = int(config.get("epochs", 20))
+        lr = float(config.get("learning_rate", 0.001))
+        batch_size = 64
+        
+        X = df[features].fillna(0).values
+        # AutoEncoder reconstructs its own input
+        X_tensor = torch.FloatTensor(X)
+        
+        train_loader = DataLoader(TensorDataset(X_tensor, X_tensor), batch_size=batch_size, shuffle=True)
+        
+        model = AutoEncoder(input_dim=len(features), hidden_dim=32)
+        
+        if previous_model_path and os.path.exists(previous_model_path):
+            try:
+                model.load_state_dict(torch.load(previous_model_path, map_location='cpu'))
+                add_log("✅ Fine-Tuning AutoEncoder")
+            except Exception:
+                pass
+                
+        criterion = nn.MSELoss()
+        optimizer = optim.Adam(model.parameters(), lr=lr)
+        
+        for epoch in range(epochs):
+            model.train()
+            epoch_loss = 0
+            for batch_X, _ in train_loader:
+                optimizer.zero_grad()
+                outputs = model(batch_X)
+                loss = criterion(outputs, batch_X)
+                loss.backward()
+                optimizer.step()
+                epoch_loss += loss.item()
+            job.progress = 40 + (50 * (epoch + 1) / epochs)
+            db.commit()
+            add_log(f"Epoch [{epoch+1}/{epochs}], Reconstruction Loss: {(epoch_loss / len(train_loader)):.6f}")
+            db.refresh(job)
+            if job.status == models.TrainingStatus.FAILED and job.error_message and "cancelled" in job.error_message.lower():
+                raise Exception("Training cancelled by user.")
+                
+        model_filename = f"model_{job.id}.pt"
+        model_dir = os.path.join("uploads", "models", f"job_{job.id}")
+        os.makedirs(model_dir, exist_ok=True)
+        model_path = os.path.join(model_dir, model_filename)
+        torch.save(model.state_dict(), model_path)
+        
+        # Calculate Anomaly Threshold (Mean + 2 StdDev of reconstruction error)
+        model.eval()
+        with torch.no_grad():
+            reconstructed = model(X_tensor)
+            mse = torch.mean((reconstructed - X_tensor) ** 2, dim=1).numpy()
+            threshold = float(np.mean(mse) + 2 * np.std(mse))
+            add_log(f"Anomaly Threshold set to: {threshold:.6f}")
+            
+            # Save threshold in metrics
+            metrics = {
+                "accuracy": 1.0,  # Dummy value for UI
+                "mse": float(np.mean(mse)),
+                "anomaly_threshold": threshold
+            }
+            add_log(f"[METRICS] {json.dumps(metrics)}")
+            
+        return model, model_path, metrics
+
+    @staticmethod
+    def train_rl(job, df, features, db, add_log, previous_model_path=None):
         """Reinforcement Learning Training for PPO Agent."""
         config = job.config or {}
         epochs = int(config.get("epochs", 10))
@@ -157,19 +356,26 @@ class AdvancedMLEngine:
         # ── Fine-Tune: continue from previous checkpoint ──────────────────
         if previous_model_path and os.path.exists(previous_model_path):
             try:
-                add_log(f"✅ Continuing PPO-RL from checkpoint: {previous_model_path}")
-                model = PPO.load(previous_model_path, env=env, learning_rate=lr)
+                add_log(f"✅ Continuing {job.algorithm} from checkpoint: {previous_model_path}")
+                if job.algorithm == "SAC-RL":
+                    model = SAC.load(previous_model_path, env=env, learning_rate=lr)
+                else:
+                    model = PPO.load(previous_model_path, env=env, learning_rate=lr)
                 model.set_env(env)
-                add_log(f"🔄 PPO Agent loaded. Continuing training for {total_timesteps} more timesteps...")
+                add_log(f"🔄 Agent loaded. Continuing training for {total_timesteps} more timesteps...")
             except Exception as _ft_e:
-                add_log(f"⚠️ PPO checkpoint load failed ({_ft_e}), starting fresh agent.")
-                add_log(f"Initializing fresh PPO Agent with MLP Policy...")
-                model = PPO("MlpPolicy", env, verbose=0, learning_rate=lr,
-                            tensorboard_log="./logs/ppo_trading/")
+                add_log(f"⚠️ {job.algorithm} checkpoint load failed ({_ft_e}), starting fresh agent.")
+                add_log(f"Initializing fresh {job.algorithm} Agent with MLP Policy...")
+                if job.algorithm == "SAC-RL":
+                    model = SAC("MlpPolicy", env, verbose=0, learning_rate=lr, tensorboard_log=f"./logs/{job.algorithm.lower()}_trading/")
+                else:
+                    model = PPO("MlpPolicy", env, verbose=0, learning_rate=lr, tensorboard_log=f"./logs/{job.algorithm.lower()}_trading/")
         else:
-            add_log("Initializing fresh PPO Agent with MLP Policy...")
-            model = PPO("MlpPolicy", env, verbose=0, learning_rate=lr,
-                        tensorboard_log="./logs/ppo_trading/")
+            add_log(f"Initializing fresh {job.algorithm} Agent with MLP Policy...")
+            if job.algorithm == "SAC-RL":
+                model = SAC("MlpPolicy", env, verbose=0, learning_rate=lr, tensorboard_log=f"./logs/{job.algorithm.lower()}_trading/")
+            else:
+                model = PPO("MlpPolicy", env, verbose=0, learning_rate=lr, tensorboard_log=f"./logs/{job.algorithm.lower()}_trading/")
         
         add_log(f"Starting RL Training (Total Timesteps: {total_timesteps})...")
         

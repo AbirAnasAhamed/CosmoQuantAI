@@ -36,7 +36,7 @@ from sqlalchemy.orm import Session
 
 # ─── Constants ───────────────────────────────────────────────────────────────
 
-DEEP_LEARNING_ALGOS = {"LSTM", "GRU", "1D-CNN", "DeepLOB", "Transformer"}
+DEEP_LEARNING_ALGOS = {"LSTM", "GRU", "1D-CNN", "DeepLOB", "Transformer", "TCN", "TabNet", "Auto-Encoder"}
 SKLEARN_ALGOS       = {"Random Forest", "XGBoost", "LightGBM", "CatBoost"}
 
 
@@ -162,16 +162,23 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session) -> dict:
     # ── 7. Scale ─────────────────────────────────────────────────────────────
     if scaler_x is not None:
         try:
-            last_row_scaled = scaler_x.transform(last_row)
-        except Exception:
-            last_row_scaled = last_row
-    else:
-        last_row_scaled = last_row
+    # ── 5. Run Inference ─────────────────────────────────────────────────────
+    try:
+        X = df[features].fillna(0).values[-1].reshape(1, -1)
+        
+        # Scale
+        if scaler_x is not None:
+            X = scaler_x.transform(X)
 
-    # ── 8. Run Inference ─────────────────────────────────────────────────────
-    signal_str, confidence = _run_inference(
-        model_path, algorithm, last_row_scaled, prediction_target, features
-    )
+        # Extract anomaly threshold for Auto-Encoder
+        anomaly_threshold = None
+        if version.explainability and isinstance(version.explainability, dict):
+            anomaly_threshold = version.explainability.get("anomaly_threshold")
+
+        signal_str, confidence = _run_inference(model_path, algorithm, X, prediction_target, features, anomaly_threshold)
+    except Exception as e:
+        print(f"[ml_predictor] Inference error: {e}")
+        signal_str, confidence = "HOLD", 0.0
 
     return {
         "signal":     signal_str,
@@ -304,17 +311,17 @@ def _calculate_indicators(df: pd.DataFrame, indicators: list) -> pd.DataFrame:
     return df
 
 
-def _run_inference(model_path: str, algorithm: str, X: np.ndarray, prediction_target: str, features: list = None):
+def _run_inference(model_path: str, algorithm: str, X: np.ndarray, prediction_target: str, features: list = None, anomaly_threshold: float = None):
     """
     Load model and run inference. Returns (signal_str, confidence).
     signal_str : "BUY", "SELL", or "HOLD"
     confidence : 0.0 – 1.0
     """
     if algorithm in DEEP_LEARNING_ALGOS:
-        return _infer_torch(model_path, algorithm, X, prediction_target)
+        return _infer_torch(model_path, algorithm, X, prediction_target, anomaly_threshold)
     elif algorithm in SKLEARN_ALGOS:
         return _infer_sklearn(model_path, X, prediction_target, features)
-    elif algorithm == "PPO-RL":
+    elif algorithm in ["PPO-RL", "SAC-RL"]:
         return "HOLD", 0.5
     else:
         # Unknown — try sklearn first, then torch
@@ -323,7 +330,7 @@ def _run_inference(model_path: str, algorithm: str, X: np.ndarray, prediction_ta
         except Exception:
             try:
                 pt_path = model_path.replace(".pkl", ".pt")
-                return _infer_torch(pt_path, algorithm, X, prediction_target)
+                return _infer_torch(pt_path, algorithm, X, prediction_target, anomaly_threshold)
             except Exception:
                 return "HOLD", 0.5
 
@@ -360,10 +367,11 @@ def _infer_sklearn(model_path: str, X: np.ndarray, prediction_target: str, featu
     return signal_str, confidence
 
 
-def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_target: str):
+def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_target: str, anomaly_threshold: float = None):
     """Inference for PyTorch models. Reconstructs same tiny architecture as training."""
     import torch
     import torch.nn as nn
+    from app.services.advanced_ml.architectures import TCNModel, TabNetEncoder, AutoEncoder
 
     pt_path = model_path if model_path.endswith(".pt") else model_path.replace(".pkl", ".pt")
     if not os.path.exists(pt_path):
@@ -430,6 +438,18 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
         model = DeepLOB(input_size)
         X_t = torch.FloatTensor(X)
 
+    elif algorithm == "TCN":
+        model = TCNModel(input_size=input_size, num_channels=[32, 64, 128], output_size=1)
+        X_t = torch.FloatTensor(X).unsqueeze(1)
+
+    elif algorithm == "TabNet":
+        model = TabNetEncoder(input_dim=input_size, output_dim=1)
+        X_t = torch.FloatTensor(X)
+
+    elif algorithm == "Auto-Encoder":
+        model = AutoEncoder(input_dim=input_size, hidden_dim=32)
+        X_t = torch.FloatTensor(X)
+
     else:
         # Transformer or unknown — simple MLP fallback
         class MLPFallback(nn.Module):
@@ -451,14 +471,27 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
     model.eval()
 
     with torch.no_grad():
-        raw = model(X_t).numpy().flatten()[0]
+        if algorithm == "Auto-Encoder":
+            reconstructed = model(X_t)
+            raw = torch.mean((reconstructed - X_t) ** 2, dim=1).numpy().flatten()[0]
+        else:
+            raw = model(X_t).numpy().flatten()[0]
 
-    if prediction_target == "classification":
-        prob = float(1 / (1 + np.exp(-raw)))
-        signal_str = "BUY" if prob >= 0.5 else "SELL"
-        confidence = prob if prob >= 0.5 else 1 - prob
+    if algorithm == "Auto-Encoder":
+        # Check against threshold
+        if anomaly_threshold is not None and raw > anomaly_threshold:
+            signal_str = "Market can sudden crash"
+            confidence = min(0.99, float(raw / (anomaly_threshold + 1e-9))) # Scale confidence
+        else:
+            signal_str = "Market can pump heavily"
+            confidence = 0.5  # Normal market has neutral confidence in this context
     else:
-        signal_str = "BUY" if raw > 0 else "SELL"
-        confidence = min(0.95, abs(float(raw)))
+        if prediction_target == "classification":
+            prob = float(1 / (1 + np.exp(-raw)))
+            signal_str = "BUY" if prob >= 0.5 else "SELL"
+            confidence = prob if prob >= 0.5 else 1 - prob
+        else:
+            signal_str = "BUY" if raw > 0 else "SELL"
+            confidence = min(0.95, abs(float(raw)))
 
     return signal_str, confidence
