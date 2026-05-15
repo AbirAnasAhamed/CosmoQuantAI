@@ -311,12 +311,21 @@ class AdvancedMLEngine:
             reconstructed = model(X_tensor)
             mse = torch.mean((reconstructed - X_tensor) ** 2, dim=1).numpy()
             threshold = float(np.mean(mse) + 2 * np.std(mse))
+            mean_mse = float(np.mean(mse))
+            
+            # Prevent Infinity/NaN which breaks Postgres JSON parser
+            import math
+            if math.isinf(threshold) or math.isnan(threshold):
+                threshold = 1e9
+            if math.isinf(mean_mse) or math.isnan(mean_mse):
+                mean_mse = 1e9
+
             add_log(f"Anomaly Threshold set to: {threshold:.6f}")
             
             # Save threshold in metrics
             metrics = {
                 "accuracy": 1.0,  # Dummy value for UI
-                "mse": float(np.mean(mse)),
+                "mse": mean_mse,
                 "anomaly_threshold": threshold
             }
             add_log(f"[METRICS] {json.dumps(metrics)}")
