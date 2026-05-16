@@ -1015,6 +1015,11 @@ class WallHunterFuturesStrategy:
 
                 best_bid = orderbook['bids'][0][0]
                 best_ask = orderbook['asks'][0][0]
+                
+                if not best_bid or not best_ask or best_bid <= 0 or best_ask <= 0:
+                    await asyncio.sleep(0.5)
+                    continue
+                    
                 mid_price = (best_bid + best_ask) / 2
                 current_time = time.time()
 
@@ -1500,13 +1505,17 @@ class WallHunterFuturesStrategy:
 
             # Total Position Size = Amount * Leverage
             total_notional = self.amount_per_trade * self.leverage
+            if not entry_price or entry_price <= 0:
+                self.logger.error(f"❌ [FuturesHunter] Snipe Aborted: entry_price is zero or invalid ({entry_price}). Cannot calculate position size.")
+                return
             base_amount_tokens = total_notional / entry_price
             
             # Convert tokens to contracts (essential for Kucoin, OKX, Bybit, etc.)
             contract_size = 1.0
             if self.public_exchange and getattr(self.public_exchange, 'markets', None):
                 market = self.public_exchange.markets.get(self.symbol, {})
-                contract_size = market.get('contractSize', 1.0)
+                raw_cs = market.get('contractSize', 1.0)
+                contract_size = float(raw_cs) if raw_cs and float(raw_cs) > 0 else 1.0
                 
             contracts = base_amount_tokens / contract_size
             
