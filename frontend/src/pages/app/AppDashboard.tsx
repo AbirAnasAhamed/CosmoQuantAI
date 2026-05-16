@@ -1,5 +1,5 @@
-
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import * as React from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Logo, DashboardIcon, PortfolioIcon, BacktesterIcon, BotLabIcon, MarketIcon, SentimentIcon, FilingsIcon, SettingsIcon, LogoutIcon, OnChainIcon, RegimeIcon, CorrelationIcon, MLModelIcon, IndicatorStudioIcon, EducationIcon, AIFoundryIcon, AlternativeDataIcon, MLModelMarketplaceIcon, RealTimeDataIcon, QuantScreenerIcon, AlertsWatchlistIcon, AnalystResearchIcon, InstitutionalHoldingsIcon, BlockTradeDetectorIcon, UnusualOptionsActivityIcon, LiquidationMapIcon, PineScriptIcon, TokenUnlockIcon, AssistantIcon, GeneralIcon, TradingIcon, AlphaEngineIcon, StudioIcon, ChevronDownIcon, UserCircleIcon, CreditCardIcon, KeyIcon, TaskManagerIcon } from '@/constants';
 // FIX: Updated AppView import to break circular dependency.
 import { Link, useLocation, useNavigate } from 'react-router-dom';
@@ -154,7 +154,7 @@ const Sidebar: React.FC<{
                 { view: AppView.GRID_BOT, icon: <Layers />, label: 'Grid Bot' },
                 { view: AppView.LEAD_LAG_BOT, icon: <LineChart />, label: 'Lead-Lag Bot' },
                 { view: AppView.BOT_LAB, icon: <BotLabIcon />, label: 'Bot Laboratory' },
-                { view: AppView.ORDER_FLOW_HEATMAP, icon: <Activity />, label: 'Order Flow Heatmap' },
+                { view: AppView.ORDER_FLOW_HEATMAP, icon: <Activity />, label: 'Wallhunter_Bot' },
                 { view: AppView.AI_FOUNDRY, icon: <AIFoundryIcon />, label: 'AI Foundry' },
                 { view: AppView.CUSTOM_ML_MODELS, icon: <MLModelIcon />, label: 'ML Registry' },
                 { view: AppView.MODEL_TRAINING_STUDIO, icon: <Activity />, label: 'Training Studio' },

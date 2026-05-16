@@ -1298,7 +1298,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   background: rgba(255, 255, 255, 0.2);
 }
 
-/* Page-level scrollbar for Order Flow Heatmap */
+/* Page-level scrollbar for Level2_Wallhunter_Bot */
 .page-scrollbar::-webkit-scrollbar {
   width: 8px;
 }

@@ -1,5 +1,5 @@
 // Fix: Imported React to use React.ReactNode type.
-import React from 'react';
+import * as React from 'react';
 
 // Add this to avoid TS errors for window.ethereum
 declare global {
@@ -664,7 +664,7 @@ export enum AppView {
 
   // ✅ New Market Depth View
   MARKET_DEPTH = 'Market Depth',
-  ORDER_FLOW_HEATMAP = 'Order Flow Heatmap',
+  ORDER_FLOW_HEATMAP = 'Wallhunter_Bot',
 
 }
 

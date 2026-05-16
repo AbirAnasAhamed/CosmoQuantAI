@@ -21,6 +21,10 @@
       ]
     },
     "allowImportingTsExtensions": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "typeRoots": ["./node_modules/@types"],
+    "types": ["node", "react", "react-dom", "geojson", "estree"],
     "noEmit": true
   },
   "include": [

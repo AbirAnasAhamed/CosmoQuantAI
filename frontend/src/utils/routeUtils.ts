@@ -42,7 +42,7 @@ export const getPathFromView = (view: AppView): string => {
     [AppView.TASK_MANAGER]: '/task-manager',
     [AppView.EVENT_DRIVEN]: '/event-driven-simulator',
     [AppView.MARKET_DEPTH]: '/market-depth',
-    [AppView.ORDER_FLOW_HEATMAP]: '/order-flow-heatmap',
+    [AppView.ORDER_FLOW_HEATMAP]: '/level2-wallhunter-bot',
   };
 
   if (customMappings[view]) {

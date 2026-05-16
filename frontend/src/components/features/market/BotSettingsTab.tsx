@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import * as React from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { Search, ChevronDown, Check } from 'lucide-react';
 import { useSettings } from '../../../context/SettingsContext';
 import { useCCXTMarkets } from '../../../hooks/useCCXTMarkets';
@@ -63,7 +64,7 @@ export const BotSettingsTab: React.FC = () => {
         setIsProcessing(true);
         try {
             const botData = {
-                name: `OrderFlow Bot - ${selectedPair}`,
+                name: `Level2_Wallhunter_Bot - ${selectedPair}`,
                 strategy: strategy,
                 market: selectedPair,
                 exchange: selectedExchange,
@@ -112,7 +113,7 @@ export const BotSettingsTab: React.FC = () => {
             // If activating but no bot exists yet, create one first.
             if (newState && !targetBotId) {
                 const botData = {
-                    name: `OrderFlow Bot - ${selectedPair}`,
+                    name: `Level2_Wallhunter_Bot - ${selectedPair}`,
                     strategy: strategy,
                     market: selectedPair,
                     exchange: selectedExchange,
@@ -157,7 +158,7 @@ export const BotSettingsTab: React.FC = () => {
         <div className="w-full h-full p-6 flex flex-col items-center justify-start overflow-y-auto">
             <div className="w-full max-w-2xl bg-white dark:bg-[#000000] rounded-xl border border-gray-200 dark:border-white/5 shadow-lg p-6">
                 <div className="mb-6 flex justify-between items-center border-b border-gray-200 dark:border-white/10 pb-4">
-                    <h2 className="text-xl font-bold text-gray-800 dark:text-white">Order Flow Bot Configuration</h2>
+                    <h2 className="text-xl font-bold text-gray-800 dark:text-white">Level2_Wallhunter_Bot Configuration</h2>
                     <div className="flex items-center space-x-3">
                         <span className={`text-sm font-bold ${isEnabled ? 'text-green-500' : 'text-gray-500'}`}>
                             {isEnabled ? 'ACTIVE' : 'INACTIVE'}
@@ -352,7 +353,7 @@ export const BotSettingsTab: React.FC = () => {
                                 <option value="liquidity_sniping">Liquidity Wall Sniping</option>
                                 <option value="cvd_divergence">CVD Divergence Trading</option>
                             </select>
-                            <p className="mt-2 text-xs text-gray-500">Select the logic the bot will use to interpret the incoming Order Flow heatmap data.</p>
+                            <p className="mt-2 text-xs text-gray-500">Select the logic the bot will use to interpret the incoming Level2_Wallhunter_Bot data.</p>
                         </div>
 
                         <div>
