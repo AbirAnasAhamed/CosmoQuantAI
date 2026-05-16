@@ -194,6 +194,15 @@ IGNORE_PATTERNS = [
     re.compile(r'Unclosed\s+connector', re.IGNORECASE),
     re.compile(r'aiohttp\.client\.ClientSession', re.IGNORECASE),
     re.compile(r'aiohttp\.connector\.TCPConnector', re.IGNORECASE),
+    # ── Nginx upstream WebSocket / proxy transient connection errors ──────────
+    # These fire when the backend briefly restarts and Nginx retries the /ws or
+    # /api proxy connection.  The upstream auto-reconnects in seconds — no human
+    # action is needed and these must NOT trigger Telegram alerts.
+    re.compile(r'connect\(\) failed \(111', re.IGNORECASE),                     # Linux ECONNREFUSED code
+    re.compile(r'connect\(\) failed.*connecting to upstream', re.IGNORECASE),   # Nginx generic upstream error
+    re.compile(r'upstream:.*:8000/ws', re.IGNORECASE),                          # WS proxy destination
+    re.compile(r'while connecting to upstream.*8000', re.IGNORECASE),
+    re.compile(r'\[error\].*connect\(\) failed', re.IGNORECASE),               # Nginx [error] level prefix
 ]
 
 # Patterns that look like errors but should be downgraded to WARNING

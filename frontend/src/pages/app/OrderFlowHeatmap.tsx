@@ -2551,6 +2551,13 @@ const OrderFlowHeatmap: React.FC = () => {
     const [isWallHunterOpen, setIsWallHunterOpen] = useState(false);
     const [isEmergencySelling, setIsEmergencySelling] = useState(false); // NEW STATE
     const [isFullscreen, setIsFullscreen] = useState(false); // NEW STATE
+    const [showSubNav, setShowSubNav] = useState(() => {
+        try { return localStorage.getItem('heatmapSubNavVisible') !== 'false'; } catch { return true; }
+    });
+    // Ref to the animated toolbar wrapper — lets us flip overflow:hidden↔visible
+    // imperatively so dropdowns (Indicators, SymbolSelector, AdvancedMetrics) are
+    // never clipped by the collapsing animation container.
+    const toolbarRef = useRef<HTMLDivElement>(null);
     const [showCVD, setShowCVD] = useState(false); // NEW STATE
     const [showVPVR, setShowVPVR] = useState(false); // NEW STATE
     const [isOrderBookModalOpen, setIsOrderBookModalOpen] = useState(false);
@@ -2604,7 +2611,28 @@ const OrderFlowHeatmap: React.FC = () => {
 
     return (
         <div className="flex flex-col h-full bg-brand-light dark:bg-[#000000] text-slate-900 dark:text-white overflow-hidden rounded-xl border border-gray-200 dark:border-white/10">
-            <header className="relative z-40 flex-shrink-0 p-4 border-b border-gray-200 dark:border-white/10 flex justify-between items-center bg-white dark:bg-[#000000]">
+            {/* ── Animated collapsible toolbar (header + subnav) ──────────── */}
+            <div
+                ref={toolbarRef}
+                onTransitionEnd={() => {
+                    // Once the open animation finishes, allow overflow so that
+                    // dropdown menus (Indicators, SymbolSelector, AdvancedMetrics)
+                    // can extend beyond the wrapper boundary without being clipped.
+                    if (showSubNav && toolbarRef.current) {
+                        toolbarRef.current.style.overflow = 'visible';
+                    }
+                }}
+                style={{
+                    position: 'relative',
+                    zIndex: 50,          // sit above the chart so dropdowns render on top
+                    overflow: 'hidden',  // will be flipped to 'visible' via onTransitionEnd when open
+                    maxHeight: showSubNav ? '160px' : '0px',
+                    opacity: showSubNav ? 1 : 0,
+                    transition: 'max-height 0.32s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.25s ease',
+                    willChange: 'max-height, opacity',
+                }}
+            >
+                <header className="relative z-40 flex-shrink-0 p-4 border-b border-gray-200 dark:border-white/10 flex justify-between items-center bg-white dark:bg-[#000000]">
                 <div className="flex items-center gap-4">
                     <HeatmapSymbolSelector symbol={symbol} exchange={exchange} onSymbolChange={setSymbol} onExchangeChange={setExchange} />
                     <TimeframeSelector interval={interval} onIntervalChange={setInterval} />
@@ -2669,16 +2697,68 @@ const OrderFlowHeatmap: React.FC = () => {
                 </div>
             </header>
 
-            <HeatmapSubNav
-                activeTab={activeTab}
-                onChange={setActiveTab}
-                volumeThreshold={volumeThreshold}
-                setVolumeThreshold={setVolumeThreshold}
-                volumeMode={volumeMode}
-                setVolumeMode={setVolumeMode}
-                advancedMetrics={advancedMetrics}
-                onAdvancedMetricsChange={onAdvancedMetricsChange}
-            />
+                <HeatmapSubNav
+                    activeTab={activeTab}
+                    onChange={setActiveTab}
+                    volumeThreshold={volumeThreshold}
+                    setVolumeThreshold={setVolumeThreshold}
+                    volumeMode={volumeMode}
+                    setVolumeMode={setVolumeMode}
+                    advancedMetrics={advancedMetrics}
+                    onAdvancedMetricsChange={onAdvancedMetricsChange}
+                />
+            </div>
+
+            {/* ── Arrow toggle button (always visible) ──────────────────────── */}
+            <div className="flex justify-center">
+                <button
+                    onClick={() => {
+                        const next = !showSubNav;
+                        // When closing: immediately clamp overflow back to hidden BEFORE
+                        // the slide-up animation runs, so the content is clipped cleanly.
+                        if (!next && toolbarRef.current) {
+                            toolbarRef.current.style.overflow = 'hidden';
+                        }
+                        setShowSubNav(next);
+                        try { localStorage.setItem('heatmapSubNavVisible', String(next)); } catch {}
+                    }}
+                    title={showSubNav ? 'Hide toolbar' : 'Show toolbar'}
+                    style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        width: 28,
+                        height: 14,
+                        background: 'rgba(30,41,59,0.85)',
+                        border: '1px solid rgba(255,255,255,0.08)',
+                        borderTop: 'none',
+                        borderRadius: '0 0 8px 8px',
+                        cursor: 'pointer',
+                        zIndex: 10,
+                        transition: 'background 0.2s',
+                        outline: 'none',
+                        padding: 0,
+                        flexShrink: 0,
+                    }}
+                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(59,130,246,0.25)')}
+                    onMouseLeave={e => (e.currentTarget.style.background = 'rgba(30,41,59,0.85)')}
+                >
+                    <svg
+                        width="12"
+                        height="7"
+                        viewBox="0 0 12 7"
+                        fill="none"
+                        xmlns="http://www.w3.org/2000/svg"
+                        style={{
+                            transition: 'transform 0.32s cubic-bezier(0.4, 0, 0.2, 1)',
+                            transform: showSubNav ? 'rotate(180deg)' : 'rotate(0deg)',
+                        }}
+                    >
+                        <path d="M1 1L6 6L11 1" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                </button>
+            </div>
+
 
             <div className={isFullscreen ? 'fixed inset-0 z-[200] flex flex-col bg-gray-50 dark:bg-[#000000] p-4 overflow-y-auto hide-scrollbar' : 'flex-1 flex flex-col p-4 overflow-y-auto hide-scrollbar relative bg-gray-50 dark:bg-[#000000]'}>
                 {/* IN FULLSCREEN MODE, RENDER ONLY THE MAIN CHART WITHOUT THE LEFT PADDING. OTHERWISE RENDER NORMALLY */}
