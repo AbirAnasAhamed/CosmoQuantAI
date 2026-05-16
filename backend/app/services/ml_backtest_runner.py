@@ -127,8 +127,8 @@ def _generate_signals(model, algorithm: str, X_test: np.ndarray, prediction_targ
                     # For regression: signal=1 if predicted value is positive momentum
                     signals = (out > np.median(out)).astype(int).tolist()
 
-        elif algorithm == "PPO-RL":
-            add_log("[Post-Backtest] PPO-RL backtest via signal replay not supported. Skipped.")
+        elif algorithm in ["PPO-RL", "SAC-RL", "A2C-RL"]:
+            add_log(f"[Post-Backtest] {algorithm} backtest via signal replay not supported. Skipped.")
             return None
 
         else:

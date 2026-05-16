@@ -83,7 +83,7 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session) -> dict:
     algorithm = db_model.model_type
 
     # ── 2. Load metadata (features, dataset_type, indicators, symbol) ────────
-    metadata_path = model_path.replace(".pkl", ".json").replace(".pt", ".json")
+    metadata_path = model_path.replace(".pkl", ".json").replace(".pt", ".json").replace(".zip", ".json")
     if not os.path.exists(metadata_path):
         raise FileNotFoundError(f"Metadata file not found: {metadata_path}")
 
@@ -102,7 +102,7 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session) -> dict:
         raise ValueError("No features found in model metadata.")
 
     # ── 3. Load Scaler ───────────────────────────────────────────────────────
-    scaler_path = model_path.replace(".pkl", ".scaler").replace(".pt", ".scaler")
+    scaler_path = model_path.replace(".pkl", ".scaler").replace(".pt", ".scaler").replace(".zip", ".scaler")
     scaler_x = None
     if os.path.exists(scaler_path):
         scaler_x = joblib.load(scaler_path)

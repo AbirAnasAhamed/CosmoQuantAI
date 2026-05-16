@@ -782,6 +782,10 @@ def train_model_task(job_id: str, db: Session):
         from sklearn.preprocessing import MinMaxScaler, StandardScaler, RobustScaler
         import pandas as pd
         
+        # FIX: Ensure no NaNs or Infs exist from alternative data
+        df.replace([np.inf, -np.inf], np.nan, inplace=True)
+        df.dropna(inplace=True)
+        
         X = df[features].values
         y = df['Target'].values
         
@@ -1010,7 +1014,6 @@ def train_model_task(job_id: str, db: Session):
             add_log("Initializing PyTorch LSTM network...")
             import torch
             import torch.nn as nn
-            import numpy as np
             
             class SimpleLSTM(nn.Module):
                 def __init__(self, input_size, hidden_size, num_layers, output_size):
@@ -1060,6 +1063,7 @@ def train_model_task(job_id: str, db: Session):
                 # FIX: ensure y and outputs have matching shapes (N,1) for BCEWithLogitsLoss
                 loss = criterion(outputs, y_train_t.view(-1, 1))
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                 optimizer.step()
                 
                 pct = 40.0 + (40.0 * (epoch+1)/epochs)
@@ -1162,7 +1166,6 @@ def train_model_task(job_id: str, db: Session):
             add_log("Initializing PyTorch GRU network...")
             import torch
             import torch.nn as nn
-            import numpy as np
             
             class SimpleGRU(nn.Module):
                 def __init__(self, input_size, hidden_size, num_layers, output_size):
@@ -1211,6 +1214,7 @@ def train_model_task(job_id: str, db: Session):
                 # FIX: ensure y and outputs have matching shapes (N,1) for BCEWithLogitsLoss
                 loss = criterion(outputs.squeeze(-1), y_train_t.view(-1))
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                 optimizer.step()
                 
             model_filename = model_filename.replace(".pkl", ".pt")
@@ -1235,7 +1239,6 @@ def train_model_task(job_id: str, db: Session):
             add_log("Initializing PyTorch 1D-CNN network...")
             import torch
             import torch.nn as nn
-            import numpy as np
             
             class CNN1D(nn.Module):
                 def __init__(self, input_size, output_size):
@@ -1288,6 +1291,7 @@ def train_model_task(job_id: str, db: Session):
                 optimizer.zero_grad()
                 loss = criterion(outputs.squeeze(-1), y_train_t.view(-1))
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                 optimizer.step()
                 
             model_filename = model_filename.replace(".pkl", ".pt")
@@ -1312,7 +1316,6 @@ def train_model_task(job_id: str, db: Session):
             add_log("Initializing PyTorch DeepLOB architecture...")
             import torch
             import torch.nn as nn
-            import numpy as np
             
             class DeepLOB(nn.Module):
                 def __init__(self, input_size, output_size):
@@ -1361,6 +1364,7 @@ def train_model_task(job_id: str, db: Session):
                 # FIX: ensure y and outputs have matching shapes (N,1) for BCEWithLogitsLoss
                 loss = criterion(outputs.squeeze(-1), y_train_t.view(-1))
                 loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                 optimizer.step()
                 
             model_filename = model_filename.replace(".pkl", ".pt")
@@ -1642,7 +1646,7 @@ def train_model_task(job_id: str, db: Session):
 
         # ── Fix 1: Save Scaler ────────────────────────────────────────────────
         try:
-            scaler_save_path = model_path.replace('.pkl', '.scaler').replace('.pt', '.scaler')
+            scaler_save_path = model_path.replace('.pkl', '.scaler').replace('.pt', '.scaler').replace('.zip', '.scaler')
             joblib.dump(scaler_x, scaler_save_path)
             add_log(f"✅ Scaler saved to: {scaler_save_path}")
         except Exception as _sc_ex:
@@ -1650,7 +1654,7 @@ def train_model_task(job_id: str, db: Session):
             scaler_save_path = None
 
         # ── Fix 1 + 2: Save enriched metadata ────────────────────────────────
-        metadata_path = model_path.replace(".pkl", ".json").replace(".pt", ".json")
+        metadata_path = model_path.replace(".pkl", ".json").replace(".pt", ".json").replace(".zip", ".json")
         metadata_payload = {
             "features":         features,
             "dataset_type":     config.get("dataset_type", "ohlcv"),
@@ -1680,31 +1684,35 @@ def train_model_task(job_id: str, db: Session):
 
         # ── Fix 3: Post-Training Backtest ─────────────────────────────────────
         try:
-            bt_initial_balance = float(config.get("backtest_initial_balance", 10000.0))
-            bt_commission      = float(config.get("backtest_commission", 0.001))
-            bt_stop_loss       = float(config.get("backtest_stop_loss", 2.0))
-            bt_take_profit     = float(config.get("backtest_take_profit", 4.0))
+            if job.algorithm not in ["PPO-RL", "SAC-RL", "A2C-RL"]:
+                bt_initial_balance = float(config.get("backtest_initial_balance", 10000.0))
+                bt_commission      = float(config.get("backtest_commission", 0.001))
+                bt_stop_loss       = float(config.get("backtest_stop_loss", 2.0))
+                bt_take_profit     = float(config.get("backtest_take_profit", 4.0))
 
-            backtest_result = run_post_training_backtest(
-                model=model,
-                algorithm=job.algorithm,
-                X_test=X_test,
-                df=df,
-                features=features,
-                prediction_target=prediction_target,
-                initial_balance=bt_initial_balance,
-                commission=bt_commission,
-                stop_loss=bt_stop_loss,
-                take_profit=bt_take_profit,
-                add_log=add_log
-            )
+                backtest_result = run_post_training_backtest(
+                    model=model,
+                    algorithm=job.algorithm,
+                    X_test=X_test,
+                    df=df,
+                    features=features,
+                    prediction_target=prediction_target,
+                    initial_balance=bt_initial_balance,
+                    commission=bt_commission,
+                    stop_loss=bt_stop_loss,
+                    take_profit=bt_take_profit,
+                    add_log=add_log
+                )
 
-            if backtest_result:
-                # Merge backtest result into explainability
-                current_explain = db_version.explainability or {}
-                current_explain["backtest_result"] = backtest_result
-                db_version.explainability = current_explain
-                db.flush()
+                if backtest_result:
+                    # Merge backtest result into explainability
+                    current_explain = db_version.explainability or {}
+                    current_explain["backtest_result"] = backtest_result
+                    db_version.explainability = current_explain
+                    db.flush()
+            else:
+                add_log("[Post-Backtest] RL agent metrics were already calculated during training. Skipping static backtest.")
+
         except Exception as _bt_ex:
             add_log(f"⚠️ Post-training backtest failed (non-critical): {_bt_ex}")
 

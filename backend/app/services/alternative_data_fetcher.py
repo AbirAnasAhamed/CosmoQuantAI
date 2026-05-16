@@ -39,7 +39,7 @@ class AlternativeDataFetcher:
             records = []
             for item in data.get("data", []):
                 records.append({
-                    "timestamp": pd.to_datetime(item["timestamp"], unit='s'),
+                    "timestamp": pd.to_datetime(int(item["timestamp"]), unit='s'),
                     "fng_value": int(item["value"]),
                     # 'fng_classification': item["value_classification"]
                 })
@@ -133,9 +133,9 @@ class AlternativeDataFetcher:
             alt_df = alt_df.join(gt_df, how='left')
             
         # Forward fill daily alternative data to match potentially higher frequency df_index
-        alt_df.fillna(method='ffill', inplace=True)
+        alt_df.ffill(inplace=True)
         # Backfill any remaining NaNs at the start
-        alt_df.fillna(method='bfill', inplace=True)
+        alt_df.bfill(inplace=True)
         # Fill remaining with 0 or neutral values
         alt_df['fng_value'] = alt_df.get('fng_value', pd.Series(50, index=alt_df.index)).fillna(50)
         alt_df['commit_count'] = alt_df.get('commit_count', pd.Series(0, index=alt_df.index)).fillna(0)
