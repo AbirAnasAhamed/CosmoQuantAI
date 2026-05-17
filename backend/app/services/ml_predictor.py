@@ -402,7 +402,38 @@ def _fetch_live_l2_data(symbol: str, db: Session) -> Optional[pd.DataFrame]:
                 print(f"[ml_predictor] Used 24h fallback window for {symbol} ({len(snapshots)} rows)")
 
         if not snapshots:
-            print(f"[ml_predictor] No L2 snapshots for {symbol} (tried {clean_symbol}/{slash_symbol}). Falling back to OHLCV.")
+            print(f"[ml_predictor] No L2 snapshots for {symbol} in DB. Fetching live from Binance API...")
+            try:
+                import ccxt
+                if ":" in symbol:
+                    exchange = ccxt.binanceusdm({'enableRateLimit': True})
+                else:
+                    exchange = ccxt.binance({'enableRateLimit': True})
+                
+                ob = exchange.fetch_order_book(symbol, limit=20)
+                obi, spread, microprice = _compute_micro_features_from_raw(ob.get('bids', []), ob.get('asks', []))
+                
+                if microprice is not None and microprice > 0:
+                    df = pd.DataFrame([{
+                        "timestamp": pd.to_datetime(exchange.milliseconds(), unit='ms', utc=True),
+                        "Close": microprice,
+                        "obi": obi,
+                        "spread": spread,
+                        "microprice": microprice,
+                    }])
+                    df.set_index("timestamp", inplace=True)
+                    try:
+                        df_feats, _ = calculate_l2_advanced_features(df.reset_index())
+                        df_feats['timestamp'] = df.index
+                        df_feats.set_index('timestamp', inplace=True)
+                        for col in df_feats.columns:
+                            if col not in df.columns:
+                                df[col] = df_feats[col]
+                    except Exception as e:
+                        pass
+                    return df
+            except Exception as api_err:
+                print(f"[ml_predictor] Live API L2 fetch failed: {api_err}. Falling back to OHLCV.")
             return None
 
         # ── Build DataFrame; recompute features from bids/asks when NULL ───
