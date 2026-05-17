@@ -292,9 +292,24 @@ class MarketDepthService:
 
     async def fetch_ohlcv(self, symbol: str, exchange_id: str, timeframe: str = '1h', limit: int = 100) -> List[Dict[str, Any]]:
         """
-        Fetches OHLCV data for a symbol.
+        Fetches OHLCV data for a symbol with automatic pagination for large limits.
+
+        Key improvements:
+        - Cache key now includes `limit` to avoid stale data bugs.
+        - Requests >1000 candles are split into safe batches of 1000 with a
+          500ms delay between each request to prevent IP bans / rate-limit errors.
+        - CCXT's built-in `enableRateLimit` handles per-request throttling.
+        - Results are deduplicated and sorted chronologically before returning.
+        - Max limit is hard-capped at 2000 for safety.
         """
-        cache_key = f"ohlcv:{exchange_id}:{symbol}:{timeframe}"
+        import time as _time
+
+        # Hard cap to avoid accidental abuse or server overload
+        limit = min(limit, 2000)
+
+        # BUG FIX: include `limit` in cache key so different chart sizes don't
+        # share the same cached response.
+        cache_key = f"ohlcv:{exchange_id}:{symbol}:{timeframe}:{limit}"
         redis = redis_manager.get_redis()
 
         if redis:
@@ -303,34 +318,95 @@ class MarketDepthService:
                 return json.loads(cached)
 
         exchange = await self.get_exchange_instance(exchange_id, symbol)
-        try:
-            # CCXT returns list of [timestamp, open, high, low, close, volume]
-            ohlcv = await exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
-            
-            # Format for Lightweight Charts: { time: seconds, open, high, low, close }
-            formatted_data = []
-            for candle in ohlcv:
-                formatted_data.append({
-                    "time": int(candle[0] / 1000), # Unix timestamp in seconds
-                    "open": candle[1],
-                    "high": candle[2],
-                    "low": candle[3],
-                    "close": candle[4],
-                    "volume": candle[5]
-                })
 
-            # Decorate data with mathematical candlestick patterns
+        # Max candles most exchanges allow per single request
+        BATCH_SIZE = 1000
+
+        try:
+            all_ohlcv: list = []
+
+            if limit <= BATCH_SIZE:
+                # ── Single request, no pagination needed ──────────────────────
+                all_ohlcv = await exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
+
+            else:
+                # ── Paginated fetching ─────────────────────────────────────────
+                # Calculate timeframe duration in milliseconds so we can step
+                # backward from "now" to find the correct `since` start point.
+                tf_ms: int = exchange.parse_timeframe(timeframe) * 1000
+                now_ms: int = int(_time.time() * 1000)
+
+                # Start from `limit` candles ago
+                since_ms: int = now_ms - (limit * tf_ms)
+                remaining: int = limit
+
+                while remaining > 0:
+                    batch = min(remaining, BATCH_SIZE)
+                    chunk = await exchange.fetch_ohlcv(
+                        symbol, timeframe, since=since_ms, limit=batch
+                    )
+
+                    if not chunk:
+                        break  # Exchange returned nothing — stop
+
+                    all_ohlcv.extend(chunk)
+                    remaining -= len(chunk)
+
+                    # Advance `since` past the last candle to avoid re-fetching
+                    since_ms = chunk[-1][0] + tf_ms
+
+                    # Exchange has no more historical data for this range
+                    if len(chunk) < batch:
+                        break
+
+                    # ── Rate-limit safety delay between paginated requests ──
+                    # CCXT's enableRateLimit handles per-request throttling, but
+                    # we add an extra 500ms buffer to avoid soft IP bans on
+                    # stricter exchanges (Binance, Bybit, etc.).
+                    if remaining > 0:
+                        await asyncio.sleep(0.5)
+
+            # ── Deduplicate by timestamp (keep latest) and sort ascending ──
+            seen: dict = {}
+            for candle in all_ohlcv:
+                seen[candle[0]] = candle
+            all_ohlcv = sorted(seen.values(), key=lambda x: x[0])
+
+            # ── Format for Lightweight Charts ──────────────────────────────
+            formatted_data = [
+                {
+                    "time":   int(c[0] / 1000),  # ms → seconds
+                    "open":   c[1],
+                    "high":   c[2],
+                    "low":    c[3],
+                    "close":  c[4],
+                    "volume": c[5],
+                }
+                for c in all_ohlcv
+            ]
+
+            # Decorate with candlestick pattern analysis
             from app.helpers.candlestick_patterns import attach_candlestick_patterns
             formatted_data = attach_candlestick_patterns(formatted_data)
 
+            # ── Dynamic cache TTL based on timeframe ───────────────────────
+            # Short timeframes need fresh data; long timeframes can be cached longer.
+            tf_ttl_map = {
+                '1s': 5, '5s': 5, '15s': 5, '30s': 5,
+                '1m': 10, '3m': 15, '5m': 20, '15m': 30,
+                '30m': 60, '45m': 60, '1h': 120,
+                '2h': 240, '4h': 300, '6h': 360, '12h': 600,
+                '1d': 900, '1w': 1800, '1M': 3600,
+            }
+            cache_ttl = tf_ttl_map.get(timeframe, 15)
+
             if redis:
-                # Cache for timeframe duration (e.g. 1m -> 60s, 1h -> 3600s)
-                # Simplified TTL: 10 seconds to allow fast Supertrend reaction for active candles
-                await redis.setex(cache_key, 10, json.dumps(formatted_data))
-            
+                await redis.setex(cache_key, cache_ttl, json.dumps(formatted_data))
+
             return formatted_data
+
         except Exception as e:
-            logger.error(f"Error fetching OHLCV for {symbol}: {e}")
+            logger.error(f"Error fetching OHLCV for {symbol} on {exchange_id}: {e}")
             raise e
 
 
