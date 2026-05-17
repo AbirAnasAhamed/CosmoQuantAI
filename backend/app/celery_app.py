@@ -38,6 +38,10 @@ celery_app.conf.beat_schedule = {
         "task": "app.tasks.broadcast_container_logs",
         "schedule": 10.0,  # Every 10 seconds — stream all logs to frontend
     },
+    "evaluate-model-drift": {
+        "task": "app.tasks.evaluate_model_drift_task",
+        "schedule": crontab(minute=15),  # Every hour at minute 15
+    },
 }
 
 celery_app.conf.update(

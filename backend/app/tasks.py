@@ -1158,3 +1158,130 @@ def auto_retrain_models():
         return f"Error: {str(e)}"
     finally:
         db.close()
+
+
+@celery_app.task(bind=True, max_retries=1)
+def celery_train_model_task(self, job_id: str):
+    """
+    Background Celery task that wraps the heavy ML training engine.
+    This frees up the FastAPI main thread from heavy processing (like Optuna).
+    """
+    from app.services.ml_training_engine import train_model_task
+    logger = get_task_logger("ml_worker", "ml_training.log")
+    
+    logger.info(f"🚀 Celery picked up ML Training Job: {job_id}")
+    
+    db = SessionLocal()
+    try:
+        # train_model_task handles all the async magic and DB commits internally
+        train_model_task(job_id=job_id, db=db)
+        logger.info(f"✅ Celery ML Training Job Completed: {job_id}")
+        return {"status": "success", "job_id": job_id}
+    except Exception as e:
+        logger.error(f"❌ Celery ML Training Job Failed {job_id}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "job_id": job_id, "error": str(e)}
+    finally:
+        db.close()
+
+
+@celery_app.task(bind=True)
+def evaluate_model_drift_task(self):
+    """
+    Phase 3: Model Drift Monitoring
+    Evaluates predictions from PredictionLog.
+    Checks if the actual market price moved in the predicted direction.
+    Updates the log and triggers alerts if accuracy is too low.
+    """
+    from app.models.prediction_log import PredictionLog
+    from app.models.ml_model import CustomMLModel
+    from app.services.notification import NotificationService
+    import ccxt
+    from datetime import timedelta
+    
+    logger = get_task_logger("drift_monitor", "drift.log")
+    logger.info("🔍 Starting Model Drift Evaluation")
+    
+    db = SessionLocal()
+    try:
+        # Find unevaluated logs older than 2 hours to ensure data is available
+        cutoff_time = datetime.utcnow() - timedelta(hours=2)
+        unevaluated = db.query(PredictionLog).filter(
+            PredictionLog.actual_outcome_price == None,
+            PredictionLog.timestamp < cutoff_time
+        ).all()
+        
+        if not unevaluated:
+            logger.info("No unevaluated predictions found.")
+            return "No unevaluated logs."
+            
+        exchange = ccxt.binance({'enableRateLimit': True})
+        models_to_check = set()
+        
+        for log in unevaluated:
+            try:
+                # Fetch the price 1 hour after the prediction
+                target_time = int((log.timestamp + timedelta(hours=1)).timestamp() * 1000)
+                symbol_ccxt = log.symbol.split(':')[0].replace('/', '')
+                
+                # Fetch 1m candle near that time to get a precise price
+                candles = exchange.fetch_ohlcv(symbol_ccxt, '1m', since=target_time, limit=1)
+                
+                if candles:
+                    actual_price = candles[0][4] # Close price
+                    log.actual_outcome_price = actual_price
+                    
+                    if log.predicted_signal == "BUY":
+                        log.is_correct = actual_price > log.predicted_price
+                    elif log.predicted_signal == "SELL":
+                        log.is_correct = actual_price < log.predicted_price
+                    else:
+                        log.is_correct = None
+                        
+                    models_to_check.add(log.model_id)
+            except Exception as e:
+                logger.error(f"Error evaluating log {log.id}: {e}")
+                
+        db.commit()
+        
+        # Check rolling accuracy for affected models
+        for model_id in models_to_check:
+            recent_logs = db.query(PredictionLog).filter(
+                PredictionLog.model_id == model_id,
+                PredictionLog.is_correct != None
+            ).order_by(PredictionLog.timestamp.desc()).limit(100).all()
+            
+            if len(recent_logs) >= 10: # Lowered threshold to 10 for faster feedback
+                correct_count = sum(1 for l in recent_logs if l.is_correct)
+                accuracy = correct_count / len(recent_logs)
+                
+                logger.info(f"Model {model_id} Accuracy: {accuracy*100:.2f}% ({correct_count}/{len(recent_logs)})")
+                
+                if accuracy < 0.45: # 45% threshold
+                    logger.warning(f"🚨 DRIFT DETECTED for Model {model_id}! Accuracy: {accuracy*100:.2f}%")
+                    model_record = db.query(CustomMLModel).filter(CustomMLModel.id == model_id).first()
+                    if model_record and model_record.user_id:
+                        import asyncio
+                        msg = f"🚨 **Model Drift Alert** 🚨\nYour ML Model '{model_record.name}' accuracy has dropped to {accuracy*100:.1f}% over the last {len(recent_logs)} predictions.\nConsider retraining it from the ML Studio."
+                        
+                        try:
+                            loop = asyncio.get_event_loop()
+                        except RuntimeError:
+                            loop = asyncio.new_event_loop()
+                            asyncio.set_event_loop(loop)
+                            
+                        loop.run_until_complete(NotificationService.send_message(db, model_record.user_id, msg))
+                        
+        # --- DATA RETENTION POLICY: Cleanup Old Logs ---
+        cleanup_cutoff = datetime.utcnow() - timedelta(days=14)
+        deleted_count = db.query(PredictionLog).filter(PredictionLog.timestamp < cleanup_cutoff).delete(synchronize_session=False)
+        if deleted_count > 0:
+            db.commit()
+            logger.info(f"🧹 Cleaned up {deleted_count} old prediction logs (older than 14 days).")
+            
+    except Exception as e:
+        logger.error(f"Drift Evaluation Error: {e}")
+        db.rollback()
+    finally:
+        db.close()

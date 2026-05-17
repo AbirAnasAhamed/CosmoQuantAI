@@ -136,6 +136,12 @@ def generate_real_explainability(model, X_test, y_test, y_pred, feature_names, i
                             "value": "High" if is_high else "Low"
                         })
             result["shapSummary"] = shap_summary
+        elif type(model).__name__ in ['SimpleLSTM', 'SimpleGRU', 'CNN1D', 'DeepLOB', 'TimeSeriesTransformer']:
+            from app.services.ml_deep_explainability import generate_deep_shap_summary
+            shap_summary = generate_deep_shap_summary(model, X_test, feature_names, is_classification)
+            if shap_summary:
+                result["shapSummary"] = shap_summary
+
     except Exception as e:
         print(f"Failed to generate SHAP summary: {e}")
 

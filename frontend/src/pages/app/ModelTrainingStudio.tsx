@@ -58,6 +58,10 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
     const [outlierRemoval, setOutlierRemoval] = useState('none');
     const [scalingMethod, setScalingMethod] = useState('none');
     
+    // AutoML States
+    const [useAutoML, setUseAutoML] = useState(false);
+    const [automlTrials, setAutomlTrials] = useState(20);
+    
     const [isTraining, setIsTraining] = useState(false);
     const [isClearing, setIsClearing] = useState(false);
     
@@ -355,6 +359,8 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                     twap_duration_minutes: executionStrategy === 'twap' ? twapDuration : undefined,
                     // Alternative Data params
                     alt_features: selectedAltFeatures,
+                    use_automl: useAutoML,
+                    automl_trials: automlTrials,
                 }
             });
             setCurrentJob(job);
@@ -687,13 +693,59 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                 className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400 outline-none transition-all disabled:opacity-50 shadow-inner"
                             />
                             
-                            <AdvancedHyperparameters 
-                                learningRate={learningRate}
-                                setLearningRate={setLearningRate}
-                                maxDepth={maxDepth}
-                                setMaxDepth={setMaxDepth}
-                                isTraining={isTraining}
-                            />
+                            {!useAutoML && (
+                                <AdvancedHyperparameters 
+                                    learningRate={learningRate}
+                                    setLearningRate={setLearningRate}
+                                    maxDepth={maxDepth}
+                                    setMaxDepth={setMaxDepth}
+                                    isTraining={isTraining}
+                                />
+                            )}
+
+                            {/* ✅ AutoML Optuna Integration */}
+                            {['Random Forest', 'XGBoost', 'LightGBM', 'CatBoost'].includes(algorithm) && (
+                                <motion.div 
+                                    initial={{ opacity: 0, y: -10 }} 
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className={`mt-4 p-4 rounded-2xl border transition-all duration-300 ${useAutoML ? 'bg-purple-500/10 border-purple-500/30 shadow-[0_0_15px_rgba(168,85,247,0.15)]' : 'bg-white/5 border-white/10'}`}
+                                >
+                                    <div className="flex items-center justify-between mb-3">
+                                        <h4 className="text-xs font-black text-purple-400 uppercase tracking-widest flex items-center gap-2">
+                                            <BrainCircuit className="w-4 h-4" /> Optuna AutoML Tuning
+                                        </h4>
+                                        <button
+                                            onClick={() => setUseAutoML(!useAutoML)}
+                                            disabled={isTraining}
+                                            className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${useAutoML ? 'bg-purple-500' : 'bg-slate-600'} ${isTraining ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                        >
+                                            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white transition-transform ${useAutoML ? 'translate-x-5' : 'translate-x-1'}`} />
+                                        </button>
+                                    </div>
+                                    
+                                    {useAutoML && (
+                                        <div className="mt-3 pt-3 border-t border-purple-500/20">
+                                            <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase flex items-center justify-between">
+                                                <span>Search Trials</span>
+                                                <span className="text-purple-300">{automlTrials} Trials</span>
+                                            </label>
+                                            <input 
+                                                type="range" 
+                                                min="5" 
+                                                max="100" 
+                                                step="5"
+                                                value={automlTrials}
+                                                onChange={(e) => setAutomlTrials(parseInt(e.target.value))}
+                                                disabled={isTraining}
+                                                className="w-full accent-purple-500 mt-2"
+                                            />
+                                            <p className="text-[10px] text-slate-500 mt-2 font-medium leading-tight">
+                                                Automatically searches for the best max_depth, learning_rate, and estimators before final training. High trials take longer.
+                                            </p>
+                                        </div>
+                                    )}
+                                </motion.div>
+                            )}
 
                             {/* ✅ Advanced RL & Transformer Settings */}
                             {(algorithm === 'PPO-RL' || algorithm === 'Transformer') && (

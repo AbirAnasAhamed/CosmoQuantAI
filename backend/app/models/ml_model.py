@@ -44,5 +44,6 @@ class ModelVersion(Base):
     f1_score = Column(Float, nullable=True)
     latency = Column(Float, nullable=True)
     explainability = Column(JSON, nullable=True)
+    dataset_path = Column(String, nullable=True) # For DVC
 
     model = relationship("CustomMLModel", back_populates="versions", foreign_keys=[model_id])

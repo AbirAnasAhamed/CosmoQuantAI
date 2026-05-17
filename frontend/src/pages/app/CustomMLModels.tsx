@@ -3,6 +3,7 @@ import React, { useState, useMemo } from 'react';
 import ReactDOM from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { mlModelsService } from '@/services/mlModelsService';
+import { mlTrainingService } from '@/services/mlTrainingService';
 import { toast } from 'react-hot-toast';
 import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
@@ -881,8 +882,9 @@ const ModelCard: React.FC<{
     onSetActiveVersion: (modelId: string, versionId: string) => void;
     onRetrain: (modelId: string) => void;
     onViewDetails: (modelId: string, modelName: string) => void;
+    onDownloadDataset: (modelId: string, modelName: string) => void;
     animationDelay: number;
-}> = ({ model, onDelete, onUploadVersion, onSetActiveVersion, onRetrain, onViewDetails, animationDelay }) => {
+}> = ({ model, onDelete, onUploadVersion, onSetActiveVersion, onRetrain, onViewDetails, onDownloadDataset, animationDelay }) => {
     const [isExpanded, setIsExpanded] = useState(false);
     const [signalLoading, setSignalLoading] = useState(false);
     const [signalResult, setSignalResult] = useState<SignalResult | null>(null);
@@ -1068,6 +1070,15 @@ const ModelCard: React.FC<{
                             <svg className="w-3 h-3 opacity-80 group-hover/retrain:rotate-180 transition-transform duration-500 drop-shadow-[0_0_5px_rgba(6,182,212,0.8)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                             <span className="drop-shadow-sm">Retrain</span>
                         </button>
+                        
+                        <button
+                            onClick={(e) => { e.stopPropagation(); onDownloadDataset(model.id, model.name); }}
+                            className="relative px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:border-emerald-400/60 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(16,185,129,0.15)] hover:shadow-[0_0_25px_rgba(16,185,129,0.35)] flex items-center gap-1.5 group/dataset overflow-hidden backdrop-blur-md"
+                        >
+                            <div className="absolute inset-0 bg-gradient-to-r from-emerald-400/0 via-emerald-400/10 to-emerald-400/0 translate-x-[-100%] group-hover/dataset:translate-x-[100%] transition-transform duration-1000"></div>
+                            <svg className="w-3 h-3 opacity-80 group-hover/dataset:scale-110 transition-transform duration-500 drop-shadow-[0_0_5px_rgba(16,185,129,0.8)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg>
+                            <span className="drop-shadow-sm">Dataset</span>
+                        </button>
                     </div>
                 </div>
 
@@ -1124,6 +1135,60 @@ const ModelCard: React.FC<{
     );
 };
 
+
+// --- Active Training Jobs Section ---
+const ActiveTrainingJobsSection: React.FC<{ jobs: any[], onCancel: (id: string) => void }> = ({ jobs, onCancel }) => {
+    if (!jobs || jobs.length === 0) return null;
+
+    return (
+        <div className="bg-white/80 dark:bg-[#0A0A0A]/60 backdrop-blur-lg border border-cyan-500/30 p-6 rounded-2xl shadow-[0_0_20px_rgba(6,182,212,0.1)] mb-8">
+            <h3 className="text-lg font-black text-cyan-400 uppercase tracking-widest flex items-center gap-2 mb-4">
+                <svg className="w-5 h-5 animate-spin-slow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                Active Celery Training Jobs ({jobs.length})
+            </h3>
+            <div className="space-y-4">
+                {jobs.map(job => {
+                    const pct = Math.min(100, Math.max(0, job.progress || 0));
+                    return (
+                        <div key={job.id} className="relative bg-black/40 border border-white/10 rounded-xl p-4 overflow-hidden group">
+                            {/* Animated Background Progress */}
+                            <div className="absolute inset-0 bg-cyan-500/10 transition-all duration-500 ease-out" style={{ width: `${pct}%` }}></div>
+                            
+                            <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-4">
+                                <div className="flex-1">
+                                    <div className="flex items-center gap-3 mb-1">
+                                        <span className="text-sm font-bold text-white">{job.symbol}</span>
+                                        <span className="text-[10px] font-black text-cyan-300 bg-cyan-500/20 px-2 py-0.5 rounded border border-cyan-500/30 uppercase">
+                                            {job.algorithm}
+                                        </span>
+                                        <span className="text-[10px] font-mono text-gray-500">{job.id}</span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <div className="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                                            <div className="h-full bg-cyan-400 rounded-full relative" style={{ width: `${pct}%` }}>
+                                                <div className="absolute top-0 right-0 bottom-0 left-0 bg-gradient-to-r from-transparent via-white/40 to-transparent w-full animate-shimmer"></div>
+                                            </div>
+                                        </div>
+                                        <span className="text-xs font-mono font-bold text-cyan-400 w-10 text-right">{pct.toFixed(0)}%</span>
+                                    </div>
+                                    <p className="text-[10px] text-gray-400 mt-2 font-mono truncate max-w-xl">
+                                        {job.logs && job.logs.length > 0 ? job.logs[job.logs.length - 1] : 'Initializing...'}
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => onCancel(job.id)}
+                                    className="px-3 py-1.5 bg-red-500/10 text-red-400 border border-red-500/30 rounded-lg text-xs font-bold hover:bg-red-500/20 hover:text-red-300 transition-colors flex-shrink-0"
+                                >
+                                    Cancel
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        </div>
+    );
+};
 
 // --- Main Page ---
 
@@ -1198,6 +1263,27 @@ const CustomMLModels: React.FC<{ onNavigate?: (view: AppView, section?: string) 
         }
     };
 
+    // --- Active Jobs Hook ---
+    const { data: activeJobs = [] } = useQuery({
+        queryKey: ['activeTrainingJobs'],
+        queryFn: mlTrainingService.getJobs,
+        refetchInterval: (query) => {
+            const jobs = query.state.data || [];
+            const hasActive = jobs.some((j: any) => j.status === 'PENDING' || j.status === 'RUNNING');
+            return hasActive ? 2000 : 10000; // Poll fast if active, slower otherwise
+        },
+        select: (jobs) => jobs.filter((j: any) => j.status === 'PENDING' || j.status === 'RUNNING')
+    });
+
+    const cancelJobMutation = useMutation({
+        mutationFn: mlTrainingService.cancelTraining,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['activeTrainingJobs'] });
+            toast.success('Training job cancelled');
+        },
+        onError: () => toast.error('Failed to cancel job'),
+    });
+
     const handleSetActiveVersion = (modelId: string, versionId: string) => {
         setVersionMutation.mutate({ modelId, versionId });
     };
@@ -1212,6 +1298,15 @@ const CustomMLModels: React.FC<{ onNavigate?: (view: AppView, section?: string) 
 
     const handleViewDetails = (modelId: string, modelName: string) => {
         setDetailsModalState({ isOpen: true, modelId, modelName });
+    };
+
+    const handleDownloadDataset = async (modelId: string, modelName: string) => {
+        try {
+            await mlModelsService.downloadDataset(modelId, modelName);
+            toast.success('Dataset download started');
+        } catch (error: any) {
+            toast.error(error?.response?.data?.detail || 'Failed to download dataset. It may not exist for this version.');
+        }
     };
 
     return (
@@ -1241,6 +1336,9 @@ const CustomMLModels: React.FC<{ onNavigate?: (view: AppView, section?: string) 
                         Initialize New Model
                     </Button>
                 </div>
+                
+                {/* Render the Active Jobs Tracker Component */}
+                <ActiveTrainingJobsSection jobs={activeJobs} onCancel={(id) => cancelJobMutation.mutate(id)} />
 
                 <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-8 laptop:gap-4">
                     {isLoading ? (
@@ -1258,6 +1356,7 @@ const CustomMLModels: React.FC<{ onNavigate?: (view: AppView, section?: string) 
                                     onSetActiveVersion={handleSetActiveVersion}
                                     onRetrain={handleRetrain}
                                     onViewDetails={handleViewDetails}
+                                    onDownloadDataset={handleDownloadDataset}
                                     animationDelay={index * 100}
                                 />
                             ))}

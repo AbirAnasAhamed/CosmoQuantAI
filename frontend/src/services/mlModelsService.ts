@@ -114,6 +114,31 @@ export const mlModelsService = {
         window.URL.revokeObjectURL(url);
     },
 
+    // Download the dataset snapshot used to train the active version of a model
+    downloadDataset: async (modelId: string, modelName: string): Promise<void> => {
+        const response = await api.get(`/ml-models/${modelId}/dataset/download`, {
+            responseType: 'blob',
+        });
+
+        // Try to extract filename from Content-Disposition header
+        const disposition = response.headers['content-disposition'] as string | undefined;
+        let filename = `${modelName}_dataset.csv`;
+        if (disposition) {
+            const match = disposition.match(/filename[^;=\n]*=(['"]?)([^'";\n]+)\1/);
+            if (match?.[2]) filename = match[2];
+        }
+
+        // Trigger browser download
+        const url = window.URL.createObjectURL(new Blob([response.data]));
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', filename);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        window.URL.revokeObjectURL(url);
+    },
+
     // Get live prediction signal for a model
     predictSignal: async (modelId: string, symbol?: string): Promise<{
         signal: 'BUY' | 'SELL' | 'HOLD';

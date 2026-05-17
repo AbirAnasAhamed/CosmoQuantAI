@@ -252,6 +252,25 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session) -> dict:
     except Exception as e:
         print(f"[ml_predictor] Metrics error: {e}")
 
+    # Save to PredictionLog for Drift Monitoring
+    try:
+        from app.models.prediction_log import PredictionLog
+        log_entry = PredictionLog(
+            model_id=model_id,
+            symbol=symbol,
+            timeframe=timeframe,
+            predicted_signal=signal_str,
+            confidence=round(confidence, 4),
+            predicted_price=current_price,
+            timestamp=datetime.utcnow(),
+            metadata_json={"dataset_type": dataset_type, "features_used": len(available_features)}
+        )
+        db.add(log_entry)
+        db.commit()
+    except Exception as e:
+        print(f"[ml_predictor] Failed to save prediction log: {e}")
+        db.rollback()
+
     return {
         "signal":     signal_str,
         "confidence": round(confidence, 4),

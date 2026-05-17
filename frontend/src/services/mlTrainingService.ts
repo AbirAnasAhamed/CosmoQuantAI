@@ -56,6 +56,8 @@ export interface TrainingConfig {
         iceberg_slices?: number;
         twap_duration_minutes?: number;
         alt_features?: string[];
+        use_automl?: boolean;
+        automl_trials?: number;
     };
 }
 

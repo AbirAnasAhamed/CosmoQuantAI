@@ -380,3 +380,44 @@ def download_model(
         filename=download_filename,
         media_type="application/octet-stream",
     )
+
+
+@router.get("/{model_id}/dataset/download")
+def download_model_dataset(
+    model_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Download the dataset snapshot used to train the active version of a model.
+    """
+    db_model = db.query(models.CustomMLModel).filter(
+        models.CustomMLModel.id == model_id,
+        models.CustomMLModel.user_id == current_user.id
+    ).first()
+
+    if not db_model:
+        raise HTTPException(status_code=404, detail="Model not found")
+
+    if not db_model.active_version_id:
+        raise HTTPException(status_code=400, detail="Model has no active version set")
+
+    version = db.query(models.ModelVersion).filter(
+        models.ModelVersion.id == db_model.active_version_id
+    ).first()
+
+    if not version:
+        raise HTTPException(status_code=404, detail="Active version record not found")
+        
+    dataset_path = version.dataset_path
+    if not dataset_path or not os.path.exists(dataset_path):
+        raise HTTPException(status_code=404, detail="Dataset snapshot not found for this version. It may have been trained before DVC was enabled.")
+
+    safe_model_name = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in db_model.name)
+    download_filename = f"{safe_model_name}_v{version.version:.1f}_dataset.csv"
+
+    return FileResponse(
+        path=dataset_path,
+        filename=download_filename,
+        media_type="text/csv",
+    )

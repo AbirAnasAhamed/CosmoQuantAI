@@ -103,6 +103,7 @@ from .arbitrage import ArbitrageBot
 from .notification import NotificationSettings
 from .grid import GridBot
 from .whale_alert import WhaleAlert
+from .prediction_log import PredictionLog
 from .analysis import AnalysisSignal
 from .sentiment import SentimentPoll
 from .options_activity import OptionTrade, OptionSentiment

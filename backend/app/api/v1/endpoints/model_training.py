@@ -49,8 +49,9 @@ def start_training_job(
     db.commit()
     db.refresh(job)
     
-    # trigger background task
-    background_tasks.add_task(train_model_task, job_id, db)
+    # trigger celery background task
+    from app.tasks import celery_train_model_task
+    celery_train_model_task.delay(job_id)
     
     return job
 

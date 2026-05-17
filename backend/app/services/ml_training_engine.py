@@ -835,6 +835,20 @@ def train_model_task(job_id: str, db: Session):
         X_train_df = pd.DataFrame(X_train, columns=features)
         X_test_df  = pd.DataFrame(X_test,  columns=features)
         
+        # --- PHASE 5: DVC Dataset Freezing ---
+        dataset_path = None
+        try:
+            dataset_dir = os.path.join("uploads", "datasets")
+            os.makedirs(dataset_dir, exist_ok=True)
+            dvc_filename = f"dataset_{job.id}.csv"
+            dataset_path = os.path.join(dataset_dir, dvc_filename)
+            df_scaled.to_csv(dataset_path, index=False)
+            add_log(f"💾 DVC Snapshot saved to {dataset_path}")
+        except Exception as e:
+            add_log(f"⚠️ Failed to save DVC Snapshot: {e}")
+            dataset_path = None
+        # -------------------------------------
+        
         job.progress = 40.0
 
         # ── Walk-Forward Cross-Validation (ALL model types) ──────────────────
@@ -864,6 +878,27 @@ def train_model_task(job_id: str, db: Session):
         learning_rate = float(config.get("learning_rate", 0.1))
         max_depth = int(config.get("max_depth", 6))
         prediction_target = config.get("prediction_target", "classification")
+        is_classification_target = (prediction_target == "classification")
+
+        use_automl = config.get("use_automl", False)
+        if use_automl and job.algorithm in ["Random Forest", "XGBoost", "LightGBM", "CatBoost"]:
+            from app.services.ml_automl import run_optuna_study
+            n_trials = config.get("automl_trials", 20)
+            best_params = run_optuna_study(
+                algorithm=job.algorithm,
+                X_train=X_train_df,
+                y_train=y_train.ravel(),
+                X_val=X_test_df,
+                y_val=y_test.ravel(),
+                is_classification=is_classification_target,
+                n_trials=n_trials,
+                add_log=add_log
+            )
+            # Update default hyperparams with the best found
+            if best_params:
+                epochs = best_params.get('n_estimators', best_params.get('iterations', epochs))
+                max_depth = best_params.get('max_depth', best_params.get('depth', max_depth))
+                learning_rate = best_params.get('learning_rate', learning_rate)
         
         import json
         import time
@@ -1586,7 +1621,8 @@ def train_model_task(job_id: str, db: Session):
                 accuracy=final_accuracy,
                 f1_score=final_f1,
                 latency=final_latency,
-                explainability=final_explainability
+                explainability=final_explainability,
+                dataset_path=dataset_path
             )
             db.add(db_version)
             db.flush()
@@ -1634,7 +1670,8 @@ def train_model_task(job_id: str, db: Session):
                 accuracy=final_accuracy,
                 f1_score=final_f1,
                 latency=final_latency,
-                explainability=final_explainability
+                explainability=final_explainability,
+                dataset_path=dataset_path
             )
             db.add(db_version)
             db.flush()
