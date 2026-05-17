@@ -153,6 +153,26 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
         }
     }, [dataSource, selectedTradeFile]);
 
+    const MULTI_PARAM_MAP: Record<string, string> = {
+        'RSI Multi': '[7, 14, 21]',
+        'Stoch Multi': 'k:[9, 14, 21]',
+        'ROC Multi': '[10, 20, 50]',
+        'CCI Multi': '[14, 20, 40]',
+        'WillR Multi': '[14, 28, 50]',
+        'MFI Multi': '[14, 21, 50]',
+        'MACD Multi': '[12-26, 8-21, 5-13]',
+        'EMA Multi': '[9, 21, 50, 200]',
+        'SMA Multi': '[10, 20, 50, 200]',
+        'ADX Multi': '[14, 28]',
+        'Supertrend Multi': '[(7,3), (10,3), (14,2)]',
+        'Parabolic SAR Multi': '[0.02, 0.04]',
+        'BBANDS Multi': '[20, 50]',
+        'ATR Multi': '[7, 14, 21]',
+        'Keltner Channel Multi': '[20, 50]',
+        'Donchian Channel Multi': '[20, 50]',
+        'CMF Multi': '[20, 50]'
+    };
+
     const INDICATOR_CATEGORIES = [
         { name: 'Institutional & SMC', indicators: ['SMC FVG', 'ICT Killzones', 'Order Blocks', 'Market Structure', 'Wick Rejection', 'VWAP_SD'] },
         { name: 'Momentum', indicators: ['RSI', 'Stoch', 'ROC', 'CCI', 'WillR', 'MFI'] },
@@ -1586,9 +1606,12 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                                         key={ind}
                                                         disabled={isTraining}
                                                         onClick={() => handleToggleIndicator(ind)}
-                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all duration-300 relative overflow-visible ${selectedIndicators.includes(ind) ? (isRetrainMode && initialLoadedIndicators.includes(ind) ? 'bg-purple-500/20 text-purple-300 border-purple-400/50 shadow-[0_0_15px_rgba(168,85,247,0.4)] scale-105' : 'bg-cyan-500/20 text-cyan-400 border-cyan-400/50 shadow-[0_0_10px_rgba(34,211,238,0.2)]') : 'bg-black/60 text-slate-400 border-white/10 hover:border-white/30 hover:text-white hover:bg-white/10'}`}
+                                                        className={`px-3 py-1.5 rounded-lg text-xs font-bold border transition-all duration-300 relative flex flex-col items-center justify-center gap-0.5 overflow-visible ${selectedIndicators.includes(ind) ? (isRetrainMode && initialLoadedIndicators.includes(ind) ? 'bg-purple-500/20 text-purple-300 border-purple-400/50 shadow-[0_0_15px_rgba(168,85,247,0.4)] scale-105' : 'bg-cyan-500/20 text-cyan-400 border-cyan-400/50 shadow-[0_0_10px_rgba(34,211,238,0.2)]') : 'bg-black/60 text-slate-400 border-white/10 hover:border-white/30 hover:text-white hover:bg-white/10'}`}
                                                     >
-                                                        {ind}
+                                                        <span>{ind}</span>
+                                                        {MULTI_PARAM_MAP[ind] && selectedIndicators.includes(ind) && (
+                                                            <span className="text-[9px] font-normal text-cyan-200/80 leading-none">{MULTI_PARAM_MAP[ind]}</span>
+                                                        )}
                                                         {isRetrainMode && initialLoadedIndicators.includes(ind) && selectedIndicators.includes(ind) && (
                                                             <div className="absolute -top-1 -right-1 w-2 h-2 bg-purple-400 rounded-full animate-ping"></div>
                                                         )}
