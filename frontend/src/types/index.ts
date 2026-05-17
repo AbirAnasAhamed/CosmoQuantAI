@@ -666,6 +666,18 @@ export enum AppView {
   MARKET_DEPTH = 'Market Depth',
   ORDER_FLOW_HEATMAP = 'Wallhunter_Bot',
 
+  // TradFi Views
+  FOREX_DASHBOARD = 'Forex Dashboard',
+  FOREX_PAIRS = 'Currency Pairs',
+  FOREX_CALENDAR = 'Economic Calendar',
+  FOREX_BOT_LAB = 'Forex Bot Lab',
+  STOCKS_DASHBOARD = 'Stocks Dashboard',
+  STOCKS_SCREENER = 'Stock Screener',
+  EARNINGS_CALENDAR = 'Earnings Calendar',
+  SEC_FILINGS = 'SEC Filings',
+  COMMODITIES_DASHBOARD = 'Commodities Dashboard',
+  COMMODITIES_MARKET = 'Commodities Market',
+
 }
 
 export interface AiAnalysisResult {

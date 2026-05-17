@@ -43,6 +43,18 @@ export const getPathFromView = (view: AppView): string => {
     [AppView.EVENT_DRIVEN]: '/event-driven-simulator',
     [AppView.MARKET_DEPTH]: '/market-depth',
     [AppView.ORDER_FLOW_HEATMAP]: '/level2-wallhunter-bot',
+
+    // TradFi Routes
+    [AppView.FOREX_DASHBOARD]: '/forex-dashboard',
+    [AppView.FOREX_PAIRS]: '/forex-pairs',
+    [AppView.FOREX_CALENDAR]: '/forex-calendar',
+    [AppView.FOREX_BOT_LAB]: '/forex-bot-lab',
+    [AppView.STOCKS_DASHBOARD]: '/stocks-dashboard',
+    [AppView.STOCKS_SCREENER]: '/stocks-screener',
+    [AppView.EARNINGS_CALENDAR]: '/earnings-calendar',
+    [AppView.SEC_FILINGS]: '/sec-filings',
+    [AppView.COMMODITIES_DASHBOARD]: '/commodities-dashboard',
+    [AppView.COMMODITIES_MARKET]: '/commodities-market',
   };
 
   if (customMappings[view]) {

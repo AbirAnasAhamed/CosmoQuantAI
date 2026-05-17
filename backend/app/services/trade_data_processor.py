@@ -44,7 +44,7 @@ def process_historical_trades(file_path: str = None, df_raw: pd.DataFrame = None
         df.set_index('datetime', inplace=True)
         
         # Mapping timeframe string
-        tf_map = {'1s': '1S', '5s': '5S', '1m': '1min', '5m': '5min', '15m': '15min', '1h': '1h', '4h': '4h', '1d': '1D'}
+        tf_map = {'1s': '1s', '5s': '5s', '1m': '1min', '5m': '5min', '15m': '15min', '1h': '1h', '4h': '4h', '1d': '1d'}
         pandas_tf = tf_map.get(bar_size.lower(), '1min')
         
         # Open, High, Low, Close, Volume

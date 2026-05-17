@@ -324,6 +324,7 @@ const Market: React.FC = () => {
     const { theme } = useTheme();
 
     const { 
+        activeMarket,
         globalSymbol: activePair, setGlobalSymbol: setActivePair, 
         globalInterval, setGlobalInterval, 
         globalExchange: activeExchangeId, setGlobalExchange: setActiveExchangeId 
@@ -354,6 +355,17 @@ const Market: React.FC = () => {
     const [isResizing, setIsResizing] = useState(false);
     const [leftPaneWidth, setLeftPaneWidth] = useState(75);
     const containerRef = useRef<HTMLDivElement>(null);
+
+    const [isWatchlistOpen, setIsWatchlistOpen] = useState(false);
+    
+    // Derived Mock Watchlist Data based on activeMarket
+    const watchlistData = {
+        crypto: ['BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'BNB/USDT'],
+        forex: ['EUR/USD', 'GBP/JPY', 'USD/JPY', 'AUD/USD'],
+        stocks: ['AAPL', 'TSLA', 'NVDA', 'MSFT'],
+        commodities: ['XAU/USD', 'USOIL', 'XAG/USD', 'NGAS']
+    };
+    const currentWatchlist = watchlistData[activeMarket] || watchlistData.crypto;
 
     const activeExchange = exchanges.find(ex => ex.id === activeExchangeId);
 
@@ -642,11 +654,43 @@ const Market: React.FC = () => {
                             <div className="absolute inset-0 rounded-xl bg-black/0 group-hover:bg-black/10 dark:group-hover:bg-white/5 transition-colors"></div>
                         </div>
                         <div>
-                            <h2 className="text-2xl laptop:text-lg font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2">
-                                {activePair}
-                                <span className="text-xs font-medium px-2 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400">PERP</span>
-                            </h2>
-                            <p className="text-xs text-gray-400 font-mono">Oracle Price</p>
+                            <div className="flex items-center gap-2 relative">
+                                <h2 
+                                    className="text-2xl laptop:text-lg font-black text-slate-900 dark:text-white tracking-tight flex items-center gap-2 cursor-pointer hover:text-brand-primary transition-colors"
+                                    onClick={() => setIsWatchlistOpen(!isWatchlistOpen)}
+                                >
+                                    {activePair}
+                                    <span className="text-xs text-gray-500">▼</span>
+                                </h2>
+                                <span className="text-xs font-medium px-2 py-0.5 rounded bg-gray-100 dark:bg-white/10 text-gray-500 dark:text-gray-400">
+                                    {activeMarket === 'crypto' ? 'PERP' : activeMarket.toUpperCase()}
+                                </span>
+                                
+                                {/* Watchlist Dropdown */}
+                                {isWatchlistOpen && (
+                                    <div className="absolute top-full left-0 mt-2 w-48 bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-xl shadow-2xl z-[100] overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                                        <div className="p-2 border-b border-gray-100 dark:border-white/5 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                                            {activeMarket} Watchlist
+                                        </div>
+                                        <div className="max-h-60 overflow-y-auto">
+                                            {currentWatchlist.map(pair => (
+                                                <div 
+                                                    key={pair}
+                                                    className="px-4 py-3 hover:bg-brand-primary/10 cursor-pointer text-sm font-bold text-slate-800 dark:text-white transition-colors flex justify-between items-center"
+                                                    onClick={() => {
+                                                        setActivePair(pair);
+                                                        setIsWatchlistOpen(false);
+                                                    }}
+                                                >
+                                                    {pair}
+                                                    {activePair === pair && <span className="w-2 h-2 rounded-full bg-brand-primary"></span>}
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                            <p className="text-xs text-gray-400 font-mono mt-1">Oracle Price</p>
                         </div>
                     </div>
 

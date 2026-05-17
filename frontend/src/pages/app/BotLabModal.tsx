@@ -3,7 +3,7 @@ import { Dialog } from '@headlessui/react';
 import {
     X, Zap, BarChart2, TrendingUp, Cpu, Activity,
     Settings, Play, Pause, Trash2, Info, AlertTriangle,
-    Hammer, Plus, Skull, Check, Layers
+    Hammer, Plus, Skull, Check, Layers, Globe
 } from 'lucide-react';
 import Button from '@/components/common/Button';
 import SearchableSelect from '@/components/common/SearchableSelect';
@@ -11,6 +11,7 @@ import { botService } from '@/services/botService';
 import { marketDataService } from '@/services/marketData';
 import { useSettings } from '@/context/SettingsContext';
 import { useToast } from '@/context/ToastContext';
+import { useMarketStore } from '@/store/marketStore';
 import AIGeneratorModal from '@/components/features/ai/AIGeneratorModal';
 import { AIStrategyConfig } from '@/services/strategyService';
 import type { ActiveBot } from '@/types';
@@ -48,6 +49,7 @@ interface BotLabModalProps {
 const BotLabModal: React.FC<BotLabModalProps> = ({ isOpen, onClose, onSuccess }) => {
     const { showToast } = useToast();
     const { apiKeys } = useSettings();
+    const { activeMarket } = useMarketStore();
     const [loading, setLoading] = useState(false);
     const [showAIModal, setShowAIModal] = useState(false);
 
@@ -86,6 +88,9 @@ const BotLabModal: React.FC<BotLabModalProps> = ({ isOpen, onClose, onSuccess })
     // Advanced & Notifications
     const [advanced, setAdvanced] = useState({ trailingSl: false, trailingSlVal: 0.02, dailyLoss: false, dailyLossVal: 0.03, regimeFilter: false, sentiment: false });
     const [notifications, setNotifications] = useState({ telegram: false });
+
+    // TradFi Edge Settings
+    const [tradfiSettings, setTradfiSettings] = useState({ londonSession: true, nySession: true, newsFilter: false, weekendRule: true });
 
     // Scalping Mode
     const [botMode, setBotMode] = useState<'standard' | 'scalp'>('standard');
@@ -286,13 +291,26 @@ const BotLabModal: React.FC<BotLabModalProps> = ({ isOpen, onClose, onSuccess })
                                     <input type="text" className={inputClasses} value={description} onChange={e => setDescription(e.target.value)} placeholder="Strategy description..." />
                                 </div>
                                 <div className="md:col-span-1">
-                                    <label className={labelClasses}>Capital Allocation</label>
+                                    <label className={labelClasses}>
+                                        {activeMarket === 'crypto' ? 'Capital Allocation' : activeMarket === 'forex' ? 'Lot Size' : 'Shares / Contracts'}
+                                    </label>
                                     <div className="flex gap-2">
                                         <input type="number" className={inputClasses} value={tradeValue} onChange={e => setTradeValue(e.target.value)} />
-                                        <select className={`${inputClasses} !w-24`} value={unit} onChange={e => setUnit(e.target.value)}>
-                                            <option value="QUOTE">USDT</option>
-                                            <option value="ASSET">BASE</option>
-                                        </select>
+                                        {activeMarket === 'crypto' ? (
+                                            <select className={`${inputClasses} !w-24`} value={unit} onChange={e => setUnit(e.target.value)}>
+                                                <option value="QUOTE">USDT</option>
+                                                <option value="ASSET">BASE</option>
+                                            </select>
+                                        ) : activeMarket === 'forex' ? (
+                                            <select className={`${inputClasses} !w-24`} value={unit} onChange={e => setUnit(e.target.value)}>
+                                                <option value="LOT">Lots</option>
+                                                <option value="MICRO">Micro Lots</option>
+                                            </select>
+                                        ) : (
+                                            <span className={`${inputClasses} !w-24 flex items-center justify-center text-xs bg-gray-800`}>
+                                                Shares
+                                            </span>
+                                        )}
                                     </div>
                                 </div>
 
@@ -557,6 +575,59 @@ const BotLabModal: React.FC<BotLabModalProps> = ({ isOpen, onClose, onSuccess })
                                             </div>
                                         </div>
                                     </div>
+
+                                    {/* TradFi Edge Settings (Forex/Stocks only) */}
+                                    {(activeMarket === 'forex' || activeMarket === 'stocks') && (
+                                        <>
+                                            <div className="h-px bg-white/10 mt-6"></div>
+                                            <div className="bg-gradient-to-br from-yellow-500/10 to-yellow-600/5 p-4 rounded-xl border border-yellow-500/20 mt-6">
+                                                <h3 className="text-sm font-bold text-yellow-500 mb-4 flex items-center gap-2">
+                                                    <Globe size={16} /> TradFi Edge Settings
+                                                </h3>
+                                                
+                                                <div className="space-y-3">
+                                                    <div className="flex items-center justify-between p-3 bg-black/20 rounded-xl border border-white/5">
+                                                        <div className="flex items-center gap-3">
+                                                            <div onClick={() => setTradfiSettings(prev => ({ ...prev, londonSession: !prev.londonSession }))} className={`w-8 h-4 rounded-full cursor-pointer transition-colors ${tradfiSettings.londonSession ? 'bg-yellow-500' : 'bg-gray-700'}`}>
+                                                                <div className={`w-2 h-2 bg-white rounded-full m-1 transform transition-transform ${tradfiSettings.londonSession ? 'translate-x-4' : ''}`}></div>
+                                                            </div>
+                                                            <span className="text-sm text-gray-300">London Session Only</span>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center justify-between p-3 bg-black/20 rounded-xl border border-white/5">
+                                                        <div className="flex items-center gap-3">
+                                                            <div onClick={() => setTradfiSettings(prev => ({ ...prev, nySession: !prev.nySession }))} className={`w-8 h-4 rounded-full cursor-pointer transition-colors ${tradfiSettings.nySession ? 'bg-yellow-500' : 'bg-gray-700'}`}>
+                                                                <div className={`w-2 h-2 bg-white rounded-full m-1 transform transition-transform ${tradfiSettings.nySession ? 'translate-x-4' : ''}`}></div>
+                                                            </div>
+                                                            <span className="text-sm text-gray-300">New York Session Only</span>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="flex items-center justify-between p-3 bg-black/20 rounded-xl border border-white/5">
+                                                        <div className="flex items-center gap-3">
+                                                            <div onClick={() => setTradfiSettings(prev => ({ ...prev, newsFilter: !prev.newsFilter }))} className={`w-8 h-4 rounded-full cursor-pointer transition-colors ${tradfiSettings.newsFilter ? 'bg-red-500' : 'bg-gray-700'}`}>
+                                                                <div className={`w-2 h-2 bg-white rounded-full m-1 transform transition-transform ${tradfiSettings.newsFilter ? 'translate-x-4' : ''}`}></div>
+                                                            </div>
+                                                            <div>
+                                                                <span className="text-sm text-gray-300 block">News Filter</span>
+                                                                <span className="text-[10px] text-gray-500">Pause 15m before High-Impact News</span>
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="flex items-center justify-between p-3 bg-black/20 rounded-xl border border-white/5">
+                                                        <div className="flex items-center gap-3">
+                                                            <div onClick={() => setTradfiSettings(prev => ({ ...prev, weekendRule: !prev.weekendRule }))} className={`w-8 h-4 rounded-full cursor-pointer transition-colors ${tradfiSettings.weekendRule ? 'bg-yellow-500' : 'bg-gray-700'}`}>
+                                                                <div className={`w-2 h-2 bg-white rounded-full m-1 transform transition-transform ${tradfiSettings.weekendRule ? 'translate-x-4' : ''}`}></div>
+                                                            </div>
+                                                            <span className="text-sm text-gray-300">Close before Weekend Gap</span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </>
+                                    )}
                                 </div>
                             ) : (
                                 <div className="space-y-6 animate-in fade-in slide-in-from-bottom-2 bg-violet-500/5 p-6 rounded-2xl border border-violet-500/20">

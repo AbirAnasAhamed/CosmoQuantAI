@@ -6,6 +6,9 @@ import { getDashboardSummary, DashboardSummary } from '@/services/dashboard';
 import { getPerformanceMetrics, PerformanceMetrics } from '@/services/analytics';
 import WhaleMovementWidget from './WhaleMovementWidget';
 import SystemHealthWidget from '@/components/features/system/SystemHealthWidget';
+import MarketStatusWidget from '@/components/features/market/MarketStatusWidget';
+import EconomicCalendarWidget from '@/components/features/market/EconomicCalendarWidget';
+import { useMarketStore } from '@/store/marketStore';
 
 // Icons for the dashboard
 const TrendingUpIcon = ({ className }: { className?: string }) => (
@@ -145,6 +148,7 @@ const QuickActionBtn: React.FC<{ icon: React.ReactNode; label: string; onClick?:
 
 const Dashboard: React.FC = () => {
     const { theme } = useTheme();
+    const { activeMarket } = useMarketStore();
     const COLORS = ['#6366F1', '#818CF8', '#A78BFA', '#F472B6', '#10B981', '#F59E0B'];
 
     const axisColor = theme === 'dark' ? '#9CA3AF' : '#6B7280';
@@ -426,8 +430,12 @@ const Dashboard: React.FC = () => {
 
                 {/* Quick Actions & Recent Backtests */}
                 <div className="lg:col-span-1 space-y-6">
-                    {/* System Health Widget */}
-                    <SystemHealthWidget />
+                    {/* TradFi Widgets */}
+                    <MarketStatusWidget />
+                    <EconomicCalendarWidget />
+
+                    {/* System Health Widget (Crypto mostly) */}
+                    {activeMarket === 'crypto' && <SystemHealthWidget />}
 
                     {/* Quick Actions */}
                     <div className="rounded-2xl bg-gradient-to-br from-brand-primary to-purple-600 p-6 laptop:p-4 shadow-lg text-white staggered-fade-in" style={{ animationDelay: '800ms' }}>
@@ -468,8 +476,8 @@ const Dashboard: React.FC = () => {
                         </div>
                     </div>
 
-                    {/* Whale Alert Widget */}
-                    <WhaleMovementWidget />
+                    {/* Whale Alert Widget (Crypto Only) */}
+                    {activeMarket === 'crypto' && <WhaleMovementWidget />}
 
                     {/* Recent Log */}
                     <div className="rounded-2xl bg-white dark:bg-[#0A0A0A] border border-brand-border-light dark:border-[#1A1A1A] p-6 laptop:p-4 shadow-lg flex-1 staggered-fade-in" style={{ animationDelay: '900ms' }}>

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { ActiveBot as Bot } from '../../types';
 import { botService } from '../../services/botService';
 import { toast } from 'react-hot-toast';
+import { useMarketStore } from '@/store/marketStore';
 
 interface BotSettingsModalProps {
     isOpen: boolean;
@@ -11,6 +12,7 @@ interface BotSettingsModalProps {
 }
 
 const BotSettingsModal: React.FC<BotSettingsModalProps> = ({ isOpen, onClose, bot, onUpdate }) => {
+    const { activeMarket } = useMarketStore();
     // ১. সাধারণ সেটিংস স্টেট
     const [generalConfig, setGeneralConfig] = useState({
         trade_value: 0,
@@ -157,7 +159,9 @@ const BotSettingsModal: React.FC<BotSettingsModalProps> = ({ isOpen, onClose, bo
                         <h3 className="text-sm font-semibold text-blue-400 mb-3">💰 Trade Settings</h3>
                         <div className="grid grid-cols-2 gap-4">
                             <div>
-                                <label className="text-xs text-gray-400 block mb-1">Trade Amount (USDT)</label>
+                                <label className="text-xs text-gray-400 block mb-1">
+                                    {activeMarket === 'crypto' ? 'Trade Amount (USDT)' : activeMarket === 'forex' ? 'Lot Size' : 'Number of Shares'}
+                                </label>
                                 <input
                                     type="number"
                                     value={generalConfig.trade_value}

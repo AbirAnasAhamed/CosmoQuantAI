@@ -145,7 +145,7 @@ const ConnectExchangeModal: React.FC<{
 const PortfolioTracker: React.FC = () => {
     const { theme } = useTheme();
     const { showToast } = useToast();
-    const { setGlobalSymbol, setGlobalExchange } = useMarketStore();
+    const { activeMarket, setGlobalSymbol, setGlobalExchange } = useMarketStore();
     const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
     const [riskTolerance, setRiskTolerance] = useState(65);
     const [scenario, setScenario] = useState<'Normal' | 'Recession' | 'High Inflation' | 'Stagflation'>('Normal');
@@ -384,8 +384,13 @@ const PortfolioTracker: React.FC = () => {
                             <div className="px-4 py-2 rounded-2xl bg-white/5 border border-white/10 flex items-center gap-2">
                                 <span className="font-black">{portfolio24hChange >= 0 ? '↗' : '↘'} {Math.abs(portfolio24hChangePercent).toFixed(2)}%</span>
                             </div>
-                            <span className="text-sm font-bold text-white/40 tracking-wider">
-                                24H YIELD: <span className="text-white/80">${Math.abs(portfolio24hChange).toLocaleString()}</span>
+                            <span className="text-sm font-bold text-white/40 tracking-wider flex items-center">
+                                24H YIELD: <span className="text-white/80 ml-1">${Math.abs(portfolio24hChange).toLocaleString()}</span>
+                                {activeMarket === 'forex' && (
+                                    <span className="ml-2 px-2 py-0.5 rounded bg-white/10 text-white font-mono text-[10px] tracking-normal">
+                                        ({portfolio24hChange >= 0 ? '+' : '-'}{Math.abs(portfolio24hChange * 0.1).toFixed(0)} Pips)
+                                    </span>
+                                )}
                             </span>
                         </div>
                     </div>

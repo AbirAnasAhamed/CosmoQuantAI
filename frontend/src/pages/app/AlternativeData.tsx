@@ -3,6 +3,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { ResponsiveContainer, LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Cell, ComposedChart, Area, AreaChart } from 'recharts';
 import Card from '@/components/common/Card';
 import { useTheme } from '@/context/ThemeContext';
+import { useMarketStore } from '@/store/marketStore';
 import { MOCK_JOB_POSTINGS_DATA, MOCK_SAMPLE_JOBS } from '@/constants';
 import Button from '@/components/common/Button';
 
@@ -318,14 +319,31 @@ const JobPostingsView: React.FC = () => {
 // --- MAIN COMPONENT ---
 
 const AlternativeData: React.FC = () => {
-    const [activeSource, setActiveSource] = useState<'satellite' | 'transactions' | 'geolocation' | 'jobs'>('satellite');
-    const [activeStock, setActiveStock] = useState(MOCK_STOCKS[0]);
+    const { activeMarket } = useMarketStore();
+    const [activeSource, setActiveSource] = useState<string>('satellite');
+
+    const MOCK_ASSETS = useMemo(() => {
+        switch (activeMarket) {
+            case 'crypto': return ['BTC', 'ETH', 'SOL'];
+            case 'forex': return ['EUR/USD', 'GBP/JPY', 'USD/JPY'];
+            case 'stocks': return ['TSLA', 'WMT', 'AAPL', 'AMZN'];
+            case 'commodities': return ['GOLD', 'OIL', 'SILVER'];
+            default: return ['BTC'];
+        }
+    }, [activeMarket]);
+
+    const [activeStock, setActiveStock] = useState(MOCK_ASSETS[0]);
+
+    useEffect(() => {
+        setActiveStock(MOCK_ASSETS[0]);
+    }, [MOCK_ASSETS]);
 
     const navItems = [
         { id: 'satellite', label: 'Satellite Imagery', icon: <SatelliteIcon /> },
         { id: 'transactions', label: 'Card Transactions', icon: <CardIcon /> },
         { id: 'geolocation', label: 'Geolocation', icon: <MapPinIcon /> },
         { id: 'jobs', label: 'Hiring Trends', icon: <BriefcaseIcon /> },
+        ...(activeMarket === 'stocks' ? [{ id: 'earnings', label: 'Earnings / SEC', icon: <CardIcon /> }] : [])
     ];
 
     return (
@@ -356,7 +374,7 @@ const AlternativeData: React.FC = () => {
                         onChange={(e) => setActiveStock(e.target.value)}
                         className="bg-transparent text-lg font-bold text-slate-900 dark:text-white focus:outline-none cursor-pointer"
                     >
-                        {MOCK_STOCKS.map(s => <option key={s} value={s}>{s}</option>)}
+                        {MOCK_ASSETS.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                 </div>
             </div>
@@ -367,6 +385,13 @@ const AlternativeData: React.FC = () => {
                 {activeSource === 'transactions' && <TransactionView />}
                 {activeSource === 'geolocation' && <GeolocationView />}
                 {activeSource === 'jobs' && <JobPostingsView />}
+                {activeSource === 'earnings' && (
+                    <div className="h-full flex flex-col items-center justify-center text-gray-500 border-2 border-dashed border-gray-200 dark:border-white/10 rounded-2xl">
+                        <CardIcon className="w-12 h-12 mb-4 opacity-50" />
+                        <p className="text-sm font-bold uppercase tracking-widest">Earnings Calendar & SEC Filings</p>
+                        <p className="text-xs mt-2">Mock data module for {activeStock}</p>
+                    </div>
+                )}
             </div>
 
             {/* Style for scan animation */}

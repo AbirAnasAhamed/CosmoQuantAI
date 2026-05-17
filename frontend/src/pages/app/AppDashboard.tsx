@@ -50,7 +50,15 @@ import MarketDepthWidget from './MarketDepth/MarketDepthWidget';
 import EventDrivenSimulator from './EventDrivenSimulator';
 import PanicButton from '@/components/common/PanicButton';
 import SystemAlertWidget from '@/components/common/SystemAlertWidget';
+import MarketSwitcher from '@/components/common/MarketSwitcher';
 import { useSettings } from '@/context/SettingsContext';
+import { useMarketStore } from '@/store/marketStore';
+
+// Temporary Placeholders (Will be replaced with real files)
+const ForexDashboard = () => <div className="p-8 text-white"><h1 className="text-3xl font-bold">Forex Dashboard</h1><p className="text-gray-400 mt-4">Welcome to the Forex Terminal workspace.</p></div>;
+const StocksDashboard = () => <div className="p-8 text-white"><h1 className="text-3xl font-bold">Stocks Dashboard</h1><p className="text-gray-400 mt-4">Welcome to the Equities Desk workspace.</p></div>;
+const CommoditiesDashboard = () => <div className="p-8 text-white"><h1 className="text-3xl font-bold">Commodities Dashboard</h1><p className="text-gray-400 mt-4">Welcome to the Commodities workspace.</p></div>;
+const PlaceholderView = ({ title }: { title: string }) => <div className="p-8 text-white"><h1 className="text-3xl font-bold">{title}</h1><p className="text-gray-400 mt-4">This module is under construction.</p></div>;
 
 interface AppDashboardProps {
     onLogout: () => void;
@@ -111,8 +119,20 @@ const Sidebar: React.FC<{
     const navigate = useNavigate();
     const currentView = getViewFromPath(location.pathname);
     const { userProfile } = useSettings();
+    const { activeMarket } = useMarketStore();
     const [isProfileOpen, setIsProfileOpen] = useState(false);
     const profileRef = useRef<HTMLDivElement>(null);
+
+    const previousMarket = useRef(activeMarket);
+    useEffect(() => {
+        if (previousMarket.current !== activeMarket) {
+            previousMarket.current = activeMarket;
+            if (activeMarket === 'forex') navigate(getPathFromView(AppView.FOREX_DASHBOARD));
+            else if (activeMarket === 'stocks') navigate(getPathFromView(AppView.STOCKS_DASHBOARD));
+            else if (activeMarket === 'commodities') navigate(getPathFromView(AppView.COMMODITIES_DASHBOARD));
+            else navigate(getPathFromView(AppView.DASHBOARD));
+        }
+    }, [activeMarket, navigate]);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -133,69 +153,107 @@ const Sidebar: React.FC<{
         </button>
     );
 
-    const navCategories = useMemo(() => [
-        {
-            title: 'Operations',
-            items: [
-                { view: AppView.DASHBOARD, icon: <DashboardIcon />, label: 'Dashboard' },
-                { view: AppView.PORTFOLIO, icon: <PortfolioIcon />, label: 'Portfolio' },
-                { view: AppView.MARKET, icon: <MarketIcon />, label: 'Live Market' },
-                { view: AppView.ALERTS_WATCHLIST, icon: <AlertsWatchlistIcon />, label: 'Sentinels' },
-                { view: AppView.TASK_MANAGER, icon: <TaskManagerIcon />, label: 'Task Command' },
-            ]
-        },
+    const navCategories = useMemo(() => {
+        if (activeMarket === 'forex') {
+            return [
+                {
+                    title: 'Forex Terminal',
+                    items: [
+                        { view: AppView.FOREX_DASHBOARD, icon: <DashboardIcon />, label: 'Forex Dashboard' },
+                        { view: AppView.FOREX_PAIRS, icon: <MarketIcon />, label: 'Currency Pairs' },
+                        { view: AppView.FOREX_CALENDAR, icon: <FilingsIcon />, label: 'Economic Calendar' },
+                        { view: AppView.FOREX_BOT_LAB, icon: <BotLabIcon />, label: 'Forex Bot Lab' },
+                        { view: AppView.CORRELATION_MATRIX, icon: <CorrelationIcon />, label: 'Correlation Matrix' },
+                    ]
+                }
+            ];
+        }
 
-        {
-            title: 'Core Engines',
-            items: [
-                { view: AppView.BACKTESTER, icon: <BacktesterIcon />, label: 'Backtester' },
-                { view: AppView.EVENT_DRIVEN, icon: <Activity />, label: 'Live Simulation' },
-                { view: AppView.ARBITRAGE_BOT, icon: <Bot />, label: 'Arbitrage Bot' },
-                { view: AppView.GRID_BOT, icon: <Layers />, label: 'Grid Bot' },
-                { view: AppView.LEAD_LAG_BOT, icon: <LineChart />, label: 'Lead-Lag Bot' },
-                { view: AppView.BOT_LAB, icon: <BotLabIcon />, label: 'Bot Laboratory' },
-                { view: AppView.ORDER_FLOW_HEATMAP, icon: <Activity />, label: 'Wallhunter_Bot' },
-                { view: AppView.AI_FOUNDRY, icon: <AIFoundryIcon />, label: 'AI Foundry' },
-                { view: AppView.CUSTOM_ML_MODELS, icon: <MLModelIcon />, label: 'ML Registry' },
-                { view: AppView.MODEL_TRAINING_STUDIO, icon: <Activity />, label: 'Training Studio' },
-            ]
-        },
-        {
-            title: 'Alpha Intelligence',
-            items: [
-                { view: AppView.SENTIMENT_ENGINE, icon: <SentimentIcon />, label: 'Sentiment AI' },
-                { view: AppView.BLOCK_TRADE_DETECTOR, icon: <BlockTradeDetectorIcon />, label: 'Block Trades' },
-                { view: AppView.UNUSUAL_OPTIONS_ACTIVITY, icon: <UnusualOptionsActivityIcon />, label: 'Unusual Options' },
-                { view: AppView.LIQUIDATION_MAP, icon: <LiquidationMapIcon />, label: 'Liquidation Map' },
-                { view: AppView.CORPORATE_FILINGS, icon: <FilingsIcon />, label: 'Insider Filings' },
-                { view: AppView.INSTITUTIONAL_HOLDINGS, icon: <InstitutionalHoldingsIcon />, label: 'Guru Holdings' },
-                { view: AppView.TOKEN_UNLOCK_CALENDAR, icon: <TokenUnlockIcon />, label: 'Token Unlocks' },
-                { view: AppView.ANALYST_RESEARCH, icon: <AnalystResearchIcon />, label: 'Analyst Ratings' },
-                { view: AppView.REAL_TIME_DATA, icon: <RealTimeDataIcon />, label: 'Fundamental Data' },
-                { view: AppView.MARKET_REGIME_CLASSIFIER, icon: <RegimeIcon />, label: 'Regime Classifier' },
-                { view: AppView.CORRELATION_MATRIX, icon: <CorrelationIcon />, label: 'Correlation Matrix' },
-                { view: AppView.ON_CHAIN_ANALYZER, icon: <OnChainIcon />, label: 'On-Chain Data' },
-                { view: AppView.QUANT_SCREENER, icon: <QuantScreenerIcon />, label: 'Quant Screener' },
-                { view: AppView.MARKET_DEPTH, icon: <Activity />, label: 'Market Depth' },
-                { view: AppView.ALTERNATIVE_DATA, icon: <AlternativeDataIcon />, label: 'Alternative Data' },
-            ]
-        },
-        {
-            title: 'Developer Studio',
-            items: [
-                { view: AppView.NURAL_CORE, icon: <Cpu size={20} />, label: 'Neural Core' },
-                { view: AppView.ML_MODEL_MARKETPLACE, icon: <MLModelMarketplaceIcon />, label: 'Algo Marketplace' },
-                { view: AppView.CUSTOM_INDICATOR_STUDIO, icon: <IndicatorStudioIcon />, label: 'Indicator Studio' },
-                { view: AppView.PINE_SCRIPT_STUDIO, icon: <PineScriptIcon />, label: 'Pine Editor' },
-            ]
-        },
-        {
-            title: 'Knowledge',
-            items: [
-                { view: AppView.EDUCATION_HUB, icon: <EducationIcon />, label: 'Academy' },
-            ]
-        },
-    ], []);
+        if (activeMarket === 'stocks') {
+            return [
+                {
+                    title: 'Equities Desk',
+                    items: [
+                        { view: AppView.STOCKS_DASHBOARD, icon: <DashboardIcon />, label: 'Stocks Dashboard' },
+                        { view: AppView.STOCKS_SCREENER, icon: <QuantScreenerIcon />, label: 'Stock Screener' },
+                        { view: AppView.EARNINGS_CALENDAR, icon: <FilingsIcon />, label: 'Earnings & SEC' },
+                        { view: AppView.ANALYST_RESEARCH, icon: <AnalystResearchIcon />, label: 'Analyst Ratings' },
+                        { view: AppView.INSTITUTIONAL_HOLDINGS, icon: <InstitutionalHoldingsIcon />, label: 'Institutional Holdings' },
+                    ]
+                }
+            ];
+        }
+
+        if (activeMarket === 'commodities') {
+            return [
+                {
+                    title: 'Commodities Trading',
+                    items: [
+                        { view: AppView.COMMODITIES_DASHBOARD, icon: <DashboardIcon />, label: 'Dashboard' },
+                        { view: AppView.COMMODITIES_MARKET, icon: <MarketIcon />, label: 'Futures Market' },
+                    ]
+                }
+            ];
+        }
+
+        // Crypto / Default
+        return [
+            {
+                title: 'Operations',
+                items: [
+                    { view: AppView.DASHBOARD, icon: <DashboardIcon />, label: 'Dashboard' },
+                    { view: AppView.PORTFOLIO, icon: <PortfolioIcon />, label: 'Portfolio' },
+                    { view: AppView.MARKET, icon: <MarketIcon />, label: 'Live Market' },
+                    { view: AppView.ALERTS_WATCHLIST, icon: <AlertsWatchlistIcon />, label: 'Sentinels' },
+                    { view: AppView.TASK_MANAGER, icon: <TaskManagerIcon />, label: 'Task Command' },
+                ]
+            },
+            {
+                title: 'Core Engines',
+                items: [
+                    { view: AppView.BACKTESTER, icon: <BacktesterIcon />, label: 'Backtester' },
+                    { view: AppView.EVENT_DRIVEN, icon: <Activity />, label: 'Live Simulation' },
+                    { view: AppView.ARBITRAGE_BOT, icon: <Bot />, label: 'Arbitrage Bot' },
+                    { view: AppView.GRID_BOT, icon: <Layers />, label: 'Grid Bot' },
+                    { view: AppView.LEAD_LAG_BOT, icon: <LineChart />, label: 'Lead-Lag Bot' },
+                    { view: AppView.BOT_LAB, icon: <BotLabIcon />, label: 'Bot Laboratory' },
+                    { view: AppView.ORDER_FLOW_HEATMAP, icon: <Activity />, label: 'Wallhunter_Bot' },
+                    { view: AppView.AI_FOUNDRY, icon: <AIFoundryIcon />, label: 'AI Foundry' },
+                    { view: AppView.CUSTOM_ML_MODELS, icon: <MLModelIcon />, label: 'ML Registry' },
+                    { view: AppView.MODEL_TRAINING_STUDIO, icon: <Activity />, label: 'Training Studio' },
+                ]
+            },
+            {
+                title: 'Alpha Intelligence',
+                items: [
+                    { view: AppView.SENTIMENT_ENGINE, icon: <SentimentIcon />, label: 'Sentiment AI' },
+                    { view: AppView.BLOCK_TRADE_DETECTOR, icon: <BlockTradeDetectorIcon />, label: 'Block Trades' },
+                    { view: AppView.UNUSUAL_OPTIONS_ACTIVITY, icon: <UnusualOptionsActivityIcon />, label: 'Unusual Options' },
+                    { view: AppView.LIQUIDATION_MAP, icon: <LiquidationMapIcon />, label: 'Liquidation Map' },
+                    { view: AppView.TOKEN_UNLOCK_CALENDAR, icon: <TokenUnlockIcon />, label: 'Token Unlocks' },
+                    { view: AppView.MARKET_REGIME_CLASSIFIER, icon: <RegimeIcon />, label: 'Regime Classifier' },
+                    { view: AppView.ON_CHAIN_ANALYZER, icon: <OnChainIcon />, label: 'On-Chain Data' },
+                    { view: AppView.MARKET_DEPTH, icon: <Activity />, label: 'Market Depth' },
+                    { view: AppView.ALTERNATIVE_DATA, icon: <AlternativeDataIcon />, label: 'Alternative Data' },
+                ]
+            },
+            {
+                title: 'Developer Studio',
+                items: [
+                    { view: AppView.NURAL_CORE, icon: <Cpu size={20} />, label: 'Neural Core' },
+                    { view: AppView.ML_MODEL_MARKETPLACE, icon: <MLModelMarketplaceIcon />, label: 'Algo Marketplace' },
+                    { view: AppView.CUSTOM_INDICATOR_STUDIO, icon: <IndicatorStudioIcon />, label: 'Indicator Studio' },
+                    { view: AppView.PINE_SCRIPT_STUDIO, icon: <PineScriptIcon />, label: 'Pine Editor' },
+                ]
+            },
+            {
+                title: 'Knowledge',
+                items: [
+                    { view: AppView.EDUCATION_HUB, icon: <EducationIcon />, label: 'Academy' },
+                ]
+            }
+        ];
+    }, [activeMarket]);
 
     return (
         <aside className={`${isCollapsed ? 'w-20' : 'w-72'} bg-[#F8FAFC] dark:bg-[#000000] border-r border-gray-200 dark:border-white/5 flex flex-col h-screen transition-all duration-400 ease-in-out will-change-[width] shadow-[5px_0_20px_rgba(0,0,0,0.05)] z-20 relative group`}>
@@ -425,6 +483,19 @@ const AppDashboard: React.FC<AppDashboardProps> = ({ onLogout }) => {
             case AppView.TASK_MANAGER: return <TaskManager />;
             case AppView.MARKET_DEPTH: return <MarketDepthWidget />;
             case AppView.SETTINGS: return <Settings initialSection={activeSettingsSection} />;
+            
+            // TradFi Routes
+            case AppView.FOREX_DASHBOARD: return <ForexDashboard />;
+            case AppView.FOREX_PAIRS: return <PlaceholderView title="Forex Currency Pairs" />;
+            case AppView.FOREX_CALENDAR: return <PlaceholderView title="Economic Calendar" />;
+            case AppView.FOREX_BOT_LAB: return <PlaceholderView title="Forex Bot Lab" />;
+            case AppView.STOCKS_DASHBOARD: return <StocksDashboard />;
+            case AppView.STOCKS_SCREENER: return <PlaceholderView title="Stock Screener" />;
+            case AppView.EARNINGS_CALENDAR: return <PlaceholderView title="Earnings Calendar" />;
+            case AppView.SEC_FILINGS: return <PlaceholderView title="SEC Filings" />;
+            case AppView.COMMODITIES_DASHBOARD: return <CommoditiesDashboard />;
+            case AppView.COMMODITIES_MARKET: return <PlaceholderView title="Commodities Futures" />;
+
             default: return <Dashboard />;
         }
     };
@@ -447,8 +518,9 @@ const AppDashboard: React.FC<AppDashboardProps> = ({ onLogout }) => {
                                     {viewToRender}
                                 </h1>
 
-                                {/* Center — System Alert Monitor Widget */}
-                                <div className="flex items-center justify-center">
+                                {/* Center — Market Switcher & System Alert Monitor Widget */}
+                                <div className="flex items-center justify-center gap-4">
+                                    <MarketSwitcher />
                                     <SystemAlertWidget />
                                 </div>
 

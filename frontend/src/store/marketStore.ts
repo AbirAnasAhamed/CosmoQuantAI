@@ -1,6 +1,10 @@
 import { create } from 'zustand';
 
+export type MarketType = 'crypto' | 'forex' | 'stocks' | 'commodities';
+
 interface MarketState {
+    activeMarket: MarketType;
+    setActiveMarket: (market: MarketType) => void;
     globalExchange: string;
     setGlobalExchange: (exchange: string) => void;
     globalSymbol: string;
@@ -10,6 +14,8 @@ interface MarketState {
 }
 
 export const useMarketStore = create<MarketState>((set) => ({
+    activeMarket: 'crypto',
+    setActiveMarket: (market) => set({ activeMarket: market }),
     globalExchange: 'binance',
     setGlobalExchange: (exchange) => set({ globalExchange: exchange }),
     globalSymbol: 'DOGE/USDT',
