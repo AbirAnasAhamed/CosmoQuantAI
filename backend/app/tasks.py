@@ -700,6 +700,8 @@ def fetch_and_store_sentiment(self):
         import asyncio
         try:
             loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                raise RuntimeError
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -781,6 +783,8 @@ def monitor_whale_movements():
         # Run async scan synchronously
         try:
             loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                raise RuntimeError
         except RuntimeError:
             loop = asyncio.new_event_loop()
             asyncio.set_event_loop(loop)
@@ -1267,6 +1271,8 @@ def evaluate_model_drift_task(self):
                         
                         try:
                             loop = asyncio.get_event_loop()
+                            if loop.is_closed():
+                                raise RuntimeError
                         except RuntimeError:
                             loop = asyncio.new_event_loop()
                             asyncio.set_event_loop(loop)

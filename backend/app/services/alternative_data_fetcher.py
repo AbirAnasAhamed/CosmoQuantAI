@@ -118,7 +118,14 @@ class AlternativeDataFetcher:
         
         # 3. Fetch Google Trends (Run in executor since it's sync)
         keyword = "Bitcoin" if "BTC" in symbol else ("Ethereum" if "ETH" in symbol else "Crypto")
-        loop = asyncio.get_event_loop()
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                raise RuntimeError
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
         gt_df = await loop.run_in_executor(None, self.fetch_google_trends, keyword, "today 3-m")
 
         # Combine into a single daily DataFrame

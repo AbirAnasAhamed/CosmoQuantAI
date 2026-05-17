@@ -165,7 +165,14 @@ class UnusualOptionsScanner:
         )
         
         # Sync DB save wrapper
-        loop = asyncio.get_event_loop()
+        try:
+            loop = asyncio.get_event_loop()
+            if loop.is_closed():
+                raise RuntimeError
+        except RuntimeError:
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+            
         await loop.run_in_executor(None, self._save_sync, db_trade)
         
         # Broadcast to WebSocket

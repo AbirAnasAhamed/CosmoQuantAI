@@ -202,7 +202,15 @@ class TokenUnlockService:
                 except AttributeError:
                     # Fallback for older library versions that don't have aio namespace
                     import asyncio
-                    response = await asyncio.get_event_loop().run_in_executor(
+                    try:
+                        loop = asyncio.get_event_loop()
+                        if loop.is_closed():
+                            raise RuntimeError
+                    except RuntimeError:
+                        loop = asyncio.new_event_loop()
+                        asyncio.set_event_loop(loop)
+                    
+                    response = await loop.run_in_executor(
                         None,
                         lambda: self.ai_client.models.generate_content(
                             model="gemini-2.0-flash",
