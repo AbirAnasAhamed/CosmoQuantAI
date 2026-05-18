@@ -322,7 +322,14 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                         volumeSeriesRef.current.setData(volumeData);
                     }
 
-                    chart.timeScale().fitContent();
+                    if (candles.length > 200) {
+                        chart.timeScale().setVisibleLogicalRange({
+                            from: candles.length - 200,
+                            to: candles.length - 1,
+                        });
+                    } else {
+                        chart.timeScale().fitContent();
+                    }
 
                     // Initialize Indicators immediately after fetching history
                     if (candles.length > 0) {
