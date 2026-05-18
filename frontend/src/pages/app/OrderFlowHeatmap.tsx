@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useMemo, useState } from 'react';
+import React, { useEffect, useRef, useMemo, useState, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { createChart, ISeriesApi, CandlestickData, CandlestickSeries, LineSeries, HistogramSeries, HistogramData, createSeriesMarkers, LineStyle } from 'lightweight-charts';
 import { WickSRRenderer } from '../../components/features/market/WickSRRenderer';
@@ -2551,6 +2551,35 @@ const OrderFlowHeatmap: React.FC = () => {
     const [isWallHunterOpen, setIsWallHunterOpen] = useState(false);
     const [isEmergencySelling, setIsEmergencySelling] = useState(false); // NEW STATE
     const [isFullscreen, setIsFullscreen] = useState(false); // NEW STATE
+
+    // ── Draggable HUD state ────────────────────────────────────────────────────
+    const [hudPos, setHudPos] = useState({ x: 24, y: 24 }); // initial: top-right offset
+    const hudDragRef = useRef({ dragging: false, startX: 0, startY: 0, originX: 0, originY: 0 });
+
+    const startHudDrag = useCallback((e: React.MouseEvent) => {
+        e.preventDefault();
+        const drag = hudDragRef.current;
+        drag.dragging = true;
+        drag.startX = e.clientX;
+        drag.startY = e.clientY;
+        drag.originX = hudPos.x;
+        drag.originY = hudPos.y;
+
+        const onMove = (mv: MouseEvent) => {
+            if (!hudDragRef.current.dragging) return;
+            setHudPos({
+                x: Math.max(0, drag.originX + (mv.clientX - drag.startX)),
+                y: Math.max(0, drag.originY + (mv.clientY - drag.startY)),
+            });
+        };
+        const onUp = () => {
+            hudDragRef.current.dragging = false;
+            window.removeEventListener('mousemove', onMove);
+            window.removeEventListener('mouseup', onUp);
+        };
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onUp);
+    }, [hudPos.x, hudPos.y]);
     const [showSubNav, setShowSubNav] = useState(() => {
         try { return localStorage.getItem('heatmapSubNavVisible') !== 'false'; } catch { return true; }
     });
@@ -2784,14 +2813,35 @@ const OrderFlowHeatmap: React.FC = () => {
                     {/* Level 2 Order Book moved to floating modal */}
                 </div>
 
-                {/* ACTIVE BOT STATUS HUD */}
+                {/* ACTIVE BOT STATUS HUD — DRAGGABLE */}
                 {activeWallHunterId && botStatus && (
-                    <div className="absolute top-6 right-6 z-50 pointer-events-none">
-                        <div className="bg-white/10 dark:bg-black/40 backdrop-blur-xl border border-white/20 dark:border-white/10 p-4 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.3)] w-64">
-                            <h4 className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-2">
-                                <span className={`w-2 h-2 rounded-full ${botStatus.position ? 'bg-yellow-400 animate-pulse' : 'bg-indigo-500 animate-pulse'}`}></span>
+                    <div
+                        style={{
+                            position: 'absolute',
+                            left: hudPos.x,
+                            top: hudPos.y,
+                            zIndex: 50,
+                            userSelect: 'none',
+                            width: '256px',
+                        }}
+                    >
+                        <div className="bg-white/10 dark:bg-black/40 backdrop-blur-xl border border-white/20 dark:border-white/10 p-4 rounded-xl shadow-[0_8px_32px_rgba(0,0,0,0.3)]">
+                            {/* ── Drag Handle ── */}
+                            <h4
+                                onMouseDown={startHudDrag}
+                                className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2 flex items-center gap-2 cursor-grab active:cursor-grabbing select-none"
+                                title="Drag to move"
+                            >
+                                {/* grip icon */}
+                                <svg className="w-3 h-3 text-gray-600 flex-shrink-0" viewBox="0 0 10 16" fill="currentColor">
+                                    <circle cx="2" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/>
+                                    <circle cx="2" cy="8" r="1.5"/><circle cx="8" cy="8" r="1.5"/>
+                                    <circle cx="2" cy="14" r="1.5"/><circle cx="8" cy="14" r="1.5"/>
+                                </svg>
+                                <span className={`w-2 h-2 rounded-full flex-shrink-0 ${botStatus.position ? 'bg-yellow-400 animate-pulse' : 'bg-indigo-500 animate-pulse'}`} />
                                 {botStatus.position ? 'In Trade' : 'Monitoring L2 Wall'}
                             </h4>
+
                             <div className="flex flex-col gap-2">
                                 <div className="flex justify-between items-center bg-black/20 p-2 rounded-lg border border-white/5">
                                     <span className="text-gray-400 font-mono text-xs">Unrealized PnL:</span>
@@ -2837,7 +2887,7 @@ const OrderFlowHeatmap: React.FC = () => {
                                         </div>
 
                                         {/* EMERGENCY EXIT BLOCKS */}
-                                        <div className="mt-2 grid grid-cols-2 gap-2 pointer-events-auto">
+                                        <div className="mt-2 grid grid-cols-2 gap-2">
                                             <button
                                                 onClick={() => handleEmergencySell('market')}
                                                 disabled={isEmergencySelling}
