@@ -384,7 +384,7 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                     trade_features: dataSource === 'historical_trades' ? selectedTradeFeatures : undefined,
                     // Hybrid Deep params (new)
                     hybrid_deep_trade_features: dataSource === 'hybrid_deep' ? selectedHybridDeepTradeFeatures : undefined,
-                    plp_features: dataSource === 'hybrid_deep' ? selectedPlpFeatures : undefined,
+                    plp_features: (dataSource === 'hybrid_deep' || dataSource === 'l2_orderbook' || dataSource === 'hybrid') ? selectedPlpFeatures : undefined,
                     // Execution strategy params
                     execution_strategy: executionStrategy,
                     iceberg_slices: executionStrategy === 'iceberg' ? icebergSlices : undefined,
@@ -1575,6 +1575,43 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                         </AnimatePresence>
                                     </div>
                                 </div>
+                            )}
+
+                            {/* ── Predatory Liquidity Pipeline: L2 Orderbook & Hybrid (OHLCV+L2) ── */}
+                            {(dataSource === 'l2_orderbook' || dataSource === 'hybrid') && (
+                                <motion.div
+                                    key="plp-l2-hybrid"
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="mb-5"
+                                >
+                                    <div className="mb-3 p-3 bg-gradient-to-r from-purple-900/30 to-indigo-900/20 rounded-xl border border-purple-500/30 flex items-start gap-3">
+                                        <div className="flex gap-1.5 mt-0.5 flex-shrink-0">
+                                            <div className="w-2 h-2 rounded-full bg-purple-400 animate-pulse" />
+                                            <div className="w-2 h-2 rounded-full bg-indigo-400 animate-pulse [animation-delay:0.4s]" />
+                                        </div>
+                                        <div>
+                                            <p className="text-xs font-bold text-purple-300">
+                                                {dataSource === 'hybrid' ? '✅ Hybrid Mode: Full PLP Quality' : '✅ L2 Mode: OBI/Spread-Powered PLP'}
+                                            </p>
+                                            <p className="text-[10px] text-slate-400 mt-0.5 leading-relaxed">
+                                                {dataSource === 'hybrid'
+                                                    ? 'All 50 PLP features fully powered — OHLCV provides Close/Volume, L2 provides OBI/Spread.'
+                                                    : 'Stop-Hunt, Sweep, SMC & Spread-based features at full quality. Volume proxies used where trade ticks are absent.'}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <PredatoryLiquidityPipeline
+                                        selectedFeatures={selectedPlpFeatures}
+                                        onToggleFeature={(id) => setSelectedPlpFeatures(prev =>
+                                            prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
+                                        )}
+                                        onSetMultipleFeatures={(ids) => setSelectedPlpFeatures(ids)}
+                                        isTraining={isTraining}
+                                        isRetrainMode={isRetrainMode}
+                                        initialLoadedFeatures={initialLoadedPlpFeatures}
+                                    />
+                                </motion.div>
                             )}
                         </div>
 

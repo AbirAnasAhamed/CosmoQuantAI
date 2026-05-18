@@ -461,10 +461,28 @@ def train_model_task(job_id: str, db: Session):
             else:
                 df['Target'] = df['Close'].shift(-5)
                 
+            # ── Predatory Liquidity Pipeline (PLP) Features ──────────────────────
+            sel_plp = config.get("plp_features", [])
+            if sel_plp:
+                add_log(f"[L2] Calculating {len(sel_plp)} Predatory Liquidity Pipeline (PLP) features...")
+                try:
+                    from app.services.predatory_liquidity_pipeline import calculate_plp_features
+                    plp_df = calculate_plp_features(df, sel_plp)
+                    for col in plp_df.columns:
+                        if col not in df.columns:
+                            df[col] = plp_df[col]
+                    # Append only the PLP cols that were actually generated
+                    plp_added = [c for c in sel_plp if c in df.columns and c not in features]
+                    features.extend(plp_added)
+                    add_log(f"[L2] PLP features engineered: {len(plp_added)} added → total features now {len(features)}.")
+                except Exception as e:
+                    add_log(f"[L2] ⚠️ PLP feature generation failed (non-fatal): {e}")
+
             from app.services.ml_utils import apply_data_cleaning
             df = apply_data_cleaning(df, config, add_log)
             if len(df) < 10:
                 raise Exception(f"Not enough L2 data to train a model. Found {len(df)} rows after processing. Please lower timeframe or collect more data.")
+
                 
         elif dataset_type == "historical_trades":
             from app.services.trade_data_processor import process_historical_trades

@@ -71,6 +71,9 @@ class Settings(BaseSettings):
 
     # Etherscan API
     ETHERSCAN_API_KEY: Optional[str] = None
+
+    # GitHub API Token (avoids 60 req/hr anonymous limit -> 5000 req/hr authenticated)
+    GITHUB_TOKEN: Optional[str] = None
     
     # Custom Base URLs (Optional, for local LLMs or proxies)
     OPENAI_BASE_URL: str = "https://api.openai.com/v1"

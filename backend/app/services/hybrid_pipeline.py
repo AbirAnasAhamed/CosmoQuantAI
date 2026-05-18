@@ -164,6 +164,20 @@ def build_hybrid_dataset(job, db: Session, config: dict, add_log) -> tuple[pd.Da
         else:
             raise Exception("[HYBRID] 'Close' price is missing from merged dataset.")
 
+    # ── Step 3.5: Predatory Liquidity Pipeline (PLP) Features ────────────────
+    sel_plp = config.get("plp_features", [])
+    if sel_plp:
+        add_log(f"[HYBRID] Calculating {len(sel_plp)} Predatory Liquidity Pipeline (PLP) features...")
+        try:
+            from app.services.predatory_liquidity_pipeline import calculate_plp_features
+            plp_df = calculate_plp_features(df, sel_plp)
+            for col in plp_df.columns:
+                if col not in df.columns:
+                    df[col] = plp_df[col]
+            add_log(f"[HYBRID] Successfully engineered {len(plp_df.columns)} PLP features.")
+        except Exception as e:
+            add_log(f"[HYBRID] ⚠️ PLP feature generation failed (non-fatal): {e}")
+
     if prediction_target == "classification":
         df['Target'] = (df['Close'].shift(-5) > df['Close']).astype(int)
     else:
@@ -204,6 +218,9 @@ def build_hybrid_dataset(job, db: Session, config: dict, add_log) -> tuple[pd.Da
             # Only include L2 features if the user explicitly selected them
             if col in l2_selected:
                 final_features.append(col)
+        elif sel_plp and col in sel_plp:
+            # PLP feature — include only if user selected it
+            final_features.append(col)
         else:
             # This is a Technical Indicator (e.g., RSI_14, MACD_12_26_9) or other column
             final_features.append(col)
@@ -211,7 +228,11 @@ def build_hybrid_dataset(job, db: Session, config: dict, add_log) -> tuple[pd.Da
     if not final_features:
         final_features = ['Close']
 
-    add_log(f"[HYBRID] Using {len(final_features)} combined features for training (L2: {sum(1 for f in final_features if f in KNOWN_L2_FEATURES)}, TA: {sum(1 for f in final_features if f not in KNOWN_L2_FEATURES)}).")
+    l2_cnt  = sum(1 for f in final_features if f in KNOWN_L2_FEATURES)
+    ta_cnt  = sum(1 for f in final_features if f not in KNOWN_L2_FEATURES and (not sel_plp or f not in sel_plp))
+    plp_cnt = sum(1 for f in final_features if sel_plp and f in sel_plp)
+    add_log(f"[HYBRID] Using {len(final_features)} combined features for training (L2: {l2_cnt} | TA: {ta_cnt} | PLP: {plp_cnt}).")
+
     
     # Broadcast final dataset preview
     try:
