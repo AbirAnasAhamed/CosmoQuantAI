@@ -14,6 +14,7 @@ import { DatasetVisualizerModal } from '@/components/DatasetVisualizerModal';
 import PredatoryLiquidityPipeline, { GET_DEFAULT_MANDATORY_PLP_FEATURES } from '@/components/ml/PredatoryLiquidityPipeline';
 import { AdvancedExecutionSettings } from '@/components/app/AdvancedExecutionSettings'; // ✅ New
 import { AlternativeDataSettings } from '@/components/app/AlternativeDataSettings'; // ✅ New
+import EnsembleBuilder from '@/components/ml/EnsembleBuilder';
 
 import { mlModelsService } from '@/services/mlModelsService';
 
@@ -61,6 +62,15 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
     // AutoML States
     const [useAutoML, setUseAutoML] = useState(false);
     const [automlTrials, setAutomlTrials] = useState(20);
+
+    // Ensemble States
+    const [isEnsemble, setIsEnsemble] = useState(false);
+    const [ensembleMethod, setEnsembleMethod] = useState<'voting' | 'stacking'>('voting');
+    const [baseModels, setBaseModels] = useState<string[]>(['Random Forest', 'XGBoost']);
+    const [metaModel, setMetaModel] = useState<string>('Logistic Regression');
+    const [votingStrategy, setVotingStrategy] = useState<'hard' | 'soft'>('soft');
+    const [autoOptimizeWeights, setAutoOptimizeWeights] = useState(false);
+    const [featureSubspacing, setFeatureSubspacing] = useState(false);
     
     const [isTraining, setIsTraining] = useState(false);
     const [isClearing, setIsClearing] = useState(false);
@@ -383,6 +393,13 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                     alt_features: selectedAltFeatures,
                     use_automl: useAutoML,
                     automl_trials: automlTrials,
+                    is_ensemble: isEnsemble,
+                    ensemble_method: isEnsemble ? ensembleMethod : undefined,
+                    base_models: isEnsemble ? baseModels : undefined,
+                    meta_model: isEnsemble && ensembleMethod === 'stacking' ? metaModel : undefined,
+                    voting_strategy: isEnsemble && ensembleMethod === 'voting' ? votingStrategy : undefined,
+                    auto_optimize_weights: isEnsemble && ensembleMethod === 'voting' && votingStrategy === 'soft' ? autoOptimizeWeights : undefined,
+                    feature_subspacing: isEnsemble ? featureSubspacing : undefined,
                 }
             });
             setCurrentJob(job);
@@ -666,41 +683,63 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
 
                         <div>
                             <label className="block text-sm font-medium text-slate-300 mb-2">Algorithm Engine</label>
-                            <div className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2">
-                                {ALGORITHM_CATEGORIES.map(category => (
-                                    <div key={category.name} className="space-y-2">
-                                        <div>
-                                            <h4 className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">{category.name}</h4>
-                                            <p className="text-[10px] text-slate-500 font-medium">{category.desc}</p>
-                                        </div>
-                                        <div className="grid grid-cols-1 gap-2">
-                                            {category.algos.map(algo => (
-                                                <div 
-                                                    key={algo.id} 
-                                                    onClick={() => !isTraining && setAlgorithm(algo.id)}
-                                                    className={`flex items-start p-3 rounded-xl border cursor-pointer transition-all duration-300 relative overflow-hidden ${algorithm === algo.id ? (isRetrainMode && initialAlgorithm === algo.id ? 'border-purple-400 bg-purple-500/20 shadow-[0_0_20px_rgba(168,85,247,0.3)]' : 'border-purple-500 bg-purple-500/10 shadow-[0_0_15px_rgba(168,85,247,0.15)]') : 'border-white/10 bg-white/5 hover:bg-white/10'} ${isTraining ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                >
-                                                    <div className={`mt-1 w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 ${algorithm === algo.id ? 'border-purple-400' : 'border-white/30'}`}>
-                                                        {algorithm === algo.id && <div className="w-1.5 h-1.5 rounded-full bg-purple-400 shadow-[0_0_5px_#a855f7]"></div>}
-                                                    </div>
-                                                    <div className="ml-3 flex-1 pr-16">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className={`text-sm font-semibold tracking-wide ${algorithm === algo.id && isRetrainMode && initialAlgorithm === algo.id ? 'text-purple-300' : 'text-slate-200'}`}>{algo.id}</span>
-                                                            <span className="text-[8px] font-bold text-slate-400 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded uppercase tracking-widest">{algo.type}</span>
-                                                        </div>
-                                                        <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">{algo.desc}</p>
-                                                    </div>
-                                                    {isRetrainMode && initialAlgorithm === algo.id && (
-                                                        <span className="absolute top-3 right-3 text-[9px] font-black uppercase text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/30 flex items-center gap-1">
-                                                            <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-ping"></div> Original
-                                                        </span>
-                                                    )}
+                            
+                            <EnsembleBuilder
+                                isEnsemble={isEnsemble}
+                                setIsEnsemble={setIsEnsemble}
+                                ensembleMethod={ensembleMethod}
+                                setEnsembleMethod={setEnsembleMethod}
+                                baseModels={baseModels}
+                                setBaseModels={setBaseModels}
+                                metaModel={metaModel}
+                                setMetaModel={setMetaModel}
+                                disabled={isTraining}
+                            />
+
+                            <AnimatePresence>
+                                {!isEnsemble && (
+                                    <motion.div 
+                                        initial={{ opacity: 0, height: 0 }}
+                                        animate={{ opacity: 1, height: 'auto' }}
+                                        exit={{ opacity: 0, height: 0 }}
+                                        className="space-y-4 max-h-[300px] overflow-y-auto custom-scrollbar pr-2 mt-4"
+                                    >
+                                        {ALGORITHM_CATEGORIES.map(category => (
+                                            <div key={category.name} className="space-y-2">
+                                                <div>
+                                                    <h4 className="text-[10px] font-black text-cyan-400 uppercase tracking-widest">{category.name}</h4>
+                                                    <p className="text-[10px] text-slate-500 font-medium">{category.desc}</p>
                                                 </div>
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                                                <div className="grid grid-cols-1 gap-2">
+                                                    {category.algos.map(algo => (
+                                                        <div 
+                                                            key={algo.id} 
+                                                            onClick={() => !isTraining && setAlgorithm(algo.id)}
+                                                            className={`flex items-start p-3 rounded-xl border cursor-pointer transition-all duration-300 relative overflow-hidden ${algorithm === algo.id ? (isRetrainMode && initialAlgorithm === algo.id ? 'border-purple-400 bg-purple-500/20 shadow-[0_0_20px_rgba(168,85,247,0.3)]' : 'border-purple-500 bg-purple-500/10 shadow-[0_0_15px_rgba(168,85,247,0.15)]') : 'border-white/10 bg-white/5 hover:bg-white/10'} ${isTraining ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                        >
+                                                            <div className={`mt-1 w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 ${algorithm === algo.id ? 'border-purple-400' : 'border-white/30'}`}>
+                                                                {algorithm === algo.id && <div className="w-1.5 h-1.5 rounded-full bg-purple-400 shadow-[0_0_5px_#a855f7]"></div>}
+                                                            </div>
+                                                            <div className="ml-3 flex-1 pr-16">
+                                                                <div className="flex items-center gap-2">
+                                                                    <span className={`text-sm font-semibold tracking-wide ${algorithm === algo.id && isRetrainMode && initialAlgorithm === algo.id ? 'text-purple-300' : 'text-slate-200'}`}>{algo.id}</span>
+                                                                    <span className="text-[8px] font-bold text-slate-400 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded uppercase tracking-widest">{algo.type}</span>
+                                                                </div>
+                                                                <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">{algo.desc}</p>
+                                                            </div>
+                                                            {isRetrainMode && initialAlgorithm === algo.id && (
+                                                                <span className="absolute top-3 right-3 text-[9px] font-black uppercase text-purple-400 bg-purple-500/10 px-2 py-0.5 rounded border border-purple-500/30 flex items-center gap-1">
+                                                                    <div className="w-1.5 h-1.5 bg-purple-400 rounded-full animate-ping"></div> Original
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </motion.div>
+                                )}
+                            </AnimatePresence>
                         </div>
 
                         <div>
@@ -1804,6 +1843,48 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                             try {
                                                 const featureData = JSON.parse(cleanLog.replace('[FEATURE_IMPORTANCE]', '').trim());
                                                 return <FeatureImportanceChart key={idx} data={featureData} />;
+                                            } catch (e) { return null; }
+                                        }
+
+                                        if (cleanLog.startsWith('[CORRELATION]')) {
+                                            try {
+                                                const corrData = JSON.parse(cleanLog.replace('[CORRELATION]', '').trim());
+                                                const models = Object.keys(corrData);
+                                                return (
+                                                    <motion.div key={idx} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="mt-4 mb-4 p-4 bg-gradient-to-br from-indigo-900/40 to-purple-900/20 border border-indigo-500/30 rounded-xl shadow-[0_0_20px_rgba(99,102,241,0.15)]">
+                                                        <h4 className="text-indigo-400 font-bold text-xs mb-3 tracking-widest flex items-center gap-2">
+                                                            <Activity className="w-4 h-4" /> MODEL PREDICTION CORRELATION
+                                                        </h4>
+                                                        <div className="overflow-x-auto">
+                                                            <table className="w-full text-left text-[10px] text-slate-300">
+                                                                <thead className="bg-black/40 border-b border-indigo-500/20">
+                                                                    <tr>
+                                                                        <th className="p-2 font-bold text-indigo-300">Model</th>
+                                                                        {models.map(m => <th key={m} className="p-2 font-bold text-indigo-300 text-center">{m}</th>)}
+                                                                    </tr>
+                                                                </thead>
+                                                                <tbody>
+                                                                    {models.map(rowModel => (
+                                                                        <tr key={rowModel} className="border-b border-indigo-500/10 last:border-0 hover:bg-white/5">
+                                                                            <td className="p-2 font-bold text-slate-200">{rowModel}</td>
+                                                                            {models.map(colModel => {
+                                                                                const val = corrData[rowModel][colModel];
+                                                                                const isHigh = val > 0.85;
+                                                                                const isLow = val < 0.4;
+                                                                                return (
+                                                                                    <td key={colModel} className={`p-2 text-center font-mono font-bold ${isHigh && rowModel !== colModel ? 'text-red-400' : isLow ? 'text-emerald-400' : 'text-slate-400'}`}>
+                                                                                        {val.toFixed(2)}
+                                                                                    </td>
+                                                                                );
+                                                                            })}
+                                                                        </tr>
+                                                                    ))}
+                                                                </tbody>
+                                                            </table>
+                                                        </div>
+                                                        <p className="text-[9px] text-slate-500 mt-2">Red: High correlation (bad for ensemble). Green: Low correlation (good).</p>
+                                                    </motion.div>
+                                                );
                                             } catch (e) { return null; }
                                         }
 

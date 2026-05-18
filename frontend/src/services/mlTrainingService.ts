@@ -58,6 +58,13 @@ export interface TrainingConfig {
         alt_features?: string[];
         use_automl?: boolean;
         automl_trials?: number;
+        is_ensemble?: boolean;
+        ensemble_method?: 'voting' | 'stacking';
+        base_models?: string[];
+        meta_model?: string;
+        voting_strategy?: 'hard' | 'soft';
+        auto_optimize_weights?: boolean;
+        feature_subspacing?: boolean;
     };
 }
 

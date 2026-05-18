@@ -37,7 +37,7 @@ from sqlalchemy.orm import Session
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 DEEP_LEARNING_ALGOS = {"LSTM", "GRU", "1D-CNN", "DeepLOB", "Transformer", "TCN", "TabNet", "Auto-Encoder"}
-SKLEARN_ALGOS       = {"Random Forest", "XGBoost", "LightGBM", "CatBoost"}
+SKLEARN_ALGOS       = {"Random Forest", "XGBoost", "LightGBM", "CatBoost", "Custom Ensemble"}
 
 
 # ─── Public Entry Point ───────────────────────────────────────────────────────
