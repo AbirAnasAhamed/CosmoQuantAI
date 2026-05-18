@@ -378,21 +378,17 @@ class WallHunterFuturesStrategy:
                     except Exception:
                         pass
                         
-            # 2. Bulletproof exchange-level sweep for any orphaned orders belonging to this bot
+            # 2. Bulletproof exchange-level sweep using cancel_all_orders.
+            # NOTE: fetch_open_orders does NOT return Binance Futures Conditional/Algo orders
+            # (Stop Limit, Stop Market, Take Profit). The ONLY reliable way to cancel them
+            # all is via cancel_all_orders, which hits Binance's batch cancel endpoint and
+            # clears Basic + Conditional orders in one shot.
             try:
                 if getattr(self, 'private_exchange', None):
-                    open_orders = await self.private_exchange.fetch_open_orders(self.symbol)
-                    prefix = f"WH_{self.bot_id}_"
-                    to_cancel = [o for o in open_orders if str(o.get('clientOrderId', '')).startswith(prefix) or str(o.get('info', {}).get('clientOrderId', '')).startswith(prefix)]
-                    for o in to_cancel:
-                        try:
-                            success = await self.engine.cancel_order(o['id'])
-                            if success:
-                                self.logger.info(f"🧹 Swept orphaned order {o['id']} directly from exchange during state clear.")
-                        except Exception:
-                            pass
+                    await self.private_exchange.cancel_all_orders(self.symbol)
+                    self.logger.info(f"🧹 Cancelled all open + conditional orders for {self.symbol} via cancel_all_orders.")
             except Exception as e:
-                self.logger.debug(f"Exchange-level sweep failed (normal if rate limited): {e}")
+                self.logger.debug(f"cancel_all_orders failed (may be normal if no orders exist): {e}")
         
         state_key = f"wallhunter_futures:state:{self.bot_id}"
         try:
