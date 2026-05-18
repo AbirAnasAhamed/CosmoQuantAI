@@ -120,11 +120,8 @@ export const CosmicStarBackground: React.FC = () => {
         const animate = () => {
             // Reset globalAlpha to ensure the canvas is fully cleared
             ctx!.globalAlpha = 1.0;
-            // Fully clear the canvas with pure black
-            ctx!.fillStyle = 'rgba(0, 0, 0, 1.0)';
-            ctx!.fillRect(0, 0, canvas.width, canvas.height);
-
-            // (Removed radial gradient calculation here for massive performance boost)
+            // Fully clear the canvas transparently so the galaxy image shows through
+            ctx!.clearRect(0, 0, canvas.width, canvas.height);
 
             // Warp speed (traveling fast)
             const speed = 4;
@@ -141,7 +138,21 @@ export const CosmicStarBackground: React.FC = () => {
         };
     }, []);
 
-    return <canvas ref={canvasRef} className="fixed inset-0 z-0 w-full h-full pointer-events-none" />;
+    return (
+        <div className="fixed inset-0 z-0 w-full h-full pointer-events-none overflow-hidden bg-black">
+            {/* Distant Galaxy Image Background - Centered, Masked, Static, Balanced Distance */}
+            <div 
+                className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[900px] h-[900px] md:w-[1100px] md:h-[1100px] bg-[url('/distant_galaxy_bg.png')] bg-cover bg-center bg-no-repeat opacity-60"
+                style={{ 
+                    mixBlendMode: 'screen',
+                    WebkitMaskImage: 'radial-gradient(circle at center, rgba(0,0,0,1) 30%, rgba(0,0,0,0) 70%)',
+                    maskImage: 'radial-gradient(circle at center, rgba(0,0,0,1) 30%, rgba(0,0,0,0) 70%)'
+                }}
+            />
+            {/* 3D Starfield Canvas */}
+            <canvas ref={canvasRef} className="absolute inset-0 w-full h-full pointer-events-none" />
+        </div>
+    );
 };
 
 // ============================
