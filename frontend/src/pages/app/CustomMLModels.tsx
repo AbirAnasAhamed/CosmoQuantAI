@@ -1291,6 +1291,7 @@ const CustomMLModels: React.FC<{ onNavigate?: (view: AppView, section?: string) 
             );
             return isProcessing ? 5000 : false;
         },
+        refetchOnWindowFocus: false,
     });
 
     const createMutation = useMutation({
@@ -1350,8 +1351,9 @@ const CustomMLModels: React.FC<{ onNavigate?: (view: AppView, section?: string) 
         refetchInterval: (query) => {
             const jobs = query.state.data || [];
             const hasActive = jobs.some((j: any) => j.status === 'PENDING' || j.status === 'RUNNING');
-            return hasActive ? 2000 : 10000; // Poll fast if active, slower otherwise
+            return hasActive ? 2000 : false; // Poll fast if active, stop otherwise
         },
+        refetchOnWindowFocus: false,
         select: (jobs) => jobs.filter((j: any) => j.status === 'PENDING' || j.status === 'RUNNING')
     });
 

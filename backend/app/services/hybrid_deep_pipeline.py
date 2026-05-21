@@ -518,10 +518,13 @@ def build_hybrid_deep_dataset(job, db: Session, config: dict, add_log) -> tuple:
         else:
             raise Exception("[HybridDeep] Cannot find Close price for target.")
 
+    # High frequency data needs a larger shift to capture price movement
+    future_shift = config.get("prediction_shift", 100)
+
     if pred_target == "classification":
-        df['Target'] = (df['Close'].shift(-5) > df['Close']).astype(int)
+        df['Target'] = (df['Close'].shift(-future_shift) > df['Close']).astype(int)
     else:
-        df['Target'] = df['Close'].shift(-5)
+        df['Target'] = df['Close'].shift(-future_shift)
 
     df.dropna(inplace=True)
 

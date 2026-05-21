@@ -416,11 +416,11 @@ def get_model_config(
                             "n_episodes", "max_episodes",
                             "n_estimators", "num_trees", "num_boost_round", "num_leaves",
                         ) if meta.get(k) is not None), None),
-                        # indicators: prefer non-empty list from any common key
-                        "indicators": next((meta.get(k) for k in ("indicators", "features", "feature_list") if meta.get(k)), []),
-                        "l2_features": next((meta.get(k) for k in ("l2_features", "orderbook_features") if meta.get(k)), []),
-                        "trade_features": next((meta.get(k) for k in ("trade_features", "tick_features") if meta.get(k)), []),
-                        "plp_features": meta.get("plp_features") or [],
+                        # indicators: prefer existing keys even if empty
+                        "indicators": meta.get("indicators") if "indicators" in meta else meta.get("features", meta.get("feature_list", [])),
+                        "l2_features": meta.get("l2_features") if "l2_features" in meta else meta.get("orderbook_features", []),
+                        "trade_features": meta.get("trade_features") if "trade_features" in meta else meta.get("tick_features", []),
+                        "plp_features": meta.get("plp_features", []),
                         "lookback": meta.get("lookback") or meta.get("sequence_length") or meta.get("window"),
                         "train_size": meta.get("train_size") or meta.get("train_split"),
                         "dataset_type": meta.get("dataset_type"),

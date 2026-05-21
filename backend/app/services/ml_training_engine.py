@@ -1943,17 +1943,31 @@ def train_model_task(job_id: str, db: Session):
 
         # ── Fix 1 + 2: Save enriched metadata ────────────────────────────────
         metadata_path = model_path.replace(".pkl", ".json").replace(".pt", ".json").replace(".zip", ".json")
+        
+        trade_feats = config.get("trade_features", [])
+        if config.get("dataset_type") == "hybrid_deep":
+            trade_feats = config.get("hybrid_deep_trade_features", trade_feats)
+
         metadata_payload = {
             "features":         features,
             "dataset_type":     config.get("dataset_type", "ohlcv"),
             "indicators":       config.get("indicators", []),
+            "l2_features":      config.get("l2_features", []),
+            "trade_features":   trade_feats,
             "timeframe":        job.timeframe,
             "symbol":           job.symbol,
             "prediction_target":prediction_target,
             "algorithm":        job.algorithm,
+            "epochs":           config.get("epochs", 100),
             "scaler_path":      scaler_save_path,
             "cv_result":        cv_result,
-            "plp_features":     config.get("plp_features", [])
+            "plp_features":     config.get("plp_features", []),
+            "accuracy":         final_accuracy if prediction_target == "classification" else None,
+            "f1_score":         final_f1 if prediction_target == "classification" else None,
+            "r2_score":         final_accuracy if prediction_target != "classification" else None,
+            "mse":              final_f1 if prediction_target != "classification" else None,
+            "rmse":             final_f1 if prediction_target != "classification" else None,
+            "latency":          final_latency
         }
         with open(metadata_path, "w") as f:
             json.dump(metadata_payload, f)
