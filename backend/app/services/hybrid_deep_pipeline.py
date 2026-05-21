@@ -522,7 +522,9 @@ def build_hybrid_deep_dataset(job, db: Session, config: dict, add_log) -> tuple:
     future_shift = config.get("prediction_shift", 100)
 
     if pred_target == "classification":
-        df['Target'] = (df['Close'].shift(-future_shift) > df['Close']).astype(int)
+        # Look ahead 'future_shift' ticks to see if price hits a higher high (solves 0% Trades imbalance)
+        future_max = df['Close'].rolling(window=future_shift).max().shift(-future_shift)
+        df['Target'] = (future_max > df['Close']).astype(int)
     else:
         df['Target'] = df['Close'].shift(-future_shift)
 

@@ -457,7 +457,8 @@ def train_model_task(job_id: str, db: Session):
             
             prediction_target = config.get("prediction_target", "classification")
             if prediction_target == "classification":
-                df['Target'] = (df['Close'].shift(-5) > df['Close']).astype(int)
+                future_max = df['Close'].rolling(window=5).max().shift(-5)
+                df['Target'] = (future_max > df['Close']).astype(int)
             else:
                 df['Target'] = df['Close'].shift(-5)
                 
@@ -680,7 +681,8 @@ def train_model_task(job_id: str, db: Session):
                 
             prediction_target = config.get("prediction_target", "classification")
             if prediction_target == "classification":
-                df['Target'] = (df['Close'].shift(-5) > df['Close']).astype(int)
+                future_max = df['Close'].rolling(window=5).max().shift(-5)
+                df['Target'] = (future_max > df['Close']).astype(int)
             else:
                 df['Target'] = df['Close'].shift(-5)
                 
@@ -801,7 +803,8 @@ def train_model_task(job_id: str, db: Session):
                 
             prediction_target = config.get("prediction_target", "classification")
             if prediction_target == "classification":
-                df['Target'] = (df['Close'].shift(-5) > df['Close']).astype(int)
+                future_max = df['Close'].rolling(window=5).max().shift(-5)
+                df['Target'] = (future_max > df['Close']).astype(int)
             else:
                 df['Target'] = df['Close'].shift(-5)
                 

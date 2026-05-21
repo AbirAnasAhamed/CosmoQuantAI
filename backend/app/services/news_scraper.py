@@ -14,8 +14,9 @@ logger = logging.getLogger(__name__)
 class NewsScraper:
     COINTELEGRAPH_RSS = "https://cointelegraph.com/rss"
     COINDESK_RSS = "https://www.coindesk.com/arc/outboundfeeds/rss/"
+    # CryptoPanic Endpoints
     CRYPTOPANIC_RSS = "https://cryptopanic.com/news/rss/"
-    CRYPTOPANIC_API_URL = "https://cryptopanic.com/api/developer/v2/posts/?auth_token={token}&public=true"
+    CRYPTOPANIC_API_URL = "https://cryptopanic.com/api/v1/posts/?auth_token={token}&public=true"
     GOOGLE_NEWS_RSS_TEMPLATE = "https://news.google.com/rss/search?q={query}+when:{period}&hl={lang}-{country}&gl={country}&ceid={country}:{lang}"
 
     # Known placeholder values that indicate credentials are not configured

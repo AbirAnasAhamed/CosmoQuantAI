@@ -18,7 +18,7 @@ router = APIRouter()
 UPLOAD_DIR = "uploads/models"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-async def simulate_processing(db: Session, version_id: str):
+async def simulate_processing(version_id: str):
     """Background task to finalize model processing after upload.
 
     Priority order for metrics/explainability:
@@ -26,135 +26,140 @@ async def simulate_processing(db: Session, version_id: str):
     2. Falls back to mock data only if no metadata provided
     """
     import random
+    from app.db.session import SessionLocal
     await asyncio.sleep(5)
 
-    version = db.query(models.ModelVersion).filter(models.ModelVersion.id == version_id).first()
-    if not version or version.status != models.ModelStatus.PROCESSING:
-        return
+    db = SessionLocal()
+    try:
+        version = db.query(models.ModelVersion).filter(models.ModelVersion.id == version_id).first()
+        if not version or version.status != models.ModelStatus.PROCESSING:
+            return
 
-    # --- Try reading from metadata.json ---
-    meta = {}
-    if version.metadata_path and os.path.exists(version.metadata_path):
-        try:
-            with open(version.metadata_path, "r") as f:
-                meta = json.load(f)
-        except Exception as e:
-            print(f"[ML Registry] Could not parse metadata.json for version {version_id}: {e}")
-
-    version.status = models.ModelStatus.READY
-
-    # --- Metrics: prefer real values from metadata ---
-    version.accuracy = (
-        meta.get("accuracy") or meta.get("val_accuracy") or meta.get("test_accuracy")
-        or meta.get("r2_score") or meta.get("win_rate")
-        or (0.85 + random.uniform(-0.05, 0.05))
-    )
-    version.f1_score = (
-        meta.get("f1_score") or meta.get("f1") or meta.get("sharpe_ratio")
-        or meta.get("mse") or meta.get("rmse")
-        or (0.82 + random.uniform(-0.05, 0.05))
-    )
-    version.latency = (
-        meta.get("inference_latency_ms") or meta.get("latency_ms") or meta.get("latency")
-        or (12.5 + random.uniform(-2, 5))
-    )
-
-    # --- Explainability: build from metadata fields, fall back to mock ---
-    if meta:
-        explainability = {}
-
-        # Feature importance
-        if meta.get("feature_importance"):
-            fi = meta["feature_importance"]
-            if isinstance(fi, dict):
-                explainability["featureImportance"] = [
-                    {"name": k, "value": v} for k, v in sorted(fi.items(), key=lambda x: -x[1])
-                ]
-            elif isinstance(fi, list):
-                explainability["featureImportance"] = fi
-
-        # RL-style metrics
-        if meta.get("total_return_pct") is not None:
-            explainability["total_return_pct"] = meta["total_return_pct"]
-            explainability["win_rate"] = meta.get("win_rate", 0)
-            explainability["sharpe_ratio"] = meta.get("sharpe_ratio", 0)
-            explainability["trades_count"] = meta.get("trades_count") or meta.get("total_trades", 0)
-
-        # Backtest results
-        if meta.get("backtest_result"):
-            explainability["backtest_result"] = meta["backtest_result"]
-
-        # CV scores
-        if meta.get("cv_scores"):
-            explainability["cv_scores"] = meta["cv_scores"]
-
-        # Confusion matrix
-        if meta.get("confusion_matrix"):
-            cm = meta["confusion_matrix"]
-            if isinstance(cm, dict) and "classes" in cm and "matrix" in cm:
-                explainability["confusionMatrix"] = cm
-
-        # Pass-through any custom top-level explainability block
-        if meta.get("explainability") and isinstance(meta["explainability"], dict):
-            explainability.update(meta["explainability"])
-
-        # If no structured explainability at all, store raw meta for reference
-        if not explainability:
-            explainability = {"_raw_metadata": meta}
-
-        version.explainability = explainability
-    else:
-        # Fallback mock explainability (no metadata uploaded)
-        version.explainability = {
-            "featureImportance": [
-                {"name": "Level2_Imbalance", "value": 0.45},
-                {"name": "Volume_Profile", "value": 0.25},
-                {"name": "RSI_14", "value": 0.15},
-                {"name": "MACD_Hist", "value": 0.10},
-                {"name": "Funding_Rate", "value": 0.05}
-            ],
-            "shapSummary": [
-                {"feature": "Level2_Imbalance", "impact": 0.08, "value": "High"},
-                {"feature": "Level2_Imbalance", "impact": -0.05, "value": "Low"},
-                {"feature": "Volume_Profile", "impact": 0.04, "value": "High"},
-                {"feature": "RSI_14", "impact": -0.03, "value": "High"}
-            ],
-            "pdpData": [
-                {"x": 1000, "y": 0.1}, {"x": 5000, "y": 0.4},
-                {"x": 10000, "y": 0.8}, {"x": 20000, "y": 0.95}
-            ],
-            "timeSeriesData": [
-                {"time": "2026-05-01", "actual": 60000, "predicted": 60100},
-                {"time": "2026-05-02", "actual": 61500, "predicted": 61200},
-                {"time": "2026-05-03", "actual": 59000, "predicted": 59500},
-                {"time": "2026-05-04", "actual": 62000, "predicted": 61800},
-                {"time": "2026-05-05", "actual": 64000, "predicted": 63500}
-            ],
-            "confusionMatrix": {
-                "classes": ["Buy", "Sell", "Hold"],
-                "matrix": [[85, 5, 10], [2, 90, 8], [12, 15, 73]]
-            },
-            "decisionTree": {
-                "nodes": [
-                    {"id": "1", "label": "Level2 Imbalance > 0.5", "type": "condition"},
-                    {"id": "2", "label": "RSI > 70", "type": "condition"},
-                    {"id": "3", "label": "Volume Profile > 1M", "type": "condition"},
-                    {"id": "4", "label": "SELL", "type": "leaf", "color": "red"},
-                    {"id": "5", "label": "HOLD", "type": "leaf", "color": "gray"},
-                    {"id": "6", "label": "BUY", "type": "leaf", "color": "green"}
+        # --- Try reading from metadata.json ---
+        meta = {}
+        if version.metadata_path and os.path.exists(version.metadata_path):
+            try:
+                with open(version.metadata_path, "r") as f:
+                    meta = json.load(f)
+            except Exception as e:
+                print(f"[ML Registry] Could not parse metadata.json for version {version_id}: {e}")
+    
+        version.status = models.ModelStatus.READY
+    
+        # --- Metrics: prefer real values from metadata ---
+        version.accuracy = (
+            meta.get("accuracy") or meta.get("val_accuracy") or meta.get("test_accuracy")
+            or meta.get("r2_score") or meta.get("win_rate")
+            or (0.85 + random.uniform(-0.05, 0.05))
+        )
+        version.f1_score = (
+            meta.get("f1_score") or meta.get("f1") or meta.get("sharpe_ratio")
+            or meta.get("mse") or meta.get("rmse")
+            or (0.82 + random.uniform(-0.05, 0.05))
+        )
+        version.latency = (
+            meta.get("inference_latency_ms") or meta.get("latency_ms") or meta.get("latency")
+            or (12.5 + random.uniform(-2, 5))
+        )
+    
+        # --- Explainability: build from metadata fields, fall back to mock ---
+        if meta:
+            explainability = {}
+    
+            # Feature importance
+            if meta.get("feature_importance"):
+                fi = meta["feature_importance"]
+                if isinstance(fi, dict):
+                    explainability["featureImportance"] = [
+                        {"name": k, "value": v} for k, v in sorted(fi.items(), key=lambda x: -x[1])
+                    ]
+                elif isinstance(fi, list):
+                    explainability["featureImportance"] = fi
+    
+            # RL-style metrics
+            if meta.get("total_return_pct") is not None:
+                explainability["total_return_pct"] = meta["total_return_pct"]
+                explainability["win_rate"] = meta.get("win_rate", 0)
+                explainability["sharpe_ratio"] = meta.get("sharpe_ratio", 0)
+                explainability["trades_count"] = meta.get("trades_count") or meta.get("total_trades", 0)
+    
+            # Backtest results
+            if meta.get("backtest_result"):
+                explainability["backtest_result"] = meta["backtest_result"]
+    
+            # CV scores
+            if meta.get("cv_scores"):
+                explainability["cv_scores"] = meta["cv_scores"]
+    
+            # Confusion matrix
+            if meta.get("confusion_matrix"):
+                cm = meta["confusion_matrix"]
+                if isinstance(cm, dict) and "classes" in cm and "matrix" in cm:
+                    explainability["confusionMatrix"] = cm
+    
+            # Pass-through any custom top-level explainability block
+            if meta.get("explainability") and isinstance(meta["explainability"], dict):
+                explainability.update(meta["explainability"])
+    
+            # If no structured explainability at all, store raw meta for reference
+            if not explainability:
+                explainability = {"_raw_metadata": meta}
+    
+            version.explainability = explainability
+        else:
+            # Fallback mock explainability (no metadata uploaded)
+            version.explainability = {
+                "featureImportance": [
+                    {"name": "Level2_Imbalance", "value": 0.45},
+                    {"name": "Volume_Profile", "value": 0.25},
+                    {"name": "RSI_14", "value": 0.15},
+                    {"name": "MACD_Hist", "value": 0.10},
+                    {"name": "Funding_Rate", "value": 0.05}
                 ],
-                "edges": [
-                    {"source": "1", "target": "2", "label": "Yes"},
-                    {"source": "1", "target": "3", "label": "No"},
-                    {"source": "2", "target": "4", "label": "Yes"},
-                    {"source": "2", "target": "5", "label": "No"},
-                    {"source": "3", "target": "6", "label": "Yes"},
-                    {"source": "3", "target": "5", "label": "No"}
-                ]
-            }
+                "shapSummary": [
+                    {"feature": "Level2_Imbalance", "impact": 0.08, "value": "High"},
+                    {"feature": "Level2_Imbalance", "impact": -0.05, "value": "Low"},
+                    {"feature": "Volume_Profile", "impact": 0.04, "value": "High"},
+                    {"feature": "RSI_14", "impact": -0.03, "value": "High"}
+                ],
+                "pdpData": [
+                    {"x": 1000, "y": 0.1}, {"x": 5000, "y": 0.4},
+                    {"x": 10000, "y": 0.8}, {"x": 20000, "y": 0.95}
+                ],
+                "timeSeriesData": [
+                    {"time": "2026-05-01", "actual": 60000, "predicted": 60100},
+                    {"time": "2026-05-02", "actual": 61500, "predicted": 61200},
+                    {"time": "2026-05-03", "actual": 59000, "predicted": 59500},
+                    {"time": "2026-05-04", "actual": 62000, "predicted": 61800},
+                    {"time": "2026-05-05", "actual": 64000, "predicted": 63500}
+                ],
+                "confusionMatrix": {
+                    "classes": ["Buy", "Sell", "Hold"],
+                    "matrix": [[85, 5, 10], [2, 90, 8], [12, 15, 73]]
+                },
+                "decisionTree": {
+                    "nodes": [
+                        {"id": "1", "label": "Level2 Imbalance > 0.5", "type": "condition"},
+                        {"id": "2", "label": "RSI > 70", "type": "condition"},
+                        {"id": "3", "label": "Volume Profile > 1M", "type": "condition"},
+                        {"id": "4", "label": "SELL", "type": "leaf", "color": "red"},
+                        {"id": "5", "label": "HOLD", "type": "leaf", "color": "gray"},
+                        {"id": "6", "label": "BUY", "type": "leaf", "color": "green"}
+                    ],
+                    "edges": [
+                        {"source": "1", "target": "2", "label": "Yes"},
+                        {"source": "1", "target": "3", "label": "No"},
+                        {"source": "2", "target": "4", "label": "Yes"},
+                        {"source": "2", "target": "5", "label": "No"},
+                        {"source": "3", "target": "6", "label": "Yes"},
+                        {"source": "3", "target": "5", "label": "No"}
+                    ]
+                }
         }
 
-    db.commit()
+        db.commit()
+    finally:
+        db.close()
 
 @router.get("", response_model=List[schemas.CustomMLModelResponse])
 def get_custom_models(
@@ -231,7 +236,7 @@ async def create_custom_model(
     db.refresh(db_model)
     
     # Trigger background processing
-    background_tasks.add_task(simulate_processing, db, version_id)
+    background_tasks.add_task(simulate_processing, version_id)
 
     return db_model
 
@@ -286,7 +291,7 @@ async def upload_new_version(
     db.refresh(db_model)
 
     # Trigger background processing
-    background_tasks.add_task(simulate_processing, db, version_id)
+    background_tasks.add_task(simulate_processing, version_id)
 
     return db_model
 

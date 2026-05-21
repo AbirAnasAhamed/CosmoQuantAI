@@ -65,9 +65,12 @@ def generate_real_explainability(model, X_test, y_test, y_pred, feature_names, i
     try:
         if is_classification:
             from sklearn.metrics import confusion_matrix
-            cm = confusion_matrix(np.round(y_test).astype(int), np.round(y_pred).astype(int))
-            classes = ["Class 0", "Class 1"]
-            if cm.shape[0] == 3:
+            y_t = np.round(y_test).astype(int)
+            y_p = np.round(y_pred).astype(int)
+            labels = sorted(list(set([0, 1]).union(set(y_t), set(y_p))))
+            cm = confusion_matrix(y_t, y_p, labels=labels)
+            classes = [f"Class {i}" for i in labels]
+            if len(labels) == 3:
                 classes = ["Hold", "Buy", "Sell"]
                 
             result["confusionMatrix"] = {
