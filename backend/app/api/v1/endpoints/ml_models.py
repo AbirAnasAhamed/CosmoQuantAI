@@ -382,12 +382,16 @@ def get_model_config(
     ).order_by(models.ModelTrainingJob.completed_at.desc()).first()
 
     if job:
+        job_config = dict(job.config) if job.config else {}
+        if job_config.get("dataset_type") == "hybrid_deep" and "hybrid_deep_trade_features" in job_config:
+            job_config["trade_features"] = job_config["hybrid_deep_trade_features"]
+            
         return {
             "model_name": db_model.name,
             "symbol": job.symbol,
             "timeframe": job.timeframe,
             "algorithm": job.algorithm,
-            "config": job.config or {}
+            "config": job_config
         }
 
     # Priority 2: Read from metadata.json on the active version
