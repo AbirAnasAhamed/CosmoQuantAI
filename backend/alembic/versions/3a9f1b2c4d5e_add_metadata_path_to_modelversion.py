@@ -20,9 +20,17 @@ depends_on: Union[str, Sequence[str], None] = None
 
 def upgrade() -> None:
     """Add metadata_path column to model_versions table."""
-    op.add_column('model_versions', sa.Column('metadata_path', sa.String(), nullable=True))
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    columns = [c['name'] for c in inspector.get_columns('model_versions')]
+    if 'metadata_path' not in columns:
+        op.add_column('model_versions', sa.Column('metadata_path', sa.String(), nullable=True))
 
 
 def downgrade() -> None:
     """Remove metadata_path column from model_versions table."""
-    op.drop_column('model_versions', 'metadata_path')
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    columns = [c['name'] for c in inspector.get_columns('model_versions')]
+    if 'metadata_path' in columns:
+        op.drop_column('model_versions', 'metadata_path')
