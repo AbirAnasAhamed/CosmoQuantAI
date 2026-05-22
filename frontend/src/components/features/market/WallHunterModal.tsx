@@ -1347,7 +1347,10 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase">Volume Wall Threshold</label>
                                                 <span className="text-xs font-mono font-bold text-brand-primary">{form.vol.toLocaleString()}</span>
                                             </div>
-                                            <input type="range" min="0" max="10000000" step="1000" className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-brand-primary" value={form.vol} onChange={(e) => setForm({ ...form, vol: parseFloat(e.target.value) })} />
+                                            <div className="flex gap-3 items-center">
+                                                <input type="range" min="0" max="10000000" step="1000" className="flex-1 h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-brand-primary" value={form.vol} onChange={(e) => setForm({ ...form, vol: parseFloat(e.target.value) || 0 })} />
+                                                <input type="number" min="0" className="w-28 bg-black/40 border border-white/10 rounded-xl p-1.5 text-white outline-none focus:border-brand-primary text-center font-mono text-sm" value={form.vol} onChange={(e) => setForm({ ...form, vol: parseFloat(e.target.value) || 0 })} />
+                                            </div>
                                         </div>
                                         <div className="bg-black/20 p-3 rounded-lg border border-white/5">
                                             <div className="flex justify-between items-end mb-1">
@@ -1408,7 +1411,10 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                                             <label className="text-[9px] font-bold text-gray-400 uppercase">Min L2 Dominance</label>
                                                             <span className="text-xs font-mono font-bold text-amber-400">{Math.round(form.minOibThreshold * 100)}%</span>
                                                         </div>
-                                                        <input type="range" min="0.5" max="0.95" step="0.05" className="w-full h-1.5 accent-amber-500 bg-white/10 rounded-lg appearance-none cursor-pointer" value={form.minOibThreshold} onChange={(e) => handleFormChange('minOibThreshold', parseFloat(e.target.value))} />
+                                                        <div className="flex gap-3 items-center">
+                                                            <input type="range" min="0.5" max="0.95" step="0.05" className="flex-1 h-1.5 accent-amber-500 bg-white/10 rounded-lg appearance-none cursor-pointer" value={form.minOibThreshold} onChange={(e) => handleFormChange('minOibThreshold', parseFloat(e.target.value) || 0)} />
+                                                            <input type="number" min="0.5" max="0.95" step="0.01" className="w-20 bg-black/40 border border-white/10 rounded-xl p-1.5 text-white outline-none focus:border-amber-500 text-center font-mono text-sm" value={form.minOibThreshold} onChange={(e) => handleFormChange('minOibThreshold', parseFloat(e.target.value) || 0)} />
+                                                        </div>
                                                         <p className="text-[8px] text-gray-500 mt-1 italic leading-tight">Blocks "Trap" entries. Validates if your entry direction controls at least {Math.round(form.minOibThreshold * 100)}% of the Top 10 Limit Order volumes compared to the opposing side.</p>
                                                     </div>
                                                 </div>
@@ -1440,7 +1446,10 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                                             <label className="text-[9px] font-bold text-gray-400 uppercase">Min. Delta to Absorb ($)</label>
                                                             <span className="text-xs font-mono font-bold text-cyan-400">${form.absorptionThreshold.toLocaleString()}</span>
                                                         </div>
-                                                        <input type="range" min="1000" max="1000000" step="1000" className="w-full h-1.5 accent-cyan-500 bg-white/10 rounded-lg appearance-none cursor-pointer" value={form.absorptionThreshold} onChange={(e) => handleFormChange('absorptionThreshold', parseFloat(e.target.value))} />
+                                                        <div className="flex gap-3 items-center">
+                                                            <input type="range" min="1000" max="1000000" step="1000" className="flex-1 h-1.5 accent-cyan-500 bg-white/10 rounded-lg appearance-none cursor-pointer" value={form.absorptionThreshold} onChange={(e) => handleFormChange('absorptionThreshold', parseFloat(e.target.value) || 0)} />
+                                                            <input type="number" min="0" className="w-28 bg-black/40 border border-white/10 rounded-xl p-1.5 text-white outline-none focus:border-cyan-500 text-center font-mono text-sm" value={form.absorptionThreshold} onChange={(e) => handleFormChange('absorptionThreshold', parseFloat(e.target.value) || 0)} />
+                                                        </div>
                                                     </div>
                                                     <div>
                                                         <div className="flex justify-between items-end mb-1">
@@ -1529,7 +1538,10 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                                             <label className="text-[9px] font-bold text-gray-400 uppercase">Min. Absorbed Volume ($)</label>
                                                             <span className="text-xs font-mono font-bold text-purple-400">${form.icebergMinAbsorbedVol.toLocaleString()}</span>
                                                         </div>
-                                                        <input type="range" min="5000" max="2000000" step="5000" className="w-full h-1.5 accent-purple-500 bg-white/10 rounded-lg appearance-none cursor-pointer" value={form.icebergMinAbsorbedVol} onChange={(e) => handleFormChange('icebergMinAbsorbedVol', parseFloat(e.target.value))} />
+                                                        <div className="flex gap-3 items-center">
+                                                            <input type="range" min="5000" max="2000000" step="5000" className="flex-1 h-1.5 accent-purple-500 bg-white/10 rounded-lg appearance-none cursor-pointer" value={form.icebergMinAbsorbedVol} onChange={(e) => handleFormChange('icebergMinAbsorbedVol', parseFloat(e.target.value) || 0)} />
+                                                            <input type="number" min="0" className="w-28 bg-black/40 border border-white/10 rounded-xl p-1.5 text-white outline-none focus:border-purple-500 text-center font-mono text-sm" value={form.icebergMinAbsorbedVol} onChange={(e) => handleFormChange('icebergMinAbsorbedVol', parseFloat(e.target.value) || 0)} />
+                                                        </div>
                                                         <p className="text-[8px] text-gray-500 mt-1">Total trade $ that must hit a price level before confirming the hidden wall.</p>
                                                     </div>
                                                     <div>
@@ -1572,16 +1584,26 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                                 <label className="text-[10px] font-bold text-gray-400 uppercase">Local Asset Liq. Threshold ($) {form.followBtcLiq && '(Ignored)'}</label>
                                                 <span className="text-xs font-mono font-bold text-rose-500">${form.liqThreshold.toLocaleString()}</span>
                                             </div>
-                                            <input 
-                                                type="range" 
-                                                min="1000" 
-                                                max="1000000" 
-                                                step="1000" 
-                                                className="w-full h-2 rounded-lg appearance-none cursor-pointer accent-rose-500 bg-white/10" 
-                                                value={form.liqThreshold} 
-                                                disabled={form.followBtcLiq}
-                                                onChange={(e) => setForm({ ...form, liqThreshold: parseFloat(e.target.value) })} 
-                                            />
+                                            <div className="flex gap-3 items-center">
+                                                <input 
+                                                    type="range" 
+                                                    min="1000" 
+                                                    max="1000000" 
+                                                    step="1000" 
+                                                    className="flex-1 h-2 rounded-lg appearance-none cursor-pointer accent-rose-500 bg-white/10" 
+                                                    value={form.liqThreshold} 
+                                                    disabled={form.followBtcLiq}
+                                                    onChange={(e) => setForm({ ...form, liqThreshold: parseFloat(e.target.value) || 0 })} 
+                                                />
+                                                <input 
+                                                    type="number" 
+                                                    min="0" 
+                                                    className="w-28 bg-black/40 border border-white/10 rounded-xl p-1.5 text-white outline-none focus:border-rose-500 text-center font-mono text-sm" 
+                                                    value={form.liqThreshold} 
+                                                    disabled={form.followBtcLiq}
+                                                    onChange={(e) => setForm({ ...form, liqThreshold: parseFloat(e.target.value) || 0 })} 
+                                                />
+                                            </div>
                                         </div>
 
                                         {/* BTC Follower */}

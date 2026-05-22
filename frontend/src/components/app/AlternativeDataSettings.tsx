@@ -51,7 +51,7 @@ const useLivePreviews = () => {
     return { fng, netFlow };
 };
 
-const STATUS_BADGE: Record<string, JSX.Element> = {
+const STATUS_BADGE: Record<string, React.ReactElement> = {
     live: (
         <span className="flex items-center gap-1 text-[9px] font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded-full uppercase tracking-wider">
             <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
