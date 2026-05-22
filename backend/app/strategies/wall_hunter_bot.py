@@ -83,6 +83,19 @@ class WallHunterBot:
         self.is_paper_trading = config.get("is_paper_trading", True)
         self.logger = WallHunterLogger(self.bot_id)
         
+        from app.db.session import SessionLocal
+        from app.models.bot import Bot
+        db = db_session if db_session else SessionLocal()
+        try:
+            bot_record = db.query(Bot).filter(Bot.id == self.bot_id).first()
+            if bot_record:
+                self.bot_name = bot_record.name or bot_record.config.get("bot_name", f"Bot {self.bot_id}")
+            else:
+                self.bot_name = f"Bot {self.bot_id}"
+        finally:
+            if not db_session:
+                db.close()
+
         # Strategy Params
         self.vol_threshold = config.get("vol_threshold", 500000)
         self.target_spread = config.get("target_spread", 0.0002)
@@ -1029,11 +1042,13 @@ class WallHunterBot:
         m = (duration_sec % 3600) // 60
         s = duration_sec % 60
         duration_str = f"{h}hr, {m}min, {s}sec"
+        mode_str = getattr(self, 'strategy_mode', 'long').capitalize()
         
         msg = (
             f"{title}\n"
             f"Bot Name: {getattr(self, 'bot_name', f'Bot {self.bot_id}')}\n"
             f"Bot ID: {self.bot_id}\n"
+            f"Trade Types: {mode_str}\n"
             f"Trade Duration: {duration_str}\n"
             f"Pair: {self.symbol}\n"
             f"Exit Price: {filled_price:.6f}\n"
@@ -3199,15 +3214,15 @@ class WallHunterBot:
             if self.active_pos.get('tp1_hit'):
                  self.total_realized_pnl += pnl_val
                  self.total_wins += 1
-                 await self._send_telegram(f"🛡️ WallHunter EXIT - Stopped out at Profitable Break-even!\nPair: {self.symbol}\nMode: {getattr(self, 'strategy_mode', 'long').upper()}\nExit Price: {current_price:.6f}\n💰 Secured PnL: ${pnl_val:.2f}\n\n📊 Total PnL: ${self.total_realized_pnl:.2f}\n🏆 Wins: {self.total_wins} | 💔 Losses: {self.total_losses}")
+                 await self._send_exit_telegram("🛡️ WallHunter EXIT - Stopped out at Profitable Break-even!", current_price, pnl_val)
             else:
                  self.total_realized_pnl += pnl_val
                  if pnl_val > 0:
                      self.total_wins += 1
-                     await self._send_telegram(f"🛡️ WallHunter EXIT - Stopped out in Profit!\nPair: {self.symbol}\nMode: {getattr(self, 'strategy_mode', 'long').upper()}\nExit Price: {current_price:.6f}\n💰 Secured PnL: ${pnl_val:.2f}\n\n📊 Total PnL: ${self.total_realized_pnl:.2f}\n🏆 Wins: {self.total_wins} | 💔 Losses: {self.total_losses}")
+                     await self._send_exit_telegram("🛡️ WallHunter EXIT - Stopped out in Profit!", current_price, pnl_val)
                  else:
                      self.total_losses += 1
-                     await self._send_exit_telegram("🛑 WallHunter EXIT - Stopped Out!\nPair: {self.symbol}\nMode: {getattr(self, 'strategy_mode', 'long').upper()}\nExit Price: {current_price:.6f}", current_price, pnl_val)
+                     await self._send_exit_telegram("🛑 WallHunter EXIT - Stopped Out!", current_price, pnl_val)
             await self._clear_state()
             self.active_pos = None
             self.logger.info("Exit: Stop Loss / TSL Hit")
@@ -3303,7 +3318,7 @@ class WallHunterBot:
                 self.total_wins += 1
             else:
                 self.total_losses += 1
-            await self._send_exit_telegram("🎯 WallHunter EXIT - Final Take Profit Hit!\nPair: {self.symbol}\nMode: {getattr(self, 'strategy_mode', 'long').upper()}\nExit Price: {current_price:.6f}", current_price, pnl_val)
+            await self._send_exit_telegram("🎯 WallHunter EXIT - Final Take Profit Hit!", current_price, pnl_val)
             await self._clear_state()
             self.active_pos = None
             self.logger.info("Exit: Take Profit Hit")
@@ -3421,7 +3436,7 @@ class WallHunterBot:
             else:
                 self.total_losses += 1
                 
-            await self._send_exit_telegram("⚡ WallHunter EXIT - Supertrend Fallback Hit!\nPair: {self.symbol}\nMode: {getattr(self, 'strategy_mode', 'long').upper()}", current_price, pnl_val)
+            await self._send_exit_telegram("⚡ WallHunter EXIT - Supertrend Fallback Hit!", current_price, pnl_val)
             await self._clear_state()
             self.active_pos = None
             
@@ -3524,7 +3539,7 @@ class WallHunterBot:
                 self.total_wins += 1
             else:
                 self.total_losses += 1
-            await self._send_exit_telegram("🚨 WallHunter EMERGENCY EXIT - {sell_type.upper()} {action_name}!", current_price, pnl_val)
+            await self._send_exit_telegram(f"🚨 WallHunter EMERGENCY EXIT - {sell_type.upper()} {action_name}!", current_price, pnl_val)
             self.active_pos = None
             
         elif sell_type == "limit":
