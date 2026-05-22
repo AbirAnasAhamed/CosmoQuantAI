@@ -2302,8 +2302,27 @@ class WallHunterFuturesStrategy:
                 if sl_exec_type == 'limit' and not res:
                     if self.active_pos.get('sl_limit_order_id'):
                         logger.info("Futures Strict Limit SL order placed. Ending loop tick to wait.")
-                    self._save_state()
-                    return
+                        self._save_state()
+                        return
+                    else:
+                        if not self.is_paper_trading:
+                            try:
+                                positions = await self.private_exchange.fetch_positions([self.symbol])
+                                has_pos = False
+                                for p in positions:
+                                    if p.get('symbol') == self.symbol or self._normalize_symbol(p.get('symbol')) == self._normalize_symbol(self.symbol):
+                                        if float(p.get('contracts', 0) or 0) > 0:
+                                            has_pos = True
+                                            break
+                                if not has_pos:
+                                    logger.info("✅ Position already closed natively (e.g. Native SL hit). Exiting loop.")
+                                    await self._clear_state()
+                                    self.active_pos = None
+                                    return
+                            except Exception as e:
+                                logger.error(f"Error checking position: {e}")
+                        self._save_state()
+                        return
             else:
                 # ── Soft Limit TP Exit ────────────────────────────────────────────────
                 # For Take Profit exits where exit_order_type == 'limit':
@@ -2421,6 +2440,26 @@ class WallHunterFuturesStrategy:
                     actual_type = exit_order_type_actual if exit_order_type_actual != "limit" else "market"
                     res = await self.engine.execute_trade(exit_side, sell_amount_raw, current_price, order_type=actual_type, params={'reduceOnly': True})
             
+            if not res and not self.is_paper_trading:
+                logger.warning("Exit order execution failed or returned empty. Verifying position state with exchange...")
+                try:
+                    positions = await self.private_exchange.fetch_positions([self.symbol])
+                    has_pos = False
+                    for p in positions:
+                        if p.get('symbol') == self.symbol or self._normalize_symbol(p.get('symbol')) == self._normalize_symbol(self.symbol):
+                            if float(p.get('contracts', 0) or 0) > 0:
+                                has_pos = True
+                                break
+                    if not has_pos:
+                        logger.info("✅ Position already closed natively. Exiting loop.")
+                        await self._clear_state()
+                        self.active_pos = None
+                        return
+                except Exception as e:
+                    logger.error(f"Error checking position after exit failure: {e}")
+                self._save_state()
+                return
+
             # --- NEW: Partial Fill Management for Active Exits ---
             if res and res.get('id') and not self.is_paper_trading:
                 try:
