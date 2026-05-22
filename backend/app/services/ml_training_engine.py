@@ -433,6 +433,10 @@ def train_model_task(job_id: str, db: Session):
             target_rows = config.get("target_rows", 0)
 
             if is_deep_training and target_rows > 0:
+                min_required_rows = 1000
+                if target_rows < min_required_rows:
+                    add_log(f"⚠️ Target rows ({target_rows}) is too low for PLP/Rolling features. Auto-increasing to {min_required_rows}.")
+                    target_rows = min_required_rows
                 add_log(f"Starting Deep Training Data Collector. Target: {target_rows} rows from Live Binance WebSocket...")
                 df = _run_live_scraper(job.symbol, target_rows, db, job, add_log)
                 if df.empty:
@@ -500,6 +504,10 @@ def train_model_task(job_id: str, db: Session):
             MIN_BARS_REQUIRED = 50  # Minimum bars needed for meaningful ML training
 
             if is_deep_training and target_rows > 0:
+                min_required_rows = 1000
+                if target_rows < min_required_rows:
+                    add_log(f"⚠️ Target rows ({target_rows}) is too low to form enough bars. Auto-increasing to {min_required_rows}.")
+                    target_rows = min_required_rows
                 add_log(f"Starting Deep Training for Trades. Target: {target_rows} rows from Live Binance WebSocket...")
                 df_raw = _run_live_trade_scraper(job.symbol, target_rows, db, job, add_log)
                 if df_raw.empty:

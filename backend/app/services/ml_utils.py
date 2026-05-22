@@ -439,6 +439,12 @@ def apply_data_cleaning(df, config, add_log):
     # Replace infinities with NaNs before dropping
     df.replace([np.inf, -np.inf], np.nan, inplace=True)
     
+    # Fill sparse indicator columns that inherently return NaN
+    sparse_prefixes = ('PSARl', 'PSARs', 'SUPERTl', 'SUPERTs')
+    sparse_cols = [c for c in df.columns if str(c).startswith(sparse_prefixes)]
+    if sparse_cols:
+        df[sparse_cols] = df[sparse_cols].fillna(0)
+
     initial_len = len(df)
     
     # 1. Missing Data Strategy

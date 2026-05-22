@@ -432,6 +432,13 @@ def build_hybrid_deep_dataset(job, db: Session, config: dict, add_log) -> tuple:
 
     symbol          = job.symbol
     target_rows     = config.get("target_rows", 10000)
+    
+    # Enforce minimum target rows
+    min_required_rows = 1000
+    if target_rows < min_required_rows:
+        add_log(f"⚠️ Target rows ({target_rows}) is too low for PLP/Rolling features. Auto-increasing to {min_required_rows}.")
+        target_rows = min_required_rows
+
     sel_l2          = config.get("l2_features", ["obi", "spread", "microprice"])
     sel_trade       = config.get("hybrid_deep_trade_features", [
         "cvd", "buy_volume", "sell_volume", "trade_count",
