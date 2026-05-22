@@ -2460,7 +2460,18 @@ class WallHunterBot:
                     self.logger.info(f"⚡ Micro-Scalp: Placed Limit TP Order {limit_res['id']} at {tp_price}")
                     
                 self._save_state()
-                await self._send_telegram(f"⚡ Micro-Scalp Entered!\nPair: {self.symbol}\nEntry: {actual_entry:.6f}\nTick Target: {tp_price:.6f}\nSL: {self.active_pos['sl']:.6f}")
+                self.active_pos['entry_time'] = time.time()
+                trade_type = "Long"
+                await self._send_telegram(
+                    f"⚡ Micro-Scalp Entered!\n"
+                    f"Bot Name: {getattr(self, 'bot_name', f'Bot {self.bot_id}')}\n"
+                    f"Bot ID: {self.bot_id}\n"
+                    f"Trade Types: {trade_type}\n"
+                    f"Pair: {self.symbol}\n"
+                    f"Entry {actual_entry:.6f}\n"
+                    f"TP: {self.active_pos['tp']:.6f}\n"
+                    f"SL: {self.active_pos['sl']:.6f}"
+                )
                 
             else:
                 if getattr(self, 'strategy_mode', 'long') == 'short':
@@ -2499,7 +2510,19 @@ class WallHunterBot:
                 
                 self.logger.info(f"Entered Trade at {actual_entry}. SL: {self.active_pos['sl']}")
                 self._save_state()
-                await self._send_telegram(f"⚡ WallHunter Entered!\nPair: {self.symbol}\nEntry {actual_entry:.6f}\nTP1: {self.active_pos['tp1']:.6f}\nFinal TP: {self.active_pos['tp']:.6f}\nSL: {self.active_pos['sl']:.6f}")
+                self.active_pos['entry_time'] = time.time()
+                trade_type = "Long"
+                await self._send_telegram(
+                    f"⚡ WallHunter Entered!\n"
+                    f"Bot Name: {getattr(self, 'bot_name', f'Bot {self.bot_id}')}\n"
+                    f"Bot ID: {self.bot_id}\n"
+                    f"Trade Types: {trade_type}\n"
+                    f"Pair: {self.symbol}\n"
+                    f"Entry {actual_entry:.6f}\n"
+                    f"TP1: {self.active_pos['tp1']:.6f}\n"
+                    f"Final TP: {self.active_pos['tp']:.6f}\n"
+                    f"SL: {self.active_pos['sl']:.6f}"
+                )
 
     async def _fetch_and_update_entry(self, order_id: str, amount: float, mid_price: float):
         """Background task to fetch precise execution price without blocking strategy"""
