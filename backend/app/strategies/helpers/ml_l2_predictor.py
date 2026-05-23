@@ -4,6 +4,11 @@ import torch
 import torch.nn as nn
 import numpy as np
 import logging
+import warnings
+
+# Suppress sklearn feature names warning
+warnings.filterwarnings("ignore", message="X does not have valid feature names")
+
 from app.db.session import SessionLocal
 from app.models.ml_model import CustomMLModel, ModelVersion
 from app.services.ml_architectures import SimpleLSTM, SimpleGRU, CNN1D, DeepLOB, TimeSeriesTransformer
