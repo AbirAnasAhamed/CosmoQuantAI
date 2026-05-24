@@ -45,7 +45,7 @@ CRITICAL_PATTERNS = [
 
 # Patterns that indicate an ERROR (orange alert 🟠)
 ERROR_PATTERNS = [
-    re.compile(r'\bERROR\b', re.IGNORECASE),
+    re.compile(r'\bERROR\b'), # Case-sensitive to avoid matching variables like `error`
     re.compile(r'\bException\b'),
     re.compile(r'\bError:\b'),
     re.compile(r'sqlalchemy\.exc\.', re.IGNORECASE),
@@ -222,6 +222,14 @@ WARNING_OVERRIDE_PATTERNS = [
     re.compile(r'ECONNRESET', re.IGNORECASE),
     re.compile(r'read ECONNRESET', re.IGNORECASE),
     re.compile(r'TCP\.onStreamRead', re.IGNORECASE),
+    # ── Celery/Redis transient connection resets ───────────────────────────
+    # These happen when Redis container restarts. Celery auto-reconnects.
+    re.compile(r'Cannot connect to redis', re.IGNORECASE),
+    re.compile(r'Error while reading from redis', re.IGNORECASE),
+    re.compile(r'redis\.exceptions\.ConnectionError', re.IGNORECASE),
+    re.compile(r'Temporary failure in name resolution', re.IGNORECASE),
+    re.compile(r'Name or service not known', re.IGNORECASE),
+    re.compile(r'Connection reset by peer', re.IGNORECASE),
 ]
 
 # Container names to monitor (must match docker-compose container_name)

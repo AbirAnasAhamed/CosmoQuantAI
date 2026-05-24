@@ -40,6 +40,13 @@ celery_app.conf.update(
             "schedule": 2.0,  # FAST polling (every 2 seconds) for near real-time!
         },
     },
+    task_routes={
+        'app.tasks.run_backtest_task': {'queue': 'heavy'},
+        'app.tasks.run_optimization_task': {'queue': 'heavy'},
+        'app.tasks.run_walk_forward_task': {'queue': 'heavy'},
+        'app.tasks.run_batch_backtest_task': {'queue': 'heavy'},
+        'app.tasks.celery_train_model_task': {'queue': 'heavy'},
+    },
     broker_connection_retry_on_startup=True,
 )
 

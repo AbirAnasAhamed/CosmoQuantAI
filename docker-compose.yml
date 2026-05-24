@@ -22,16 +22,37 @@ services:
     env_file:
       - .env
 
-  # 2. Celery Worker (Background Tasks) - NEW
-  celery_worker:
+  # 2a. Celery Worker Default (Light Tasks)
+  celery_worker_default:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: cosmo_celery_worker
-    command: celery -A app.core.celery_app worker --loglevel=warning --concurrency=1
+    container_name: cosmo_celery_worker_default
+    command: celery -A app.core.celery_app worker -Q celery --loglevel=warning --concurrency=8
     volumes:
       - ./backend:/app
       - /var/run/docker.sock:/var/run/docker.sock  # Docker socket for log monitoring
+    depends_on:
+      - db
+      - redis
+    env_file:
+      - .env
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL:-redis://redis:6379/0}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND:-redis://redis:6379/0}
+      - REDIS_URL=${REDIS_URL:-redis://redis:6379/0}
+    restart: always
+
+  # 2b. Celery Worker Heavy (Backtest & ML)
+  celery_worker_heavy:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cosmo_celery_worker_heavy
+    command: celery -A app.core.celery_app worker -Q heavy --loglevel=warning --concurrency=2
+    volumes:
+      - ./backend:/app
     depends_on:
       - db
       - redis
