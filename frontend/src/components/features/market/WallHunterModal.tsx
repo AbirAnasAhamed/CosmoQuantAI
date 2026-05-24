@@ -601,9 +601,9 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
             return;
         }
 
-        if (!form.enableWallTrigger && !form.enableLiqTrigger) {
+        if (!form.enableWallTrigger && !form.enableLiqTrigger && !form.enableMlFilter) {
             if (!form.enableUtBot && !form.enableDualEngine && !form.enableSupertrendBot && !form.enableWickSr) {
-                setErrorMsg("Please enable at least one Entry Trigger (Orderbook Wall, Liquidation, Dual Engine, UT Bot, Supertrend, or Wick S/R).");
+                setErrorMsg("Please enable at least one Entry Trigger (Orderbook Wall, Liquidation, ML Filter, Dual Engine, UT Bot, Supertrend, or Wick S/R).");
                 return;
             }
             if (form.enableUtBot && !form.enableUtEntryTrigger && !form.enableDualEngine && !form.enableSupertrendBot) {

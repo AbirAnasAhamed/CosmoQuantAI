@@ -652,7 +652,15 @@ def download_trades_task(self, exchange_id, symbol, start_date, end_date=None):
                         if self.request.id and redis_client.exists(f"abort_task:{self.request.id}"):
                              return {"status": "Revoked", "message": "Stopped by user"}
                         
-                        if not trades: break
+                        if not trades:
+                            # Advance by 1 hour (common window for binance aggTrades) if no trades found
+                            step = 3600 * 1000
+                            since += step
+                            pbar.update(step)
+                            progress_pct = min(100, int(((since - start_ts) / total_duration) * 100))
+                            self.update_state(state='PROGRESS', meta={'percent': progress_pct, 'status': 'Fetching Trades... (Skipping empty window)'})
+                            publish_task_status('DOWNLOAD', self.request.id, 'processing', progress_pct)
+                            continue
                         
                         rows = []
                         for t in trades:

@@ -438,6 +438,7 @@ class AdvancedMLEngine:
                 self.check_interval = check_interval
                 self.stream_interval = stream_interval
                 self.last_streamed_step = 0
+                self.last_stream_time = time.time()
 
             def _on_step(self) -> bool:
                 # 1. Cancel Check
@@ -447,18 +448,21 @@ class AdvancedMLEngine:
                         raise Exception("Training cancelled by user.")
                 
                 # 2. Stream Data to Frontend
-                if redis_client and (self.num_timesteps - self.last_streamed_step >= self.stream_interval):
+                now = time.time()
+                # Stream data at most once per second
+                if redis_client and (now - self.last_stream_time >= 1.0):
                     env_instance = self.training_env.envs[0]
+                    unwrapped_env = getattr(env_instance, 'unwrapped', env_instance)
                     # Extract latest step info
-                    if hasattr(env_instance, 'net_worth'):
+                    if hasattr(unwrapped_env, 'net_worth'):
                         payload = {
-                            "step": env_instance.current_step,
-                            "net_worth": env_instance.net_worth,
-                            "position": env_instance.position,
-                            "balance": getattr(env_instance, 'balance', 0),
+                            "step": unwrapped_env.current_step,
+                            "net_worth": unwrapped_env.net_worth,
+                            "position": unwrapped_env.position,
+                            "balance": getattr(unwrapped_env, 'balance', 0),
                             "action": self.locals.get("actions", [0])[0].item() if "actions" in self.locals else 0,
                             "reward": self.locals.get("rewards", [0.0])[0].item() if "rewards" in self.locals else 0.0,
-                            "price": env_instance.df.loc[env_instance.current_step, 'Close'] if env_instance.current_step < len(env_instance.df) else 0.0,
+                            "price": unwrapped_env.df.loc[unwrapped_env.current_step, 'Close'] if unwrapped_env.current_step < len(unwrapped_env.df) else 0.0,
                         }
                         
                         message = {
@@ -471,6 +475,7 @@ class AdvancedMLEngine:
                         try:
                             redis_client.publish("task_updates", json.dumps(message))
                             self.last_streamed_step = self.num_timesteps
+                            self.last_stream_time = now
                         except Exception:
                             pass
                 return True

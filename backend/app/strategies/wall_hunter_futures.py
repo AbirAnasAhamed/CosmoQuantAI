@@ -11,6 +11,7 @@ from app.strategies.helpers.iceberg_tracker import IcebergTracker
 from app.strategies.helpers.trend_finder import AdaptiveTrendFinder
 from app.strategies.helpers.ut_bot_tracker import UTBotTracker
 from app.strategies.helpers.ut_standalone_listener import UTStandaloneListener
+from app.strategies.helpers.ml_standalone_listener import MLStandaloneListener
 from app.strategies.helpers.supertrend_tracker import SupertrendTracker
 from app.strategies.helpers.supertrend_standalone_listener import SupertrendStandaloneListener
 from app.strategies.helpers.dual_engine_standalone_listener import DualEngineStandaloneListener
@@ -151,6 +152,7 @@ class WallHunterFuturesStrategy:
                 self.ml_predictor = MLL2Predictor(self.ai_model_id)
             except Exception as e:
                 self.logger.error(f"Failed to initialize ML Predictor: {e}")
+        self.ml_standalone_listener = MLStandaloneListener(self)
         
         # --- Tape Reading / Imbalance ---
         self.enable_ob_imbalance = self.config.get("enable_ob_imbalance", False)
@@ -687,6 +689,11 @@ class WallHunterFuturesStrategy:
                 self._utbot_task = None
                 self._ut_standalone_task = None
 
+            if self.enable_ml_filter:
+                self._ml_standalone_task = asyncio.create_task(self.ml_standalone_listener.start())
+            else:
+                self._ml_standalone_task = None
+
             if getattr(self, 'supertrend_tracker', None):
                 self._supertrend_task = asyncio.create_task(self.supertrend_tracker.start())
                 self._supertrend_standalone_task = asyncio.create_task(self.supertrend_standalone_listener.start())
@@ -779,7 +786,7 @@ class WallHunterFuturesStrategy:
 
         
         # --- FIX: Task Memory Leak / CPU Spike Prevention ---
-        for task_attr in ['_main_task', '_heartbeat_task', '_vpvr_task', '_atr_task', '_liq_task', '_trades_task', '_btc_task', '_utbot_task', '_ut_standalone_task', '_supertrend_task', '_supertrend_standalone_task', '_dual_engine_task', '_dual_engine_standalone_task', '_native_price_task', '_wick_sr_task', '_vwap_sd_task']:
+        for task_attr in ['_main_task', '_heartbeat_task', '_vpvr_task', '_atr_task', '_liq_task', '_trades_task', '_btc_task', '_utbot_task', '_ut_standalone_task', '_supertrend_task', '_supertrend_standalone_task', '_dual_engine_task', '_dual_engine_standalone_task', '_native_price_task', '_wick_sr_task', '_vwap_sd_task', '_ml_standalone_task']:
             task = getattr(self, task_attr, None)
             if task and not task.done():
                 try:
