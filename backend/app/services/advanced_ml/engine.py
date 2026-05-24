@@ -62,7 +62,14 @@ class AdvancedMLEngine:
         else:
             add_log("🆕 Fresh Transformer Training")
         
-        criterion = nn.MSELoss() if config.get("prediction_target") != "classification" else nn.BCEWithLogitsLoss()
+        is_classification = config.get("prediction_target") == "classification"
+        if is_classification:
+            num_pos = max(y_train.sum().item(), 1.0)
+            num_neg = max(len(y_train) - y_train.sum().item(), 0.0)
+            pos_weight = torch.tensor([num_neg / num_pos], dtype=torch.float32)
+            criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+        else:
+            criterion = nn.MSELoss()
         optimizer = optim.Adam(model.parameters(), lr=lr)
         
         add_log(f"Starting Supervised Training for {epochs} epochs...")
@@ -153,7 +160,14 @@ class AdvancedMLEngine:
             except Exception as e:
                 add_log(f"⚠️ TCN weight load failed ({e}), training fresh.")
         
-        criterion = nn.MSELoss() if config.get("prediction_target") != "classification" else nn.BCEWithLogitsLoss()
+        is_classification = config.get("prediction_target") == "classification"
+        if is_classification:
+            num_pos = max(y_train.sum().item(), 1.0)
+            num_neg = max(len(y_train) - y_train.sum().item(), 0.0)
+            pos_weight = torch.tensor([num_neg / num_pos], dtype=torch.float32)
+            criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+        else:
+            criterion = nn.MSELoss()
         optimizer = optim.Adam(model.parameters(), lr=lr)
         
         for epoch in range(epochs):
@@ -201,8 +215,8 @@ class AdvancedMLEngine:
         lr = float(config.get("learning_rate", 0.01))
         batch_size = 64
         
-        X = df[features].fillna(0).values
-        y = df['Target'].fillna(0).values
+        X = df[features].fillna(0).values.copy()
+        y = df['Target'].fillna(0).values.copy()
         
         split = int(len(X) * 0.8)
         X_train, X_test = torch.FloatTensor(X[:split]), torch.FloatTensor(X[split:])
@@ -220,7 +234,14 @@ class AdvancedMLEngine:
             except Exception:
                 pass
                 
-        criterion = nn.MSELoss() if config.get("prediction_target") != "classification" else nn.BCEWithLogitsLoss()
+        is_classification = config.get("prediction_target") == "classification"
+        if is_classification:
+            num_pos = max(y_train.sum().item(), 1.0)
+            num_neg = max(len(y_train) - y_train.sum().item(), 0.0)
+            pos_weight = torch.tensor([num_neg / num_pos], dtype=torch.float32)
+            criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+        else:
+            criterion = nn.MSELoss()
         optimizer = optim.Adam(model.parameters(), lr=lr)
         
         for epoch in range(epochs):

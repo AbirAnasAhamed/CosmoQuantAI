@@ -1067,16 +1067,19 @@ def train_model_task(job_id: str, db: Session):
             def get_estimator(name, is_clf):
                 if name == "Random Forest":
                     from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-                    return RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42) if is_clf else RandomForestRegressor(n_estimators=epochs, max_depth=max_depth, random_state=42)
+                    return RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42, class_weight='balanced') if is_clf else RandomForestRegressor(n_estimators=epochs, max_depth=max_depth, random_state=42)
                 elif name == "XGBoost":
                     from xgboost import XGBClassifier, XGBRegressor
-                    return XGBClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42) if is_clf else XGBRegressor(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
+                    num_pos = max(y_train.sum(), 1.0)
+                    num_neg = max(len(y_train) - num_pos, 0.0)
+                    spw = num_neg / num_pos
+                    return XGBClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, scale_pos_weight=spw) if is_clf else XGBRegressor(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
                 elif name == "LightGBM":
                     import lightgbm as lgb
-                    return lgb.LGBMClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, verbose=-1) if is_clf else lgb.LGBMRegressor(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, verbose=-1)
+                    return lgb.LGBMClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, verbose=-1, class_weight='balanced') if is_clf else lgb.LGBMRegressor(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, verbose=-1)
                 elif name == "CatBoost":
                     from catboost import CatBoostClassifier, CatBoostRegressor
-                    return CatBoostClassifier(iterations=epochs, learning_rate=learning_rate, depth=max_depth, random_state=42, verbose=False) if is_clf else CatBoostRegressor(iterations=epochs, learning_rate=learning_rate, depth=max_depth, random_state=42, verbose=False)
+                    return CatBoostClassifier(iterations=epochs, learning_rate=learning_rate, depth=max_depth, random_state=42, verbose=False, auto_class_weights='Balanced') if is_clf else CatBoostRegressor(iterations=epochs, learning_rate=learning_rate, depth=max_depth, random_state=42, verbose=False)
                 elif name in ["LSTM", "Transformer", "Neural Network (MLP)"]:
                     add_log(f"Mapping {name} to Scikit-Learn MLP for Ensemble compatibility.")
                     from sklearn.neural_network import MLPClassifier, MLPRegressor
@@ -1084,7 +1087,7 @@ def train_model_task(job_id: str, db: Session):
                 else:
                     # fallback
                     from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-                    return RandomForestClassifier(n_estimators=epochs, random_state=42) if is_clf else RandomForestRegressor(n_estimators=epochs, random_state=42)
+                    return RandomForestClassifier(n_estimators=epochs, random_state=42, class_weight='balanced') if is_clf else RandomForestRegressor(n_estimators=epochs, random_state=42)
             
             is_classification_target = (prediction_target == "classification")
             
@@ -1220,27 +1223,24 @@ def train_model_task(job_id: str, db: Session):
             if prediction_target == "classification":
                 from sklearn.ensemble import RandomForestClassifier
                 if is_fine_tune:
-                    try:
-                        model = joblib.load(_prev_path)
-                        if hasattr(model, 'n_features_in_') and model.n_features_in_ != X_train.shape[1]:
-                            raise ValueError(f"Feature mismatch: old model expected {model.n_features_in_}, new data has {X_train.shape[1]}")
-                        model.warm_start = True
-                        model.n_estimators += epochs
-                        add_log(f"✅ Fine-Tuning RF: adding {epochs} trees → total {model.n_estimators}")
-                    except Exception as _ft_e:
-                        add_log(f"⚠️ Fine-tune load failed ({_ft_e}), falling back to fresh.")
-                        model = RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42)
+                    if os.path.exists(_prev_path):
+                        try:
+                            import joblib
+                            model = joblib.load(_prev_path)
+                            add_log(f"✅ Fine-Tuning Random Forest from {_prev_path}")
+                        except Exception as _ft_e:
+                            add_log(f"⚠️ Fine-tune load failed ({_ft_e}), falling back to fresh.")
+                            model = RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42, class_weight='balanced')
                 else:
-                    model = RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42)
+                    model = RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42, class_weight='balanced')
                 try:
-                    model.fit(X_train_df, y_train.ravel())
-                except ValueError as e:
-                    if is_fine_tune and "feature" in str(e).lower():
-                        add_log(f"⚠️ Fine-tune fit failed: {e}. Falling back to fresh training.")
-                        model = RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42)
+                    if is_fine_tune and hasattr(model, 'fit'):
                         model.fit(X_train_df, y_train.ravel())
-                    else:
-                        raise e
+                        add_log("✅ Random Forest fine-tuning fit completed.")
+                except Exception as e:
+                    add_log(f"⚠️ Fine-tune fit failed: {e}. Falling back to fresh training.")
+                    model = RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42, class_weight='balanced')
+                    model.fit(X_train_df, y_train.ravel())
                 start_time = time.time()
                 y_pred = model.predict(X_test_df)
                 end_time = time.time()
@@ -1297,13 +1297,16 @@ def train_model_task(job_id: str, db: Session):
                     add_log(f"⚠️ XGBoost fine-tune load failed ({_ft_e}), training fresh.")
             if prediction_target == "classification":
                 from xgboost import XGBClassifier
-                model = XGBClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
+                num_pos = max(y_train.sum(), 1.0)
+                num_neg = max(len(y_train) - num_pos, 0.0)
+                spw = num_neg / num_pos
+                model = XGBClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, scale_pos_weight=spw)
                 try:
                     model.fit(X_train_df, y_train.ravel(), eval_set=[(X_test_df, y_test.ravel())], verbose=False, xgb_model=_xgb_init)
                 except ValueError as e:
                     if is_fine_tune and "feature" in str(e).lower():
                         add_log(f"⚠️ XGBoost fine-tune fit failed: {e}. Falling back to fresh training.")
-                        model = XGBClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
+                        model = XGBClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, scale_pos_weight=spw)
                         model.fit(X_train_df, y_train.ravel(), eval_set=[(X_test_df, y_test.ravel())], verbose=False)
                     else:
                         raise e
@@ -1377,7 +1380,10 @@ def train_model_task(job_id: str, db: Session):
                     add_log("⚠️ No .pt checkpoint found, training LSTM fresh.")
             
             if prediction_target == "classification":
-                criterion = nn.BCEWithLogitsLoss()
+                num_pos = max(y_train_t.sum().item(), 1.0)
+                num_neg = max(len(y_train_t) - y_train_t.sum().item(), 0.0)
+                pos_weight = torch.tensor([num_neg / num_pos], dtype=torch.float32)
+                criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
             else:
                 criterion = nn.MSELoss()
                 
@@ -1431,7 +1437,7 @@ def train_model_task(job_id: str, db: Session):
                 except Exception as _ft_e:
                     add_log(f"⚠️ LightGBM fine-tune load failed ({_ft_e}), training fresh.")
             if prediction_target == "classification":
-                model = lgb.LGBMClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, verbose=-1)
+                model = lgb.LGBMClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, verbose=-1, class_weight='balanced')
                 # FIX: Use DataFrame (X_train_df) so feature names are preserved -> eliminates warning spam
                 model.fit(X_train_df, y_train.ravel(), eval_set=[(X_test_df, y_test.ravel())], init_model=_lgb_init)
                 start_time = time.time()
@@ -1466,7 +1472,7 @@ def train_model_task(job_id: str, db: Session):
                 except Exception as _ft_e:
                     add_log(f"⚠️ CatBoost fine-tune load failed ({_ft_e}), training fresh.")
             if prediction_target == "classification":
-                model = cb.CatBoostClassifier(iterations=epochs, learning_rate=learning_rate, depth=max_depth, random_seed=42, verbose=False)
+                model = cb.CatBoostClassifier(iterations=epochs, learning_rate=learning_rate, depth=max_depth, random_seed=42, verbose=False, auto_class_weights='Balanced')
                 model.fit(X_train_df, y_train.ravel(), eval_set=(X_test_df, y_test.ravel()), init_model=_cb_init)
                 start_time = time.time()
                 y_pred = model.predict(X_test_df)
@@ -1528,7 +1534,10 @@ def train_model_task(job_id: str, db: Session):
                     add_log("⚠️ No .pt checkpoint found, training GRU fresh.")
             
             if prediction_target == "classification":
-                criterion = nn.BCEWithLogitsLoss()
+                num_pos = max(y_train_t.sum().item(), 1.0)
+                num_neg = max(len(y_train_t) - y_train_t.sum().item(), 0.0)
+                pos_weight = torch.tensor([num_neg / num_pos], dtype=torch.float32)
+                criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
             else:
                 criterion = nn.MSELoss()
                 
@@ -1607,7 +1616,10 @@ def train_model_task(job_id: str, db: Session):
                     add_log("⚠️ No .pt checkpoint found, training 1D-CNN fresh.")
             
             if prediction_target == "classification":
-                criterion = nn.BCEWithLogitsLoss()
+                num_pos = max(y_train_t.sum().item(), 1.0)
+                num_neg = max(len(y_train_t) - y_train_t.sum().item(), 0.0)
+                pos_weight = torch.tensor([num_neg / num_pos], dtype=torch.float32)
+                criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
             else:
                 criterion = nn.MSELoss()
                 
@@ -1679,7 +1691,10 @@ def train_model_task(job_id: str, db: Session):
                     add_log("⚠️ No .pt checkpoint found, training DeepLOB fresh.")
             
             if prediction_target == "classification":
-                criterion = nn.BCEWithLogitsLoss()
+                num_pos = max(y_train_t.sum().item(), 1.0)
+                num_neg = max(len(y_train_t) - y_train_t.sum().item(), 0.0)
+                pos_weight = torch.tensor([num_neg / num_pos], dtype=torch.float32)
+                criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
             else:
                 criterion = nn.MSELoss()
                 
