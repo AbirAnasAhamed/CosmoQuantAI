@@ -1226,20 +1226,25 @@ def train_model_task(job_id: str, db: Session):
                     if os.path.exists(_prev_path):
                         try:
                             model = joblib.load(_prev_path)
-                            add_log(f"✅ Fine-Tuning Random Forest from {_prev_path}")
+                            if hasattr(model, 'n_features_in_') and model.n_features_in_ != X_train.shape[1]:
+                                raise ValueError(f"Feature mismatch: old model expected {model.n_features_in_}, new data has {X_train.shape[1]}")
+                            model.warm_start = True
+                            model.n_estimators += epochs
+                            add_log(f"✅ Fine-Tuning RF Classifier: adding {epochs} trees → total {model.n_estimators}")
                         except Exception as _ft_e:
                             add_log(f"⚠️ Fine-tune load failed ({_ft_e}), falling back to fresh.")
                             model = RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42, class_weight='balanced')
                 else:
                     model = RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42, class_weight='balanced')
                 try:
-                    if is_fine_tune and hasattr(model, 'fit'):
-                        model.fit(X_train_df, y_train.ravel())
-                        add_log("✅ Random Forest fine-tuning fit completed.")
-                except Exception as e:
-                    add_log(f"⚠️ Fine-tune fit failed: {e}. Falling back to fresh training.")
-                    model = RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42, class_weight='balanced')
                     model.fit(X_train_df, y_train.ravel())
+                except ValueError as e:
+                    if is_fine_tune and "feature" in str(e).lower():
+                        add_log(f"⚠️ Fine-tune fit failed: {e}. Falling back to fresh training.")
+                        model = RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42, class_weight='balanced')
+                        model.fit(X_train_df, y_train.ravel())
+                    else:
+                        raise e
                 start_time = time.time()
                 y_pred = model.predict(X_test_df)
                 end_time = time.time()

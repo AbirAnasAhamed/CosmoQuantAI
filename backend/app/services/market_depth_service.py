@@ -1,4 +1,4 @@
-import ccxt.async_support as ccxt
+import ccxt.pro as ccxt
 import json
 import logging
 import math
@@ -18,6 +18,20 @@ class MarketDepthService:
     def __init__(self):
         self._exchanges: Dict[str, Any] = {}
         self._lock = asyncio.Lock()
+        self._ohlcv_locks: Dict[str, asyncio.Lock] = {}
+        self._ob_locks: Dict[str, asyncio.Lock] = {}
+
+    def _get_ohlcv_lock(self, exchange_id: str, symbol: str, timeframe: str) -> asyncio.Lock:
+        key = f"{exchange_id}_{symbol}_{timeframe}"
+        if key not in self._ohlcv_locks:
+            self._ohlcv_locks[key] = asyncio.Lock()
+        return self._ohlcv_locks[key]
+
+    def _get_ob_lock(self, exchange_id: str, symbol: str) -> asyncio.Lock:
+        key = f"{exchange_id}_{symbol}"
+        if key not in self._ob_locks:
+            self._ob_locks[key] = asyncio.Lock()
+        return self._ob_locks[key]
 
     async def get_exchange_instance(self, exchange_id: str, symbol: Optional[str] = None):
         exchange_id = exchange_id.lower()
@@ -139,49 +153,63 @@ class MarketDepthService:
         exchange_id = exchange_id.lower()
         
         # 1. Check Cache
-        cache_key = f"market_depth:{exchange_id}:{symbol}:{bucket_size}"
+        cache_key = f"market_depth_heatmap:{exchange_id}:{symbol}:{bucket_size}:{depth}"
         redis = redis_manager.get_redis()
         
-        if redis:
-            cached_data = await redis.get(cache_key)
-            if cached_data:
-                return json.loads(cached_data)
-
-        # 2. Fetch Live Data
-        exchange = await self.get_exchange_instance(exchange_id, symbol)
-        
-        try:
-            # Normalize limit for different exchanges
-            depth = self._normalize_order_book_limit(exchange_id, depth)
-                
-            # Fetch Order Book
-            order_book = await exchange.fetch_order_book(symbol, limit=depth)
-            
-            # Fetch Ticker for current price (or use mid price from order book)
-            ticker = await exchange.fetch_ticker(symbol)
-            current_price = ticker.get('last', 0.0)
-
-            # 3. Aggregate Data
-            aggregated_bids = self._aggregate_orders(order_book['bids'], bucket_size, is_bid=True)
-            aggregated_asks = self._aggregate_orders(order_book['asks'], bucket_size, is_bid=False)
-            
-            result = {
-                "symbol": symbol,
-                "exchange": exchange_id,
-                "current_price": current_price,
-                "bids": aggregated_bids,
-                "asks": aggregated_asks
-            }
-
-            # 4. Cache Result (5 seconds TTL)
+        lock = self._get_ob_lock(exchange_id, symbol)
+        async with lock:
             if redis:
-                await redis.setex(cache_key, 5, json.dumps(result))
+                cached_data = await redis.get(cache_key)
+                if cached_data:
+                    return json.loads(cached_data)
 
-            return result
+            # 1.5 Try Live Streamer Cache First
+            order_book = None
+            if redis:
+                live_ob = await redis.get(f"latest_orderbook:{exchange_id.lower()}:{symbol.upper()}")
+                if live_ob:
+                    live_data = json.loads(live_ob)
+                    bids = [[b["price"], b["size"]] for b in live_data.get("bids", [])]
+                    asks = [[a["price"], a["size"]] for a in live_data.get("asks", [])]
+                    order_book = {"bids": bids, "asks": asks}
 
-        except Exception as e:
-            logger.error(f"Error fetching market depth for {symbol} on {exchange_id}: {e}")
-            raise e
+            # 2. Fetch Live Data if cache missing
+            exchange = await self.get_exchange_instance(exchange_id, symbol)
+            
+            try:
+                # Normalize limit for different exchanges
+                depth = self._normalize_order_book_limit(exchange_id, depth)
+                    
+                # Fetch Order Book
+                if not order_book:
+                    order_book = await exchange.fetch_order_book(symbol, limit=depth)
+                
+                # Use mid price from order book
+                current_price = 0.0
+                if order_book.get('asks') and order_book.get('bids'):
+                    current_price = (order_book['asks'][0][0] + order_book['bids'][0][0]) / 2.0
+
+                # 3. Aggregate Data
+                aggregated_bids = self._aggregate_orders(order_book['bids'][:depth], bucket_size, is_bid=True)
+                aggregated_asks = self._aggregate_orders(order_book['asks'][:depth], bucket_size, is_bid=False)
+                
+                result = {
+                    "symbol": symbol,
+                    "exchange": exchange_id,
+                    "current_price": current_price,
+                    "bids": aggregated_bids,
+                    "asks": aggregated_asks
+                }
+
+                # 4. Cache Result (5 seconds TTL)
+                if redis:
+                    await redis.setex(cache_key, 5, json.dumps(result))
+
+                return result
+
+            except Exception as e:
+                logger.error(f"Error fetching market depth for {symbol} on {exchange_id}: {e}")
+                raise e
 
     def _aggregate_orders(self, orders: List[List[float]], bucket_size: float, is_bid: bool) -> List[Dict[str, float]]:
         """
@@ -306,130 +334,154 @@ class MarketDepthService:
 
         # Hard cap to avoid accidental abuse or server overload
         limit = min(limit, 2000)
+        fetch_limit = max(limit, 1000)
 
-        # BUG FIX: include `limit` in cache key so different chart sizes don't
-        # share the same cached response.
-        cache_key = f"ohlcv:{exchange_id}:{symbol}:{timeframe}:{limit}"
+        # Use a unified cache key without limit to serve all sizes from one cache
+        cache_key = f"ohlcv:{exchange_id}:{symbol}:{timeframe}"
         redis = redis_manager.get_redis()
 
-        if redis:
-            cached = await redis.get(cache_key)
-            if cached:
-                return json.loads(cached)
-
-        exchange = await self.get_exchange_instance(exchange_id, symbol)
-
-        # Max candles most exchanges allow per single request
-        BATCH_SIZE = 1000
-
-        try:
-            all_ohlcv: list = []
-
-            if limit <= BATCH_SIZE:
-                # ── Single request, no pagination needed ──────────────────────
-                all_ohlcv = await exchange.fetch_ohlcv(symbol, timeframe, limit=limit)
-
-            else:
-                # ── Paginated fetching ─────────────────────────────────────────
-                # Calculate timeframe duration in milliseconds so we can step
-                # backward from "now" to find the correct `since` start point.
-                tf_ms: int = exchange.parse_timeframe(timeframe) * 1000
-                now_ms: int = int(_time.time() * 1000)
-
-                # Start from `limit` candles ago
-                since_ms: int = now_ms - (limit * tf_ms)
-                remaining: int = limit
-
-                while remaining > 0:
-                    batch = min(remaining, BATCH_SIZE)
-                    chunk = await exchange.fetch_ohlcv(
-                        symbol, timeframe, since=since_ms, limit=batch
-                    )
-
-                    if not chunk:
-                        break  # Exchange returned nothing — stop
-
-                    all_ohlcv.extend(chunk)
-                    remaining -= len(chunk)
-
-                    # Advance `since` past the last candle to avoid re-fetching
-                    since_ms = chunk[-1][0] + tf_ms
-
-                    # Exchange has no more historical data for this range
-                    if len(chunk) < batch:
-                        break
-
-                    # ── Rate-limit safety delay between paginated requests ──
-                    # CCXT's enableRateLimit handles per-request throttling, but
-                    # we add an extra 500ms buffer to avoid soft IP bans on
-                    # stricter exchanges (Binance, Bybit, etc.).
-                    if remaining > 0:
-                        await asyncio.sleep(0.5)
-
-            # ── Deduplicate by timestamp (keep latest) and sort ascending ──
-            seen: dict = {}
-            for candle in all_ohlcv:
-                seen[candle[0]] = candle
-            all_ohlcv = sorted(seen.values(), key=lambda x: x[0])
-
-            # ── Format for Lightweight Charts ──────────────────────────────
-            formatted_data = [
-                {
-                    "time":   int(c[0] / 1000),  # ms → seconds
-                    "open":   c[1],
-                    "high":   c[2],
-                    "low":    c[3],
-                    "close":  c[4],
-                    "volume": c[5],
-                }
-                for c in all_ohlcv
-            ]
-
-            # Decorate with candlestick pattern analysis
-            from app.helpers.candlestick_patterns import attach_candlestick_patterns
-            formatted_data = attach_candlestick_patterns(formatted_data)
-
-            # ── Dynamic cache TTL based on timeframe ───────────────────────
-            # Short timeframes need fresh data; long timeframes can be cached longer.
-            tf_ttl_map = {
-                '1s': 5, '5s': 5, '15s': 5, '30s': 5,
-                '1m': 10, '3m': 15, '5m': 20, '15m': 30,
-                '30m': 60, '45m': 60, '1h': 120,
-                '2h': 240, '4h': 300, '6h': 360, '12h': 600,
-                '1d': 900, '1w': 1800, '1M': 3600,
-            }
-            cache_ttl = tf_ttl_map.get(timeframe, 15)
-
+        lock = self._get_ohlcv_lock(exchange_id, symbol, timeframe)
+        async with lock:
             if redis:
-                await redis.setex(cache_key, cache_ttl, json.dumps(formatted_data))
+                cached = await redis.get(cache_key)
+                if cached:
+                    cached_data = json.loads(cached)
+                    # If we have enough data in cache, slice and return it
+                    if len(cached_data) >= limit:
+                        return cached_data[-limit:]
+                    # If not enough, we will fetch fetch_limit from exchange
 
-            return formatted_data
+            exchange = await self.get_exchange_instance(exchange_id, symbol)
 
-        except Exception as e:
-            logger.error(f"Error fetching OHLCV for {symbol} on {exchange_id}: {e}")
-            raise e
+            # Max candles most exchanges allow per single request
+            BATCH_SIZE = 1000
+
+            try:
+                all_ohlcv: list = []
+
+                if fetch_limit <= BATCH_SIZE:
+                    # ── Single request, no pagination needed ──────────────────────
+                    all_ohlcv = await exchange.fetch_ohlcv(symbol, timeframe, limit=fetch_limit)
+
+                else:
+                    # ── Paginated fetching ─────────────────────────────────────────
+                    # Calculate timeframe duration in milliseconds so we can step
+                    # backward from "now" to find the correct `since` start point.
+                    tf_ms: int = exchange.parse_timeframe(timeframe) * 1000
+                    now_ms: int = int(_time.time() * 1000)
+
+                    # Start from `fetch_limit` candles ago
+                    since_ms: int = now_ms - (fetch_limit * tf_ms)
+                    remaining: int = fetch_limit
+
+                    while remaining > 0:
+                        batch = min(remaining, BATCH_SIZE)
+                        chunk = await exchange.fetch_ohlcv(
+                            symbol, timeframe, since=since_ms, limit=batch
+                        )
+
+                        if not chunk:
+                            break  # Exchange returned nothing — stop
+
+                        all_ohlcv.extend(chunk)
+                        remaining -= len(chunk)
+
+                        # Advance `since` past the last candle to avoid re-fetching
+                        since_ms = chunk[-1][0] + tf_ms
+
+                        # Exchange has no more historical data for this range
+                        if len(chunk) < batch:
+                            break
+
+                        # ── Rate-limit safety delay between paginated requests ──
+                        # CCXT's enableRateLimit handles per-request throttling, but
+                        # we add an extra 500ms buffer to avoid soft IP bans on
+                        # stricter exchanges (Binance, Bybit, etc.).
+                        if remaining > 0:
+                            await asyncio.sleep(0.5)
+
+                # ── Deduplicate by timestamp (keep latest) and sort ascending ──
+                seen: dict = {}
+                for candle in all_ohlcv:
+                    seen[candle[0]] = candle
+                all_ohlcv = sorted(seen.values(), key=lambda x: x[0])
+
+                # ── Format for Lightweight Charts ──────────────────────────────
+                formatted_data = [
+                    {
+                        "time":   int(c[0] / 1000),  # ms → seconds
+                        "open":   c[1],
+                        "high":   c[2],
+                        "low":    c[3],
+                        "close":  c[4],
+                        "volume": c[5],
+                    }
+                    for c in all_ohlcv
+                ]
+
+                # Decorate with candlestick pattern analysis
+                from app.helpers.candlestick_patterns import attach_candlestick_patterns
+                formatted_data = attach_candlestick_patterns(formatted_data)
+
+                # ── Dynamic cache TTL based on timeframe ───────────────────────
+                # Short timeframes need fresh data; long timeframes can be cached longer.
+                tf_ttl_map = {
+                    '1s': 5, '5s': 5, '15s': 5, '30s': 5,
+                    '1m': 10, '3m': 15, '5m': 20, '15m': 30,
+                    '30m': 60, '45m': 60, '1h': 120,
+                    '2h': 240, '4h': 300, '6h': 360, '12h': 600,
+                    '1d': 900, '1w': 1800, '1M': 3600,
+                }
+                cache_ttl = tf_ttl_map.get(timeframe, 15)
+
+                if redis:
+                    await redis.setex(cache_key, cache_ttl, json.dumps(formatted_data))
+
+                return formatted_data[-limit:]
+
+            except Exception as e:
+                logger.error(f"Error fetching OHLCV for {symbol} on {exchange_id}: {e}")
+                raise e
 
 
     async def fetch_raw_order_book(self, symbol: str, exchange_id: str, limit: int = 100) -> Dict[str, Any]:
         """
-        Fetches the raw order book from the exchange.
+        Fetches the raw order book from the exchange. Uses live cache if available.
         """
-        exchange = await self.get_exchange_instance(exchange_id, symbol)
-        try:
-            # Normalize limit for different exchanges
-            limit = self._normalize_order_book_limit(exchange_id, limit)
-            
-            order_book = await exchange.fetch_order_book(symbol.upper(), limit=limit)
-            return {
-                "symbol": symbol.upper(),
-                "exchange": exchange_id.lower(),
-                "bids": [{"price": b[0], "size": b[1]} for b in order_book.get('bids', [])],
-                "asks": [{"price": a[0], "size": a[1]} for a in order_book.get('asks', [])],
-                "timestamp": order_book.get('timestamp'),
-                "datetime": order_book.get('datetime')
-            }
-        except Exception as e:
-            logger.error(f"Error fetching raw order book for {symbol} on {exchange_id}: {e}")
-            raise e
+        import time
+        redis = redis_manager.get_redis()
+        
+        lock = self._get_ob_lock(exchange_id, symbol)
+        async with lock:
+            if redis:
+                cached_ob = await redis.get(f"latest_orderbook:{exchange_id.lower()}:{symbol.upper()}")
+                if cached_ob:
+                    data = json.loads(cached_ob)
+                    return {
+                        "symbol": symbol.upper(),
+                        "exchange": exchange_id.lower(),
+                        "bids": [{"price": b["price"], "size": b["size"]} for b in data.get("bids", [])][:limit],
+                        "asks": [{"price": a["price"], "size": a["size"]} for a in data.get("asks", [])][:limit],
+                        "timestamp": int(time.time() * 1000),
+                        "datetime": None
+                    }
+
+            exchange = await self.get_exchange_instance(exchange_id, symbol)
+            try:
+                # Normalize limit for different exchanges
+                limit = self._normalize_order_book_limit(exchange_id, limit)
+                
+                order_book = await exchange.fetch_order_book(symbol.upper(), limit=limit)
+                return {
+                    "symbol": symbol.upper(),
+                    "exchange": exchange_id.lower(),
+                    "bids": [{"price": b[0], "size": b[1]} for b in order_book.get('bids', [])],
+                    "asks": [{"price": a[0], "size": a[1]} for a in order_book.get('asks', [])],
+                    "timestamp": order_book.get('timestamp'),
+                    "datetime": order_book.get('datetime')
+                }
+            except Exception as e:
+                logger.error(f"Error fetching raw order book for {symbol} on {exchange_id}: {e}")
+                raise e
 
 market_depth_service = MarketDepthService()

@@ -5,21 +5,58 @@ import math
 from typing import List, Dict, Any
 from app.services.market_depth_service import market_depth_service
 
+import asyncio
+
 logger = logging.getLogger(__name__)
 
 class AdvancedMetricsService:
     def __init__(self):
-        pass
+        self._trade_locks = {}
+
+    def _get_trade_lock(self, symbol: str, exchange_id: str):
+        key = f"{exchange_id}_{symbol}"
+        if key not in self._trade_locks:
+            self._trade_locks[key] = asyncio.Lock()
+        return self._trade_locks[key]
         
     async def fetch_recent_trades(self, symbol: str, exchange_id: str, limit: int = 1000) -> List[Dict[str, Any]]:
-        """Fetches real trades using CCXT."""
-        try:
-            exchange = await market_depth_service.get_exchange_instance(exchange_id, symbol)
-            trades = await exchange.fetch_trades(symbol.upper(), limit=limit)
-            return trades
-        except Exception as e:
-            logger.error(f"Error fetching trades for {symbol}: {e}")
-            return []
+        """Fetches real trades using CCXT, with Redis List caching to prevent rate limits."""
+        import json
+        from app.core.redis import redis_manager
+        
+        lock = self._get_trade_lock(symbol, exchange_id)
+        async with lock:
+            try:
+                # 1. Try to fetch from Redis stream cache
+                redis = redis_manager.get_redis()
+                if redis:
+                    trade_key = f"recent_trades:{exchange_id.lower()}:{symbol.upper()}"
+                    cached_trades = await redis.lrange(trade_key, -limit, -1)
+                    
+                    # If we have at least 10 trades, use cache to avoid 429. 
+                    # Streamer will build it up to 1000 over time.
+                    if cached_trades and len(cached_trades) >= 10: 
+                        return [json.loads(t) for t in cached_trades]
+
+                # 2. Fallback to REST API if cache is empty
+                exchange = await market_depth_service.get_exchange_instance(exchange_id, symbol)
+                trades = await exchange.fetch_trades(symbol.upper(), limit=limit)
+                
+                # Populate cache so subsequent calls don't hit REST again
+                if redis and trades:
+                    trade_key = f"recent_trades:{exchange_id.lower()}:{symbol.upper()}"
+                    trade_strs = [json.dumps(t) for t in trades]
+                    
+                    # Delete and recreate to ensure it has the historical trades
+                    await redis.delete(trade_key)
+                    await redis.rpush(trade_key, *trade_strs)
+                    await redis.ltrim(trade_key, -1000, -1)
+                    await redis.expire(trade_key, 60) # Short expire for REST fallback
+
+                return trades
+            except Exception as e:
+                logger.error(f"Error fetching trades for {symbol}: {e}")
+                return []
 
     async def calculate_delta_profile(self, symbol: str, exchange_id: str, limit: int = 1000) -> List[Dict[str, Any]]:
         """

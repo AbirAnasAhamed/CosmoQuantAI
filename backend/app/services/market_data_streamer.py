@@ -169,6 +169,7 @@ class MarketDataStreamer:
                 
                 # Publish to Redis
                 if redis:
+                    await redis.setex(f"latest_orderbook:{exchange_id}:{symbol}", 60, json.dumps(payload))
                     await redis.publish(channel, json.dumps(payload))
                 
             except Exception as e:
@@ -216,6 +217,15 @@ class MarketDataStreamer:
                     }
                     
                     if redis:
+                        trade_key = f"recent_trades:{exchange_id}:{symbol}"
+                        trade_strs = [json.dumps(t) for t in trades]
+                        if trade_strs:
+                            await redis.rpush(trade_key, *trade_strs)
+                            # Keep only the last 1000 trades
+                            await redis.ltrim(trade_key, -1000, -1)
+                            # Expire after 1 hour of inactivity
+                            await redis.expire(trade_key, 3600)
+                            
                         await redis.publish(channel, json.dumps(payload))
             except Exception as e:
                 err_msg = str(e)
