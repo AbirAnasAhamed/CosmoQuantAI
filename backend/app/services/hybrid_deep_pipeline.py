@@ -254,7 +254,7 @@ async def _async_hybrid_deep_scraper(
 
                         # Progress log
                         if trade_count % log_interval == 0:
-                            pct = min(10.0, (trade_count / target_rows) * 10.0)
+                            pct = min(100.0, (trade_count / target_rows) * 100.0)
                             job.progress = pct
                             db.commit()
                             add_log_func(
@@ -374,10 +374,13 @@ def build_hybrid_deep_dataset(job, db: Session, config: dict, add_log) -> tuple:
     symbol          = job.symbol
     target_rows     = config.get("target_rows", 10000)
     
+    # Use price fallback for Close prediction shift
+    future_shift = config.get("prediction_shift", 100)
+
     # Enforce minimum target rows
-    min_required_rows = 1000
+    min_required_rows = max(100, future_shift + 50)
     if target_rows < min_required_rows:
-        add_log(f"⚠️ Target rows ({target_rows}) is too low for PLP/Rolling features. Auto-increasing to {min_required_rows}.")
+        add_log(f"⚠️ Target rows ({target_rows}) is too low for look-ahead shift ({future_shift}). Auto-increasing to {min_required_rows}.")
         target_rows = min_required_rows
 
     sel_l2          = config.get("l2_features", ["obi", "spread", "microprice"])
