@@ -182,6 +182,11 @@ class MarketDepthService:
                     
                 # Fetch Order Book
                 if not order_book:
+                    # ✅ Bypass REST API for Binance to prevent ban accumulation
+                    if exchange_id.lower() == 'binance':
+                        logger.warning(f"Skipping REST fetch_order_book for {symbol} due to Binance IP ban. Waiting for WebSocket stream cache.")
+                        return {"symbol": symbol, "exchange": exchange_id, "current_price": 0, "bids": [], "asks": []}
+                        
                     order_book = await exchange.fetch_order_book(symbol, limit=depth)
                 
                 # Use mid price from order book
@@ -334,7 +339,7 @@ class MarketDepthService:
 
         # Hard cap to avoid accidental abuse or server overload
         limit = min(limit, 2000)
-        fetch_limit = max(limit, 1000)
+        fetch_limit = limit
 
         # Use a unified cache key without limit to serve all sizes from one cache
         cache_key = f"ohlcv:{exchange_id}:{symbol}:{timeframe}"
@@ -471,6 +476,11 @@ class MarketDepthService:
                 # Normalize limit for different exchanges
                 limit = self._normalize_order_book_limit(exchange_id, limit)
                 
+                # ✅ Bypass REST API for Binance to prevent ban accumulation
+                if exchange_id.lower() == 'binance':
+                    logger.warning(f"Skipping REST fetch_order_book for {symbol} due to Binance IP ban. Waiting for WebSocket stream cache.")
+                    return {"symbol": symbol.upper(), "exchange": exchange_id.lower(), "bids": [], "asks": [], "timestamp": None, "datetime": None}
+                    
                 order_book = await exchange.fetch_order_book(symbol.upper(), limit=limit)
                 return {
                     "symbol": symbol.upper(),

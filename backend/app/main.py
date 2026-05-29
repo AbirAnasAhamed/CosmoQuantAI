@@ -221,7 +221,8 @@ async def fetch_market_data_background():
         })
         await local_exchange_client.load_markets()
     except Exception as e:
-        print(f"⚠️ Failed to initialize exchange client: {e}")
+        print(f"⚠️ [Ignored] Failed to initialize exchange client markets: {e}")
+        # Proceed without markets loaded, as some websocket streams can run without it.
 
     # WebSocket Background Updater for Tickers
     async def _keep_tickers_updated():
@@ -258,9 +259,8 @@ async def fetch_market_data_background():
                     })
                     await local_exchange_client.load_markets()
                  except Exception as e:
-                    print(f"⚠️ Re-init client failed: {e}")
-                    await asyncio.sleep(5)
-                    continue
+                    print(f"⚠️ [Ignored] Re-init client failed to load markets: {e}")
+                    # Continue using the client even if load_markets failed
 
             # --- 1. Process Individual Subscriptions (Existing Logic) ---
             NON_MARKET_CHANNELS = {
@@ -343,6 +343,16 @@ async def fetch_market_data_background():
                                         "bids": [{"price": b[0], "amount": b[1], "total": 0} for b in orderbook.get('bids', [])[:20]],
                                         "asks": [{"price": a[0], "amount": a[1], "total": 0} for a in orderbook.get('asks', [])[:20]]
                                     }
+                                    
+                                    # ✅ Cache to Redis for MarketDepthService & OrderbookSnapshotService
+                                    cache_ob = {
+                                        "bids": [{"price": b[0], "size": b[1]} for b in orderbook.get('bids', [])[:100]],
+                                        "asks": [{"price": a[0], "size": a[1]} for a in orderbook.get('asks', [])[:100]]
+                                    }
+                                    redis = redis_manager.get_redis()
+                                    if redis:
+                                        await redis.set(f"latest_orderbook:binance:{sym.upper()}", json.dumps(cache_ob))
+
                                     await manager.broadcast_market_data(sym, "depth", depth_data)
                                     await asyncio.sleep(0.5) # throttle depth broadcast slightly
                                 except asyncio.CancelledError:

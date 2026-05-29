@@ -143,23 +143,11 @@ async def get_klines(
 ):
     try:
         # We use a temporary CCXT instance or the market_service wrapper
-        # For speed/simplicity, let's use market_service to fetch OHLCV directly
-        # Use async ccxt for performance
-        import ccxt.async_support as ccxt_async
+        # Use cached exchange instance from MarketDepthService which handles rate limits
+        from app.services.market_depth_service import market_depth_service
         
-        if exchange == 'binance':
-            options = {}
-            if ':' in symbol:
-                options['options'] = {'defaultType': 'future'}
-            ex = ccxt_async.binance(options)
-        elif exchange == 'kucoin' and ':' in symbol:
-            ex = ccxt_async.kucoinfutures()
-        elif exchange == 'kraken' and ':' in symbol:
-            ex = ccxt_async.krakenfutures()
-        else:
-            ex = getattr(ccxt_async, exchange)()
-            
         try:
+            ex = await market_depth_service.get_exchange_instance(exchange, symbol)
             # CCXT returns list of [timestamp, open, high, low, close, volume]
             ohlcv = await ex.fetch_ohlcv(symbol, interval, limit=limit)
             return ohlcv
@@ -168,8 +156,6 @@ async def get_klines(
             if 'badsymbol' in error_str or 'does not exist' in error_str or 'does not have market symbol' in error_str or 'bad symbol' in error_str:
                  raise HTTPException(status_code=400, detail=f"Symbol {symbol} not found or invalid.")
             raise HTTPException(status_code=500, detail=f"Error fetching klines: {str(e)}")
-        finally:
-            await ex.close()
 
     except HTTPException as he:
         raise he

@@ -155,8 +155,12 @@ class LiquidationService:
                     exchange = await self._get_exchange(exchange_id)
                     
                     # Validate symbol exists on the exchange
-                    await exchange.load_markets()
-                    if symbol not in exchange.markets:
+                    try:
+                        await exchange.load_markets()
+                    except Exception as e:
+                        logger.warning(f"⚠️ [Ignored] load_markets failed for {exchange_id} before subscribing to {symbol}: {e}")
+                    
+                    if exchange.markets and symbol not in exchange.markets:
                         logger.error(f"Symbol {symbol} not found on {exchange_id}")
                         self._sub_counts[sub_id] -= 1 # Rollback counter
                         return
