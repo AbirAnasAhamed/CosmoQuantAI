@@ -24,7 +24,8 @@ class AdvancedTradingEnv(gym.Env):
         commission: float = 0.0002, # 0.02% per trade (Futures Maker Fee)
         slippage: float = 0.0001,   # 0.01% price impact
         max_leverage: float = 1.0,
-        reward_type: str = 'log_returns'
+        reward_type: str = 'log_returns',
+        is_continuous: bool = False
     ):
         super(AdvancedTradingEnv, self).__init__()
 
@@ -40,9 +41,14 @@ class AdvancedTradingEnv(gym.Env):
         self.slippage = slippage
         self.max_leverage = max_leverage
         self.reward_type = reward_type
+        self.is_continuous = is_continuous
 
-        # Action Space: 0 = Neutral (Cash), 1 = Long, 2 = Short
-        self.action_space = spaces.Discrete(3)
+        if self.is_continuous:
+            # Action space for SAC: continuous from -1 to 1
+            self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
+        else:
+            # Action Space: 0 = Neutral (Cash), 1 = Long, 2 = Short
+            self.action_space = spaces.Discrete(3)
 
         # Observation Space: All columns except 'Target' or 'timestamp'
         # We assume the caller provides a DF already filtered to features + 'Close'
@@ -96,10 +102,19 @@ class AdvancedTradingEnv(gym.Env):
         prev_net_worth = self.net_worth
         
         # 2. Execute Action Logic (Trade)
-        # Action mapping: 0 -> 0 (Neutral), 1 -> 1 (Long), 2 -> -1 (Short)
-        target_position = 0
-        if action == 1: target_position = 1
-        elif action == 2: target_position = -1
+        if self.is_continuous:
+            action_val = action[0] if isinstance(action, (np.ndarray, list)) else action
+            if action_val < -0.33:
+                target_position = -1
+            elif action_val > 0.33:
+                target_position = 1
+            else:
+                target_position = 0
+        else:
+            # Action mapping: 0 -> 0 (Neutral), 1 -> 1 (Long), 2 -> -1 (Short)
+            target_position = 0
+            if action == 1: target_position = 1
+            elif action == 2: target_position = -1
         
         if target_position != self.position:
             self._handle_position_change(target_position, current_price)

@@ -212,6 +212,7 @@ IGNORE_PATTERNS = [
 # These are transient network events that do NOT require human intervention.
 WARNING_OVERRIDE_PATTERNS = [
     re.compile(r'Streamer failed to load markets', re.IGNORECASE),
+    re.compile(r'Failed to load markets for.*during initialization', re.IGNORECASE),
     re.compile(r'\[vite\].*proxy error', re.IGNORECASE),
     re.compile(r'TCPConnectWrap\.afterConnect', re.IGNORECASE),
     re.compile(r'\[proxy\] Backend connection issue', re.IGNORECASE),

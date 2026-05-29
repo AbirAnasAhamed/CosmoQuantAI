@@ -2146,17 +2146,18 @@ def train_model_task(job_id: str, db: Session):
             logs_array = job.logs or []
             log_summary = "\n".join(logs_array[-5:]) if logs_array else "No logs available."
             
+            import html
             msg = (
                 f"🤖 <b>মডেল ট্রেনিং সম্পন্ন হয়েছে!</b>\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
                 f"📦 <b>পেয়ার/সিম্বল:</b> {job.symbol} ({job.timeframe})\n"
                 f"🧠 <b>অ্যালগরিদম:</b> {job.algorithm}\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
-                f"⚙️ <b>কনফিগারেশন:</b>\n{config_str}\n"
+                f"⚙️ <b>কনফিগারেশন:</b>\n{html.escape(config_str)}\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
-                f"📊 <b>মডেলের পারফরম্যান্স:</b>\n{metrics_str}\n"
+                f"📊 <b>মডেলের পারফরম্যান্স:</b>\n{html.escape(metrics_str)}\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
-                f"📝 <b>লাইভ কনসোল আউটপুট:</b>\n<pre>\n{log_summary}\n</pre>"
+                f"📝 <b>লাইভ কনসোল আউটপুট:</b>\n<pre>\n{html.escape(log_summary)}\n</pre>"
             )
             
             loop = asyncio.new_event_loop()
@@ -2249,6 +2250,7 @@ def train_model_task(job_id: str, db: Session):
         try:
             from app.services.notification import NotificationService
             import asyncio
+            import html
             
             logs_array = job.logs or []
             log_summary = "\n".join(logs_array[-5:]) if logs_array else "No logs available."
@@ -2258,9 +2260,9 @@ def train_model_task(job_id: str, db: Session):
                 f"━━━━━━━━━━━━━━━━━━\n"
                 f"📦 <b>পেয়ার/সিম্বল:</b> {job.symbol} ({job.timeframe})\n"
                 f"🧠 <b>অ্যালগরিদম:</b> {job.algorithm}\n"
-                f"⚠️ <b>এরর (Error):</b> {str(e)[:200]}\n"
+                f"⚠️ <b>এরর (Error):</b> {html.escape(str(e))[:200]}\n"
                 f"━━━━━━━━━━━━━━━━━━\n"
-                f"📝 <b>লাইভ কনসোল আউটপুট:</b>\n<pre>\n{log_summary}\n</pre>"
+                f"📝 <b>লাইভ কনসোল আউটপুট:</b>\n<pre>\n{html.escape(log_summary)}\n</pre>"
             )
             
             loop = asyncio.new_event_loop()

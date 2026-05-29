@@ -391,7 +391,8 @@ class AdvancedMLEngine:
                 df=env_df, 
                 initial_balance=initial_balance, 
                 commission=commission,
-                slippage=slippage
+                slippage=slippage,
+                is_continuous=(job.algorithm == "SAC-RL")
             )
         
         env = DummyVecEnv([make_env])
