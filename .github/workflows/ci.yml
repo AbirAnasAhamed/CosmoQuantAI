@@ -21,7 +21,7 @@ jobs:
         run: |
           # Remove unnecessary packages
           sudo apt-get update
-          sudo apt-get remove -y '^ghc-8.*' '^dotnet-.*' '^mysql-.*' '^postgresql-.*' '^mongodb-.*'
+          sudo apt-get remove -y '^ghc-8.*' '^dotnet-.*' '^mysql-.*' '^postgresql-.*' '^mongodb-.*' || true
           sudo apt-get autoremove -y
           sudo apt-get clean
           
