@@ -200,65 +200,65 @@ const SignalModal: React.FC<{
 }> = ({ result, modelName, onClose }) => {
     const cfgMap = {
         BUY: {
-            outerGlow:   'shadow-emerald-500/30',
-            ring:        'from-emerald-400 to-teal-300',
-            ringBg:      'bg-emerald-500/10',
-            border:      'border-emerald-500/30',
-            text:        'text-emerald-400',
-            badge:       'bg-emerald-500/20 border-emerald-500/40',
-            accent:      'from-emerald-500 via-teal-400 to-emerald-600',
-            label:       'BUY',
-            icon:        '▲',
-            glow:        'rgba(16,185,129,0.15)',
+            outerGlow: 'shadow-emerald-500/30',
+            ring: 'from-emerald-400 to-teal-300',
+            ringBg: 'bg-emerald-500/10',
+            border: 'border-emerald-500/30',
+            text: 'text-emerald-400',
+            badge: 'bg-emerald-500/20 border-emerald-500/40',
+            accent: 'from-emerald-500 via-teal-400 to-emerald-600',
+            label: 'BUY',
+            icon: '▲',
+            glow: 'rgba(16,185,129,0.15)',
         },
         SELL: {
-            outerGlow:   'shadow-rose-500/30',
-            ring:        'from-rose-400 to-pink-300',
-            ringBg:      'bg-rose-500/10',
-            border:      'border-rose-500/30',
-            text:        'text-rose-400',
-            badge:       'bg-rose-500/20 border-rose-500/40',
-            accent:      'from-rose-500 via-pink-400 to-rose-600',
-            label:       'SELL',
-            icon:        '▼',
-            glow:        'rgba(244,63,94,0.15)',
+            outerGlow: 'shadow-rose-500/30',
+            ring: 'from-rose-400 to-pink-300',
+            ringBg: 'bg-rose-500/10',
+            border: 'border-rose-500/30',
+            text: 'text-rose-400',
+            badge: 'bg-rose-500/20 border-rose-500/40',
+            accent: 'from-rose-500 via-pink-400 to-rose-600',
+            label: 'SELL',
+            icon: '▼',
+            glow: 'rgba(244,63,94,0.15)',
         },
         HOLD: {
-            outerGlow:   'shadow-amber-500/30',
-            ring:        'from-amber-400 to-yellow-300',
-            ringBg:      'bg-amber-500/10',
-            border:      'border-amber-500/30',
-            text:        'text-amber-400',
-            badge:       'bg-amber-500/20 border-amber-500/40',
-            accent:      'from-amber-500 via-yellow-400 to-amber-600',
-            label:       'HOLD',
-            icon:        '■',
-            glow:        'rgba(245,158,11,0.15)',
+            outerGlow: 'shadow-amber-500/30',
+            ring: 'from-amber-400 to-yellow-300',
+            ringBg: 'bg-amber-500/10',
+            border: 'border-amber-500/30',
+            text: 'text-amber-400',
+            badge: 'bg-amber-500/20 border-amber-500/40',
+            accent: 'from-amber-500 via-yellow-400 to-amber-600',
+            label: 'HOLD',
+            icon: '■',
+            glow: 'rgba(245,158,11,0.15)',
         },
     };
-    
+
     // Fallback for custom signals (like Auto-Encoder anomaly strings)
     const signalUpper = result.signal.toUpperCase();
     const isCrash = signalUpper.includes('CRASH');
     const isPump = signalUpper.includes('PUMP');
     const cfg = cfgMap[result.signal as keyof typeof cfgMap] || {
-        outerGlow:   isCrash ? 'shadow-rose-500/30' : isPump ? 'shadow-emerald-500/30' : 'shadow-cyan-500/30',
-        ring:        isCrash ? 'from-rose-400 to-pink-300' : isPump ? 'from-emerald-400 to-teal-300' : 'from-cyan-400 to-blue-300',
-        ringBg:      isCrash ? 'bg-rose-500/10' : isPump ? 'bg-emerald-500/10' : 'bg-cyan-500/10',
-        border:      isCrash ? 'border-rose-500/30' : isPump ? 'border-emerald-500/30' : 'border-cyan-500/30',
-        text:        isCrash ? 'text-rose-400' : isPump ? 'text-emerald-400' : 'text-cyan-400',
-        badge:       isCrash ? 'bg-rose-500/20 border-rose-500/40' : isPump ? 'bg-emerald-500/20 border-emerald-500/40' : 'bg-cyan-500/20 border-cyan-500/40',
-        accent:      isCrash ? 'from-rose-500 via-pink-400 to-rose-600' : isPump ? 'from-emerald-500 via-teal-400 to-emerald-600' : 'from-cyan-500 via-blue-400 to-cyan-600',
-        label:       result.signal.toUpperCase(),
-        icon:        isCrash ? '▼' : isPump ? '▲' : '⚡',
-        glow:        isCrash ? 'rgba(244,63,94,0.15)' : isPump ? 'rgba(16,185,129,0.15)' : 'rgba(6,182,212,0.15)',
+        outerGlow: isCrash ? 'shadow-rose-500/30' : isPump ? 'shadow-emerald-500/30' : 'shadow-cyan-500/30',
+        ring: isCrash ? 'from-rose-400 to-pink-300' : isPump ? 'from-emerald-400 to-teal-300' : 'from-cyan-400 to-blue-300',
+        ringBg: isCrash ? 'bg-rose-500/10' : isPump ? 'bg-emerald-500/10' : 'bg-cyan-500/10',
+        border: isCrash ? 'border-rose-500/30' : isPump ? 'border-emerald-500/30' : 'border-cyan-500/30',
+        text: isCrash ? 'text-rose-400' : isPump ? 'text-emerald-400' : 'text-cyan-400',
+        badge: isCrash ? 'bg-rose-500/20 border-rose-500/40' : isPump ? 'bg-emerald-500/20 border-emerald-500/40' : 'bg-cyan-500/20 border-cyan-500/40',
+        accent: isCrash ? 'from-rose-500 via-pink-400 to-rose-600' : isPump ? 'from-emerald-500 via-teal-400 to-emerald-600' : 'from-cyan-500 via-blue-400 to-cyan-600',
+        label: result.signal.toUpperCase(),
+        icon: isCrash ? '▼' : isPump ? '▲' : '⚡',
+        glow: isCrash ? 'rgba(244,63,94,0.15)' : isPump ? 'rgba(16,185,129,0.15)' : 'rgba(6,182,212,0.15)',
     };
 
     // Circular progress for confidence
-    const pct    = Math.round(result.confidence * 100);
+    const pct = Math.round(result.confidence * 100);
     const radius = 40;
-    const circ   = 2 * Math.PI * radius;
-    const dash   = (pct / 100) * circ;
+    const circ = 2 * Math.PI * radius;
+    const dash = (pct / 100) * circ;
 
     return (
         <div
@@ -323,9 +323,9 @@ const SignalModal: React.FC<{
                     {/* Info rows */}
                     <div className="w-full bg-white/4 rounded-2xl border border-white/6 p-4 space-y-2.5 text-left">
                         {[
-                            { label: 'Price',     value: `$${result.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`, color: 'text-white' },
-                            { label: 'Symbol',    value: result.symbol,     color: 'text-gray-300' },
-                            { label: 'Algorithm', value: result.algorithm,  color: 'text-purple-400' },
+                            { label: 'Price', value: `$${result.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`, color: 'text-white' },
+                            { label: 'Symbol', value: result.symbol, color: 'text-gray-300' },
+                            { label: 'Algorithm', value: result.algorithm, color: 'text-purple-400' },
                             ...(result.features_used ? [{ label: 'Features', value: `${result.features_used} features`, color: 'text-gray-400' }] : []),
                         ].map(({ label, value, color }) => (
                             <div key={label} className="flex justify-between items-center">
@@ -385,16 +385,16 @@ const ExplainabilityView: React.FC<{ data: any; algorithm?: string }> = ({ data,
                         </div>
                     </div>
                 </div>
-                
+
                 <div className="bg-white/5 border border-white/10 rounded-xl p-6 text-center">
                     <div className="w-12 h-12 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
                         <svg className="w-6 h-6 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                     </div>
                     <h4 className="text-white font-bold text-sm mb-2">Deep Policy Network (PPO)</h4>
                     <p className="text-xs text-gray-400 max-w-lg mx-auto leading-relaxed">
-                        Reinforcement Learning models do not use traditional feature importance or decision trees. 
+                        Reinforcement Learning models do not use traditional feature importance or decision trees.
                         They learn optimal trading policies through continuous trial and error (reward maximization).
-                        <br/><br/>
+                        <br /><br />
                         To visualize the agent's actual trading behavior, please refer to the <strong>Equity Curve</strong> generated in the Training Studio logs.
                     </p>
                 </div>
@@ -413,8 +413,8 @@ const ExplainabilityView: React.FC<{ data: any; algorithm?: string }> = ({ data,
                     <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={data.featureImportance} layout="vertical" margin={{ top: 5, right: 30, left: 40, bottom: 5 }}>
                             <XAxis type="number" hide />
-                            <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fill: '#9CA3AF', fontSize: 12}} width={120} />
-                            <RechartsTooltip cursor={{fill: 'rgba(255,255,255,0.05)'}} contentStyle={{backgroundColor: '#111', borderColor: '#333', borderRadius: '8px'}} />
+                            <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{ fill: '#9CA3AF', fontSize: 12 }} width={120} />
+                            <RechartsTooltip cursor={{ fill: 'rgba(255,255,255,0.05)' }} contentStyle={{ backgroundColor: '#111', borderColor: '#333', borderRadius: '8px' }} />
                             <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                                 {data.featureImportance?.map((entry: any, index: number) => (
                                     <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />
@@ -434,13 +434,13 @@ const ExplainabilityView: React.FC<{ data: any; algorithm?: string }> = ({ data,
                             <AreaChart data={data.pdpData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
                                 <defs>
                                     <linearGradient id="colorY" x1="0" y1="0" x2="0" y2="1">
-                                    <stop offset="5%" stopColor="#14B8A6" stopOpacity={0.3}/>
-                                    <stop offset="95%" stopColor="#14B8A6" stopOpacity={0}/>
+                                        <stop offset="5%" stopColor="#14B8A6" stopOpacity={0.3} />
+                                        <stop offset="95%" stopColor="#14B8A6" stopOpacity={0} />
                                     </linearGradient>
                                 </defs>
-                                <XAxis dataKey="x" tick={{fill: '#6B7280', fontSize: 10}} tickLine={false} axisLine={false}/>
-                                <YAxis tick={{fill: '#6B7280', fontSize: 10}} tickLine={false} axisLine={false}/>
-                                <RechartsTooltip contentStyle={{backgroundColor: '#111', borderColor: '#333', borderRadius: '8px'}}/>
+                                <XAxis dataKey="x" tick={{ fill: '#6B7280', fontSize: 10 }} tickLine={false} axisLine={false} />
+                                <YAxis tick={{ fill: '#6B7280', fontSize: 10 }} tickLine={false} axisLine={false} />
+                                <RechartsTooltip contentStyle={{ backgroundColor: '#111', borderColor: '#333', borderRadius: '8px' }} />
                                 <Area type="monotone" dataKey="y" stroke="#14B8A6" fillOpacity={1} fill="url(#colorY)" />
                             </AreaChart>
                         </ResponsiveContainer>
@@ -454,8 +454,8 @@ const ExplainabilityView: React.FC<{ data: any; algorithm?: string }> = ({ data,
                         <ResponsiveContainer width="100%" height="100%">
                             <LineChart data={data.timeSeriesData} margin={{ top: 5, right: 0, left: -20, bottom: 0 }}>
                                 <XAxis dataKey="time" hide />
-                                <YAxis domain={['auto', 'auto']} tick={{fill: '#6B7280', fontSize: 10}} tickLine={false} axisLine={false}/>
-                                <RechartsTooltip contentStyle={{backgroundColor: '#111', borderColor: '#333', borderRadius: '8px'}}/>
+                                <YAxis domain={['auto', 'auto']} tick={{ fill: '#6B7280', fontSize: 10 }} tickLine={false} axisLine={false} />
+                                <RechartsTooltip contentStyle={{ backgroundColor: '#111', borderColor: '#333', borderRadius: '8px' }} />
                                 <Line type="monotone" dataKey="actual" stroke="#6B7280" strokeWidth={2} dot={false} name="Actual" />
                                 <Line type="monotone" dataKey="predicted" stroke="#6366F1" strokeWidth={2} strokeDasharray="3 3" dot={false} name="Predicted" />
                             </LineChart>
@@ -472,14 +472,14 @@ const ExplainabilityView: React.FC<{ data: any; algorithm?: string }> = ({ data,
                         <div className="grid grid-cols-4 gap-1 w-full max-w-[240px]">
                             <div className="col-span-1"></div>
                             {data.confusionMatrix?.classes.map((c: string) => <div key={`col-${c}`} className="text-center text-[10px] text-gray-500 font-bold">{c}</div>)}
-                            
+
                             {data.confusionMatrix?.matrix.map((row: number[], i: number) => (
                                 <React.Fragment key={`row-${i}`}>
                                     <div className="text-right text-[10px] text-gray-500 font-bold pr-2 flex items-center justify-end">{data.confusionMatrix.classes[i]}</div>
                                     {row.map((val: number, j: number) => {
                                         const intensity = val / 100;
                                         return (
-                                            <div key={`cell-${i}-${j}`} className="aspect-square flex items-center justify-center rounded text-sm font-mono font-bold" style={{ backgroundColor: i===j ? `rgba(16, 185, 129, ${0.1 + intensity*0.9})` : `rgba(239, 68, 68, ${0.1 + intensity*0.5})`, color: intensity > 0.5 ? 'white' : '#9CA3AF' }}>
+                                            <div key={`cell-${i}-${j}`} className="aspect-square flex items-center justify-center rounded text-sm font-mono font-bold" style={{ backgroundColor: i === j ? `rgba(16, 185, 129, ${0.1 + intensity * 0.9})` : `rgba(239, 68, 68, ${0.1 + intensity * 0.5})`, color: intensity > 0.5 ? 'white' : '#9CA3AF' }}>
                                                 {val}
                                             </div>
                                         )
@@ -495,14 +495,14 @@ const ExplainabilityView: React.FC<{ data: any; algorithm?: string }> = ({ data,
                     <h3 className="text-sm font-bold text-gray-300 mb-4 flex items-center gap-2">SHAP Summary (Impact)</h3>
                     <div className="space-y-4">
                         {['Level2_Imbalance', 'Volume_Profile', 'RSI_14'].map(feature => {
-                            const dots = data.shapSummary?.filter((s:any) => s.feature === feature) || [];
+                            const dots = data.shapSummary?.filter((s: any) => s.feature === feature) || [];
                             return (
                                 <div key={feature} className="flex items-center gap-2">
                                     <div className="w-28 text-[10px] text-gray-400 truncate text-right font-bold">{feature}</div>
                                     <div className="flex-1 relative h-6 bg-white/5 rounded">
                                         <div className="absolute top-0 bottom-0 left-1/2 w-px bg-gray-600"></div>
-                                        {dots.map((d:any, i:number) => {
-                                            const left = 50 + (d.impact * 500); 
+                                        {dots.map((d: any, i: number) => {
+                                            const left = 50 + (d.impact * 500);
                                             const color = d.value === 'High' ? '#EF4444' : '#3B82F6';
                                             return (
                                                 <div key={i} className="absolute top-1.5 w-3 h-3 rounded-full opacity-80" style={{ left: `${Math.min(Math.max(left, 0), 95)}%`, backgroundColor: color }}></div>
@@ -525,17 +525,17 @@ const ExplainabilityView: React.FC<{ data: any; algorithm?: string }> = ({ data,
             <div className="bg-white/5 border border-white/10 rounded-xl p-5 h-80 flex flex-col">
                 <h3 className="text-sm font-bold text-gray-300 mb-2 flex items-center gap-2">Decision Tree Logic</h3>
                 <div className="flex-1 border border-white/5 rounded-lg overflow-hidden bg-[#050505]">
-                    <ReactFlow 
-                        nodes={data.decisionTree?.nodes.map((n:any) => ({
+                    <ReactFlow
+                        nodes={data.decisionTree?.nodes.map((n: any) => ({
                             id: n.id,
-                            position: { 
-                                x: n.id === '1' ? 250 : n.id === '2' ? 100 : n.id === '3' ? 400 : n.id === '4' ? 0 : n.id === '5' ? 250 : 500, 
-                                y: n.id === '1' ? 20 : ['2','3'].includes(n.id) ? 120 : 220 
+                            position: {
+                                x: n.id === '1' ? 250 : n.id === '2' ? 100 : n.id === '3' ? 400 : n.id === '4' ? 0 : n.id === '5' ? 250 : 500,
+                                y: n.id === '1' ? 20 : ['2', '3'].includes(n.id) ? 120 : 220
                             },
                             data: { label: n.label },
-                            style: { background: n.type === 'leaf' ? (n.color === 'green' ? '#10B981' : n.color==='red'?'#EF4444':'#6B7280') : '#1E1B4B', color: '#fff', border: '1px solid #4338CA', borderRadius: '8px', padding: '8px 10px', fontSize: '10px', fontWeight: 'bold', width: 140, textAlign: 'center' }
+                            style: { background: n.type === 'leaf' ? (n.color === 'green' ? '#10B981' : n.color === 'red' ? '#EF4444' : '#6B7280') : '#1E1B4B', color: '#fff', border: '1px solid #4338CA', borderRadius: '8px', padding: '8px 10px', fontSize: '10px', fontWeight: 'bold', width: 140, textAlign: 'center' }
                         })) || []}
-                        edges={data.decisionTree?.edges.map((e:any) => ({
+                        edges={data.decisionTree?.edges.map((e: any) => ({
                             id: `e${e.source}-${e.target}`,
                             source: e.source,
                             target: e.target,
@@ -606,7 +606,7 @@ const ExplainabilityView: React.FC<{ data: any; algorithm?: string }> = ({ data,
                             <div key={i} className="flex-1 text-center">
                                 <div className="bg-blue-500/20 rounded-t" style={{ height: `${Math.max(4, score * 80)}px` }}></div>
                                 <p className="text-[10px] text-blue-400 font-mono mt-1">{(score * 100).toFixed(1)}%</p>
-                                <p className="text-[9px] text-gray-600">F{i+1}</p>
+                                <p className="text-[9px] text-gray-600">F{i + 1}</p>
                             </div>
                         ))}
                         <div className="flex-1 text-center border-l border-white/10 pl-2">
@@ -630,7 +630,7 @@ const ModelDetailsModal: React.FC<{
     const [config, setConfig] = useState<any>(null);
     const [explainData, setExplainData] = useState<any>(null);
     const [loading, setLoading] = useState(true);
-    const [activeTab, setActiveTab] = useState<'config'|'explain'>('config');
+    const [activeTab, setActiveTab] = useState<'config' | 'explain'>('config');
     const [isDownloading, setIsDownloading] = useState(false);
 
     const handleDownload = async () => {
@@ -667,16 +667,16 @@ const ModelDetailsModal: React.FC<{
             <div className="absolute inset-0 bg-black/60 backdrop-blur-md"></div>
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,rgba(56,189,248,0.15)_0%,transparent_50%)] pointer-events-none"></div>
 
-            <div className="w-full max-w-3xl rounded-3xl flex flex-col overflow-hidden relative animate-modal-content-slide-down z-10" 
-                 style={{
-                     background: 'linear-gradient(145deg, rgba(15,20,30,0.95) 0%, rgba(5,10,15,0.98) 100%)',
-                     boxShadow: '0 0 0 1px rgba(255,255,255,0.05), 0 30px 60px -10px rgba(0,0,0,0.8), 0 0 80px rgba(56,189,248,0.15)',
-                 }}
-                 onClick={e => e.stopPropagation()}
+            <div className="w-full max-w-3xl rounded-3xl flex flex-col overflow-hidden relative animate-modal-content-slide-down z-10"
+                style={{
+                    background: 'linear-gradient(145deg, rgba(15,20,30,0.95) 0%, rgba(5,10,15,0.98) 100%)',
+                    boxShadow: '0 0 0 1px rgba(255,255,255,0.05), 0 30px 60px -10px rgba(0,0,0,0.8), 0 0 80px rgba(56,189,248,0.15)',
+                }}
+                onClick={e => e.stopPropagation()}
             >
                 {/* Top glow line */}
                 <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-cyan-400 to-transparent opacity-70"></div>
-                
+
                 {/* Ambient glow in top corners */}
                 <div className="absolute top-0 left-0 w-64 h-64 bg-cyan-500/10 rounded-full blur-[80px] pointer-events-none"></div>
                 <div className="absolute top-0 right-0 w-64 h-64 bg-purple-500/10 rounded-full blur-[80px] pointer-events-none"></div>
@@ -718,7 +718,7 @@ const ModelDetailsModal: React.FC<{
                                 )}
                             </div>
                         </button>
-                        
+
                         <button onClick={onClose} className="w-10 h-10 rounded-full bg-white/5 hover:bg-white/10 flex items-center justify-center text-gray-400 hover:text-white transition-all border border-white/5 hover:border-white/10">
                             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
@@ -729,14 +729,14 @@ const ModelDetailsModal: React.FC<{
                 <div className="px-6 pt-6 relative z-10">
                     <div className="flex p-1 bg-black/40 rounded-2xl border border-white/5 shadow-inner relative">
                         <div className="absolute top-1 bottom-1 w-[calc(50%-4px)] rounded-xl bg-white/10 shadow-[0_2px_10px_rgba(0,0,0,0.5)] transition-transform duration-300 ease-out" style={{ transform: activeTab === 'config' ? 'translateX(0)' : 'translateX(calc(100% + 8px))' }}></div>
-                        <button 
-                            onClick={() => setActiveTab('config')} 
+                        <button
+                            onClick={() => setActiveTab('config')}
                             className={`flex-1 py-3 text-sm font-bold uppercase tracking-wider relative z-10 transition-colors duration-300 ${activeTab === 'config' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
                         >
                             Configuration & Features
                         </button>
-                        <button 
-                            onClick={() => setActiveTab('explain')} 
+                        <button
+                            onClick={() => setActiveTab('explain')}
                             className={`flex-1 py-3 text-sm font-bold uppercase tracking-wider relative z-10 transition-colors duration-300 ${activeTab === 'explain' ? 'text-white' : 'text-gray-500 hover:text-gray-300'}`}
                         >
                             Model Insights & Explainability
@@ -901,7 +901,7 @@ const ModelDetailsModal: React.FC<{
                                     {(!config.config?.indicators?.length && !config.config?.l2_features?.length && !config.config?.trade_features?.length && !config.config?.plp_features?.length) && (
                                         <div className="space-y-4">
                                             {/* If from metadata JSON, show raw training metrics as key-value grid */}
-                                            {config._source === 'metadata_json' && config.config && Object.keys(config.config).filter(k => !['indicators','l2_features','trade_features','plp_features','_raw_metadata'].includes(k) && config.config[k] !== null && config.config[k] !== undefined && typeof config.config[k] !== 'object').length > 0 ? (
+                                            {config._source === 'metadata_json' && config.config && Object.keys(config.config).filter(k => !['indicators', 'l2_features', 'trade_features', 'plp_features', '_raw_metadata'].includes(k) && config.config[k] !== null && config.config[k] !== undefined && typeof config.config[k] !== 'object').length > 0 ? (
                                                 <div className="bg-black/20 border border-violet-500/20 rounded-2xl p-5 shadow-inner relative overflow-hidden">
                                                     <div className="absolute top-0 left-0 w-1 h-full bg-violet-500/50 shadow-[0_0_10px_rgba(139,92,246,0.5)]"></div>
                                                     <h3 className="text-sm font-bold text-violet-400 mb-4 flex items-center gap-2">
@@ -911,18 +911,18 @@ const ModelDetailsModal: React.FC<{
                                                     </h3>
                                                     <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                                                         {Object.entries(config.config)
-                                                            .filter(([k, v]) => !['indicators','l2_features','trade_features','plp_features','_raw_metadata'].includes(k) && v !== null && v !== undefined && typeof v !== 'object')
+                                                            .filter(([k, v]) => !['indicators', 'l2_features', 'trade_features', 'plp_features', '_raw_metadata'].includes(k) && v !== null && v !== undefined && typeof v !== 'object')
                                                             .map(([key, value]) => (
-                                                            <div key={key} className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 flex flex-col gap-1 hover:bg-white/[0.06] transition-colors">
-                                                                <span className="text-[9px] font-bold uppercase tracking-widest text-gray-500">{key.replace(/_/g, ' ')}</span>
-                                                                <span className="text-sm font-mono font-bold text-white">
-                                                                    {typeof value === 'number' 
-                                                                        ? (value > 0 && value < 1 ? `${(value * 100).toFixed(2)}%` : value.toLocaleString())
-                                                                        : String(value)
-                                                                    }
-                                                                </span>
-                                                            </div>
-                                                        ))}
+                                                                <div key={key} className="bg-white/[0.03] border border-white/[0.06] rounded-xl p-3 flex flex-col gap-1 hover:bg-white/[0.06] transition-colors">
+                                                                    <span className="text-[9px] font-bold uppercase tracking-widest text-gray-500">{key.replace(/_/g, ' ')}</span>
+                                                                    <span className="text-sm font-mono font-bold text-white">
+                                                                        {typeof value === 'number'
+                                                                            ? (value > 0 && value < 1 ? `${(value * 100).toFixed(2)}%` : value.toLocaleString())
+                                                                            : String(value)
+                                                                        }
+                                                                    </span>
+                                                                </div>
+                                                            ))}
                                                     </div>
                                                 </div>
                                             ) : (
@@ -968,7 +968,7 @@ const ModelCard: React.FC<{
     const [isExpanded, setIsExpanded] = useState(false);
 
     const [signalResult, setSignalResult] = useState<SignalResult | null>(null);
-    
+
     // New states for dynamic sequence length & progress
     const [showSettingsModal, setShowSettingsModal] = useState(false);
     const [sequenceLength, setSequenceLength] = useState<number>(100);
@@ -986,7 +986,7 @@ const ModelCard: React.FC<{
     const handleExecuteAnalysis = async () => {
         setIsAnalyzing(true);
         setSignalProgress(0);
-        
+
         // Simulate progress bar for better UX
         const interval = setInterval(() => {
             setSignalProgress(prev => {
@@ -1036,7 +1036,7 @@ const ModelCard: React.FC<{
 
     let accLabel = "Accuracy";
     let f1Label = "F1 Score";
-    
+
     if (isRL) {
         accLabel = "Win Rate";
         f1Label = "Sharpe Ratio";
@@ -1055,7 +1055,7 @@ const ModelCard: React.FC<{
             accuracyDisplay = `${(rawAccuracy * 100).toFixed(1)}%`;
         }
     }
-    
+
     const rawF1 = activeVersion?.f1_score;
     let f1Display = '--';
     if (rawF1 !== undefined && rawF1 !== null) {
@@ -1072,7 +1072,7 @@ const ModelCard: React.FC<{
     return (
         <div
             className="group relative rounded-3xl overflow-hidden transition-all duration-500 animate-fade-in-slide-up"
-            style={{ 
+            style={{
                 animationDelay: `${animationDelay}ms`,
                 background: 'linear-gradient(145deg, rgba(15,20,30,0.6) 0%, rgba(5,10,15,0.8) 100%)',
                 boxShadow: '0 0 0 1px rgba(255,255,255,0.05), 0 20px 40px -10px rgba(0,0,0,0.5)',
@@ -1099,7 +1099,7 @@ const ModelCard: React.FC<{
                     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
                         <div className="bg-slate-900 border border-slate-700/50 rounded-2xl w-full max-w-md p-6 shadow-2xl relative overflow-hidden">
                             <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 to-orange-500"></div>
-                            
+
                             <h3 className="text-xl font-bold text-white mb-2 tracking-tight flex items-center gap-2">
                                 <svg className="w-5 h-5 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" /></svg>
                                 Generate Signal
@@ -1132,7 +1132,7 @@ const ModelCard: React.FC<{
                                             <span>{Math.round(signalProgress)}%</span>
                                         </div>
                                         <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
-                                            <div 
+                                            <div
                                                 className="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-300 ease-out"
                                                 style={{ width: `${signalProgress}%` }}
                                             ></div>
@@ -1185,8 +1185,8 @@ const ModelCard: React.FC<{
                             </div>
                         </div>
                     </div>
-                    <button 
-                        onClick={(e) => { e.stopPropagation(); onDelete(model.id); }} 
+                    <button
+                        onClick={(e) => { e.stopPropagation(); onDelete(model.id); }}
                         className="w-10 h-10 rounded-full bg-white/5 hover:bg-rose-500/20 flex items-center justify-center text-gray-500 hover:text-rose-400 transition-all border border-transparent hover:border-rose-500/30 group/btn"
                         title="Delete Model"
                     >
@@ -1224,7 +1224,7 @@ const ModelCard: React.FC<{
                             <svg className="w-3 h-3 group-hover/details:scale-110 transition-transform drop-shadow-[0_0_5px_rgba(99,102,241,0.8)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
                             <span className="drop-shadow-sm">Details</span>
                         </button>
-                        
+
                         <button
                             onClick={() => setIsExpanded(!isExpanded)}
                             className={`relative px-3 py-1.5 bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/30 hover:border-purple-400/60 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(168,85,247,0.15)] hover:shadow-[0_0_25px_rgba(168,85,247,0.35)] flex items-center gap-1.5 group/history overflow-hidden backdrop-blur-md ${isExpanded ? 'border-purple-500/50 text-purple-300 shadow-[0_0_20px_rgba(168,85,247,0.3)] bg-purple-500/20' : ''}`}
@@ -1233,7 +1233,7 @@ const ModelCard: React.FC<{
                             <svg className={`w-3 h-3 transition-transform duration-300 drop-shadow-[0_0_5px_rgba(168,85,247,0.8)] ${isExpanded ? 'rotate-180 scale-110' : 'group-hover/history:scale-110'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                             <span className="drop-shadow-sm">{isExpanded ? 'Hide History' : 'History'}</span>
                         </button>
-                        
+
                         <button
                             onClick={handleOpenSettings}
                             disabled={isAnalyzing || activeVersion?.status !== 'Ready'}
@@ -1247,7 +1247,7 @@ const ModelCard: React.FC<{
                             )}
                             <span className="drop-shadow-sm">{isAnalyzing ? 'Analyzing...' : 'Get Signal'}</span>
                         </button>
-                        
+
                         <button
                             onClick={(e) => { e.stopPropagation(); onRetrain(model.id); }}
                             className="relative px-3 py-1.5 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 hover:border-cyan-400/60 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(6,182,212,0.15)] hover:shadow-[0_0_25px_rgba(6,182,212,0.35)] flex items-center gap-1.5 group/retrain overflow-hidden backdrop-blur-md"
@@ -1256,7 +1256,7 @@ const ModelCard: React.FC<{
                             <svg className="w-3 h-3 opacity-80 group-hover/retrain:rotate-180 transition-transform duration-500 drop-shadow-[0_0_5px_rgba(6,182,212,0.8)]" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
                             <span className="drop-shadow-sm">Retrain</span>
                         </button>
-                        
+
                         <button
                             onClick={(e) => { e.stopPropagation(); onDownloadDataset(model.id, model.name); }}
                             className="relative px-3 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 hover:border-emerald-400/60 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(16,185,129,0.15)] hover:shadow-[0_0_25px_rgba(16,185,129,0.35)] flex items-center gap-1.5 group/dataset overflow-hidden backdrop-blur-md"
@@ -1274,7 +1274,7 @@ const ModelCard: React.FC<{
             <div className={`transition-all duration-500 ease-in-out overflow-hidden relative ${isExpanded ? 'max-h-96 opacity-100' : 'max-h-0 opacity-0'}`}>
                 {/* Divider Line */}
                 <div className="absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent"></div>
-                
+
                 <div className="p-6 pt-4 space-y-3 bg-black/40 overflow-y-auto max-h-80 custom-scrollbar inset-shadow-sm">
                     {model.versions.map(version => (
                         <div key={version.id} className="group/row relative flex items-center justify-between p-4 rounded-2xl bg-white/[0.02] border border-white/[0.05] hover:bg-white/[0.05] hover:border-cyan-500/30 transition-all overflow-hidden">
@@ -1293,7 +1293,7 @@ const ModelCard: React.FC<{
 
                             <div className="relative z-10">
                                 {version.status === 'Ready' && version.id !== model.activeVersionId ? (
-                                    <button 
+                                    <button
                                         onClick={() => onSetActiveVersion(model.id, version.id)}
                                         className="px-4 py-1.5 bg-white/5 hover:bg-cyan-500/20 text-gray-400 hover:text-cyan-300 border border-white/10 hover:border-cyan-500/50 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all"
                                     >
@@ -1305,7 +1305,7 @@ const ModelCard: React.FC<{
                             </div>
                         </div>
                     ))}
-                    
+
                     <button
                         onClick={() => onUploadVersion(model)}
                         className="w-full py-4 mt-2 border border-dashed border-white/10 rounded-2xl text-xs font-bold text-gray-400 hover:text-cyan-300 hover:border-cyan-500/50 hover:bg-cyan-500/5 transition-all flex items-center justify-center gap-2 group/upload"
@@ -1329,7 +1329,7 @@ const ActiveTrainingJobsSection: React.FC<{ jobs: any[], onCancel: (id: string) 
     return (
         <div className="bg-white/80 dark:bg-[#0A0A0A]/60 backdrop-blur-lg border border-cyan-500/30 p-6 rounded-2xl shadow-[0_0_20px_rgba(6,182,212,0.1)] mb-8">
             <h3 className="text-lg font-black text-cyan-400 uppercase tracking-widest flex items-center gap-2 mb-4">
-                <svg className="w-5 h-5 animate-spin-slow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                <svg className="w-5 h-5 animate-spin-slow" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                 Active Celery Training Jobs ({jobs.length})
             </h3>
             <div className="space-y-4">
@@ -1339,7 +1339,7 @@ const ActiveTrainingJobsSection: React.FC<{ jobs: any[], onCancel: (id: string) 
                         <div key={job.id} className="relative bg-black/40 border border-white/10 rounded-xl p-4 overflow-hidden group">
                             {/* Animated Background Progress */}
                             <div className="absolute inset-0 bg-cyan-500/10 transition-all duration-500 ease-out" style={{ width: `${pct}%` }}></div>
-                            
+
                             <div className="relative z-10 flex flex-col md:flex-row justify-between items-center gap-4">
                                 <div className="flex-1">
                                     <div className="flex items-center gap-3 mb-1">
@@ -1403,7 +1403,7 @@ const CustomMLModels: React.FC<{ onNavigate?: (view: AppView, section?: string) 
         // Smart Polling: Only poll every 5s IF there's any model version currently "Processing"
         refetchInterval: (query) => {
             const currentModels = query.state.data || [];
-            const isProcessing = currentModels.some((m: CustomMLModel) => 
+            const isProcessing = currentModels.some((m: CustomMLModel) =>
                 m.versions.some((v: ModelVersion) => v.status === 'Processing')
             );
             return isProcessing ? 5000 : false;
@@ -1535,14 +1535,14 @@ const CustomMLModels: React.FC<{ onNavigate?: (view: AppView, section?: string) 
                         Initialize New Model
                     </Button>
                 </div>
-                
+
                 {/* Render the Active Jobs Tracker Component */}
-                <ActiveTrainingJobsSection 
-                    jobs={activeJobs} 
-                    onCancel={(id) => cancelJobMutation.mutate(id)} 
+                <ActiveTrainingJobsSection
+                    jobs={activeJobs}
+                    onCancel={(id) => cancelJobMutation.mutate(id)}
                     onVisualize={setVisualizingJob}
                 />
-                
+
                 {visualizingJob && (
                     <RLTrainingVisualizer
                         isOpen={true}
