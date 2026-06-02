@@ -17,6 +17,7 @@ class SuggestFeaturesRequest(BaseModel):
 class PredictRequest(BaseModel):
     model_id: str
     symbol: Optional[str] = None   # Override symbol (optional)
+    sequence_length: Optional[int] = None # Sequence length for dynamic analysis
 
 router = APIRouter()
 
@@ -171,7 +172,8 @@ def predict_signal(
         result = predict(
             model_id=request.model_id,
             symbol_override=request.symbol,
-            db=db
+            db=db,
+            sequence_length=request.sequence_length
         )
         return result
     except FileNotFoundError as e:

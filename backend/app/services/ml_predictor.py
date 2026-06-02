@@ -42,7 +42,7 @@ SKLEARN_ALGOS       = {"Random Forest", "XGBoost", "LightGBM", "CatBoost", "Cust
 
 # ─── Public Entry Point ───────────────────────────────────────────────────────
 
-def predict(model_id: str, symbol_override: Optional[str], db: Session) -> dict:
+def predict(model_id: str, symbol_override: Optional[str], db: Session, sequence_length: Optional[int] = None) -> dict:
     """
     Generate a live prediction signal for the given model.
     
@@ -164,23 +164,9 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session) -> dict:
 
     # ── 4. Fetch Live Data ───────────────────────────────────────────────────
     if dataset_type in ("l2_orderbook", "hybrid_deep", "hybrid"):
-        df = _fetch_live_l2_data(symbol, db)
-        # Fallback: if L2 snapshots are unavailable/all-null, use OHLCV so
-        # predict never returns a hard 500.
+        df = _fetch_live_l2_data(symbol, db, sequence_length=sequence_length)
         if df is None or df.empty:
-            print(f"[ml_predictor] L2 data unavailable for {symbol}; falling back to OHLCV.")
-            df = _fetch_live_ohlcv(symbol, timeframe)
-            # When an L2-trained model gets OHLCV data, inject proxy L2 features
-            # so the model can still produce a prediction (missing cols are padded
-            # with 0 anyway, but we need at least one matching feature to proceed).
-            if df is not None and not df.empty:
-                if 'microprice' not in df.columns:
-                    df['microprice'] = df['Close']
-                if 'obi' not in df.columns:
-                    df['obi'] = 0.0
-                if 'spread' not in df.columns:
-                    # Estimate spread as 0.1% of price (typical for liquid futures)
-                    df['spread'] = df['Close'] * 0.001
+            raise RuntimeError(f"Live L2 data is currently unavailable for {symbol}. Cannot generate a valid prediction for an L2-trained model.")
     else:
         df = _fetch_live_ohlcv(symbol, timeframe)
 
@@ -233,33 +219,39 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session) -> dict:
         except Exception as e:
             print(f"[ml_predictor] Failed to fetch live trades: {e}")
 
-    # ── 6. Prepare Feature Row ───────────────────────────────────────────────
-    # Take the last available row for prediction
+    # ── 6. Prepare Feature Row / Sequence ────────────────────────────────────
     available_features = [f for f in features if f in df.columns]
     if not available_features:
         raise ValueError(f"None of the training features found in live data. Expected: {features[:5]}")
 
-    # Use last complete row
     df.dropna(subset=available_features, inplace=True)
     if df.empty:
         raise RuntimeError("All rows dropped after dropna on features.")
 
-    last_row = df[available_features].iloc[-1:].values.astype(float)
     current_price = float(df['Close'].iloc[-1]) if 'Close' in df.columns else float(df['close'].iloc[-1])
 
-    # Pad missing features with 0 (maintain same column order as training)
+    seq_len = sequence_length if sequence_length and sequence_length > 1 else 1
+    # Extract last `seq_len` rows
+    sequence_data = df[available_features].tail(seq_len).values.astype(float)
+
+    # Pad missing features (columns) with 0
     if len(available_features) < len(features):
-        full_row = np.zeros((1, len(features)))
+        padded_seq = np.zeros((sequence_data.shape[0], len(features)))
         for i, feat in enumerate(features):
             if feat in available_features:
                 col_idx = available_features.index(feat)
-                full_row[0, i] = last_row[0, col_idx]
-        last_row = full_row
+                padded_seq[:, i] = sequence_data[:, col_idx]
+        sequence_data = padded_seq
+
+    # If rows are fewer than requested seq_len, pad by repeating the first available row
+    if sequence_data.shape[0] < seq_len:
+        padding_needed = seq_len - sequence_data.shape[0]
+        padding = np.repeat(sequence_data[0:1], padding_needed, axis=0)
+        sequence_data = np.vstack([padding, sequence_data])
 
     # ── 5. Run Inference ─────────────────────────────────────────────────────
     try:
-        # FIX: Use `last_row` instead of `df[features]` to avoid KeyError for missing/padded columns
-        X = last_row
+        X = sequence_data  # Shape: (seq_len, features)
         
         # Scale
         if scaler_x is not None:
@@ -270,7 +262,7 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session) -> dict:
         if version.explainability and isinstance(version.explainability, dict):
             anomaly_threshold = version.explainability.get("anomaly_threshold")
 
-        signal_str, confidence = _run_inference(model_path, algorithm, X, prediction_target, features, anomaly_threshold)
+        signal_str, confidence = _run_inference(model_path, algorithm, X, prediction_target, features, anomaly_threshold, current_price)
         
         # Post-process Auto-Encoder signal with momentum heuristic
         if algorithm == "Auto-Encoder" and signal_str == "Market can sudden crash":
@@ -403,28 +395,102 @@ def _compute_micro_features_from_raw(bids, asks):
         return None, None, None
 
 
-def _fetch_live_l2_data(symbol: str, db: Session) -> Optional[pd.DataFrame]:
+def _fetch_live_l2_data(symbol: str, db: Session, sequence_length: Optional[int] = None) -> Optional[pd.DataFrame]:
     """
-    Fetch last L2 snapshots from the database.
+    Fetch Live L2 Data. If sequence_length > 1, prioritize fetching from DB to build sequence,
+    then append the latest API call for exact real-time ending.
+    """
+    from app.services.auto_feature_selector import calculate_l2_advanced_features
+    import ccxt
+    
+    seq_len = sequence_length if sequence_length and sequence_length > 1 else 1
 
-    Fixes:
-      1. Use timezone-aware datetime to match DB timestamp columns.
-      2. Try both symbol formats (BTCUSDT + BTC/USDT) and widen time window.
-      3. Recompute obi/spread/microprice from raw bids/asks when the
-         snapshot was saved by orderbook_snapshot_service (which stores
-         these as None with only raw bids/asks in dict format).
-      4. Return None (→ OHLCV fallback) if all rows end up null.
-    """
+    df_db = None
+    if seq_len > 1:
+        print(f"[ml_predictor] Fetching recent {seq_len} snapshots from DB for {symbol}...")
+        try:
+            from app.models.orderbook_snapshot import OrderBookSnapshot
+            since = datetime.now(timezone.utc) - timedelta(hours=6)
+            clean_symbol = symbol.upper().split(":")[0].replace("/", "")
+            slash_symbol = symbol.upper().split(":")[0]
+
+            snapshots = db.query(OrderBookSnapshot).filter(
+                OrderBookSnapshot.symbol.in_([clean_symbol, slash_symbol]),
+                OrderBookSnapshot.timestamp >= since
+            ).order_by(OrderBookSnapshot.timestamp.desc()).limit(seq_len).all()
+            
+            if snapshots:
+                data = []
+                for s in reversed(snapshots): # asc order
+                    obi, spread, microprice = s.obi, s.spread, s.microprice
+                    if obi is None or microprice is None:
+                        obi, spread, microprice = _compute_micro_features_from_raw(s.bids, s.asks)
+                    if microprice is None or microprice == 0: continue
+                    data.append({
+                        "timestamp": s.timestamp,
+                        "Close": microprice,
+                        "obi": obi,
+                        "spread": spread,
+                        "microprice": microprice,
+                    })
+                if data:
+                    df_db = pd.DataFrame(data)
+                    df_db.set_index("timestamp", inplace=True)
+        except Exception as e:
+            print(f"[ml_predictor] DB L2 fetch failed: {e}")
+
+    print(f"[ml_predictor] Fetching LIVE L2 Orderbook directly from Binance API for {symbol}...")
+    try:
+        if ":" in symbol:
+            exchange = ccxt.binanceusdm({'enableRateLimit': True})
+        else:
+            exchange = ccxt.binance({'enableRateLimit': True})
+        
+        ob = exchange.fetch_order_book(symbol, limit=20)
+        obi, spread, microprice = _compute_micro_features_from_raw(ob.get('bids', []), ob.get('asks', []))
+        
+        if microprice is not None and microprice > 0:
+            df = pd.DataFrame([{
+                "timestamp": pd.to_datetime(exchange.milliseconds(), unit='ms', utc=True),
+                "Close": microprice,
+                "obi": obi,
+                "spread": spread,
+                "microprice": microprice,
+            }])
+            df.set_index("timestamp", inplace=True)
+            try:
+                df_feats, _ = calculate_l2_advanced_features(df.reset_index())
+                df_feats['timestamp'] = df.index
+                df_feats.set_index('timestamp', inplace=True)
+                for col in df_feats.columns:
+                    if col not in df.columns:
+                        df[col] = df_feats[col]
+            except Exception:
+                pass
+            if df_db is not None and not df_db.empty:
+                df = pd.concat([df_db, df]).drop_duplicates()
+                df.sort_index(inplace=True)
+            return df
+    except Exception as api_err:
+        print(f"[ml_predictor] Live API L2 fetch failed: {api_err}. Falling back to DB historical snapshots.")
+        if df_db is not None and not df_db.empty:
+            try:
+                df_feats, _ = calculate_l2_advanced_features(df_db.reset_index())
+                df_feats['timestamp'] = df_db.index
+                df_feats.set_index('timestamp', inplace=True)
+                for col in df_feats.columns:
+                    if col not in df_db.columns:
+                        df_db[col] = df_feats[col]
+            except Exception:
+                pass
+            return df_db
+
+    # ── Fallback to DB (If seq_len == 1 but API failed) ──────────────────────
     try:
         from app.models.orderbook_snapshot import OrderBookSnapshot
-        from app.services.auto_feature_selector import calculate_l2_advanced_features
-
-        # ── timezone-aware 'since' ───────────────────────────────────────
         since = datetime.now(timezone.utc) - timedelta(hours=6)
-
-        # ── try both symbol formats ─────────────────────────────────────
-        clean_symbol = symbol.upper().split(":")[0].replace("/", "")   # BTCUSDT / DOGEUSDT
-        slash_symbol = symbol.upper().split(":")[0]                     # BTC/USDT / DOGE/USDT
+        clean_symbol = symbol.upper().split(":")[0].replace("/", "")   # BTCUSDT
+        slash_symbol = symbol.upper().split(":")[0]                     # BTC/USDT
 
         snapshots = db.query(OrderBookSnapshot).filter(
             OrderBookSnapshot.symbol == clean_symbol,
@@ -437,50 +503,12 @@ def _fetch_live_l2_data(symbol: str, db: Session) -> Optional[pd.DataFrame]:
                 OrderBookSnapshot.timestamp >= since
             ).order_by(OrderBookSnapshot.timestamp.asc()).all()
 
-        # Widen to 24h if still empty
         if not snapshots:
             since_wide = datetime.now(timezone.utc) - timedelta(hours=24)
             snapshots = db.query(OrderBookSnapshot).filter(
                 OrderBookSnapshot.symbol.in_([clean_symbol, slash_symbol]),
                 OrderBookSnapshot.timestamp >= since_wide
             ).order_by(OrderBookSnapshot.timestamp.asc()).all()
-            if snapshots:
-                print(f"[ml_predictor] Used 24h fallback window for {symbol} ({len(snapshots)} rows)")
-
-        if not snapshots:
-            print(f"[ml_predictor] No L2 snapshots for {symbol} in DB. Fetching live from Binance API...")
-            try:
-                import ccxt
-                if ":" in symbol:
-                    exchange = ccxt.binanceusdm({'enableRateLimit': True})
-                else:
-                    exchange = ccxt.binance({'enableRateLimit': True})
-                
-                ob = exchange.fetch_order_book(symbol, limit=20)
-                obi, spread, microprice = _compute_micro_features_from_raw(ob.get('bids', []), ob.get('asks', []))
-                
-                if microprice is not None and microprice > 0:
-                    df = pd.DataFrame([{
-                        "timestamp": pd.to_datetime(exchange.milliseconds(), unit='ms', utc=True),
-                        "Close": microprice,
-                        "obi": obi,
-                        "spread": spread,
-                        "microprice": microprice,
-                    }])
-                    df.set_index("timestamp", inplace=True)
-                    try:
-                        df_feats, _ = calculate_l2_advanced_features(df.reset_index())
-                        df_feats['timestamp'] = df.index
-                        df_feats.set_index('timestamp', inplace=True)
-                        for col in df_feats.columns:
-                            if col not in df.columns:
-                                df[col] = df_feats[col]
-                    except Exception as e:
-                        pass
-                    return df
-            except Exception as api_err:
-                print(f"[ml_predictor] Live API L2 fetch failed: {api_err}. Falling back to OHLCV.")
-            return None
 
         # ── Build DataFrame; recompute features from bids/asks when NULL ───
         data = []
@@ -581,7 +609,7 @@ def _calculate_indicators(df: pd.DataFrame, indicators: list) -> pd.DataFrame:
     return df
 
 
-def _run_inference(model_path: str, algorithm: str, X: np.ndarray, prediction_target: str, features: list = None, anomaly_threshold: float = None):
+def _run_inference(model_path: str, algorithm: str, X: np.ndarray, prediction_target: str, features: list = None, anomaly_threshold: float = None, current_price: float = 0.0):
     """
     Load model and run inference. Returns (signal_str, confidence).
     signal_str : "BUY", "SELL", or "HOLD"
@@ -591,10 +619,10 @@ def _run_inference(model_path: str, algorithm: str, X: np.ndarray, prediction_ta
         return _infer_torch(model_path, algorithm, X, prediction_target, anomaly_threshold)
     elif algorithm in SKLEARN_ALGOS:
         return _infer_sklearn(model_path, X, prediction_target, features)
-    elif algorithm in ["PPO-RL", "SAC-RL"]:
-        return "HOLD", 0.5
+    elif algorithm in ["PPO-RL", "SAC-RL", "A2C-RL", "DDPG-RL", "DQN-RL", "TD3-RL", "QR-DQN", "CQL", "GAIL", "Decision-Transformer", "Liquid-NN"]:
+        return _infer_rl(model_path, algorithm, X, features=features, current_price=current_price)
     else:
-        # Unknown — try sklearn first, then torch
+        # Unknown — try sklearn first, then torch, then RL
         try:
             return _infer_sklearn(model_path, X, prediction_target, features)
         except Exception:
@@ -602,7 +630,64 @@ def _run_inference(model_path: str, algorithm: str, X: np.ndarray, prediction_ta
                 pt_path = model_path.replace(".pkl", ".pt")
                 return _infer_torch(pt_path, algorithm, X, prediction_target, anomaly_threshold)
             except Exception:
+                return _infer_rl(model_path, algorithm, X, features=features, current_price=current_price)
+
+
+def _infer_rl(model_path: str, algorithm: str, X: np.ndarray, features: list = None, current_price: float = 0.0):
+    """Inference for Stable-Baselines3 Reinforcement Learning agents."""
+    try:
+        from stable_baselines3 import PPO, SAC, A2C, DDPG, DQN, TD3
+        import numpy as np
+        model_class = None
+        if "PPO" in algorithm: model_class = PPO
+        elif "SAC" in algorithm: model_class = SAC
+        elif "A2C" in algorithm: model_class = A2C
+        elif "DDPG" in algorithm: model_class = DDPG
+        elif "DQN" in algorithm: model_class = DQN
+        elif "TD3" in algorithm: model_class = TD3
+        else:
+            # Fallback to PPO loading mechanism if algo uses same architecture
+            model_class = PPO
+            
+        if not model_class:
+            return "HOLD", 0.5
+
+        model = model_class.load(model_path)
+        
+        if features and 'Close' not in features:
+            obs = np.append(X[-1:], [[current_price]], axis=1) # RL only needs last row unless state_dim is multiplied
+        else:
+            obs = X[-1:] # Take the last row for RL by default
+            
+        obs = obs.astype(np.float32)
+        action, _ = model.predict(obs, deterministic=True)
+        
+        # Action is usually a 1D array or scalar
+        action_val = action[0] if isinstance(action, (np.ndarray, list)) and len(action) > 0 else action
+
+        # Map to Signal
+        is_continuous = algorithm in ["SAC-RL", "DDPG-RL", "TD3-RL"]
+        
+        if is_continuous:
+            action_val = float(action_val)
+            if action_val < -0.33:
+                return "SELL", min(0.99, abs(action_val))
+            elif action_val > 0.33:
+                return "BUY", min(0.99, abs(action_val))
+            else:
                 return "HOLD", 0.5
+        else:
+            action_val = int(action_val)
+            if action_val == 1:
+                return "BUY", 0.8
+            elif action_val == 2:
+                return "SELL", 0.8
+            else:
+                return "HOLD", 0.5
+                
+    except Exception as e:
+        print(f"[ml_predictor] RL Inference error: {e}")
+        return "HOLD", 0.5
 
 
 def _infer_sklearn(model_path: str, X: np.ndarray, prediction_target: str, features: list = None):
@@ -618,6 +703,10 @@ def _infer_sklearn(model_path: str, X: np.ndarray, prediction_target: str, featu
             X_input = X  # Fallback to numpy if column count mismatch
     else:
         X_input = X
+
+    # Sklearn expects 2D array, we extract the last row if sequence was requested
+    # because standard sklearn doesn't support 3D sequences.
+    X_input = X_input[-1:] if isinstance(X_input, (np.ndarray, pd.DataFrame)) else X_input
 
     if prediction_target == "classification":
         if hasattr(model, 'predict_proba'):
@@ -660,7 +749,13 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
                 out, _ = self.lstm(x)
                 return self.fc(out[:, -1, :])
         model = SimpleLSTM(input_size)
-        X_t = torch.FloatTensor(X).unsqueeze(1)
+        
+        # If batch_first=True, expected shape is (batch, seq, feature)
+        # Our X is currently (seq, feature), so unsqueeze(0) gives (1, seq, feature)
+        if len(X.shape) == 2:
+            X_t = torch.FloatTensor(X).unsqueeze(0)
+        else:
+            X_t = torch.FloatTensor(X).unsqueeze(1)
 
     elif algorithm == "GRU":
         class SimpleGRU(nn.Module):
@@ -672,7 +767,10 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
                 out, _ = self.gru(x)
                 return self.fc(out[:, -1, :])
         model = SimpleGRU(input_size)
-        X_t = torch.FloatTensor(X).unsqueeze(1)
+        if len(X.shape) == 2:
+            X_t = torch.FloatTensor(X).unsqueeze(0)
+        else:
+            X_t = torch.FloatTensor(X).unsqueeze(1)
 
     elif algorithm in ("1D-CNN",):
         class CNN1D(nn.Module):
@@ -689,7 +787,10 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
                 out = out.view(out.size(0), -1)
                 return self.fc2(self.relu(self.fc1(out)))
         model = CNN1D(input_size)
-        X_t = torch.FloatTensor(X)
+        if len(X.shape) == 2:
+            X_t = torch.FloatTensor(X[-1:]).unsqueeze(0) # CNN trained on unsqueeze(1) (batch, 1, feat) fallback
+        else:
+            X_t = torch.FloatTensor(X)
 
     elif algorithm == "DeepLOB":
         class DeepLOB(nn.Module):
@@ -706,19 +807,25 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
                 out, _ = self.lstm(x)
                 return self.fc(out[:, -1, :])
         model = DeepLOB(input_size)
-        X_t = torch.FloatTensor(X)
+        if len(X.shape) == 2:
+            X_t = torch.FloatTensor(X[-1:]) # DeepLOB trained expecting (batch, feat)
+        else:
+            X_t = torch.FloatTensor(X)
 
     elif algorithm == "TCN":
         model = TCNModel(input_size=input_size, num_channels=[32, 64, 128], output_size=1)
-        X_t = torch.FloatTensor(X).unsqueeze(1)
+        if len(X.shape) == 2:
+            X_t = torch.FloatTensor(X).unsqueeze(0)
+        else:
+            X_t = torch.FloatTensor(X).unsqueeze(1)
 
     elif algorithm == "TabNet":
         model = TabNetEncoder(input_dim=input_size, output_dim=1)
-        X_t = torch.FloatTensor(X)
+        X_t = torch.FloatTensor(X[-1:])
 
     elif algorithm == "Auto-Encoder":
         model = AutoEncoder(input_dim=input_size, hidden_dim=32)
-        X_t = torch.FloatTensor(X)
+        X_t = torch.FloatTensor(X[-1:])
 
     else:
         # Transformer or unknown — simple MLP fallback
@@ -733,7 +840,7 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
             def forward(self, x):
                 return self.net(x)
         model = MLPFallback(input_size)
-        X_t = torch.FloatTensor(X)
+        X_t = torch.FloatTensor(X[-1:])
 
     # Load weights (strict=False to handle minor arch differences)
     state = torch.load(pt_path, map_location='cpu')

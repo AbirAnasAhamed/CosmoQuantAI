@@ -966,20 +966,49 @@ const ModelCard: React.FC<{
     animationDelay: number;
 }> = ({ model, onDelete, onUploadVersion, onSetActiveVersion, onRetrain, onViewDetails, onDownloadDataset, animationDelay }) => {
     const [isExpanded, setIsExpanded] = useState(false);
-    const [signalLoading, setSignalLoading] = useState(false);
-    const [signalResult, setSignalResult] = useState<SignalResult | null>(null);
 
-    const handleGetSignal = async (e: React.MouseEvent) => {
+    const [signalResult, setSignalResult] = useState<SignalResult | null>(null);
+    
+    // New states for dynamic sequence length & progress
+    const [showSettingsModal, setShowSettingsModal] = useState(false);
+    const [sequenceLength, setSequenceLength] = useState<number>(100);
+    const [signalProgress, setSignalProgress] = useState(0);
+    const [isAnalyzing, setIsAnalyzing] = useState(false);
+
+    const handleOpenSettings = (e: React.MouseEvent) => {
         e.stopPropagation();
-        setSignalLoading(true);
+        setSequenceLength(['LSTM', 'GRU', '1D-CNN', 'DeepLOB', 'TCN', 'Transformer'].includes(model.modelType) ? 100 : 1);
+        setShowSettingsModal(true);
+        setSignalProgress(0);
+        setIsAnalyzing(false);
+    };
+
+    const handleExecuteAnalysis = async () => {
+        setIsAnalyzing(true);
+        setSignalProgress(0);
+        
+        // Simulate progress bar for better UX
+        const interval = setInterval(() => {
+            setSignalProgress(prev => {
+                if (prev >= 90) return prev;
+                return prev + Math.random() * 15;
+            });
+        }, 300);
+
         try {
-            const result = await mlModelsService.predictSignal(model.id);
-            setSignalResult(result);
+            const result = await mlModelsService.predictSignal(model.id, undefined, sequenceLength);
+            setSignalProgress(100);
+            setTimeout(() => {
+                clearInterval(interval);
+                setShowSettingsModal(false);
+                setSignalResult(result);
+                setIsAnalyzing(false);
+            }, 500);
         } catch (err: any) {
+            clearInterval(interval);
+            setIsAnalyzing(false);
             const msg = err?.response?.data?.detail || 'Prediction failed. Check if model file exists.';
             toast.error(msg);
-        } finally {
-            setSignalLoading(false);
         }
     };
 
@@ -1001,14 +1030,14 @@ const ModelCard: React.FC<{
 
     const activeVersion = model.versions.find(v => v.id === model.activeVersionId);
 
-    const isPPO = model.modelType === 'PPO-RL';
+    const isRL = model.modelType.toUpperCase().includes('-RL') || ['QR-DQN', 'CQL', 'GAIL'].includes(model.modelType.toUpperCase());
     const isClassification = !!activeVersion?.explainability?.confusionMatrix;
-    const isRegression = !isPPO && !isClassification && activeVersion?.explainability;
+    const isRegression = !isRL && !isClassification && activeVersion?.explainability;
 
     let accLabel = "Accuracy";
     let f1Label = "F1 Score";
     
-    if (isPPO) {
+    if (isRL) {
         accLabel = "Win Rate";
         f1Label = "Sharpe Ratio";
     } else if (isRegression) {
@@ -1055,7 +1084,7 @@ const ModelCard: React.FC<{
             <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top,rgba(6,182,212,0.1)_0%,transparent_50%)] opacity-0 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none"></div>
 
             <div className="p-6 relative z-10">
-                {/* Signal Modal */}
+                {/* Signal Result Modal */}
                 {signalResult && ReactDOM.createPortal(
                     <SignalModal
                         result={signalResult}
@@ -1065,11 +1094,87 @@ const ModelCard: React.FC<{
                     document.body
                 )}
 
+                {/* Signal Settings & Progress Modal */}
+                {showSettingsModal && ReactDOM.createPortal(
+                    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+                        <div className="bg-slate-900 border border-slate-700/50 rounded-2xl w-full max-w-md p-6 shadow-2xl relative overflow-hidden">
+                            <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-amber-500 to-orange-500"></div>
+                            
+                            <h3 className="text-xl font-bold text-white mb-2 tracking-tight flex items-center gap-2">
+                                <svg className="w-5 h-5 text-amber-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" /></svg>
+                                Generate Signal
+                            </h3>
+                            <p className="text-sm text-slate-400 mb-6">
+                                Configure the analysis window for {model.name}.
+                            </p>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-2">Number of Rows (Sequence Length)</label>
+                                    <input
+                                        type="number"
+                                        min="1"
+                                        max="500"
+                                        value={sequenceLength}
+                                        onChange={(e) => setSequenceLength(parseInt(e.target.value) || 1)}
+                                        disabled={isAnalyzing}
+                                        className="w-full bg-slate-800/50 border border-slate-700 rounded-lg px-4 py-3 text-white focus:outline-none focus:border-amber-500/50 focus:ring-1 focus:ring-amber-500/50 transition-colors"
+                                    />
+                                    <p className="text-xs text-slate-500 mt-2">
+                                        For Deep Learning (LSTM/CNN), 60-100 is recommended. For Tree-based, 1 is usually enough unless rolling features were used.
+                                    </p>
+                                </div>
+
+                                {isAnalyzing && (
+                                    <div className="mt-6">
+                                        <div className="flex justify-between text-xs text-slate-400 mb-1.5 font-mono">
+                                            <span>Analyzing Data...</span>
+                                            <span>{Math.round(signalProgress)}%</span>
+                                        </div>
+                                        <div className="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
+                                            <div 
+                                                className="h-full bg-gradient-to-r from-amber-500 to-orange-500 transition-all duration-300 ease-out"
+                                                style={{ width: `${signalProgress}%` }}
+                                            ></div>
+                                        </div>
+                                        <p className="text-xs text-center text-slate-500 mt-3 animate-pulse">
+                                            Fetching L2 data & calculating {model.versions.find(v => v.id === model.activeVersionId)?.features?.length || 0} features...
+                                        </p>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="flex justify-end gap-3 mt-8">
+                                <button
+                                    onClick={() => setShowSettingsModal(false)}
+                                    disabled={isAnalyzing}
+                                    className="px-4 py-2 rounded-lg text-sm font-medium text-slate-300 hover:text-white hover:bg-slate-800 transition-colors disabled:opacity-50"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={handleExecuteAnalysis}
+                                    disabled={isAnalyzing}
+                                    className="px-6 py-2 rounded-lg text-sm font-bold text-white bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 transition-all shadow-[0_0_15px_rgba(245,158,11,0.2)] hover:shadow-[0_0_25px_rgba(245,158,11,0.4)] disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                                >
+                                    {isAnalyzing ? (
+                                        <>
+                                            <svg className="animate-spin w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                                            Processing...
+                                        </>
+                                    ) : 'Analyze & Predict'}
+                                </button>
+                            </div>
+                        </div>
+                    </div>,
+                    document.body
+                )}
+
                 {/* Header */}
                 <div className="flex justify-between items-start mb-6">
                     <div className="flex items-center gap-4">
                         <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-cyan-500/10 to-purple-600/10 border border-white/5 flex items-center justify-center text-white shadow-[inset_0_0_20px_rgba(255,255,255,0.02)] group-hover:border-cyan-500/30 group-hover:shadow-[inset_0_0_20px_rgba(6,182,212,0.1)] transition-all duration-500">
-                            {modelIcons[model.modelType]}
+                            {modelIcons[model.modelType as keyof typeof modelIcons] || (isRL ? <OtherModelIcon className="w-8 h-8 drop-shadow-[0_0_8px_rgba(234,179,8,0.8)]" /> : <OtherModelIcon className="w-8 h-8 drop-shadow-[0_0_8px_rgba(148,163,184,0.8)]" />)}
                         </div>
                         <div>
                             <h3 className="text-xl font-bold text-white group-hover:text-cyan-300 transition-colors tracking-tight">{model.name}</h3>
@@ -1130,17 +1235,17 @@ const ModelCard: React.FC<{
                         </button>
                         
                         <button
-                            onClick={handleGetSignal}
-                            disabled={signalLoading || activeVersion?.status !== 'Ready'}
+                            onClick={handleOpenSettings}
+                            disabled={isAnalyzing || activeVersion?.status !== 'Ready'}
                             className="relative px-3 py-1.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 hover:border-amber-400/60 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all shadow-[0_0_15px_rgba(245,158,11,0.15)] hover:shadow-[0_0_25px_rgba(245,158,11,0.35)] flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed group/signal overflow-hidden backdrop-blur-md"
                         >
                             <div className="absolute inset-0 bg-gradient-to-r from-amber-400/0 via-amber-400/10 to-amber-400/0 translate-x-[-100%] group-hover/signal:translate-x-[100%] transition-transform duration-1000"></div>
-                            {signalLoading ? (
+                            {isAnalyzing ? (
                                 <svg className="animate-spin w-3 h-3 drop-shadow-[0_0_5px_rgba(245,158,11,0.8)]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><path d="M12 2v4m0 12v4M4.93 4.93l2.83 2.83m8.48 8.48l2.83 2.83M2 12h4m12 0h4M4.93 19.07l2.83-2.83m8.48-8.48l2.83-2.83" strokeLinecap="round" strokeLinejoin="round" /></svg>
                             ) : (
                                 <svg className="w-3 h-3 group-hover/signal:scale-110 transition-transform drop-shadow-[0_0_5px_rgba(245,158,11,0.8)]" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clipRule="evenodd" /></svg>
                             )}
-                            <span className="drop-shadow-sm">{signalLoading ? 'Loading...' : 'Get Signal'}</span>
+                            <span className="drop-shadow-sm">{isAnalyzing ? 'Analyzing...' : 'Get Signal'}</span>
                         </button>
                         
                         <button

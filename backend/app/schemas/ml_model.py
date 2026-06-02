@@ -35,6 +35,9 @@ class CustomMLModelUpdate(BaseModel):
 class CustomMLModelResponse(CustomMLModelBase):
     id: str
     active_version_id: Optional[str] = None
+    is_auto_retrain: Optional[int] = 0
+    retrain_interval_hours: Optional[int] = 6
+    data_lookback_hours: Optional[float] = 6.0
     created_at: datetime
     updated_at: Optional[datetime] = None
     versions: List[ModelVersionResponse] = []

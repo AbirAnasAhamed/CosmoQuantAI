@@ -331,7 +331,7 @@ class ExtendedRLEngine:
         is_continuous = job.algorithm in ["DDPG-RL", "TD3-RL"]
         
         def make_env():
-            return AdvancedTradingEnv(env_df, initial_balance, commission, slippage, is_continuous)
+            return AdvancedTradingEnv(env_df, initial_balance, commission, slippage, is_continuous=is_continuous)
             
         env = DummyVecEnv([make_env])
         total_timesteps = epochs * len(df)
@@ -365,10 +365,48 @@ class ExtendedRLEngine:
         model_path = os.path.join(model_dir, model_filename)
         model.save(model_path)
         
-        return model, model_path, {
+        # Run a clean evaluation pass to calculate accurate metrics
+        obs, _ = env.envs[0].reset()
+        done = False
+        while not done:
+            action, _ = model.predict(obs, deterministic=True)
+            step_result = env.envs[0].step(action)
+            if len(step_result) == 5:
+                obs, reward, done, truncated, info = step_result
+                done = done or truncated
+            else:
+                obs, reward, done, info = step_result
+                
+        rl_metrics = {
             "total_return_pct": 0.0,
             "win_rate": 0.0,
             "sharpe_ratio": 0.0,
             "trades_count": 0,
             "net_profit": 0.0
         }
+        if hasattr(env.envs[0], 'equity_history') and len(env.envs[0].equity_history) > 1:
+            equity = np.array(env.envs[0].equity_history)
+            returns = np.diff(equity) / equity[:-1]
+            total_return = (equity[-1] - initial_balance) / initial_balance * 100
+            sharpe = (np.mean(returns) / (np.std(returns) + 1e-9)) * np.sqrt(252 * 24 * 60)
+            
+            trades = env.envs[0].trade_history
+            pnl_trades = [t['pnl'] for t in trades if 'pnl' in t]
+            
+            if getattr(env.envs[0], 'position', 0) != 0:
+                unrealized_pnl = env.envs[0].net_worth - getattr(env.envs[0], 'entry_net_worth', initial_balance)
+                pnl_trades.append(unrealized_pnl)
+                
+            win_rate = (len([p for p in pnl_trades if p > 0]) / len(pnl_trades)) * 100 if pnl_trades else 0
+            open_trades = len([t for t in trades if t['type'].startswith('open')])
+            trades_count = open_trades if open_trades > 0 else len(pnl_trades)
+            
+            rl_metrics = {
+                "total_return_pct": float(total_return),
+                "win_rate": float(win_rate),
+                "sharpe_ratio": float(sharpe),
+                "trades_count": int(trades_count),
+                "net_profit": float(equity[-1] - initial_balance)
+            }
+            
+        return model, model_path, rl_metrics

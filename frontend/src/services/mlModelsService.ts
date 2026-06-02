@@ -148,7 +148,7 @@ export const mlModelsService = {
     },
 
     // Get live prediction signal for a model
-    predictSignal: async (modelId: string, symbol?: string): Promise<{
+    predictSignal: async (modelId: string, symbol?: string, sequenceLength?: number): Promise<{
         signal: 'BUY' | 'SELL' | 'HOLD';
         confidence: number;
         price: number;
@@ -161,6 +161,7 @@ export const mlModelsService = {
         const response = await api.post('/model-training/predict', {
             model_id: modelId,
             symbol: symbol || null,
+            sequence_length: sequenceLength || null,
         });
         return response.data;
     },

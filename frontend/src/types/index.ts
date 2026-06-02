@@ -289,6 +289,7 @@ export interface ModelVersion {
   f1_score?: number;
   latency?: number;
   explainability?: any;
+  features?: string[];
 }
 export interface CustomMLModel {
   id: string;

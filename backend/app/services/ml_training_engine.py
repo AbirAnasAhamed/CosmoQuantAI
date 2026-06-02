@@ -2115,7 +2115,8 @@ def train_model_task(job_id: str, db: Session):
 
         # ── Fix 3: Post-Training Backtest ─────────────────────────────────────
         try:
-            if job.algorithm not in ["PPO-RL", "SAC-RL", "A2C-RL"]:
+            rl_algos = ["PPO-RL", "SAC-RL", "A2C-RL", "DDPG-RL", "DQN-RL", "TD3-RL", "QR-DQN", "CQL", "GAIL", "Decision-Transformer", "Liquid-NN"]
+            if job.algorithm not in rl_algos:
                 bt_initial_balance = float(config.get("backtest_initial_balance", 10000.0))
                 bt_commission      = float(config.get("backtest_commission", 0.001))
                 bt_stop_loss       = float(config.get("backtest_stop_loss", 2.0))

@@ -127,7 +127,7 @@ def _generate_signals(model, algorithm: str, X_test: np.ndarray, prediction_targ
                         out = model(X_t).numpy().flatten()
                         signals = (out > np.median(out)).astype(int).tolist()
 
-        elif algorithm in ["PPO-RL", "SAC-RL", "A2C-RL"]:
+        elif algorithm in ["PPO-RL", "SAC-RL", "A2C-RL", "DDPG-RL", "DQN-RL", "TD3-RL", "QR-DQN", "CQL", "GAIL", "Decision-Transformer", "Liquid-NN"]:
             add_log(f"[Post-Backtest] {algorithm} backtest via signal replay not supported. Skipped.")
             return None
 
