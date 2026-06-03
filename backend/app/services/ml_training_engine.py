@@ -1073,6 +1073,25 @@ def train_model_task(job_id: str, db: Session):
                             y_train_flat[opp_idx[i]] = cls_val
                 # y_train is a view or copy? Best to re-assign just in case
                 y_train = y_train_flat.reshape(-1, 1)
+                
+            # --- Apply SMOTE for true balance after satisfying CV minimums ---
+            try:
+                from imblearn.over_sampling import SMOTE
+                y_train_flat_smote = y_train.ravel()
+                uniq_c, counts_c = np.unique(y_train_flat_smote, return_counts=True)
+                m_count = counts_c.min()
+                if len(uniq_c) > 1 and counts_c.max() / m_count > 1.2:
+                    k_neighbors = min(5, m_count - 1) if m_count > 1 else 1
+                    # SMOTE requires at least k_neighbors <= n_samples - 1. We artificially forced min 3 samples.
+                    k_neighbors = max(1, min(5, m_count - 1))
+                    smote = SMOTE(sampling_strategy='auto', k_neighbors=k_neighbors, random_state=42)
+                    X_train, y_train_flat_smote = smote.fit_resample(X_train, y_train_flat_smote)
+                    y_train = y_train_flat_smote.reshape(-1, 1)
+                    add_log(f"✅ Applied SMOTE (k={k_neighbors}) to balance classes. New shape: {X_train.shape}")
+            except ImportError:
+                add_log("⚠️ imbalanced-learn not installed. Skipping SMOTE.")
+            except Exception as e:
+                add_log(f"⚠️ Failed to apply SMOTE: {e}")
         
         # FIX: Wrap X in DataFrame to preserve feature names.
         # This eliminates the SHAP / sklearn "X does not have valid feature names" warning spam.

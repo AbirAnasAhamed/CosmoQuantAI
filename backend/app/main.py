@@ -1,5 +1,19 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning, module="gym")
+warnings.filterwarnings("ignore", category=DeprecationWarning, module="gym")
+warnings.filterwarnings("ignore", message=".*Gym has been unmaintained.*")
+
+import sys
+import types
+# Mock gym_notices to completely silence the terminal print from gym.__init__
+dummy_gym_notices = types.ModuleType("gym_notices")
+dummy_gym_notices.notices = types.ModuleType("gym_notices.notices")
+dummy_gym_notices.notices.notices = ""
+sys.modules["gym_notices"] = dummy_gym_notices
+sys.modules["gym_notices.notices"] = dummy_gym_notices.notices
+
 import logging
 import asyncio
 import json

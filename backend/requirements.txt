@@ -954,3 +954,4 @@ yfinance==1.4.1
     #   quantstats
 zopfli==0.4.2
     # via fonttools
+imbalanced-learn==0.12.3

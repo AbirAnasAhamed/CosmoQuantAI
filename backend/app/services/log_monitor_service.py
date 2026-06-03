@@ -113,6 +113,11 @@ IGNORE_PATTERNS = [
     re.compile(r'200 OK'),
     re.compile(r'INFO:'),
     re.compile(r'^\s*$'),
+    # ── Gym Deprecation / NumPy 2.0 Warning ───────────────────────────────
+    re.compile(r'Gym has been unmaintained since 2022', re.IGNORECASE),
+    re.compile(r'Please upgrade to Gymnasium', re.IGNORECASE),
+    re.compile(r'Users of this version of Gym should be able to', re.IGNORECASE),
+    re.compile(r'See the migration guide at https://gymnasium', re.IGNORECASE),
     re.compile(r'Celery beat v'),  # startup messages
     re.compile(r'ready\. Loaded'),
     re.compile(r'mingle: searching'),
