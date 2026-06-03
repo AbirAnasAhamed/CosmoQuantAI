@@ -2956,8 +2956,14 @@ class WallHunterFuturesStrategy:
         if "leverage" in new_config:
             updates.append(f"Leverage: {self.leverage}x -> {new_config['leverage']}x")
             self.leverage = new_config["leverage"]
-            # Apply leverage to exchange live
-            asyncio.create_task(self.private_exchange.set_leverage(self.leverage, self.symbol))
+            # Apply leverage to exchange live safely
+            async def _safe_set_leverage():
+                try:
+                    if not self.is_paper_trading:
+                        await self.private_exchange.set_leverage(self.leverage, self.symbol)
+                except Exception as e:
+                    self.logger.warning(f"Could not update leverage on exchange: {e}")
+            asyncio.create_task(_safe_set_leverage())
 
         if "amount_per_trade" in new_config:
             updates.append(f"Amount: {self.amount_per_trade} -> {new_config['amount_per_trade']}")
