@@ -127,14 +127,23 @@ const UploadModelModal: React.FC<{
                                     <optgroup label="Micro-Pattern & Scalping">
                                         <option>1D-CNN</option> <option>DeepLOB</option> <option>Transformer</option>
                                     </optgroup>
-                                    <optgroup label="Autonomous Agents">
-                                        <option>PPO-RL</option> <option>SAC-RL</option>
+                                    <optgroup label="RL: Active Trading Agents">
+                                        <option>PPO-RL</option> <option>SAC-RL</option> <option>A2C-RL</option> <option>DDPG-RL</option> <option>TD3-RL</option> <option>DQN-RL</option>
+                                    </optgroup>
+                                    <optgroup label="RL: Risk-Aware (Distributional)">
+                                        <option>QR-DQN</option>
+                                    </optgroup>
+                                    <optgroup label="RL: Offline & Imitation">
+                                        <option>CQL</option> <option>GAIL</option>
+                                    </optgroup>
+                                    <optgroup label="Next-Gen Architectures">
+                                        <option>Decision-Transformer</option> <option>Liquid-NN</option>
                                     </optgroup>
                                     <optgroup label="Anomaly Detection">
                                         <option>Auto-Encoder</option>
                                     </optgroup>
                                     <optgroup label="Other">
-                                        <option>ARIMA</option> <option>Other</option>
+                                        <option>ARIMA</option> <option>Ensemble</option> <option>Other</option>
                                     </optgroup>
                                 </select>
                             </div>
@@ -765,6 +774,7 @@ const ModelDetailsModal: React.FC<{
                                         { label: 'Target Asset', value: config.symbol || 'N/A', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6', color: 'cyan' },
                                         { label: 'Timeframe', value: config.timeframe || 'N/A', icon: 'M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z', color: 'blue' },
                                         { label: 'Algorithm', value: config.config?.is_ensemble ? `Ensemble (${config.config?.ensemble_method || 'Voting'})` : (config.algorithm || 'N/A'), icon: 'M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z', color: 'purple' },
+                                        { label: 'Prediction Target', value: config.config?.prediction_target || 'N/A', icon: 'M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122', color: 'amber' },
                                     ].map((stat, i) => (
                                         <div key={i} className={`group relative bg-white/[0.02] border border-white/[0.05] rounded-2xl p-5 hover:bg-white/[0.04] hover:border-${stat.color}-500/30 transition-all overflow-hidden`}>
                                             <div className={`absolute -right-4 -top-4 w-24 h-24 bg-${stat.color}-500/10 rounded-full blur-2xl group-hover:bg-${stat.color}-500/20 transition-all`}></div>
@@ -1178,10 +1188,15 @@ const ModelCard: React.FC<{
                         </div>
                         <div>
                             <h3 className="text-xl font-bold text-white group-hover:text-cyan-300 transition-colors tracking-tight">{model.name}</h3>
-                            <div className="flex items-center gap-2 mt-1.5">
+                            <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                                 <span className="px-2.5 py-1 bg-white/5 rounded-md text-[10px] font-bold uppercase tracking-wider text-gray-400 border border-white/5 shadow-sm">{model.modelType}</span>
                                 <span className="px-2.5 py-1 bg-cyan-500/10 rounded-md text-[10px] font-mono font-bold text-cyan-400 border border-cyan-500/20 shadow-sm">v{activeVersion?.version.toFixed(1)}</span>
                                 <StatusPill status={activeVersion?.status || 'Error'} />
+                                {activeVersion?.explainability?.prediction_target && (
+                                    <span className="px-2.5 py-1 bg-amber-500/10 rounded-md text-[10px] font-bold uppercase tracking-wider text-amber-400 border border-amber-500/20 shadow-sm">
+                                        {activeVersion.explainability.prediction_target}
+                                    </span>
+                                )}
                             </div>
                         </div>
                     </div>

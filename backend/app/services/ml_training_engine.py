@@ -456,7 +456,6 @@ def train_model_task(job_id: str, db: Session):
             raise Exception("Training cancelled by user.")
 
     import threading
-    import time
     
     stop_heartbeat = threading.Event()
     def heartbeat_worker():
@@ -1001,7 +1000,6 @@ def train_model_task(job_id: str, db: Session):
         if alt_features:
             add_log(f"Fetching Alternative Data Features: {', '.join(alt_features)}")
             from app.services.alternative_data_fetcher import AlternativeDataFetcher
-            import asyncio
             fetcher = AlternativeDataFetcher()
             try:
                 # Need to use new event loop if inside a celery worker thread
@@ -1035,9 +1033,8 @@ def train_model_task(job_id: str, db: Session):
         add_log("Data download complete. Main training starting from 0%...")
         add_log("Preparing and scaling data...")
         from sklearn.preprocessing import MinMaxScaler, StandardScaler, RobustScaler
-        import pandas as pd
-        import numpy as np
         
+
         # FIX: Ensure no NaNs or Infs exist from alternative data
         df.replace([np.inf, -np.inf], np.nan, inplace=True)
         df.dropna(inplace=True)
@@ -1214,8 +1211,6 @@ def train_model_task(job_id: str, db: Session):
                 max_depth = best_params.get('max_depth', best_params.get('depth', max_depth))
                 learning_rate = best_params.get('learning_rate', learning_rate)
         
-        import json
-        import time
         final_accuracy = None
         final_f1 = None
         final_latency = None
@@ -1360,7 +1355,6 @@ def train_model_task(job_id: str, db: Session):
                         pass
                 
                 if preds_dict and len(preds_dict) > 1:
-                    import pandas as pd
                     preds_df = pd.DataFrame(preds_dict)
                     corr_matrix = preds_df.corr().to_dict()
                     add_log("[CORRELATION] " + json.dumps(corr_matrix))
@@ -2262,6 +2256,11 @@ def train_model_task(job_id: str, db: Session):
         # Update explainability in the version record now that cv_result is ready
         if cv_result:
             db_version.explainability = dict(final_explainability) if isinstance(final_explainability, dict) else final_explainability
+            
+            # Add prediction_target for frontend UI display
+            if isinstance(db_version.explainability, dict):
+                db_version.explainability["prediction_target"] = prediction_target
+                
             from sqlalchemy.orm.attributes import flag_modified
             flag_modified(db_version, "explainability")
             db.flush()
@@ -2321,7 +2320,6 @@ def train_model_task(job_id: str, db: Session):
         # 6. Send Telegram Success Notification
         try:
             from app.services.notification import NotificationService
-            import asyncio
             
             # Prepare config string (exclude large/internal items)
             ignored_keys = ["file_path", "previous_model_path", "features", "l2_features", "indicators", "target_model_id"]
@@ -2386,7 +2384,6 @@ def train_model_task(job_id: str, db: Session):
         # Send Telegram Cancellation Notification
         try:
             from app.services.notification import NotificationService
-            import asyncio
             
             rows_scraped = 0
             for log_entry in (job.logs or []):
@@ -2421,7 +2418,6 @@ def train_model_task(job_id: str, db: Session):
             add_log("🛑 Training process has been stopped by user.")
             try:
                 from app.services.notification import NotificationService
-                import asyncio
                 rows_scraped = 0
                 for log_entry in (job.logs or []):
                     if "[Scraper] Collected" in log_entry:
@@ -2458,7 +2454,6 @@ def train_model_task(job_id: str, db: Session):
         # 7. Send Telegram Failure Notification
         try:
             from app.services.notification import NotificationService
-            import asyncio
             import html
             
             logs_array = job.logs or []
