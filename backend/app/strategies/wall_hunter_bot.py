@@ -26,6 +26,7 @@ from app.strategies.helpers.wick_sr_standalone_listener import WickSRStandaloneL
 from app.strategies.helpers.fibo_tp_calculator import calculate_fibo_extension_tp
 from app.strategies.helpers.vwap_sd_tracker import VWAPSDTracker
 from app.strategies.helpers.vwap_sd_standalone_listener import VWAPSDStandaloneListener
+from app.strategies.helpers.advanced_risk_manager import AdvancedRiskManager
 
 try:
     from app.core.security import decrypt_key
@@ -336,11 +337,11 @@ class WallHunterBot:
         self._heartbeat_task = None
         self.redis = get_redis_client()
         self.total_executed_orders = 0
-        self.total_realized_pnl = 0.0
-        self.total_wins = 0
+        self._total_realized_pnl = 0.0
         self.total_wins = 0
         self.total_losses = 0
         self.auto_stop_manager = AutoStopManager(config)
+        self.advanced_risk_manager = AdvancedRiskManager(config)
         self.total_gross_pnl = 0.0
         self.total_fees_paid = 0.0
         self.maker_fee = 0.001
@@ -364,6 +365,17 @@ class WallHunterBot:
         # Remove suffix like :USDT if present
         base = symbol.split(":")[0] if ":" in symbol else symbol
         return base.replace("/", "").replace("-", "").upper()
+
+    @property
+    def total_realized_pnl(self):
+        return self._total_realized_pnl
+        
+    @total_realized_pnl.setter
+    def total_realized_pnl(self, value):
+        diff = value - getattr(self, '_total_realized_pnl', 0.0)
+        self._total_realized_pnl = value
+        if diff != 0 and hasattr(self, 'advanced_risk_manager') and self.advanced_risk_manager:
+            self.advanced_risk_manager.add_to_daily_pnl(diff)
 
     def _save_state(self):
         """Save active position state to Redis for recovery on restart."""
@@ -413,6 +425,10 @@ class WallHunterBot:
         
         # Keep track of old values for logging
         updates = []
+        
+        if hasattr(self, 'advanced_risk_manager') and self.advanced_risk_manager:
+            self.advanced_risk_manager.update_config(new_config)
+            updates.append("Advanced Risk Manager config updated")
         
         if "trading_mode" in new_config and new_config["trading_mode"].lower() != getattr(self, "trading_mode", "spot"):
             updates.append(f"Trading Mode: {getattr(self, 'trading_mode', 'spot').upper()} -> {new_config['trading_mode'].upper()}")
@@ -1539,13 +1555,13 @@ class WallHunterBot:
         
         # --- Auto-Stop Info ---
         risk_summary_str = ""
-        if hasattr(self, 'auto_stop_manager') and self.auto_stop_manager:
-            if self.auto_stop_manager.enable_breakeven_stop:
-                risk_summary_str += "🛡️ Break-even Protection: ON\n"
-            if self.auto_stop_manager.global_tp_target > 0:
-                risk_summary_str += f"🎯 Global Take Profit: ${self.auto_stop_manager.global_tp_target:.2f}\n"
+        if hasattr(self, 'advanced_risk_manager') and self.advanced_risk_manager:
+            if self.advanced_risk_manager.enable_breakeven:
+                risk_summary_str += f"🛡️ Break-even Protection: ON (Trigger: {self.advanced_risk_manager.be_activation_pct}%, Stop: {self.advanced_risk_manager.be_fee_buffer_pct}%)\n"
+            if self.advanced_risk_manager.enable_global_tp:
+                risk_summary_str += f"🎯 Global TP ({self.advanced_risk_manager.global_tp_type.capitalize()}): ${self.advanced_risk_manager.global_tp_target:.2f} [{self.advanced_risk_manager.global_tp_action}]\n"
             if risk_summary_str:
-                self.logger.info(f"🛡️ Risk Management Active:\n{risk_summary_str}")
+                self.logger.info(f"🛡️ Advanced Risk Management Active:\n{risk_summary_str}")
         
         startup_msg = (
             f"\U0001f7e2 WallHunter Bot [ID: {self.bot_id}] Started!\n"
@@ -3015,11 +3031,39 @@ class WallHunterBot:
                     self.active_pos['breakeven_synced'] = True
                 self._save_state()
 
+        # --- NEW: Advanced Risk Manager (Global TP & Break-Even) ---
+        is_risk_triggered = False
+        risk_reason = ""
+        if hasattr(self, 'advanced_risk_manager') and self.advanced_risk_manager:
+            entry = self.active_pos['entry']
+            amount = self.active_pos['amount']
+            if getattr(self, 'strategy_mode', 'long') == "short":
+                current_pnl_usd = (entry - current_price) * amount
+                current_pnl_pct = ((entry - current_price) / entry) * 100
+            else:
+                current_pnl_usd = (current_price - entry) * amount
+                current_pnl_pct = ((current_price - entry) / entry) * 100
+                
+            risk_res = self.advanced_risk_manager.update_pnl(current_pnl_pct, current_pnl_usd)
+            if risk_res["action"] in ["stop_bot", "pause_bot"]:
+                is_risk_triggered = True
+                risk_reason = risk_res["reason"]
+                
+                # Stop Bot flag logic
+                if risk_res["action"] == "stop_bot":
+                    self.logger.warning(f"🛑 [Advanced Risk] Global TP hit! Stopping bot. Reason: {risk_reason}")
+                    asyncio.create_task(self._send_telegram(f"🛑 *Bot Stopped by Risk Manager*\nReason: {risk_reason}\nPair: {self.symbol}"))
+                    try:
+                        from app.services.bot_manager import bot_manager
+                        asyncio.create_task(bot_manager.stop_bot(str(self.bot_id), str(self.owner_id)))
+                    except Exception as e:
+                        self.logger.error(f"Failed to auto-stop via bot_manager: {e}")
+
         # --- Partial TP Logic ---
         # Only execute TP1 logic if partial_tp_pct > 0
         hit_tp1 = current_price <= self.active_pos['tp1'] if getattr(self, 'strategy_mode', 'long') == 'short' else current_price >= self.active_pos['tp1']
         
-        if not self.active_pos.get('micro_scalp') and self.partial_tp_pct > 0 and not self.active_pos.get('tp1_hit') and hit_tp1:
+        if not is_risk_triggered and not self.active_pos.get('micro_scalp') and self.partial_tp_pct > 0 and not self.active_pos.get('tp1_hit') and hit_tp1:
             self.logger.info("🟢 TP1 Hit! Executing Partial Close.")
             sell_amount_raw = self.active_pos['amount'] * (self.partial_tp_pct / 100)
             
@@ -3093,8 +3137,11 @@ class WallHunterBot:
                 self.logger.warning("❌ Partial TP execution failed on exchange. Skipping partial TP size reduction to stay in sync with exchange.")
                 self.active_pos['tp1_hit'] = True
 
-        elif (current_price >= self.active_pos['sl'] if getattr(self, 'strategy_mode', 'long') == 'short' else current_price <= self.active_pos['sl']):
-            self.logger.info(f"⚠️ Triggering SL: Current Price ({current_price:.6f}) hit SL ({self.active_pos['sl']:.6f})")
+        elif is_risk_triggered or (current_price >= self.active_pos['sl'] if getattr(self, 'strategy_mode', 'long') == 'short' else current_price <= self.active_pos['sl']):
+            if is_risk_triggered:
+                self.logger.info(f"⚠️ Triggering Advanced Risk Exit: {risk_reason}")
+            else:
+                self.logger.info(f"⚠️ Triggering SL: Current Price ({current_price:.6f}) hit SL ({self.active_pos['sl']:.6f})")
             
             sell_amount_raw = self.active_pos['amount']
             close_side = "buy" if getattr(self, 'strategy_mode', 'long') == "short" else "sell"

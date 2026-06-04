@@ -98,8 +98,24 @@ class StrategyConfig(BaseModel):
 
     # --- Account Risk Limits (Auto-Stop) ---
     enable_breakeven_stop: Optional[bool] = False
+    breakeven_type: Optional[str] = "pct"
+    breakeven_activation_pct: Optional[float] = 0.0
+    breakeven_fee_buffer_pct: Optional[float] = 0.0
+    enable_trailing_breakeven: Optional[bool] = False
+    trailing_breakeven_mode: Optional[str] = "auto"
+    trailing_breakeven_type: Optional[str] = "pct"
+    trailing_breakeven_distance: Optional[float] = 0.0
+    enable_breakeven_cooldown: Optional[bool] = False
+    breakeven_cooldown_mins: Optional[int] = 15
     enable_global_tp: Optional[bool] = False
     global_tp_target: Optional[float] = 0.0
+    global_tp_type: Optional[str] = "daily"
+    global_tp_close_mode: Optional[str] = "hard"
+    global_tp_action: Optional[str] = "stop_bot"
+    enable_trailing_global_tp: Optional[bool] = False
+    trailing_global_tp_mode: Optional[str] = "auto"
+    trailing_global_tp_type: Optional[str] = "pct"
+    trailing_global_tp_distance: Optional[float] = 0.0
 
     # --- Buy Order Type Logic ---
     buy_order_type: Optional[str] = "limit"
