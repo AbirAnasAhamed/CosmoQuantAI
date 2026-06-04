@@ -91,3 +91,4 @@ celerybeat-schedule
 
 # ML Models
 backend/uploads/models/
+backend/d3rlpy_logs/
