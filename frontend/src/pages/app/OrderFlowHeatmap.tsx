@@ -2857,11 +2857,17 @@ const OrderFlowHeatmap: React.FC = () => {
                                     </span>
                                 </div>
                                 <div className="grid grid-cols-2 gap-2">
-                                    <div className="bg-black/20 p-2 rounded-lg border border-white/5 flex flex-col">
-                                        <span className="text-gray-400 font-mono text-[10px] uppercase">Total PnL</span>
-                                        <span className={`font-mono font-bold ${botStatus.total_pnl && botStatus.total_pnl < 0 ? 'text-red-400' : 'text-green-400'}`}>
-                                            ${(botStatus.total_pnl || 0).toFixed(2)}
-                                        </span>
+                                    <div className="bg-black/20 p-2 rounded-lg border border-white/5 flex flex-col col-span-2">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <span className="text-gray-400 font-mono text-[10px] uppercase flex items-center gap-1">Net PnL (After Fees) {botStatus.global_tp_target ? <span className="bg-indigo-500/20 text-indigo-300 px-1.5 rounded-full text-[8px]">Target: ${botStatus.global_tp_target}</span> : null}</span>
+                                            <span className={`font-mono font-bold ${botStatus.total_pnl && botStatus.total_pnl < 0 ? 'text-red-400' : 'text-green-400'}`}>
+                                                ${(botStatus.total_pnl || 0).toFixed(2)}
+                                            </span>
+                                        </div>
+                                        <div className="flex justify-between items-center border-t border-white/10 pt-1">
+                                            <span className="text-gray-500 font-mono text-[9px] uppercase">Gross: ${(botStatus.total_gross_pnl || 0).toFixed(2)}</span>
+                                            <span className="text-red-400/80 font-mono text-[9px] uppercase">Fees: -${(botStatus.total_fees_paid || 0).toFixed(2)}</span>
+                                        </div>
                                     </div>
                                     <div className="bg-black/20 p-2 rounded-lg border border-white/5 flex flex-col">
                                         <span className="text-gray-400 font-mono text-[10px] uppercase">Orders Executed</span>

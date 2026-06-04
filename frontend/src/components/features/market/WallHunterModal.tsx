@@ -211,6 +211,11 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
         vwapSDMultiplier: 3.0,
         vwapSDMinWall: 500000,
 
+        // --- Auto-Stop Limits ---
+        enableBreakevenStop: false,
+        enableGlobalTp: false,
+        globalTpTarget: 0.0,
+        
         // --- L2 ML Filter ---
         enableMlFilter: false,
         mlModelId: ''
@@ -817,6 +822,8 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                     vwap_sd_min_wall: form.vwapSDMinWall,
 
                     enable_ml_filter: form.enableMlFilter,
+                enable_breakeven_stop: form.enableBreakevenStop,
+                global_tp_target: parseFloat(form.globalTpTarget),
                     ai_model_id: form.mlModelId
                 }
             };
@@ -1276,6 +1283,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
 
                             <InputField label={`Margin Allocation (${form.symbol ? (tradingMode === 'spot' && strategyMode === 'short' ? form.symbol.split('/')[0] : (form.symbol.split('/')[1] || 'USDT')) : 'USDT'})`} value={form.amount} onChange={(v: number) => setForm({ ...form, amount: v })} step={10} />
 
+                            
                             {/* --- NATIVE TOKEN FEE TOGGLE --- */}
                             {(form.exchange === 'binance' || form.exchange === 'mexc' || form.exchange === 'kucoin') && (
                                 <div className="flex items-center gap-2 mt-4 px-1">
@@ -2432,6 +2440,58 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                     {activeTab === 'risk' && (
                         <div className="animate-fadeIn space-y-4">
 
+                            {/* AUTO-STOP LIMITS */}
+                            <div className="bg-black/20 p-4 rounded-xl border border-white/5 space-y-4 mt-4 mb-4">
+                                <h4 className="text-sm font-semibold text-white/90 flex items-center gap-2 border-b border-white/10 pb-2">
+                                    <svg className="w-4 h-4 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>
+                                    Account Risk Limits (Auto-Stop)
+                                </h4>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="col-span-2">
+                                        <label className="flex items-center gap-2 cursor-pointer group">
+                                            <div className="relative">
+                                                <input type="checkbox" className="sr-only" checked={form.enableBreakevenStop} onChange={e => setForm({...form, enableBreakevenStop: e.target.checked})} />
+                                                <div className={`block w-10 h-6 rounded-full transition-colors ${form.enableBreakevenStop ? 'bg-orange-500' : 'bg-gray-700'}`}></div>
+                                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${form.enableBreakevenStop ? 'translate-x-4' : ''}`}></div>
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-medium text-white/90 group-hover:text-white transition-colors">Enable Break-even Protection</span>
+                                                <span className="text-[10px] text-gray-500">Stops the bot if PNL drops to zero after being in profit.</span>
+                                            </div>
+                                        </label>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="flex items-center gap-2 cursor-pointer group mb-2">
+                                            <div className="relative">
+                                                <input type="checkbox" className="sr-only" checked={form.enableGlobalTp} onChange={e => setForm({...form, enableGlobalTp: e.target.checked})} />
+                                                <div className={`block w-10 h-6 rounded-full transition-colors ${form.enableGlobalTp ? 'bg-indigo-500' : 'bg-gray-700'}`}></div>
+                                                <div className={`absolute left-1 top-1 bg-white w-4 h-4 rounded-full transition-transform ${form.enableGlobalTp ? 'translate-x-4' : ''}`}></div>
+                                            </div>
+                                            <div className="flex flex-col">
+                                                <span className="text-sm font-medium text-white/90 group-hover:text-white transition-colors">Enable Global Take Profit Target</span>
+                                                <span className="text-[10px] text-gray-500">Stops the bot automatically when a specific profit is reached.</span>
+                                            </div>
+                                        </label>
+                                        
+                                        {form.enableGlobalTp && (
+                                            <div className="pl-[52px] animate-fadeIn">
+                                                <div className="relative">
+                                                    <input 
+                                                        type="number" 
+                                                        value={form.globalTpTarget} 
+                                                        onChange={e => setForm({...form, globalTpTarget: parseFloat(e.target.value) || 0})} 
+                                                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white font-mono text-sm focus:outline-none focus:border-indigo-500"
+                                                        step="0.1"
+                                                        min="0.1"
+                                                    />
+                                                    <span className="absolute right-3 top-2 text-gray-500 font-mono text-xs">USDT</span>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            
                             {/* --- RISK SL ORDER TYPE --- */}
                             <div className="bg-white/5 border border-white/10 rounded-xl p-4 flex gap-4 items-center mb-2 shadow-[0_4px_20px_rgba(0,0,0,0.1)]">
                                 <div className="flex-1 space-y-1">

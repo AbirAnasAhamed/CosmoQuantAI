@@ -7,6 +7,7 @@ import json
 from app.utils import get_redis_client
 from app.strategies.order_block_bot import OrderBlockExecutionEngine
 from app.services.notification import NotificationService
+from app.strategies.helpers.auto_stop_manager import AutoStopManager
 from app.db.session import SessionLocal
 from app.strategies.helpers.absorption_tracker import AbsorptionTracker
 from app.strategies.helpers.iceberg_tracker import IcebergTracker
@@ -337,7 +338,13 @@ class WallHunterBot:
         self.total_executed_orders = 0
         self.total_realized_pnl = 0.0
         self.total_wins = 0
+        self.total_wins = 0
         self.total_losses = 0
+        self.auto_stop_manager = AutoStopManager(config)
+        self.total_gross_pnl = 0.0
+        self.total_fees_paid = 0.0
+        self.maker_fee = 0.001
+        self.taker_fee = 0.001
 
     async def _on_trading_session_end(self, session_name: str):
         """Callback triggered when the active trading session ends."""
@@ -1079,7 +1086,7 @@ class WallHunterBot:
                 f"📊 *Bot {self.bot_id} Report:*\n"
                 f"🔹 Closed Trades: {total_closed}\n"
                 f"✅ Wins: {getattr(self, 'total_wins', 0)} | ❌ Losses: {getattr(self, 'total_losses', 0)}\n"
-                f"💰 Total Net PnL: ${pnl:.2f}"
+                f"💰 Total Net PnL: ${pnl:.2f}\n💰 Total Gross: ${self.total_gross_pnl:.2f}\n💸 Total Fees: ${self.total_fees_paid:.2f}"
             )
             msg += summary
         try:
@@ -1121,6 +1128,9 @@ class WallHunterBot:
                 "pnl": float(f"{pnl_val:.2f}"),
                 "pnl_percent": float(f"{pnl_pct:.2f}"),
                 "total_pnl": float(f"{self.total_realized_pnl:.2f}"),
+                "total_gross_pnl": float(f"{self.total_gross_pnl:.2f}"),
+                "total_fees_paid": float(f"{self.total_fees_paid:.2f}"),
+                "global_tp_target": float(f"{self.auto_stop_manager.global_tp_target:.2f}") if hasattr(self, "auto_stop_manager") else 0.0,
                 "total_orders": self.total_executed_orders,
                 "total_wins": self.total_wins,
                 "total_losses": self.total_losses,
@@ -1184,6 +1194,18 @@ class WallHunterBot:
                     exchange_params['password'] = api_key_record.passphrase
             
         self.exchange = exchange_class(exchange_params)
+        
+        # --- Fetch Trading Fees ---
+        if not self.is_paper_trading and self.exchange:
+            try:
+                if self.exchange.has.get('fetchTradingFee'):
+                    fee_data = await self.exchange.fetch_trading_fee(self.symbol)
+                    if fee_data:
+                        self.maker_fee = fee_data.get('maker', self.maker_fee)
+                        self.taker_fee = fee_data.get('taker', self.taker_fee)
+                        self.logger.info(f"📊 Real Trading Fees Fetched: Maker={self.maker_fee:.4f}, Taker={self.taker_fee:.4f}")
+            except Exception as e:
+                self.logger.warning(f"Could not fetch trading fee, using defaults: {e}")
         
         # Initialize execution engine with the correct exchange instance
         self.engine = OrderBlockExecutionEngine(self.config, exchange=self.exchange, logger=self.logger, bot_id=self.bot_id)
@@ -2634,6 +2656,25 @@ class WallHunterBot:
         except Exception as e:
             self.logger.warning(f"Background fetch_order failed for {order_id}: {e}")
 
+
+    def _calculate_net_pnl(self, gross_pnl, entry_price, exit_price, amount, is_maker=False):
+        entry_fee = (entry_price * amount) * getattr(self, 'taker_fee', 0.001)
+        exit_fee = (exit_price * amount) * (getattr(self, 'maker_fee', 0.001) if is_maker else getattr(self, 'taker_fee', 0.001))
+        
+        # If paper trading, we might not deduct fees to match old behavior, or we can deduct to be realistic. 
+        # User requested 100% same balance as real exchange. If paper trading, let's keep it realistic too.
+        net_pnl = gross_pnl - (entry_fee + exit_fee)
+        
+        self.total_gross_pnl += gross_pnl
+        self.total_fees_paid += (entry_fee + exit_fee)
+        
+        if hasattr(self, 'auto_stop_manager') and self.auto_stop_manager:
+            import asyncio
+            # self.total_realized_pnl is about to be updated with net_pnl, so we pass current_total + net_pnl
+            new_total_pnl = self.total_realized_pnl + net_pnl
+            asyncio.create_task(self.auto_stop_manager.check_conditions(new_total_pnl, self))
+        return net_pnl, entry_fee + exit_fee
+
     async def manage_risk(self, current_price: float):
         if not self.active_pos: return
         
@@ -2728,9 +2769,10 @@ class WallHunterBot:
                     sell_amount = status.get('filled') or self.active_pos['amount']
                     
                     if getattr(self, 'strategy_mode', 'long') == "short":
-                        pnl_val = (self.active_pos['entry'] - filled_price) * sell_amount
+                        gross = (self.active_pos['entry'] - filled_price) * sell_amount
                     else:
-                        pnl_val = (filled_price - self.active_pos['entry']) * sell_amount
+                        gross = (filled_price - self.active_pos['entry']) * sell_amount
+                    pnl_val, fee_paid = self._calculate_net_pnl(gross, self.active_pos['entry'], filled_price, sell_amount, is_maker=True)
                     self.total_realized_pnl += pnl_val
                     self.total_executed_orders += 1
                     if pnl_val > 0:
@@ -2803,9 +2845,10 @@ class WallHunterBot:
                     sell_amount = order_status.get('filled') or self.active_pos.get('amount')
                     
                     if getattr(self, 'strategy_mode', 'long') == "short":
-                        pnl_val = (self.active_pos['entry'] - filled_price) * sell_amount
+                        gross = (self.active_pos['entry'] - filled_price) * sell_amount
                     else:
-                        pnl_val = (filled_price - self.active_pos['entry']) * sell_amount
+                        gross = (filled_price - self.active_pos['entry']) * sell_amount
+                    pnl_val, fee_paid = self._calculate_net_pnl(gross, self.active_pos['entry'], filled_price, sell_amount, is_maker=True)
                     self.total_realized_pnl += pnl_val
                     self.total_executed_orders += 1
                     if pnl_val > 0:
@@ -2966,23 +3009,24 @@ class WallHunterBot:
                 remaining_raw = self.active_pos['amount'] - sell_amount_raw
                 exit_price = current_price
                 if getattr(self, 'strategy_mode', 'long') == "short":
-                    pnl_val = (self.active_pos['entry'] - exit_price) * sell_amount_raw
+                    gross = (self.active_pos['entry'] - exit_price) * sell_amount_raw
                 else:
-                    pnl_val = (exit_price - self.active_pos['entry']) * sell_amount_raw
+                    gross = (exit_price - self.active_pos['entry']) * sell_amount_raw
                 
+                pnl_val, fee_paid = self._calculate_net_pnl(gross, self.active_pos['entry'], exit_price, sell_amount_raw, is_maker=False)
                 self.total_realized_pnl += pnl_val
                 
                 if remaining_raw <= 0.00000001:  # 100% close
                     self.total_wins += 1
                     self.total_executed_orders += 1
-                    await self._send_telegram(f"🎯 WallHunter EXIT - Full TP Hit (Dust Prevented)!\nPair: {self.symbol}\nMode: {getattr(self, 'strategy_mode', 'long').upper()}\n💰 Locked Profit: ${pnl_val:.2f}\n\n📊 Total PnL: ${self.total_realized_pnl:.2f}\n🏆 Wins: {self.total_wins} | 💔 Losses: {self.total_losses}")
+                    await self._send_telegram(f"🎯 WallHunter EXIT - Full TP Hit (Dust Prevented)!\nPair: {self.symbol}\nMode: {getattr(self, 'strategy_mode', 'long').upper()}\n💰 Locked Profit: ${pnl_val:.2f}\n\n📊 Net PnL: ${self.total_realized_pnl:.2f}\n💰 Gross: ${self.total_gross_pnl:.2f} | 💸 Fees: ${self.total_fees_paid:.2f}\n🏆 Wins: {self.total_wins} | 💔 Losses: {self.total_losses}")
                     await self._clear_state()
                     self.active_pos = None
                 else:
                     self.active_pos['amount'] = float(self.engine.exchange.amount_to_precision(self.symbol, remaining_raw))
                     self.active_pos['tp1_hit'] = True
                     self._save_state()
-                    await self._send_telegram(f"🔓 Partial TP Hit!\nPair: {self.symbol}\nMode: {getattr(self, 'strategy_mode', 'long').upper()}\n💰 Locked Profit: ${pnl_val:.2f}\n\n📊 Total PnL: ${self.total_realized_pnl:.2f}\n🏆 Wins: {self.total_wins} | 💔 Losses: {self.total_losses}")
+                    await self._send_telegram(f"🔓 Partial TP Hit!\nPair: {self.symbol}\nMode: {getattr(self, 'strategy_mode', 'long').upper()}\n💰 Locked Profit: ${pnl_val:.2f}\n\n📊 Net PnL: ${self.total_realized_pnl:.2f}\n💰 Gross: ${self.total_gross_pnl:.2f} | 💸 Fees: ${self.total_fees_paid:.2f}\n🏆 Wins: {self.total_wins} | 💔 Losses: {self.total_losses}")
             else:
                 self.logger.warning("❌ Partial TP execution failed on exchange. Skipping partial TP size reduction to stay in sync with exchange.")
                 self.active_pos['tp1_hit'] = True

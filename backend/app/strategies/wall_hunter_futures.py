@@ -4,6 +4,7 @@ import time
 import json
 import ccxt
 import ccxt.pro as ccxt_pro
+from app.strategies.helpers.auto_stop_manager import AutoStopManager
 from app.utils import get_redis_client
 from app.strategies.order_block_bot import OrderBlockExecutionEngine
 from app.strategies.helpers.absorption_tracker import AbsorptionTracker
@@ -324,7 +325,13 @@ class WallHunterFuturesStrategy:
         self.total_executed_orders = 0
         self.total_realized_pnl = 0.0
         self.total_wins = 0
+        self.total_wins = 0
         self.total_losses = 0
+        self.auto_stop_manager = AutoStopManager(bot_record.config)
+        self.total_gross_pnl = 0.0
+        self.total_fees_paid = 0.0
+        self.maker_fee = 0.001
+        self.taker_fee = 0.001
         
         # Tasks
         self._main_task = None
@@ -1815,6 +1822,25 @@ class WallHunterFuturesStrategy:
         except Exception as e:
             self.logger.error(f"Snipe Execution Error: {e}")
 
+
+    def _calculate_net_pnl(self, gross_pnl, entry_price, exit_price, amount, is_maker=False):
+        entry_fee = (entry_price * amount) * getattr(self, 'taker_fee', 0.001)
+        exit_fee = (exit_price * amount) * (getattr(self, 'maker_fee', 0.001) if is_maker else getattr(self, 'taker_fee', 0.001))
+        
+        # If paper trading, we might not deduct fees to match old behavior, or we can deduct to be realistic. 
+        # User requested 100% same balance as real exchange. If paper trading, let's keep it realistic too.
+        net_pnl = gross_pnl - (entry_fee + exit_fee)
+        
+        self.total_gross_pnl += gross_pnl
+        self.total_fees_paid += (entry_fee + exit_fee)
+        
+        if hasattr(self, 'auto_stop_manager') and self.auto_stop_manager:
+            import asyncio
+            # self.total_realized_pnl is about to be updated with net_pnl, so we pass current_total + net_pnl
+            new_total_pnl = self.total_realized_pnl + net_pnl
+            asyncio.create_task(self.auto_stop_manager.check_conditions(new_total_pnl, self))
+        return net_pnl, entry_fee + exit_fee
+
     async def manage_risk(self, current_price: float):
         """রিস্ক ম্যানেজমেন্ট (TP/SL/TSL)"""
         if not self.active_pos: return
@@ -1926,6 +1952,30 @@ class WallHunterFuturesStrategy:
             self.logger.warning(f"⚠️ [manage_risk] Unknown side '{side}' in active_pos. Defaulting to 'long'.")
             side = 'long'
         exit_order_type = self.sell_order_type if side == "long" else self.buy_order_type
+
+        # --- NEW: Floating PNL Auto-Stop Check ---
+        floating_pnl = (current_price - self.active_pos['entry']) * self.active_pos['amount'] if side == 'long' else (self.active_pos['entry'] - current_price) * self.active_pos['amount']
+        if hasattr(self, 'auto_stop_manager') and self.auto_stop_manager and not self.auto_stop_manager.is_stopped:
+            total_floating_pnl = self.total_realized_pnl + floating_pnl
+            is_triggered = await self.auto_stop_manager.check_conditions(total_floating_pnl, self)
+            if is_triggered:
+                self.logger.warning("🚨 Auto-Stop triggered! Force closing open position at market...")
+                exit_side = "sell" if side == "long" else "buy"
+                amount = self.active_pos['amount']
+                try:
+                    await self.engine.execute_trade(exit_side, amount, current_price, order_type="market")
+                    self.total_realized_pnl += floating_pnl
+                    self.total_executed_orders += 1
+                    if floating_pnl > 0: self.total_wins += 1
+                    else: self.total_losses += 1
+                    await self._send_telegram(f"🛑 *Auto-Stop Emergency Exit*\nClosed {side.upper()} at {current_price}\nTrade PnL: ${floating_pnl:.2f}\nTotal Net PnL: ${self.total_realized_pnl:.2f}")
+                    await self._clear_state()
+                    self.active_pos = None
+                except Exception as e:
+                    self.logger.error(f"Failed to market close on Auto-Stop: {e}")
+                return
+        # -----------------------------------------
+
 
         # --- NEW: Supertrend Maker-to-Taker Fallback Dual-Exit ---
         supertrend_reversal = False
@@ -2554,7 +2604,7 @@ class WallHunterFuturesStrategy:
                     self.total_losses += 1
                 
                 logger.info(f"✅ {side.upper()} Position Closed: {reason}")
-                await self._send_telegram(f"🏁 *{side.upper()} Closed* ({reason})\nPrice: {current_price}\nPair: {self.symbol}\n💰 Trade PnL: ${pnl_val:.2f}\n\n📊 Total PnL: ${self.total_realized_pnl:.2f}\n🏆 Wins: {self.total_wins} | 💔 Losses: {self.total_losses}")
+                await self._send_telegram(f"🏁 *{side.upper()} Closed* ({reason})\nPrice: {current_price}\nPair: {self.symbol}\n💰 Trade PnL: ${pnl_val:.2f}\n\n📊 Net PnL: ${self.total_realized_pnl:.2f}\n💰 Gross: ${self.total_gross_pnl:.2f} | 💸 Fees: ${self.total_fees_paid:.2f}\n🏆 Wins: {self.total_wins} | 💔 Losses: {self.total_losses}")
                 await self._clear_state()
                 self.active_pos = None
 
@@ -2793,6 +2843,9 @@ class WallHunterFuturesStrategy:
                 "pnl": round(pnl_val, 2),
                 "pnl_percent": round(pnl_pct, 2),
                 "total_pnl": float(f"{self.total_realized_pnl:.2f}"),
+                "total_gross_pnl": float(f"{self.total_gross_pnl:.2f}"),
+                "total_fees_paid": float(f"{self.total_fees_paid:.2f}"),
+                "global_tp_target": float(f"{self.auto_stop_manager.global_tp_target:.2f}") if hasattr(self, "auto_stop_manager") else 0.0,
                 "total_orders": self.total_executed_orders,
                 "total_wins": self.total_wins,
                 "total_losses": self.total_losses,
@@ -2888,7 +2941,7 @@ class WallHunterFuturesStrategy:
             else:
                 self.total_losses += 1
                 
-            await self._send_telegram(f"🚨 *EMERGENCY EXIT* triggered!\nPair: {self.symbol}\nSide: {side.upper()}\nExit Price: {current_price}\n💰 Trade PnL: ${pnl_val:.2f}\n\n📊 Total PnL: ${self.total_realized_pnl:.2f}\n🏆 Wins: {self.total_wins} | 💔 Losses: {self.total_losses}")
+            await self._send_telegram(f"🚨 *EMERGENCY EXIT* triggered!\nPair: {self.symbol}\nSide: {side.upper()}\nExit Price: {current_price}\n💰 Trade PnL: ${pnl_val:.2f}\n\n📊 Net PnL: ${self.total_realized_pnl:.2f}\n💰 Gross: ${self.total_gross_pnl:.2f} | 💸 Fees: ${self.total_fees_paid:.2f}\n🏆 Wins: {self.total_wins} | 💔 Losses: {self.total_losses}")
             self.active_pos = None
             self.logger.info(f"✅ Emergency exit completed.")
 

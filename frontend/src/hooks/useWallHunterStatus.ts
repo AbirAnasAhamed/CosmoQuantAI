@@ -14,6 +14,9 @@ export interface WallHunterStatusData {
     absorption_delta?: number;
     is_absorbing?: boolean;
     total_pnl?: number;
+    total_gross_pnl?: number;
+    total_fees_paid?: number;
+    global_tp_target?: number;
     total_orders?: number;
     total_wins?: number;
     total_losses?: number;
