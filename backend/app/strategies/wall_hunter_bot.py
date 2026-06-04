@@ -833,6 +833,29 @@ class WallHunterBot:
                 asyncio.create_task(self.ut_bot_tracker.stop())
                 self.ut_bot_tracker = None
 
+        # --- ML L2 Filter Live Sync ---
+        if "enable_ml_filter" in new_config:
+            self.enable_ml_filter = new_config["enable_ml_filter"]
+            updates.append(f"ML L2 Filter: {'ON' if self.enable_ml_filter else 'OFF'}")
+        
+        if "ai_model_id" in new_config:
+            self.ai_model_id = new_config["ai_model_id"]
+            updates.append(f"AI Model ID: {self.ai_model_id}")
+
+        if "enable_ml_filter" in new_config or "ai_model_id" in new_config:
+            if getattr(self, "enable_ml_filter", False) and getattr(self, "ai_model_id", ""):
+                try:
+                    from app.strategies.helpers.ml_l2_predictor import MLL2Predictor
+                    self.ml_predictor = MLL2Predictor(self.ai_model_id)
+                    if not getattr(self, '_ml_standalone_task', None) or self._ml_standalone_task.done():
+                        self._ml_standalone_task = asyncio.create_task(self.ml_standalone_listener.start())
+                except Exception as e:
+                    self.logger.error(f"Failed to initialize ML Predictor on live update: {e}")
+            else:
+                if getattr(self, '_ml_standalone_task', None) and not self._ml_standalone_task.done():
+                    self._ml_standalone_task.cancel()
+                self._ml_standalone_task = None
+
         # --- Supertrend Alerts Live Updates ---
         if "enable_supertrend_trend_filter" in new_config and new_config["enable_supertrend_trend_filter"] != self.enable_supertrend_trend_filter:
             self.enable_supertrend_trend_filter = new_config["enable_supertrend_trend_filter"]
@@ -1035,7 +1058,21 @@ class WallHunterBot:
         # Update internal config dictionary
         self.config.update(new_config)
         
+
+        # --- Live Auto-Stop Config Update ---
+        if hasattr(self, 'auto_stop_manager') and self.auto_stop_manager:
+            if "enable_breakeven_stop" in new_config and new_config["enable_breakeven_stop"] != self.auto_stop_manager.enable_breakeven_stop:
+                old_val = "ON" if self.auto_stop_manager.enable_breakeven_stop else "OFF"
+                new_val = "ON" if new_config["enable_breakeven_stop"] else "OFF"
+                self.auto_stop_manager.enable_breakeven_stop = new_config["enable_breakeven_stop"]
+                updates.append(f"Break-even Protection: {old_val} -> {new_val}")
+                
+            if "global_tp_target" in new_config and new_config["global_tp_target"] != self.auto_stop_manager.global_tp_target:
+                updates.append(f"Global TP Target: ${self.auto_stop_manager.global_tp_target} -> ${new_config['global_tp_target']}")
+                self.auto_stop_manager.global_tp_target = float(new_config["global_tp_target"])
+
         if updates:
+
             msg = f"⚡ [WallHunter {self.bot_id}] Live Configuration Updated:\n" + "\n".join([f"- {u}" for u in updates])
             self.logger.info(msg)
             # Fire and forget telegram notification
@@ -1499,6 +1536,17 @@ class WallHunterBot:
 
         valid_sessions = [s for s in getattr(self, 'trading_sessions', []) if s and s != "None"]
         session_str = f"\U0001f552 Trading Sessions: {', '.join(valid_sessions)}\n" if valid_sessions else ""
+        
+        # --- Auto-Stop Info ---
+        risk_summary_str = ""
+        if hasattr(self, 'auto_stop_manager') and self.auto_stop_manager:
+            if self.auto_stop_manager.enable_breakeven_stop:
+                risk_summary_str += "🛡️ Break-even Protection: ON\n"
+            if self.auto_stop_manager.global_tp_target > 0:
+                risk_summary_str += f"🎯 Global Take Profit: ${self.auto_stop_manager.global_tp_target:.2f}\n"
+            if risk_summary_str:
+                self.logger.info(f"🛡️ Risk Management Active:\n{risk_summary_str}")
+        
         startup_msg = (
             f"\U0001f7e2 WallHunter Bot [ID: {self.bot_id}] Started!\n"
             f"Pair: {self.symbol}\n"
@@ -1701,6 +1749,14 @@ class WallHunterBot:
 
 
                 if not self.active_pos:
+
+                    # --- Realized PNL Auto-Stop Check (Runs only when flat) ---
+                    if hasattr(self, 'auto_stop_manager') and self.auto_stop_manager and not self.auto_stop_manager.is_stopped:
+                        is_triggered = await self.auto_stop_manager.check_conditions(self.total_realized_pnl, self)
+                        if is_triggered:
+                            # Bot was stopped by auto_stop_manager
+                            continue
+
                     if not TradingSessionTracker.is_session_active(self.trading_sessions):
                         await asyncio.sleep(1)
                         continue
@@ -1969,7 +2025,7 @@ class WallHunterBot:
                                     self.logger.info(f"📈 [OIB Filter] Orderbook supports {side.upper()} with {support*100:.1f}% dominance.")
 
                             # --- AI Model Filter (L2 Predictor) ---
-                            if getattr(self, 'ml_predictor', None):
+                            if getattr(self, 'enable_ml_filter', False) and getattr(self, 'ml_predictor', None):
                                 is_ai_valid = self.ml_predictor.predict(orderbook, mid_price, side)
                                 if not is_ai_valid:
                                     if current_time - getattr(self, '_last_ai_log_time', 0) > 10.0:
@@ -1977,7 +2033,10 @@ class WallHunterBot:
                                         self._last_ai_log_time = current_time
                                     continue
                                 else:
-                                    self.logger.info(f"🤖 [AI Filter] Model confirmed {side.upper()} order flow!")
+                                    if getattr(self.ml_predictor, 'is_loaded', False):
+                                        self.logger.info(f"🤖 [AI Filter] Model confirmed {side.upper()} order flow!")
+                                    else:
+                                        self.logger.info(f"⚠️ [AI Filter] Model unavailable. Trade allowed by default.")
 
                             self.logger.info(f"🟢 Instant Snipe at {price} (Spoof Detect is 0s) {'[HVN Confirmed]' if self.vpvr_enabled else ''}. Executing!")
                             if self.enable_proxy_wall:
@@ -2153,7 +2212,7 @@ class WallHunterBot:
                                         self.logger.info(f"📈 [OIB Filter] Confirmed! Orderbook supports {side.upper()} with {support*100:.1f}% dominance.")
 
                                 # --- AI Model Filter (L2 Predictor) ---
-                                if getattr(self, 'ml_predictor', None):
+                                if getattr(self, 'enable_ml_filter', False) and getattr(self, 'ml_predictor', None):
                                     is_ai_valid = self.ml_predictor.predict(orderbook, mid_price, side)
                                     if not is_ai_valid:
                                         if current_time - getattr(self, '_last_ai_log_time', 0) > 10.0:
@@ -2161,7 +2220,10 @@ class WallHunterBot:
                                             self._last_ai_log_time = current_time
                                         continue
                                     else:
-                                        self.logger.info(f"🤖 [AI Filter] Model confirmed {side.upper()} order flow!")
+                                        if getattr(self.ml_predictor, 'is_loaded', False):
+                                            self.logger.info(f"🤖 [AI Filter] Model confirmed {side.upper()} order flow!")
+                                        else:
+                                            self.logger.info(f"⚠️ [AI Filter] Model unavailable. Trade allowed by default.")
 
                                 self.logger.info(f"🟢 Genuine Wall detected at {price} (Alive for {time_alive:.1f}s) {'[HVN Confirmed]' if self.vpvr_enabled else ''}. Executing Snipe!")
                                 if self.enable_proxy_wall:

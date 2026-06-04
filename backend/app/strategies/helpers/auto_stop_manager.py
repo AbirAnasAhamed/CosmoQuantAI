@@ -56,8 +56,8 @@ class AutoStopManager:
                 
             # Gracefully tell bot manager to stop it so UI updates
             try:
-                from app.services.bot_manager import bot_manager
-                asyncio.create_task(bot_manager.stop_bot(str(bot_instance.bot_id), str(bot_instance.owner_id)))
+                from app.services.bot_manager import BotManager
+                asyncio.create_task(BotManager().stop_bot(int(bot_instance.bot_id)))
             except Exception as e:
                 bot_instance.logger.error(f"Failed to auto-stop via bot_manager: {e}")
                 

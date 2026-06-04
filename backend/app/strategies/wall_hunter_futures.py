@@ -762,6 +762,17 @@ class WallHunterFuturesStrategy:
             # Wick SR is shown in the BOT ACTIVATED numbered list (bot_manager.py), not here.
             valid_sessions = [s for s in getattr(self, 'trading_sessions', []) if s and s != "None"]
             session_str = f"\U0001f552 Trading Sessions: {', '.join(valid_sessions)}\n" if valid_sessions else ""
+            
+            # --- Auto-Stop Info ---
+            risk_summary_str = ""
+            if hasattr(self, 'auto_stop_manager') and self.auto_stop_manager:
+                if self.auto_stop_manager.enable_breakeven_stop:
+                    risk_summary_str += "🛡️ Break-even Protection: ON\n"
+                if self.auto_stop_manager.global_tp_target > 0:
+                    risk_summary_str += f"🎯 Global Take Profit: ${self.auto_stop_manager.global_tp_target:.2f}\n"
+                if risk_summary_str:
+                    self.logger.info(f"🛡️ Risk Management Active:\n{risk_summary_str}")
+            
             startup_msg = (
                 f"\U0001f7e2 WallHunter Bot [ID {self.bot_id}] Started!\n"
                 f"Pair: {self.symbol}\n"
@@ -771,6 +782,7 @@ class WallHunterFuturesStrategy:
                 f"{limit_buffer_str}"
                 f"{trigger_str}\n"
                 f"{ut_summary_str}"
+                f"{risk_summary_str}"
             )
 
             await self._send_telegram(startup_msg)
@@ -1077,6 +1089,14 @@ class WallHunterFuturesStrategy:
                         logger.info(f"🔍 [Debug {self.bot_id}] {self.symbol} Mid: {mid_price:.6f} | Max Bid: {max_bid:,.0f} | Max Ask: {max_ask:,.0f}")
 
                 if not self.active_pos:
+
+                    # --- Realized PNL Auto-Stop Check (Runs only when flat) ---
+                    if hasattr(self, 'auto_stop_manager') and self.auto_stop_manager and not self.auto_stop_manager.is_stopped:
+                        is_triggered = await self.auto_stop_manager.check_conditions(self.total_realized_pnl, self)
+                        if is_triggered:
+                            # Bot was stopped by auto_stop_manager
+                            continue
+
                     # --- Session Checks ---
                     if not TradingSessionTracker.is_session_active(self.trading_sessions):
                         await asyncio.sleep(1)
@@ -1426,7 +1446,7 @@ class WallHunterFuturesStrategy:
                                     self.logger.info(f"📈 [OIB Filter] Orderbook supports {target_side.upper()} with {support*100:.1f}% dominance.")
 
                             # --- AI Model Filter (L2 Predictor) ---
-                            if getattr(self, 'ml_predictor', None):
+                            if getattr(self, 'enable_ml_filter', False) and getattr(self, 'ml_predictor', None):
                                 is_ai_valid = self.ml_predictor.predict(orderbook, mid_price, target_side)
                                 if not is_ai_valid:
                                     if should_log_alert:
@@ -1435,8 +1455,12 @@ class WallHunterFuturesStrategy:
                                             self._last_ai_log_time = time.time()
                                     continue
                                 else:
-                                    self.logger.info(f"🤖 [AI Filter] Model confirmed {target_side.upper()} order flow!")
-                                    reason += " (AI Validated)"
+                                    if getattr(self.ml_predictor, 'is_loaded', False):
+                                        self.logger.info(f"🤖 [AI Filter] Model confirmed {target_side.upper()} order flow!")
+                                        reason += " (AI Validated)"
+                                    else:
+                                        self.logger.info(f"⚠️ [AI Filter] Model unavailable. Trade allowed by default.")
+                                        reason += " (AI Bypassed)"
 
                             if self.enable_proxy_wall:
                                 try:
@@ -1953,28 +1977,6 @@ class WallHunterFuturesStrategy:
             side = 'long'
         exit_order_type = self.sell_order_type if side == "long" else self.buy_order_type
 
-        # --- NEW: Floating PNL Auto-Stop Check ---
-        floating_pnl = (current_price - self.active_pos['entry']) * self.active_pos['amount'] if side == 'long' else (self.active_pos['entry'] - current_price) * self.active_pos['amount']
-        if hasattr(self, 'auto_stop_manager') and self.auto_stop_manager and not self.auto_stop_manager.is_stopped:
-            total_floating_pnl = self.total_realized_pnl + floating_pnl
-            is_triggered = await self.auto_stop_manager.check_conditions(total_floating_pnl, self)
-            if is_triggered:
-                self.logger.warning("🚨 Auto-Stop triggered! Force closing open position at market...")
-                exit_side = "sell" if side == "long" else "buy"
-                amount = self.active_pos['amount']
-                try:
-                    await self.engine.execute_trade(exit_side, amount, current_price, order_type="market")
-                    self.total_realized_pnl += floating_pnl
-                    self.total_executed_orders += 1
-                    if floating_pnl > 0: self.total_wins += 1
-                    else: self.total_losses += 1
-                    await self._send_telegram(f"🛑 *Auto-Stop Emergency Exit*\nClosed {side.upper()} at {current_price}\nTrade PnL: ${floating_pnl:.2f}\nTotal Net PnL: ${self.total_realized_pnl:.2f}")
-                    await self._clear_state()
-                    self.active_pos = None
-                except Exception as e:
-                    self.logger.error(f"Failed to market close on Auto-Stop: {e}")
-                return
-        # -----------------------------------------
 
 
         # --- NEW: Supertrend Maker-to-Taker Fallback Dual-Exit ---
@@ -3215,6 +3217,19 @@ class WallHunterFuturesStrategy:
             self.auto_fibo_lookback = new_config.get("auto_fibo_lookback", 30)
             updates.append(f"Auto-Fibo Lookback: {self.auto_fibo_lookback}")
 
+
+        # --- Live Auto-Stop Config Update ---
+        if hasattr(self, 'auto_stop_manager') and self.auto_stop_manager:
+            if "enable_breakeven_stop" in new_config and new_config["enable_breakeven_stop"] != self.auto_stop_manager.enable_breakeven_stop:
+                old_val = "ON" if self.auto_stop_manager.enable_breakeven_stop else "OFF"
+                new_val = "ON" if new_config["enable_breakeven_stop"] else "OFF"
+                self.auto_stop_manager.enable_breakeven_stop = new_config["enable_breakeven_stop"]
+                updates.append(f"Break-even Protection: {old_val} -> {new_val}")
+                
+            if "global_tp_target" in new_config and new_config["global_tp_target"] != self.auto_stop_manager.global_tp_target:
+                updates.append(f"Global TP Target: ${self.auto_stop_manager.global_tp_target} -> ${new_config['global_tp_target']}")
+                self.auto_stop_manager.global_tp_target = float(new_config["global_tp_target"])
+
         if updates:
             self.config.update(new_config)
             
@@ -3387,6 +3402,29 @@ class WallHunterFuturesStrategy:
                 if getattr(self, 'ut_bot_tracker', None):
                     asyncio.create_task(self.ut_bot_tracker.stop())
                     self.ut_bot_tracker = None
+
+            # --- ML L2 Filter Live Sync ---
+            if "enable_ml_filter" in new_config:
+                self.enable_ml_filter = new_config["enable_ml_filter"]
+                updates.append(f"ML L2 Filter: {'ON' if self.enable_ml_filter else 'OFF'}")
+            
+            if "ai_model_id" in new_config:
+                self.ai_model_id = new_config["ai_model_id"]
+                updates.append(f"AI Model ID: {self.ai_model_id}")
+
+            if "enable_ml_filter" in new_config or "ai_model_id" in new_config:
+                if getattr(self, "enable_ml_filter", False) and getattr(self, "ai_model_id", ""):
+                    try:
+                        from app.strategies.helpers.ml_l2_predictor import MLL2Predictor
+                        self.ml_predictor = MLL2Predictor(self.ai_model_id)
+                        if not getattr(self, '_ml_standalone_task', None) or self._ml_standalone_task.done():
+                            self._ml_standalone_task = asyncio.create_task(self.ml_standalone_listener.start())
+                    except Exception as e:
+                        self.logger.error(f"Failed to initialize ML Predictor on live update: {e}")
+                else:
+                    if getattr(self, '_ml_standalone_task', None) and not self._ml_standalone_task.done():
+                        self._ml_standalone_task.cancel()
+                    self._ml_standalone_task = None
 
             # --- Supertrend Alerts Live Sync ---
             if "enable_supertrend_trend_filter" in new_config:

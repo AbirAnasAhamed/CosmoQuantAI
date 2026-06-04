@@ -95,6 +95,12 @@ class StrategyConfig(BaseModel):
     iceberg_time_window_secs: Optional[int] = 10
     iceberg_min_absorbed_vol: Optional[float] = 100000.0
 
+
+    # --- Account Risk Limits (Auto-Stop) ---
+    enable_breakeven_stop: Optional[bool] = False
+    enable_global_tp: Optional[bool] = False
+    global_tp_target: Optional[float] = 0.0
+
     # --- Buy Order Type Logic ---
     buy_order_type: Optional[str] = "limit"
     limit_buffer: Optional[float] = 1.0

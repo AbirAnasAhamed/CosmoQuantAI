@@ -441,6 +441,10 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                             vwapSDMultiplier: c.vwap_sd_multiplier || 3.0,
                             vwapSDMinWall: c.vwap_sd_min_wall || 500000,
 
+                            enableBreakevenStop: c.enable_breakeven_stop !== undefined ? c.enable_breakeven_stop : false,
+                            enableGlobalTp: c.enable_global_tp !== undefined ? c.enable_global_tp : false,
+                            globalTpTarget: c.global_tp_target || 0.0,
+
                             enableMlFilter: c.enable_ml_filter !== undefined ? c.enable_ml_filter : false,
                             mlModelId: c.ai_model_id || ''
                         }));

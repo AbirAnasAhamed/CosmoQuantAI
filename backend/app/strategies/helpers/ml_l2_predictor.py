@@ -62,8 +62,8 @@ class MLL2Predictor:
             # L2 Predictor defaults to classification for spoofing detection
             self.prediction_target = "classification"
 
-            # Use .zip for PPO
-            if self.model_type == "PPO-RL":
+            # Use .zip for RL models
+            if self.model_type in ["PPO-RL", "SAC-RL", "A2C-RL", "DQN-RL"]:
                 file_path = file_path.replace(".pkl", ".zip").replace(".pt", ".zip")
 
             if not os.path.exists(file_path):
@@ -109,13 +109,28 @@ class MLL2Predictor:
                 except Exception as e:
                     logger.error(f"MLL2Predictor: Error loading {self.model_type} state_dict: {e}. Feature count might not match.")
                     self.model = None
-            elif self.model_type == "PPO-RL":
+            elif self.model_type in ["PPO-RL", "SAC-RL", "A2C-RL", "DQN-RL"]:
                 try:
-                    from stable_baselines3 import PPO
-                    self.model = PPO.load(file_path)
-                    self.is_loaded = True
+                    from stable_baselines3 import PPO, SAC, A2C, DQN
+                    loaded = False
+                    algos = {"PPO-RL": PPO, "SAC-RL": SAC, "A2C-RL": A2C, "DQN-RL": DQN}
+                    preferred_algo = algos.get(self.model_type)
+                    
+                    # Try preferred first, then others if user selected wrong type
+                    for algo in [preferred_algo] + [a for a in algos.values() if a != preferred_algo]:
+                        try:
+                            self.model = algo.load(file_path)
+                            self.is_loaded = True
+                            loaded = True
+                            break
+                        except Exception:
+                            continue
+                            
+                    if not loaded:
+                        logger.error(f"MLL2Predictor: Error loading {self.model_type} model with any SB3 algorithm.")
+                        self.model = None
                 except Exception as e:
-                    logger.error(f"MLL2Predictor: Error loading PPO-RL model: {e}")
+                    logger.error(f"MLL2Predictor: Error loading {self.model_type} model module: {e}")
                     self.model = None
 
             if self.is_loaded:
@@ -244,7 +259,7 @@ class MLL2Predictor:
                 X_t = torch.FloatTensor(features)
                 with torch.no_grad():
                     pred = self.model(X_t).item()
-            elif self.model_type == "PPO-RL":
+            elif self.model_type in ["PPO-RL", "SAC-RL", "A2C-RL", "DQN-RL"]:
                 action, _ = self.model.predict(features[0].astype(np.float32), deterministic=True)
                 # action: 1 = Buy/Up, 0 = Sell/Down
                 pred = 1.0 if action == 1 else 0.0
