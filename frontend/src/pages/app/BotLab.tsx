@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useMarketStore } from '@/store/marketStore';
+import { useBotStore } from '@/store/botStore';
 import Button from '@/components/common/Button';
 import type { ActiveBot, BacktestResult } from '@/types';
 import { useToast } from '@/context/ToastContext';
@@ -18,6 +19,7 @@ import DEXExecutionWidget from '@/components/features/bots/DEXExecutionWidget';
 const BotLab: React.FC = () => {
     const [isCreating, setIsCreating] = useState(false);
     const { globalSymbol } = useMarketStore();
+    const { setActiveWallHunterId } = useBotStore();
     const [isVisualBuilderOpen, setIsVisualBuilderOpen] = useState(false);
     const [bots, setBots] = useState<ActiveBot[]>([]);
     const { showToast } = useToast();
@@ -179,6 +181,15 @@ const BotLab: React.FC = () => {
             setBots(prev => prev.map(b => b.id === id ? { ...b, status: action === 'start' ? 'active' : 'inactive' } : b));
 
             await botService.controlBot(id, action);
+            if (action === 'start') {
+                setActiveWallHunterId(Number(id));
+            } else if (action === 'stop') {
+                // Optionally we can clear it if they stop the active bot
+                const currentActive = useBotStore.getState().activeWallHunterId;
+                if (currentActive === Number(id)) {
+                    setActiveWallHunterId(null);
+                }
+            }
             showToast(`${bot.name} ${action === 'start' ? 'Online' : 'Offline'}`, 'success');
         } catch (error) {
             console.error("Toggle Error:", error);

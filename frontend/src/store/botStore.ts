@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
 import { IndicatorSettings } from '@/components/features/market/IndicatorSelector';
 
 interface BotState {
@@ -8,9 +9,11 @@ interface BotState {
     setIndicatorSettings: (settings: IndicatorSettings) => void;
 }
 
-export const useBotStore = create<BotState>((set) => ({
-    activeWallHunterId: null,
-    setActiveWallHunterId: (id) => set({ activeWallHunterId: id }),
+export const useBotStore = create<BotState>()(
+    persist(
+        (set) => ({
+            activeWallHunterId: null,
+            setActiveWallHunterId: (id) => set({ activeWallHunterId: id }),
     indicatorSettings: {
         showEMA: false,
         showBB: true,
@@ -191,4 +194,9 @@ export const useBotStore = create<BotState>((set) => ({
         vwapAnchor: 'Daily',
     },
     setIndicatorSettings: (settings) => set({ indicatorSettings: settings }),
-}));
+        }),
+        {
+            name: 'bot-store-storage',
+        }
+    )
+);
