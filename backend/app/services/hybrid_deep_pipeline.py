@@ -197,6 +197,9 @@ async def _async_hybrid_deep_scraper(
                 if not stop_event.is_set():
                     retry += 1
                     await asyncio.sleep(2)
+        
+        # Signal the other stream to stop if this one exits (e.g., max retries reached)
+        stop_event.set()
 
     # ── Trade Stream ──────────────────────────────────────────────────────────
     async def _trade_stream():
@@ -291,6 +294,9 @@ async def _async_hybrid_deep_scraper(
                 if not stop_event.is_set():
                     retry += 1
                     await asyncio.sleep(2)
+        
+        # Signal the other stream to stop if this one exits (e.g., max retries reached)
+        stop_event.set()
 
     # ── Run Both in Parallel ──────────────────────────────────────────────────
     add_log_func(f"[HybridDeep] Dual WebSocket connecting for {symbol}...")
