@@ -1044,7 +1044,7 @@ class WallHunterFuturesStrategy:
                     await asyncio.sleep(1.5) # Rate limit protection for REST fallback
                     orderbook = await target_exchange.fetch_order_book(watch_sym, limit=limit)
                 
-                if not orderbook['bids'] or not orderbook['asks']:
+                if not orderbook or not orderbook.get('bids') or not orderbook.get('asks'):
                     await asyncio.sleep(1)
                     continue
 
@@ -1470,7 +1470,8 @@ class WallHunterFuturesStrategy:
                 await asyncio.sleep(0.001)
 
             except Exception as e:
-                self.logger.error(f"Futures Hunter Loop Error: {e}")
+                import traceback
+                self.logger.error(f"Futures Hunter Loop Error: {e}\n{traceback.format_exc()}")
                 await asyncio.sleep(2)
 
     async def execute_snipe(self, wall_price: float, side: str, current_mid_price: float, best_bid: float = None, best_ask: float = None, reason: str = "Wall Detection", override_order_type: str = None, override_limit_price: float = None):

@@ -383,8 +383,19 @@ class OrderBlockExecutionEngine:
                         )
                     return None
             # ─────────────────────────────────────────────────────────────────────
+            # ─────────────────────────────────────────────────────────────────────
             err_str_lower = err_str.lower()
-            if "-2021" in err_str_lower or "-5022" in err_str_lower or "-2022" in err_str_lower:
+            
+            # Known harmless or expected errors during rapid execution
+            is_expected_error = (
+                "-2021" in err_str_lower 
+                or "-5022" in err_str_lower 
+                or "-2022" in err_str_lower
+                or "reduceonly" in err_str_lower
+                or "reduce only" in err_str_lower
+            )
+            
+            if is_expected_error:
                 self.logger.debug(f"[REAL] Order execution failed (Expected/Ignored) for {side} {amount} {self.pair} at {price}: {e}")
             else:
                 self.logger.error(f"[REAL] Order execution failed for {side} {amount} {self.pair} at {price}: {e}")
