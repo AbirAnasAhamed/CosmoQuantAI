@@ -780,7 +780,8 @@ class WallHunterFuturesStrategy:
             risk_summary_str = ""
             if hasattr(self, 'advanced_risk_manager') and self.advanced_risk_manager:
                 if self.advanced_risk_manager.enable_breakeven:
-                    risk_summary_str += f"🛡️ Break-even Protection: ON (Trigger: {self.advanced_risk_manager.be_activation_pct}%, Stop: {self.advanced_risk_manager.be_fee_buffer_pct}%)\n"
+                    sym = "%" if self.advanced_risk_manager.be_type == "pct" else "$"
+                    risk_summary_str += f"🛡️ Break-even Protection: ON (Trigger: {self.advanced_risk_manager.be_activation_val}{sym}, Stop: {self.advanced_risk_manager.be_fee_buffer_val}{sym})\n"
                 if self.advanced_risk_manager.enable_global_tp:
                     risk_summary_str += f"🎯 Global TP ({self.advanced_risk_manager.global_tp_type.capitalize()}): ${self.advanced_risk_manager.global_tp_target:.2f} [{self.advanced_risk_manager.global_tp_action}]\n"
                 if risk_summary_str:

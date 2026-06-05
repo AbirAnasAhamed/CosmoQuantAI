@@ -53,6 +53,10 @@ class NotificationService:
             bot = _make_bot(settings.telegram_bot_token)
             
             # Implementation of the "Better than before" Retry Logic
+            # Telegram message length limit is 4096. We truncate at 4000 to be safe.
+            if len(message) > 4000:
+                message = message[:4000] + "\n...[Message Truncated]"
+
             retries = 1
             while retries >= 0:
                 try:

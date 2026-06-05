@@ -5,7 +5,7 @@ export interface TrainingJob {
     symbol: string;
     timeframe: string;
     algorithm: string;
-    status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+    status: 'PENDING' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'PAUSED';
     progress: number;
     logs: string[];
     output_model_id?: string;
@@ -88,6 +88,16 @@ export const mlTrainingService = {
 
     cancelTraining: async (jobId: string): Promise<TrainingJob> => {
         const response = await apiClient.post(`/model-training/jobs/${jobId}/cancel`);
+        return response.data;
+    },
+
+    pauseTraining: async (jobId: string): Promise<TrainingJob> => {
+        const response = await apiClient.post(`/model-training/jobs/${jobId}/pause`);
+        return response.data;
+    },
+
+    resumeTraining: async (jobId: string): Promise<TrainingJob> => {
+        const response = await apiClient.post(`/model-training/jobs/${jobId}/resume`);
         return response.data;
     }
 };

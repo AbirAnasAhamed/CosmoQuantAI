@@ -472,7 +472,8 @@ def train_model_task(job_id: str, db: Session):
     try:
         check_cancelled()
         job.status = models.TrainingStatus.RUNNING
-        job.progress = 5.0
+        if job.progress is None or job.progress < 5.0 or job.progress >= 100.0:
+            job.progress = 5.0
         add_log(f"Starting training job for {job.symbol} using {job.algorithm}")
         
         config = job.config or {}
@@ -512,12 +513,29 @@ def train_model_task(job_id: str, db: Session):
                 if prev_job:
                     source_algo = prev_job.algorithm
 
-        is_fine_tune = (
-            bool(config.get("fine_tune", False)) and
-            _prev_path is not None and
-            os.path.exists(str(_prev_path))
-        )
-        ft_label = f"🔄 Fine-Tune from: {_prev_path}" if is_fine_tune else "🆕 Fresh Training (no prior checkpoint)"
+        # ── Checkpoint Auto-Resume Detection ────────────────────────────────
+        model_dir = os.path.join("uploads", "models", f"job_{job.id}")
+        state_path = os.path.join(model_dir, "training_state.json")
+        checkpoint_path = os.path.join(model_dir, "checkpoint_latest.zip")
+        dataset_dir = os.path.join("uploads", "datasets")
+        dvc_filename = f"dataset_{job.id}.csv"
+        dataset_path = os.path.join(dataset_dir, dvc_filename)
+        
+        is_auto_resume = False
+        if os.path.exists(state_path) and os.path.exists(checkpoint_path) and os.path.exists(dataset_path):
+            is_auto_resume = True
+            add_log(f"🔄 Auto-Resume detected! Found checkpoint and dataset. Skipping data collection...")
+            _prev_path = checkpoint_path
+            is_fine_tune = True
+
+        if not is_auto_resume:
+            is_fine_tune = (
+                bool(config.get("fine_tune", False)) and
+                _prev_path is not None and
+                os.path.exists(str(_prev_path))
+            )
+            
+        ft_label = f"🔄 Resuming from Checkpoint: {_prev_path}" if is_auto_resume else (f"🔄 Fine-Tune from: {_prev_path}" if is_fine_tune else "🆕 Fresh Training (no prior checkpoint)")
         add_log(ft_label)
         
         is_cross_algorithm_transfer = config.get("is_cross_algorithm_transfer", False)
@@ -540,7 +558,22 @@ def train_model_task(job_id: str, db: Session):
                 add_log("⚠️ Transfer failed or unsupported pair. Falling back to fresh training.")
                 is_fine_tune = False
         
-        if dataset_type == "hybrid_deep":
+        if is_auto_resume:
+            # Skip data collection and load the DVC dataset
+            add_log(f"Loading existing dataset from {dataset_path}...")
+            df = pd.read_csv(dataset_path)
+            if 'timestamp' in df.columns:
+                df['timestamp'] = pd.to_datetime(df['timestamp'])
+                df.set_index('timestamp', inplace=True)
+            # Reconstruct features list
+            features = config.get("features", [])
+            if not features:
+                # Fallback: all columns except target/timestamp
+                features = [col for col in df.columns if col not in ['Target', 'timestamp', 'datetime', 'Close', 'Open', 'High', 'Low', 'Volume']]
+            df_scaled = df.copy() # Simplification for now, RL engines handle their own scaling or we bypass it
+            job.progress = 100.0
+
+        elif dataset_type == "hybrid_deep":
             # ── NEW: Dual WebSocket L2 + aggTrade pipeline ──────────────────
             from app.services.hybrid_deep_pipeline import build_hybrid_deep_dataset
             df, features = build_hybrid_deep_dataset(job, db, config, add_log)
@@ -1028,9 +1061,13 @@ def train_model_task(job_id: str, db: Session):
         check_cancelled()
         
         # 3. Prepare Data
-        job.progress = 0.0
-        db.commit()
-        add_log("Data download complete. Main training starting from 0%...")
+        if not is_auto_resume:
+            job.progress = 0.0
+            db.commit()
+            add_log("Data download complete. Main training starting from 0%...")
+        else:
+            add_log("Resuming from checkpoint, bypassing progress reset...")
+            
         add_log("Preparing and scaling data...")
         from sklearn.preprocessing import MinMaxScaler, StandardScaler, RobustScaler
         

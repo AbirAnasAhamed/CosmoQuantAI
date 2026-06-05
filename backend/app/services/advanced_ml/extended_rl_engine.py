@@ -399,18 +399,49 @@ class ExtendedRLEngine:
             
         env = DummyVecEnv([make_env])
         total_timesteps = epochs * len(df)
+        # Cap LR at 0.001 to prevent exploding gradients
         safe_lr = min(lr, 0.001)
-        
-        add_log(f"Initializing {job.algorithm} Agent...")
-        
-        if job.algorithm == "A2C-RL":
-            model = A2C("MlpPolicy", env, verbose=0, learning_rate=safe_lr)
-        elif job.algorithm == "DDPG-RL":
-            model = DDPG("MlpPolicy", env, verbose=0, learning_rate=safe_lr)
-        elif job.algorithm == "DQN-RL":
-            model = DQN("MlpPolicy", env, verbose=0, learning_rate=safe_lr)
-        elif job.algorithm == "TD3-RL":
-            model = TD3("MlpPolicy", env, verbose=0, learning_rate=safe_lr)
+
+        model_dir = os.path.join("uploads", "models", f"job_{job.id}")
+        os.makedirs(model_dir, exist_ok=True)
+        checkpoint_path = os.path.join(model_dir, "checkpoint_latest.zip")
+        state_path = os.path.join(model_dir, "training_state.json")
+        start_timestep = 0
+        model = None
+
+        # ── Auto-Resume Logic ─────────────────────────────────────────
+        if os.path.exists(checkpoint_path) and os.path.exists(state_path):
+            try:
+                if job.algorithm == "A2C-RL":
+                    model = A2C.load(checkpoint_path, env=env, learning_rate=safe_lr)
+                elif job.algorithm == "DDPG-RL":
+                    model = DDPG.load(checkpoint_path, env=env, learning_rate=safe_lr)
+                elif job.algorithm == "DQN-RL":
+                    model = DQN.load(checkpoint_path, env=env, learning_rate=safe_lr)
+                elif job.algorithm == "TD3-RL":
+                    model = TD3.load(checkpoint_path, env=env, learning_rate=safe_lr)
+                
+                with open(state_path, "r") as f:
+                    state = json.load(f)
+                    start_timestep = state.get("timestep", 0)
+                
+                add_log(f"🔄 Auto-Resuming {job.algorithm} from checkpoint (Step {start_timestep}/{total_timesteps})")
+            except Exception as e:
+                add_log(f"⚠️ Auto-Resume failed ({e}), starting fresh...")
+                model = None
+
+        if model is None:
+            add_log(f"Initializing {job.algorithm} Agent...")
+            if job.algorithm == "A2C-RL":
+                model = A2C("MlpPolicy", env, verbose=0, learning_rate=safe_lr)
+            elif job.algorithm == "DDPG-RL":
+                model = DDPG("MlpPolicy", env, verbose=0, learning_rate=safe_lr)
+            elif job.algorithm == "DQN-RL":
+                model = DQN("MlpPolicy", env, verbose=0, learning_rate=safe_lr)
+            elif job.algorithm == "TD3-RL":
+                model = TD3("MlpPolicy", env, verbose=0, learning_rate=safe_lr)
+
+        remaining_timesteps = max(1, total_timesteps - start_timestep)
 
         try:
             redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
@@ -419,10 +450,13 @@ class ExtendedRLEngine:
             redis_client = None
 
         class LiveStreamingCallback(BaseCallback):
-            def __init__(self, check_interval=1000, stream_interval=10):
+            def __init__(self, check_interval=1000, stream_interval=10, checkpoint_interval=10000, checkpoint_path="", state_path=""):
                 super().__init__(verbose=0)
                 self.check_interval = check_interval
                 self.stream_interval = stream_interval
+                self.checkpoint_interval = checkpoint_interval
+                self.checkpoint_path = checkpoint_path
+                self.state_path = state_path
                 self.last_streamed_step = 0
                 self.last_stream_time = time.time()
 
@@ -433,6 +467,11 @@ class ExtendedRLEngine:
                     job.progress = current_progress
                     db.commit()
                     db.refresh(job)
+                    if job.status == models.TrainingStatus.PAUSED:
+                        self.model.save(self.checkpoint_path)
+                        with open(self.state_path, "w") as f:
+                            json.dump({"timestep": self.num_timesteps}, f)
+                        raise Exception("Training paused by user.")
                     if job.status == models.TrainingStatus.FAILED and job.error_message and "cancelled" in job.error_message.lower():
                         raise Exception("Training cancelled by user.")
                 
@@ -466,17 +505,25 @@ class ExtendedRLEngine:
                             self.last_stream_time = now
                         except Exception:
                             pass
+                
+                # 3. Save Checkpoint
+                if self.num_timesteps > 0 and self.num_timesteps % self.checkpoint_interval == 0:
+                    self.model.save(self.checkpoint_path)
+                    with open(self.state_path, "w") as f:
+                        json.dump({"timestep": self.num_timesteps}, f)
+                
                 return True
 
         callback = LiveStreamingCallback(
             check_interval=max(100, total_timesteps // 20),
-            stream_interval=max(1, total_timesteps // 1000)
+            stream_interval=max(1, total_timesteps // 1000),
+            checkpoint_interval=max(1, total_timesteps // 20),
+            checkpoint_path=checkpoint_path,
+            state_path=state_path
         )
-        model.learn(total_timesteps=total_timesteps, callback=callback)
+        model.learn(total_timesteps=remaining_timesteps, callback=callback, reset_num_timesteps=False)
         
         model_filename = f"model_{job.id}.zip"
-        model_dir = os.path.join("uploads", "models", f"job_{job.id}")
-        os.makedirs(model_dir, exist_ok=True)
         model_path = os.path.join(model_dir, model_filename)
         model.save(model_path)
         

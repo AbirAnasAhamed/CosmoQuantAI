@@ -9,6 +9,7 @@ class TrainingStatus(str, enum.Enum):
     RUNNING = "RUNNING"
     COMPLETED = "COMPLETED"
     FAILED = "FAILED"
+    PAUSED = "PAUSED"
 
 class ModelTrainingJob(Base):
     __tablename__ = "model_training_jobs"

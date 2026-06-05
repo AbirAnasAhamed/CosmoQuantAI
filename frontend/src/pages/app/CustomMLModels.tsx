@@ -1338,7 +1338,7 @@ const ModelCard: React.FC<{
 
 
 // --- Active Training Jobs Section ---
-const ActiveTrainingJobsSection: React.FC<{ jobs: any[], onCancel: (id: string) => void, onVisualize?: (job: any) => void }> = ({ jobs, onCancel, onVisualize }) => {
+const ActiveTrainingJobsSection: React.FC<{ jobs: any[], onCancel: (id: string) => void, onPause: (id: string) => void, onResume: (id: string) => void, onVisualize?: (job: any) => void }> = ({ jobs, onCancel, onPause, onResume, onVisualize }) => {
     if (!jobs || jobs.length === 0) return null;
 
     return (
@@ -1383,6 +1383,21 @@ const ActiveTrainingJobsSection: React.FC<{ jobs: any[], onCancel: (id: string) 
                                             className="px-3 py-1.5 bg-cyan-500/10 text-cyan-400 border border-cyan-500/30 rounded-lg text-xs font-bold hover:bg-cyan-500/20 hover:text-cyan-300 transition-colors flex-shrink-0"
                                         >
                                             Live Visualizer
+                                        </button>
+                                    )}
+                                    {job.status === 'PAUSED' || job.status === 'FAILED' ? (
+                                        <button
+                                            onClick={() => onResume(job.id)}
+                                            className="px-3 py-1.5 bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 rounded-lg text-xs font-bold hover:bg-emerald-500/20 hover:text-emerald-300 transition-colors flex-shrink-0"
+                                        >
+                                            ▶️ {job.status === 'FAILED' ? 'Retry' : 'Resume'}
+                                        </button>
+                                    ) : (
+                                        <button
+                                            onClick={() => onPause(job.id)}
+                                            className="px-3 py-1.5 bg-yellow-500/10 text-yellow-400 border border-yellow-500/30 rounded-lg text-xs font-bold hover:bg-yellow-500/20 hover:text-yellow-300 transition-colors flex-shrink-0"
+                                        >
+                                            ⏸️ Pause
                                         </button>
                                     )}
                                     <button
@@ -1486,7 +1501,12 @@ const CustomMLModels: React.FC<{ onNavigate?: (view: AppView, section?: string) 
             return hasActive ? 2000 : false; // Poll fast if active, stop otherwise
         },
         refetchOnWindowFocus: false,
-        select: (jobs) => jobs.filter((j: any) => j.status === 'PENDING' || j.status === 'RUNNING')
+        select: (jobs) => jobs.filter((j: any) => 
+            j.status === 'PENDING' || 
+            j.status === 'RUNNING' || 
+            j.status === 'PAUSED' || 
+            (j.status === 'FAILED' && j.error_message?.includes('Server restarted'))
+        )
     });
 
     const cancelJobMutation = useMutation({
@@ -1496,6 +1516,24 @@ const CustomMLModels: React.FC<{ onNavigate?: (view: AppView, section?: string) 
             toast.success('Training job cancelled');
         },
         onError: () => toast.error('Failed to cancel job'),
+    });
+
+    const pauseJobMutation = useMutation({
+        mutationFn: mlTrainingService.pauseTraining,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['activeTrainingJobs'] });
+            toast.success('Training job paused gracefully');
+        },
+        onError: () => toast.error('Failed to pause job'),
+    });
+
+    const resumeJobMutation = useMutation({
+        mutationFn: mlTrainingService.resumeTraining,
+        onSuccess: () => {
+            queryClient.invalidateQueries({ queryKey: ['activeTrainingJobs'] });
+            toast.success('Training job resumed');
+        },
+        onError: () => toast.error('Failed to resume job'),
     });
 
     const handleSetActiveVersion = (modelId: string, versionId: string) => {
@@ -1555,6 +1593,8 @@ const CustomMLModels: React.FC<{ onNavigate?: (view: AppView, section?: string) 
                 <ActiveTrainingJobsSection
                     jobs={activeJobs}
                     onCancel={(id) => cancelJobMutation.mutate(id)}
+                    onPause={(id) => pauseJobMutation.mutate(id)}
+                    onResume={(id) => resumeJobMutation.mutate(id)}
                     onVisualize={setVisualizingJob}
                 />
 

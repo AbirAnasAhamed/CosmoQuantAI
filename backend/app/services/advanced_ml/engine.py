@@ -51,15 +51,32 @@ class AdvancedMLEngine:
         add_log(f"Initializing Transformer Architecture (Input Dim: {len(features)})...")
         model = TimeSeriesTransformer(input_dim=len(features), d_model=64, nhead=4, num_layers=3)
         
-        # ── Fine-Tune: load previous weights ───────────────────────────
-        if previous_model_path and os.path.exists(previous_model_path):
+        model_dir = os.path.join("uploads", "models", f"job_{job.id}")
+        os.makedirs(model_dir, exist_ok=True)
+        checkpoint_path = os.path.join(model_dir, "checkpoint_latest.pt")
+        state_path = os.path.join(model_dir, "training_state.json")
+        start_epoch = 0
+
+        # ── Auto-Resume Logic ─────────────────────────────────────────
+        if os.path.exists(checkpoint_path) and os.path.exists(state_path):
+            try:
+                model.load_state_dict(torch.load(checkpoint_path, map_location='cpu'))
+                with open(state_path, "r") as f:
+                    state = json.load(f)
+                    start_epoch = state.get("epoch", 0)
+                add_log(f"🔄 Auto-Resuming Transformer from checkpoint (Epoch {start_epoch}/{epochs})")
+            except Exception as e:
+                add_log(f"⚠️ Auto-Resume failed ({e}), checking previous model...")
+        
+        # ── Fine-Tune: load previous weights (if not resuming) ────────
+        if start_epoch == 0 and previous_model_path and os.path.exists(previous_model_path):
             try:
                 model.load_state_dict(torch.load(previous_model_path, map_location='cpu'))
                 lr = lr * 0.1  # Lower LR for fine-tuning
                 add_log(f"✅ Fine-Tuning Transformer from checkpoint (LR: {lr:.6f})")
             except Exception as _ft_e:
                 add_log(f"⚠️ Transformer weight load failed ({_ft_e}), training fresh.")
-        else:
+        elif start_epoch == 0:
             add_log("🆕 Fresh Transformer Training")
         
         is_classification = config.get("prediction_target") == "classification"
@@ -73,7 +90,9 @@ class AdvancedMLEngine:
         optimizer = optim.Adam(model.parameters(), lr=lr)
         
         add_log(f"Starting Supervised Training for {epochs} epochs...")
-        for epoch in range(epochs):
+        checkpoint_interval = max(1, epochs // 20)  # Save ~20 times (every 5%)
+
+        for epoch in range(start_epoch, epochs):
             model.train()
             epoch_loss = 0
             for batch_X, batch_y in train_loader:
@@ -89,16 +108,28 @@ class AdvancedMLEngine:
             db.commit()
             add_log(f"Epoch [{epoch+1}/{epochs}], Avg Loss: {avg_loss:.6f}")
             
+            # Periodic Checkpoint Save
+            if (epoch + 1) % checkpoint_interval == 0 or (epoch + 1) == epochs:
+                torch.save(model.state_dict(), checkpoint_path)
+                with open(state_path, "w") as f:
+                    json.dump({"epoch": epoch + 1}, f)
+
             db.refresh(job)
+            if job.status == models.TrainingStatus.PAUSED:
+                torch.save(model.state_dict(), checkpoint_path)
+                with open(state_path, "w") as f:
+                    json.dump({"epoch": epoch + 1}, f)
+                raise Exception("Training paused by user.")
             if job.status == models.TrainingStatus.FAILED and job.error_message and "cancelled" in job.error_message.lower():
                 raise Exception("Training cancelled by user.")
             
-        # Save model
+        # Save final model
         model_filename = f"model_{job.id}.pt"
-        model_dir = os.path.join("uploads", "models", f"job_{job.id}")
-        os.makedirs(model_dir, exist_ok=True)
         model_path = os.path.join(model_dir, model_filename)
         torch.save(model.state_dict(), model_path)
+        
+        # Clean up temporary checkpoint if desired (optional, we leave it for now)
+
         
         # ✅ Calculate Final Metrics for UI
         add_log("Finalizing Model and Calculating Performance Metrics...")
@@ -152,7 +183,24 @@ class AdvancedMLEngine:
         add_log(f"Initializing TCN Architecture (Input Dim: {len(features)})...")
         model = TCNModel(input_size=len(features), num_channels=[32, 64, 128], output_size=1)
         
-        if previous_model_path and os.path.exists(previous_model_path):
+        model_dir = os.path.join("uploads", "models", f"job_{job.id}")
+        os.makedirs(model_dir, exist_ok=True)
+        checkpoint_path = os.path.join(model_dir, "checkpoint_latest.pt")
+        state_path = os.path.join(model_dir, "training_state.json")
+        start_epoch = 0
+
+        # ── Auto-Resume Logic ─────────────────────────────────────────
+        if os.path.exists(checkpoint_path) and os.path.exists(state_path):
+            try:
+                model.load_state_dict(torch.load(checkpoint_path, map_location='cpu'))
+                with open(state_path, "r") as f:
+                    state = json.load(f)
+                    start_epoch = state.get("epoch", 0)
+                add_log(f"🔄 Auto-Resuming TCN from checkpoint (Epoch {start_epoch}/{epochs})")
+            except Exception as e:
+                add_log(f"⚠️ Auto-Resume failed ({e}), checking previous model...")
+        
+        if start_epoch == 0 and previous_model_path and os.path.exists(previous_model_path):
             try:
                 model.load_state_dict(torch.load(previous_model_path, map_location='cpu'))
                 lr = lr * 0.1
@@ -170,7 +218,9 @@ class AdvancedMLEngine:
             criterion = nn.MSELoss()
         optimizer = optim.Adam(model.parameters(), lr=lr)
         
-        for epoch in range(epochs):
+        checkpoint_interval = max(1, epochs // 20)
+
+        for epoch in range(start_epoch, epochs):
             model.train()
             epoch_loss = 0
             for batch_X, batch_y in train_loader:
@@ -184,13 +234,22 @@ class AdvancedMLEngine:
             job.progress = 40 + (50 * (epoch + 1) / epochs)
             db.commit()
             add_log(f"Epoch [{epoch+1}/{epochs}], Avg Loss: {(epoch_loss / len(train_loader)):.6f}")
+
+            if (epoch + 1) % checkpoint_interval == 0 or (epoch + 1) == epochs:
+                torch.save(model.state_dict(), checkpoint_path)
+                with open(state_path, "w") as f:
+                    json.dump({"epoch": epoch + 1}, f)
+
             db.refresh(job)
+            if job.status == models.TrainingStatus.PAUSED:
+                torch.save(model.state_dict(), checkpoint_path)
+                with open(state_path, "w") as f:
+                    json.dump({"epoch": epoch + 1}, f)
+                raise Exception("Training paused by user.")
             if job.status == models.TrainingStatus.FAILED and job.error_message and "cancelled" in job.error_message.lower():
                 raise Exception("Training cancelled by user.")
             
         model_filename = f"model_{job.id}.pt"
-        model_dir = os.path.join("uploads", "models", f"job_{job.id}")
-        os.makedirs(model_dir, exist_ok=True)
         model_path = os.path.join(model_dir, model_filename)
         torch.save(model.state_dict(), model_path)
         
@@ -226,7 +285,24 @@ class AdvancedMLEngine:
         
         model = TabNetEncoder(input_dim=len(features), output_dim=1)
         
-        if previous_model_path and os.path.exists(previous_model_path):
+        model_dir = os.path.join("uploads", "models", f"job_{job.id}")
+        os.makedirs(model_dir, exist_ok=True)
+        checkpoint_path = os.path.join(model_dir, "checkpoint_latest.pt")
+        state_path = os.path.join(model_dir, "training_state.json")
+        start_epoch = 0
+
+        # ── Auto-Resume Logic ─────────────────────────────────────────
+        if os.path.exists(checkpoint_path) and os.path.exists(state_path):
+            try:
+                model.load_state_dict(torch.load(checkpoint_path, map_location='cpu'))
+                with open(state_path, "r") as f:
+                    state = json.load(f)
+                    start_epoch = state.get("epoch", 0)
+                add_log(f"🔄 Auto-Resuming TabNet from checkpoint (Epoch {start_epoch}/{epochs})")
+            except Exception as e:
+                add_log(f"⚠️ Auto-Resume failed ({e}), checking previous model...")
+
+        if start_epoch == 0 and previous_model_path and os.path.exists(previous_model_path):
             try:
                 model.load_state_dict(torch.load(previous_model_path, map_location='cpu'))
                 lr = lr * 0.1
@@ -244,7 +320,9 @@ class AdvancedMLEngine:
             criterion = nn.MSELoss()
         optimizer = optim.Adam(model.parameters(), lr=lr)
         
-        for epoch in range(epochs):
+        checkpoint_interval = max(1, epochs // 20)
+
+        for epoch in range(start_epoch, epochs):
             model.train()
             epoch_loss = 0
             for batch_X, batch_y in train_loader:
@@ -257,13 +335,22 @@ class AdvancedMLEngine:
             job.progress = 40 + (50 * (epoch + 1) / epochs)
             db.commit()
             add_log(f"Epoch [{epoch+1}/{epochs}], Avg Loss: {(epoch_loss / len(train_loader)):.6f}")
+
+            if (epoch + 1) % checkpoint_interval == 0 or (epoch + 1) == epochs:
+                torch.save(model.state_dict(), checkpoint_path)
+                with open(state_path, "w") as f:
+                    json.dump({"epoch": epoch + 1}, f)
+
             db.refresh(job)
+            if job.status == models.TrainingStatus.PAUSED:
+                torch.save(model.state_dict(), checkpoint_path)
+                with open(state_path, "w") as f:
+                    json.dump({"epoch": epoch + 1}, f)
+                raise Exception("Training paused by user.")
             if job.status == models.TrainingStatus.FAILED and job.error_message and "cancelled" in job.error_message.lower():
                 raise Exception("Training cancelled by user.")
                 
         model_filename = f"model_{job.id}.pt"
-        model_dir = os.path.join("uploads", "models", f"job_{job.id}")
-        os.makedirs(model_dir, exist_ok=True)
         model_path = os.path.join(model_dir, model_filename)
         torch.save(model.state_dict(), model_path)
         
@@ -305,7 +392,24 @@ class AdvancedMLEngine:
         
         model = AutoEncoder(input_dim=len(features), hidden_dim=32)
         
-        if previous_model_path and os.path.exists(previous_model_path):
+        model_dir = os.path.join("uploads", "models", f"job_{job.id}")
+        os.makedirs(model_dir, exist_ok=True)
+        checkpoint_path = os.path.join(model_dir, "checkpoint_latest.pt")
+        state_path = os.path.join(model_dir, "training_state.json")
+        start_epoch = 0
+
+        # ── Auto-Resume Logic ─────────────────────────────────────────
+        if os.path.exists(checkpoint_path) and os.path.exists(state_path):
+            try:
+                model.load_state_dict(torch.load(checkpoint_path, map_location='cpu'))
+                with open(state_path, "r") as f:
+                    state = json.load(f)
+                    start_epoch = state.get("epoch", 0)
+                add_log(f"🔄 Auto-Resuming AutoEncoder from checkpoint (Epoch {start_epoch}/{epochs})")
+            except Exception as e:
+                add_log(f"⚠️ Auto-Resume failed ({e}), checking previous model...")
+
+        if start_epoch == 0 and previous_model_path and os.path.exists(previous_model_path):
             try:
                 model.load_state_dict(torch.load(previous_model_path, map_location='cpu'))
                 add_log("✅ Fine-Tuning AutoEncoder")
@@ -315,7 +419,9 @@ class AdvancedMLEngine:
         criterion = nn.MSELoss()
         optimizer = optim.Adam(model.parameters(), lr=lr)
         
-        for epoch in range(epochs):
+        checkpoint_interval = max(1, epochs // 20)
+
+        for epoch in range(start_epoch, epochs):
             model.train()
             epoch_loss = 0
             for batch_X, _ in train_loader:
@@ -328,13 +434,22 @@ class AdvancedMLEngine:
             job.progress = 40 + (50 * (epoch + 1) / epochs)
             db.commit()
             add_log(f"Epoch [{epoch+1}/{epochs}], Reconstruction Loss: {(epoch_loss / len(train_loader)):.6f}")
+
+            if (epoch + 1) % checkpoint_interval == 0 or (epoch + 1) == epochs:
+                torch.save(model.state_dict(), checkpoint_path)
+                with open(state_path, "w") as f:
+                    json.dump({"epoch": epoch + 1}, f)
+
             db.refresh(job)
+            if job.status == models.TrainingStatus.PAUSED:
+                torch.save(model.state_dict(), checkpoint_path)
+                with open(state_path, "w") as f:
+                    json.dump({"epoch": epoch + 1}, f)
+                raise Exception("Training paused by user.")
             if job.status == models.TrainingStatus.FAILED and job.error_message and "cancelled" in job.error_message.lower():
                 raise Exception("Training cancelled by user.")
                 
         model_filename = f"model_{job.id}.pt"
-        model_dir = os.path.join("uploads", "models", f"job_{job.id}")
-        os.makedirs(model_dir, exist_ok=True)
         model_path = os.path.join(model_dir, model_filename)
         torch.save(model.state_dict(), model_path)
         
@@ -400,11 +515,35 @@ class AdvancedMLEngine:
         
         # Cap LR at 0.001 to prevent exploding gradients in fresh and fine-tuned RL agents
         safe_lr = min(lr, 0.001)
-        
+
+        model_dir = os.path.join("uploads", "models", f"job_{job.id}")
+        os.makedirs(model_dir, exist_ok=True)
+        checkpoint_path = os.path.join(model_dir, "checkpoint_latest.zip")
+        state_path = os.path.join(model_dir, "training_state.json")
+        start_timestep = 0
+        model = None
+
+        # ── Auto-Resume Logic ─────────────────────────────────────────
+        if os.path.exists(checkpoint_path) and os.path.exists(state_path):
+            try:
+                if job.algorithm == "SAC-RL":
+                    model = SAC.load(checkpoint_path, env=env, learning_rate=safe_lr)
+                else:
+                    model = PPO.load(checkpoint_path, env=env, learning_rate=safe_lr)
+                
+                with open(state_path, "r") as f:
+                    state = json.load(f)
+                    start_timestep = state.get("timestep", 0)
+                
+                add_log(f"🔄 Auto-Resuming {job.algorithm} from checkpoint (Step {start_timestep}/{total_timesteps})")
+            except Exception as e:
+                add_log(f"⚠️ Auto-Resume failed ({e}), checking previous model...")
+                model = None
+
         # ── Fine-Tune: continue from previous checkpoint ──────────────────
         is_cross_algo = config.get("is_cross_algorithm_transfer", False)
         
-        if previous_model_path and os.path.exists(previous_model_path):
+        if model is None and previous_model_path and os.path.exists(previous_model_path):
             try:
                 add_log(f"✅ Continuing {job.algorithm} from checkpoint: {previous_model_path}")
                 if job.algorithm == "SAC-RL":
@@ -469,14 +608,15 @@ class AdvancedMLEngine:
                     model = SAC("MlpPolicy", env, verbose=0, learning_rate=safe_lr, tensorboard_log=f"./logs/{job.algorithm.lower()}_trading/")
                 else:
                     model = PPO("MlpPolicy", env, verbose=0, learning_rate=safe_lr, tensorboard_log=f"./logs/{job.algorithm.lower()}_trading/")
-        else:
+        elif model is None:
             add_log(f"Initializing fresh {job.algorithm} Agent with MLP Policy...")
             if job.algorithm == "SAC-RL":
                 model = SAC("MlpPolicy", env, verbose=0, learning_rate=safe_lr, tensorboard_log=f"./logs/{job.algorithm.lower()}_trading/")
             else:
                 model = PPO("MlpPolicy", env, verbose=0, learning_rate=safe_lr, tensorboard_log=f"./logs/{job.algorithm.lower()}_trading/")
         
-        add_log(f"Starting RL Training (Total Timesteps: {total_timesteps})...")
+        remaining_timesteps = max(1, total_timesteps - start_timestep)
+        add_log(f"Starting RL Training (Remaining Timesteps: {remaining_timesteps} / Total: {total_timesteps})...")
         
         # We use a callback or simple loop to update progress
         start_time = time.time()
@@ -493,10 +633,13 @@ class AdvancedMLEngine:
             redis_client = None
 
         class LiveStreamingCallback(BaseCallback):
-            def __init__(self, check_interval=1000, stream_interval=10):
+            def __init__(self, check_interval=1000, stream_interval=10, checkpoint_interval=10000, checkpoint_path="", state_path=""):
                 super().__init__(verbose=0)
                 self.check_interval = check_interval
                 self.stream_interval = stream_interval
+                self.checkpoint_interval = checkpoint_interval
+                self.checkpoint_path = checkpoint_path
+                self.state_path = state_path
                 self.last_streamed_step = 0
                 self.last_stream_time = time.time()
 
@@ -509,6 +652,11 @@ class AdvancedMLEngine:
                     db.commit()
                     
                     db.refresh(job)
+                    if job.status == models.TrainingStatus.PAUSED:
+                        self.model.save(self.checkpoint_path)
+                        with open(self.state_path, "w") as f:
+                            json.dump({"timestep": self.num_timesteps}, f)
+                        raise Exception("Training paused by user.")
                     if job.status == models.TrainingStatus.FAILED and job.error_message and "cancelled" in job.error_message.lower():
                         raise Exception("Training cancelled by user.")
                 
@@ -544,15 +692,25 @@ class AdvancedMLEngine:
                             self.last_stream_time = now
                         except Exception:
                             pass
+                
+                # 3. Save Checkpoint
+                if self.num_timesteps > 0 and self.num_timesteps % self.checkpoint_interval == 0:
+                    self.model.save(self.checkpoint_path)
+                    with open(self.state_path, "w") as f:
+                        json.dump({"timestep": self.num_timesteps}, f)
+                
                 return True
                 
         callback = LiveStreamingCallback(
             check_interval=max(100, total_timesteps // 20),
-            stream_interval=max(1, total_timesteps // 1000) # Stream ~1000 points max to avoid overwhelming WS
+            stream_interval=max(1, total_timesteps // 1000), # Stream ~1000 points max to avoid overwhelming WS
+            checkpoint_interval=max(1, total_timesteps // 20), # Save ~20 times (every 5%)
+            checkpoint_path=checkpoint_path,
+            state_path=state_path
         )
-        model.learn(total_timesteps=total_timesteps, callback=callback)
+        model.learn(total_timesteps=remaining_timesteps, callback=callback, reset_num_timesteps=False)
         
-        # Save model
+        # Save final model
         model_filename = f"model_{job.id}.zip"
         model_dir = os.path.join("uploads", "models", f"job_{job.id}")
         os.makedirs(model_dir, exist_ok=True)

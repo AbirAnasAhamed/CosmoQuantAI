@@ -477,6 +477,29 @@ async def startup_event():
 
     print("✅ Backend System Logging attached to Redis.")
 
+    # 1.5 Clean up orphaned Celery jobs (Server Restarted)
+    try:
+        from app.db.session import SessionLocal
+        from app.models import ModelTrainingJob, TrainingStatus
+        import datetime
+        
+        db = SessionLocal()
+        orphaned_jobs = db.query(ModelTrainingJob).filter(
+            ModelTrainingJob.status.in_([TrainingStatus.RUNNING, TrainingStatus.PENDING])
+        ).all()
+        for job in orphaned_jobs:
+            job.status = TrainingStatus.FAILED
+            job.error_message = "Server restarted unexpectedly. Job orphaned."
+            logs = list(job.logs) if job.logs else []
+            logs.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] 🛑 Server restarted unexpectedly. Job orphaned.")
+            job.logs = logs
+            
+        db.commit()
+        db.close()
+        print(f"✅ Marked {len(orphaned_jobs)} orphaned training jobs as FAILED.")
+    except Exception as e:
+        print(f"⚠️ Failed to clean up orphaned jobs: {e}")
+
     # 2. Start & Track Background Tasks
     # Bot Manager Startup
     bot_manager.start_service()

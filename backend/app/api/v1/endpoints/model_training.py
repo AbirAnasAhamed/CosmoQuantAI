@@ -123,6 +123,73 @@ def cancel_training_job(
     db.refresh(job)
     return job
 
+@router.post("/jobs/{job_id}/pause", response_model=schemas.TrainingJobResponse)
+def pause_training_job(
+    job_id: str,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Pause an ongoing training job gracefully.
+    """
+    job = db.query(models.ModelTrainingJob).filter(
+        models.ModelTrainingJob.id == job_id,
+        models.ModelTrainingJob.user_id == current_user.id
+    ).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Training job not found")
+        
+    if job.status not in [models.TrainingStatus.RUNNING, models.TrainingStatus.PENDING]:
+        raise HTTPException(status_code=400, detail="Only running or pending jobs can be paused")
+
+    job.status = models.TrainingStatus.PAUSED
+    
+    logs = list(job.logs) if job.logs else []
+    import datetime
+    logs.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] ⏸️ Pause requested. Waiting for engine to save checkpoint and exit gracefully...")
+    job.logs = logs
+
+    db.commit()
+    db.refresh(job)
+    return job
+
+@router.post("/jobs/{job_id}/resume", response_model=schemas.TrainingJobResponse)
+def resume_training_job(
+    job_id: str,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Resume a paused or failed training job.
+    """
+    job = db.query(models.ModelTrainingJob).filter(
+        models.ModelTrainingJob.id == job_id,
+        models.ModelTrainingJob.user_id == current_user.id
+    ).first()
+    if not job:
+        raise HTTPException(status_code=404, detail="Training job not found")
+        
+    if job.status in [models.TrainingStatus.RUNNING, models.TrainingStatus.COMPLETED]:
+        raise HTTPException(status_code=400, detail="Job is already running or completed")
+
+    job.status = models.TrainingStatus.PENDING
+    job.error_message = None
+    
+    logs = list(job.logs) if job.logs else []
+    import datetime
+    logs.append(f"[{datetime.datetime.now().strftime('%H:%M:%S')}] ▶️ Resume requested. Queuing job...")
+    job.logs = logs
+
+    db.commit()
+    db.refresh(job)
+    
+    # trigger celery background task again
+    from app.tasks import celery_train_model_task
+    celery_train_model_task.apply_async(args=[job_id], task_id=job_id)
+    
+    return job
+
 @router.post("/suggest-features")
 def suggest_l2_features(
     request: SuggestFeaturesRequest,

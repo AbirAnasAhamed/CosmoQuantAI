@@ -261,6 +261,16 @@ export const RLTrainingVisualizer: React.FC<RLTrainingVisualizerProps> = ({
                 const message = JSON.parse(event.data);
                 if (message.type === 'RL_TRAINING_STEP' && message.task_id === jobId) {
                     const data: RLStepData = message.payload;
+                    
+                    // Fix continuous action mapping (e.g., SAC, DDPG, TD3)
+                    const isContinuous = ['SAC-RL', 'DDPG-RL', 'TD3-RL', 'CQL'].includes(algorithm);
+                    if (isContinuous) {
+                        let actionVal = data.action;
+                        if (actionVal < -0.33) data.action = 2; // SELL
+                        else if (actionVal > 0.33) data.action = 1; // BUY
+                        else data.action = 0; // HOLD
+                    }
+
                     setProgress(message.progress || 0);
                     setLatestStep(data);
                     
