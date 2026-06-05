@@ -13,6 +13,12 @@ interface RLStepData {
     action: number;
     reward: number;
     price: number;
+    stats?: {
+        buy_count: number;
+        sell_count: number;
+        profitable_count: number;
+        loss_count: number;
+    };
 }
 
 interface RLTrainingVisualizerProps {
@@ -188,6 +194,7 @@ export const RLTrainingVisualizer: React.FC<RLTrainingVisualizerProps> = ({
     const [rewardData, setRewardData] = useState<{ step: number, value: number }[]>([]);
     const [tradeLog, setTradeLog] = useState<any[]>([]);
     const [features, setFeatures] = useState<string[]>([]);
+    const [tradeStats, setTradeStats] = useState({ buy: 0, sell: 0, win: 0, loss: 0 });
     
     const wsRef = useRef<WebSocket | null>(null);
     const chartContainerRef = useRef<HTMLDivElement>(null);
@@ -242,6 +249,7 @@ export const RLTrainingVisualizer: React.FC<RLTrainingVisualizerProps> = ({
         setRewardData([]);
         setTradeLog([]);
         setFeatures([]);
+        setTradeStats({ buy: 0, sell: 0, win: 0, loss: 0 });
         setStatus('connecting');
 
         const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
@@ -276,6 +284,15 @@ export const RLTrainingVisualizer: React.FC<RLTrainingVisualizerProps> = ({
                     
                     if (message.features && message.features.length > 0 && features.length === 0) {
                         setFeatures(message.features);
+                    }
+                    
+                    if (data.stats) {
+                        setTradeStats({
+                            buy: data.stats.buy_count || 0,
+                            sell: data.stats.sell_count || 0,
+                            win: data.stats.profitable_count || 0,
+                            loss: data.stats.loss_count || 0
+                        });
                     }
                     
                     // Update Charts
@@ -408,6 +425,25 @@ export const RLTrainingVisualizer: React.FC<RLTrainingVisualizerProps> = ({
                                         <div className={`text-lg font-mono font-bold ${latestStep && latestStep.reward >= 0 ? 'text-green-400' : 'text-red-400'}`}>
                                             {latestStep?.reward.toFixed(4) || '0.0000'}
                                         </div>
+                                    </div>
+                                </div>
+                                {/* Live Trade Statistics */}
+                                <div className="grid grid-cols-4 gap-2 mt-4">
+                                    <div className="bg-slate-900/50 rounded-xl p-2 border border-white/5 text-center flex flex-col justify-center">
+                                        <div className="text-slate-500 text-[9px] uppercase font-bold">Buys</div>
+                                        <div className="text-green-400 font-mono text-sm">{tradeStats.buy}</div>
+                                    </div>
+                                    <div className="bg-slate-900/50 rounded-xl p-2 border border-white/5 text-center flex flex-col justify-center">
+                                        <div className="text-slate-500 text-[9px] uppercase font-bold">Sells</div>
+                                        <div className="text-red-400 font-mono text-sm">{tradeStats.sell}</div>
+                                    </div>
+                                    <div className="bg-slate-900/50 rounded-xl p-2 border border-white/5 text-center flex flex-col justify-center">
+                                        <div className="text-slate-500 text-[9px] uppercase font-bold">Profitable</div>
+                                        <div className="text-emerald-400 font-mono text-sm">{tradeStats.win}</div>
+                                    </div>
+                                    <div className="bg-slate-900/50 rounded-xl p-2 border border-white/5 text-center flex flex-col justify-center">
+                                        <div className="text-slate-500 text-[9px] uppercase font-bold">Losses</div>
+                                        <div className="text-rose-500 font-mono text-sm">{tradeStats.loss}</div>
                                     </div>
                                 </div>
                             </div>

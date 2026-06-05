@@ -3668,8 +3668,12 @@ class WallHunterBot:
             current_price = (best_bid + best_ask) / 2 if best_bid and best_ask else best_bid or best_ask
         except Exception as e:
             self.logger.warning(f"Could not fetch precise market price for emergency sell: {e}")
-            current_price = self.active_pos['entry'] # Fallback
+            current_price = self.active_pos['entry'] if self.active_pos else 0 # Fallback
             
+        if not self.active_pos:
+            self.logger.info(f"Position closed during emergency sell fetch for bot {self.bot_id}")
+            return
+
         if current_price <= 0:
             raise Exception("Invalid market price fetched.")
             

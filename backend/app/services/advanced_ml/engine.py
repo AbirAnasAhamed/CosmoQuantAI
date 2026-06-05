@@ -672,6 +672,13 @@ class AdvancedMLEngine:
                     unwrapped_env = getattr(env_instance, 'unwrapped', env_instance)
                     # Extract latest step info
                     if hasattr(unwrapped_env, 'net_worth'):
+                        trade_history = getattr(unwrapped_env, 'trade_history', [])
+                        buy_count = sum(1 for t in trade_history if t.get('type') == 'open_long')
+                        sell_count = sum(1 for t in trade_history if t.get('type') == 'open_short')
+                        closed_trades = [t for t in trade_history if t.get('type') == 'close']
+                        profitable_count = sum(1 for t in closed_trades if t.get('pnl', 0) > 0)
+                        loss_count = sum(1 for t in closed_trades if t.get('pnl', 0) <= 0)
+
                         payload = {
                             "step": int(unwrapped_env.current_step),
                             "net_worth": float(unwrapped_env.net_worth),
@@ -680,6 +687,12 @@ class AdvancedMLEngine:
                             "action": int(self.locals.get("actions", [0])[0].item() if "actions" in self.locals else 0),
                             "reward": float(self.locals.get("rewards", [0.0])[0].item() if "rewards" in self.locals else 0.0),
                             "price": float(unwrapped_env.df.loc[unwrapped_env.current_step, 'Close']) if unwrapped_env.current_step < len(unwrapped_env.df) else 0.0,
+                            "stats": {
+                                "buy_count": buy_count,
+                                "sell_count": sell_count,
+                                "profitable_count": profitable_count,
+                                "loss_count": loss_count
+                            }
                         }
                         
                         message = {
@@ -728,19 +741,23 @@ class AdvancedMLEngine:
         
         # ✅ Save Replay File and Log Equity Curve
         add_log("Running final evaluation pass to generate accurate metrics...")
+        equity_data = []
+        trade_data = []
         try:
-            obs = env.reset()
+            eval_env = env.envs[0]
+            obs, _info = eval_env.reset()
             done = False
             while not done:
                 action, _states = model.predict(obs, deterministic=True)
-                obs, rewards, dones, info = env.step(action)
-                done = dones[0]
+                obs, reward, terminated, truncated, info = eval_env.step(action)
+                done = terminated or truncated
+                
+            equity_data = eval_env.equity_history
+            trade_data = eval_env.trade_history
         except Exception as e:
             add_log(f"⚠️ Evaluation pass error: {e}")
 
-        if hasattr(env.envs[0], 'equity_history'):
-            equity_data = env.envs[0].equity_history
-            trade_data = env.envs[0].trade_history
+        if equity_data:
             
             replay_payload = {
                 "initial_balance": initial_balance,
@@ -774,8 +791,8 @@ class AdvancedMLEngine:
             "trades_count": 0,
             "net_profit": 0.0
         }
-        if hasattr(env.envs[0], 'equity_history') and len(env.envs[0].equity_history) > 1:
-            equity = np.array(env.envs[0].equity_history)
+        if equity_data and len(equity_data) > 1:
+            equity = np.array(equity_data)
             returns = np.diff(equity) / equity[:-1]
             
             # 1. Total Return
@@ -785,12 +802,12 @@ class AdvancedMLEngine:
             sharpe = (np.mean(returns) / (np.std(returns) + 1e-9)) * np.sqrt(252 * 24 * 60) # Scaled for minute data
             
             # 3. Win Rate from trade_history
-            trades = env.envs[0].trade_history
+            trades = trade_data
             pnl_trades = [t['pnl'] for t in trades if 'pnl' in t]
             
             # Add unrealized PnL of current open position
-            if getattr(env.envs[0], 'position', 0) != 0:
-                unrealized_pnl = env.envs[0].net_worth - getattr(env.envs[0], 'entry_net_worth', initial_balance)
+            if getattr(eval_env, 'position', 0) != 0:
+                unrealized_pnl = eval_env.net_worth - getattr(eval_env, 'entry_net_worth', initial_balance)
                 pnl_trades.append(unrealized_pnl)
                 
             win_rate = (len([p for p in pnl_trades if p > 0]) / len(pnl_trades)) * 100 if pnl_trades else 0

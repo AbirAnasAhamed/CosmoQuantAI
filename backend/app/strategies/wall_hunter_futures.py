@@ -2958,7 +2958,11 @@ class WallHunterFuturesStrategy:
         except Exception as e:
             logger.warning(f"Could not fetch precise price for emergency sell: {e}")
             self.logger.warning(f"Could not fetch precise price for emergency sell: {e}")
-            current_price = self.active_pos['entry']
+            current_price = self.active_pos['entry'] if self.active_pos else 0
+
+        if not self.active_pos:
+            self.logger.info(f"Position closed during emergency sell fetch for bot {self.bot_id}")
+            return
 
         # Cancel any open limit orders first
         if self.sell_order_type == 'limit' and self.active_pos.get('limit_order_id'):

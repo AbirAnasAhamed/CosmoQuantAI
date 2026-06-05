@@ -637,3 +637,6 @@ class BotManager:
                 return {"status": "error", "message": f"Failed to execute emergency sell: {str(e)}"}
         else:
             return {"status": "error", "message": f"Bot strategy does not support emergency sell"}
+
+# Global instance for easier import across the application
+bot_manager = BotManager()
