@@ -122,7 +122,8 @@ async def _async_hybrid_deep_scraper(
     target_rows: int,
     db: Session,
     job,
-    add_log_func
+    add_log_func,
+    check_cancelled=None
 ) -> tuple:
     """
     Runs two Binance WebSocket streams in parallel until target_rows trade
@@ -134,7 +135,7 @@ async def _async_hybrid_deep_scraper(
     Returns: (df_trades, df_l2)
     """
     from app import models as _models
-    from app.services.ml_training_engine import TrainingCancelledException
+    from app.services.ml_training_engine import TrainingCancelledException, TrainingPausedException
 
     clean = symbol.upper().split(":")[0].replace("/", "").lower()
     l2_url    = f"wss://stream.binance.com:9443/ws/{clean}@depth20@100ms"
@@ -215,15 +216,22 @@ async def _async_hybrid_deep_scraper(
                         try:
                             raw  = await asyncio.wait_for(ws.recv(), timeout=15)
                         except asyncio.TimeoutError:
-                            db.refresh(job)
-                            if (job.status == _models.TrainingStatus.FAILED and
-                                    job.error_message and
-                                    "cancelled" in job.error_message.lower()):
-                                add_log_func("🛑 HybridDeep stopped by cancellation.")
-                                stop_event.set()
-                                raise TrainingCancelledException(
-                                    "Cancelled during hybrid deep scraping."
-                                )
+                            if check_cancelled:
+                                check_cancelled()
+                            else:
+                                db.refresh(job)
+                                if job.status == _models.TrainingStatus.PAUSED:
+                                    add_log_func("⏸️ HybridDeep paused by user.")
+                                    stop_event.set()
+                                    raise TrainingPausedException("Paused during hybrid deep scraping.")
+                                if (job.status == _models.TrainingStatus.FAILED and
+                                        job.error_message and
+                                        "cancelled" in job.error_message.lower()):
+                                    add_log_func("🛑 HybridDeep stopped by cancellation.")
+                                    stop_event.set()
+                                    raise TrainingCancelledException(
+                                        "Cancelled during hybrid deep scraping."
+                                    )
                             continue
                             
                         data = json.loads(raw)
@@ -234,6 +242,25 @@ async def _async_hybrid_deep_scraper(
                         price = float(data['p'])
                         qty   = float(data['q'])
                         is_bm = bool(data['m'])
+
+                        # Cancellation/Pause check every 50 trades
+                        if trade_count % 50 == 0:
+                            if check_cancelled:
+                                check_cancelled()
+                            else:
+                                db.refresh(job)
+                                if job.status == _models.TrainingStatus.PAUSED:
+                                    add_log_func("⏸️ HybridDeep paused by user.")
+                                    stop_event.set()
+                                    raise TrainingPausedException("Paused during hybrid deep scraping.")
+                                if (job.status == _models.TrainingStatus.FAILED and
+                                        job.error_message and
+                                        "cancelled" in job.error_message.lower()):
+                                    add_log_func("🛑 HybridDeep stopped by cancellation.")
+                                    stop_event.set()
+                                    raise TrainingCancelledException(
+                                        "Cancelled during hybrid deep scraping."
+                                    )
 
                         trade_buffer.append({
                             'timestamp':       ts,
@@ -260,18 +287,6 @@ async def _async_hybrid_deep_scraper(
                             except Exception:
                                 pass
 
-                        # Cancellation check every 50 trades
-                        if trade_count % 50 == 0:
-                            db.refresh(job)
-                            if (job.status == _models.TrainingStatus.FAILED and
-                                    job.error_message and
-                                    "cancelled" in job.error_message.lower()):
-                                add_log_func("🛑 HybridDeep stopped by cancellation.")
-                                stop_event.set()
-                                raise TrainingCancelledException(
-                                    "Cancelled during hybrid deep scraping."
-                                )
-
                         # Progress log
                         if trade_count % log_interval == 0:
                             pct = min(100.0, (trade_count / target_rows) * 100.0)
@@ -287,7 +302,12 @@ async def _async_hybrid_deep_scraper(
 
             except TrainingCancelledException:
                 raise
-            except asyncio.CancelledError:
+            except Exception as ex:
+                if type(ex).__name__ == 'TrainingPausedException':
+                    raise
+                if not stop_event.is_set():
+                    retry += 1
+                    await asyncio.sleep(2)
                 stop_event.set()
                 break
             except Exception:
@@ -307,7 +327,7 @@ async def _async_hybrid_deep_scraper(
         await asyncio.gather(_l2_stream(), _trade_stream())
     except Exception as e:
         from app.services.ml_training_engine import TrainingCancelledException as _TCE
-        if isinstance(e, _TCE):
+        if isinstance(e, _TCE) or type(e).__name__ == 'TrainingPausedException':
             raise
         add_log_func(f"[HybridDeep] Stream gather error: {e}")
 
@@ -331,16 +351,18 @@ async def _async_hybrid_deep_scraper(
     return df_trades, df_l2
 
 
-def _run_hybrid_deep_scraper(symbol, target_rows, db, job, add_log_func):
+def _run_hybrid_deep_scraper(symbol, target_rows, db, job, add_log_func, check_cancelled=None):
     """Synchronous wrapper — runs the async dual-WS scraper inside Celery."""
     from app.services.ml_training_engine import TrainingCancelledException
     try:
         return asyncio.run(
-            _async_hybrid_deep_scraper(symbol, target_rows, db, job, add_log_func)
+            _async_hybrid_deep_scraper(symbol, target_rows, db, job, add_log_func, check_cancelled)
         )
     except TrainingCancelledException:
         raise
     except Exception as e:
+        if type(e).__name__ == 'TrainingPausedException':
+            raise
         add_log_func(f"[HybridDeep] Scraper crashed: {e}")
         return pd.DataFrame(), pd.DataFrame()
 
@@ -377,7 +399,7 @@ _EXCLUDE_COLS = {
 }
 
 
-def build_hybrid_deep_dataset(job, db: Session, config: dict, add_log) -> tuple:
+def build_hybrid_deep_dataset(job, db: Session, config: dict, add_log, check_cancelled=None) -> tuple:
     """
     Main entry point for the Hybrid Deep (L2 + Live Trade) training pipeline.
 
@@ -423,7 +445,7 @@ def build_hybrid_deep_dataset(job, db: Session, config: dict, add_log) -> tuple:
 
     # ── Step 1: Dual WebSocket Collection ─────────────────────────────────────
     df_trades, df_l2 = _run_hybrid_deep_scraper(
-        symbol, target_rows, db, job, add_log
+        symbol, target_rows, db, job, add_log, check_cancelled
     )
 
     if df_trades.empty:

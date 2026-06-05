@@ -144,6 +144,12 @@ class ExtendedRLEngine:
                     optimizer.step()
                     epoch_loss += loss.item()
                 
+                db.refresh(job)
+                if job.status == models.TrainingStatus.PAUSED:
+                    raise Exception("Training paused by user.")
+                if job.status == models.TrainingStatus.FAILED and job.error_message and "cancelled" in job.error_message.lower():
+                    raise Exception("Training cancelled by user.")
+                    
                 job.progress = int(100 * (epoch + 1) / epochs)
                 db.commit()
                 add_log(f"Epoch [{epoch+1}/{epochs}], Loss: {(epoch_loss/len(train_loader)):.6f}")
@@ -215,6 +221,12 @@ class ExtendedRLEngine:
                     loss.backward()
                     optimizer.step()
                     epoch_loss += loss.item()
+                    
+                db.refresh(job)
+                if job.status == models.TrainingStatus.PAUSED:
+                    raise Exception("Training paused by user.")
+                if job.status == models.TrainingStatus.FAILED and job.error_message and "cancelled" in job.error_message.lower():
+                    raise Exception("Training cancelled by user.")
                     
                 job.progress = int(100 * (epoch + 1) / epochs)
                 db.commit()
@@ -352,6 +364,12 @@ class ExtendedRLEngine:
                     # Simulated training for safety without real expert demos
                     for epoch in range(epochs):
                         time.sleep(0.5)
+                        db.refresh(job)
+                        if job.status == models.TrainingStatus.PAUSED:
+                            raise Exception("Training paused by user.")
+                        if job.status == models.TrainingStatus.FAILED and job.error_message and "cancelled" in job.error_message.lower():
+                            raise Exception("Training cancelled by user.")
+                            
                         job.progress = int(100 * (epoch + 1) / epochs)
                         db.commit()
                         add_log(f"GAIL Epoch [{epoch+1}/{epochs}] - Discriminator vs Generator learning...")
@@ -461,11 +479,12 @@ class ExtendedRLEngine:
                 self.last_stream_time = time.time()
 
             def _on_step(self) -> bool:
-                # 1. Cancel Check and Progress Update
-                if self.num_timesteps % self.check_interval == 0:
-                    current_progress = (self.num_timesteps / total_timesteps) * 100
-                    job.progress = current_progress
-                    db.commit()
+                now = time.time()
+                # 1. Cancel Check (Time-based, every 5 seconds)
+                if not hasattr(self, "last_db_check_time"):
+                    self.last_db_check_time = now
+                    
+                if now - self.last_db_check_time >= 5.0:
                     db.refresh(job)
                     if job.status == models.TrainingStatus.PAUSED:
                         self.model.save(self.checkpoint_path)
@@ -474,6 +493,13 @@ class ExtendedRLEngine:
                         raise Exception("Training paused by user.")
                     if job.status == models.TrainingStatus.FAILED and job.error_message and "cancelled" in job.error_message.lower():
                         raise Exception("Training cancelled by user.")
+                    self.last_db_check_time = now
+                
+                # Progress Update
+                if self.num_timesteps % self.check_interval == 0:
+                    current_progress = (self.num_timesteps / total_timesteps) * 100
+                    job.progress = current_progress
+                    db.commit()
                 
                 # 2. Stream Data to Frontend
                 now = time.time()

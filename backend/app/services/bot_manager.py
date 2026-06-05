@@ -28,7 +28,7 @@ class BotManager:
     def start_service(self):
         """Called on app startup"""
         self.is_running = True
-        logger.info("✅ BotManager Service Started")
+        logger.debug("✅ BotManager Service Started")
 
     async def stop_service(self):
         """Called on app shutdown"""

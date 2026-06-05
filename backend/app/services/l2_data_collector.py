@@ -57,7 +57,11 @@ class L2DataCollector:
         Query DB for ALL models in ML Registry and extract their symbols.
         Returns (spot_symbols, futures_symbols) as lowercase Binance stream names.
         """
-        from app.models.ml_model import CustomMLModel
+        from app.models.ml_model import CustomMLModel, ModelVersion
+        from app.models.model_training import ModelTrainingJob
+        import os
+        import json
+        
         db = SessionLocal()
         spot, futures = [], []
         try:
@@ -65,20 +69,44 @@ class L2DataCollector:
             models = db.query(CustomMLModel).all()
 
             for m in models:
-                raw = m.name.split(" ")[0] if " " in m.name else m.name
-                stream_sym, is_fut = self.parse_symbol(raw)
+                raw = None
+                
+                # 1. Try from Training Job
+                job = db.query(ModelTrainingJob).filter(
+                    ModelTrainingJob.output_model_id == m.id
+                ).order_by(ModelTrainingJob.created_at.desc()).first()
+                
+                if job and job.symbol:
+                    raw = job.symbol
+                
+                # 2. Try from metadata.json
+                if not raw and m.active_version_id:
+                    v = db.query(ModelVersion).filter(ModelVersion.id == m.active_version_id).first()
+                    if v and v.metadata_path and os.path.exists(v.metadata_path):
+                        try:
+                            with open(v.metadata_path, "r") as f:
+                                meta = json.load(f)
+                            raw = meta.get("symbol") or meta.get("target_asset") or meta.get("pair")
+                        except Exception:
+                            pass
+                
+                # 3. Fallback to name parsing
+                if not raw:
+                    raw = m.name.split(" ")[0] if " " in m.name else m.name
+
+                stream_sym, is_fut = self.parse_symbol(str(raw))
                 if not stream_sym:
                     continue
                 target = futures if is_fut else spot
                 if stream_sym not in target:
                     target.append(stream_sym)
-                    logger.info(
+                    logger.debug(
                         f"[L2Collector] {'Futures' if is_fut else 'Spot'} symbol "
-                        f"from model '{m.name}': {stream_sym}"
+                        f"from model '{m.name}': {stream_sym} (raw: {raw})"
                     )
 
             if not spot and not futures:
-                logger.info("[L2Collector] No models in ML Registry. Collector will stay idle.")
+                logger.debug("[L2Collector] No models in ML Registry. Collector will stay idle.")
 
             return spot, futures
         except Exception as e:
@@ -143,10 +171,9 @@ class L2DataCollector:
 
         while self.running:
             try:
-                logger.info(f"[L2Collector] [{label}] Connecting → {symbols}")
+                logger.debug(f"[L2Collector] [{label}] Connecting → {symbols}")
                 async with websockets.connect(url, ping_interval=20, ping_timeout=30) as ws:
-                    logger.info(f"[L2Collector] [{label}] ✅ Connected.")
-                    print(f"✅ L2DataCollector [{label}] connected successfully.")
+                    logger.debug(f"[L2Collector] [{label}] ✅ Connected.")
 
                     while self.running:
                         raw = await ws.recv()
@@ -196,7 +223,7 @@ class L2DataCollector:
         self.futures_symbols = futures_symbols if futures_symbols is not None else []
 
         if not self.spot_symbols and not self.futures_symbols:
-            logger.info("[L2Collector] No symbols provided. Collector will stay idle.")
+            logger.debug("[L2Collector] No symbols provided. Collector will stay idle.")
             self.running = False
             return
 
@@ -212,7 +239,7 @@ class L2DataCollector:
             )
             self._tasks.append(t)
 
-        logger.info(
+        logger.debug(
             f"[L2Collector] Started — Spot: {self.spot_symbols} | "
             f"Futures: {self.futures_symbols}"
         )

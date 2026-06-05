@@ -438,6 +438,12 @@ async def _async_live_trade_scraper(symbol: str, target_rows: int, db: Session, 
     df = pd.DataFrame(data)
     return df
 
+class TrainingCancelledException(Exception):
+    pass
+
+class TrainingPausedException(Exception):
+    pass
+
 def train_model_task(job_id: str, db: Session):
     job = db.query(models.ModelTrainingJob).filter(models.ModelTrainingJob.id == job_id).first()
     if not job:
@@ -450,10 +456,33 @@ def train_model_task(job_id: str, db: Session):
         job.logs = logs
         db.commit()
 
+    import uuid
+    import redis
+    from app.core.config import settings
+    
+    worker_id = str(uuid.uuid4())
+    try:
+        redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+        redis_client.set(f"job_worker_{job_id}", worker_id)
+    except Exception as e:
+        print(f"Redis not available for worker lock: {e}")
+        redis_client = None
+
     def check_cancelled():
+        if redis_client:
+            try:
+                current_worker = redis_client.get(f"job_worker_{job_id}")
+                if current_worker and current_worker != worker_id:
+                    print(f"Another worker ({current_worker}) took over job {job_id}. Terminating this worker.")
+                    raise TrainingCancelledException("Another worker took over this job. Exiting.")
+            except redis.RedisError:
+                pass
+
         db.refresh(job)
         if job.status == models.TrainingStatus.FAILED and job.error_message and "cancelled" in job.error_message.lower():
-            raise Exception("Training cancelled by user.")
+            raise TrainingCancelledException("Training cancelled by user.")
+        if job.status == models.TrainingStatus.PAUSED:
+            raise TrainingPausedException("Training paused by user.")
 
     import threading
     
@@ -568,15 +597,16 @@ def train_model_task(job_id: str, db: Session):
             # Reconstruct features list
             features = config.get("features", [])
             if not features:
-                # Fallback: all columns except target/timestamp
-                features = [col for col in df.columns if col not in ['Target', 'timestamp', 'datetime', 'Close', 'Open', 'High', 'Low', 'Volume']]
+                # Fallback: all numeric columns except target/timestamp/price/etc.
+                excluded = ['Target', 'timestamp', 'datetime', 'Close', 'Open', 'High', 'Low', 'Volume', 'price', 'qty', 'amount', 'is_buyer_maker', 'side', 'symbol']
+                features = [col for col in df.columns if col not in excluded and pd.api.types.is_numeric_dtype(df[col])]
             df_scaled = df.copy() # Simplification for now, RL engines handle their own scaling or we bypass it
             job.progress = 100.0
 
         elif dataset_type == "hybrid_deep":
             # ── NEW: Dual WebSocket L2 + aggTrade pipeline ──────────────────
             from app.services.hybrid_deep_pipeline import build_hybrid_deep_dataset
-            df, features = build_hybrid_deep_dataset(job, db, config, add_log)
+            df, features = build_hybrid_deep_dataset(job, db, config, add_log, check_cancelled=check_cancelled)
             job.progress = 100.0
 
         elif dataset_type == "hybrid":
@@ -2480,6 +2510,13 @@ def train_model_task(job_id: str, db: Session):
             except Exception as notif_ex:
                 print(f"Telegram cancel notification failed: {notif_ex}")
             job.status = models.TrainingStatus.FAILED
+            db.commit()
+            return
+
+        if "paused" in str(e).lower() and "user" in str(e).lower():
+            print(f"[train_model_task] Job {job_id} was paused by user. Stopping cleanly.")
+            add_log("⏸️ Training process has been paused by user.")
+            job.status = models.TrainingStatus.PAUSED
             db.commit()
             return
 

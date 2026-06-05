@@ -100,7 +100,7 @@ class EndpointFilter(logging.Filter):
 # --- Background Tasks ---
 
 async def subscribe_to_redis_logs():
-    print("📡 Listening to Redis Log Stream...")
+    # print("📡 Listening to Redis Log Stream...")
     redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
     pubsub = redis.pubsub()
     await pubsub.subscribe("bot_logs")
@@ -131,7 +131,7 @@ async def subscribe_to_redis_logs():
         await redis.close()
 
 async def subscribe_to_task_updates():
-    print("📡 Listening to Redis Task Updates...")
+    # print("📡 Listening to Redis Task Updates...")
     redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
     pubsub = redis.pubsub()
     await pubsub.subscribe("task_updates")
@@ -158,7 +158,7 @@ async def subscribe_to_task_updates():
         await redis.close()
 
 async def subscribe_to_block_trades():
-    print("📡 Listening to Block Trade Stream...")
+    # print("📡 Listening to Block Trade Stream...")
     redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
     pubsub = redis.pubsub()
     await pubsub.subscribe("block_trade_stream")
@@ -183,7 +183,7 @@ async def subscribe_to_system_alerts():
     """Listens to 'system_alerts' Redis channel published by log_monitor_service.
     Broadcasts each alert to all frontend clients connected to /ws/system-alerts.
     """
-    print("🚨 Listening to System Alert Stream...")
+    # print("🚨 Listening to System Alert Stream...")
     redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
     pubsub = redis.pubsub()
     await pubsub.subscribe("system_alerts")
@@ -206,7 +206,7 @@ async def subscribe_to_container_logs():
     """Listens to 'container_logs' Redis channel published by log_monitor_service.
     Broadcasts each log batch to all frontend clients connected to /ws/container-logs.
     """
-    print("📜 Listening to Container Log Stream...")
+    # print("📜 Listening to Container Log Stream...")
     redis = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
     pubsub = redis.pubsub()
     await pubsub.subscribe("container_logs")
@@ -226,7 +226,7 @@ async def subscribe_to_container_logs():
 
 async def fetch_market_data_background():
     local_exchange_client = None
-    print("🚀 Background Market Data Task Started")
+    # print("🚀 Background Market Data Task Started")
     
     try:
         local_exchange_client = ccxtpro.binance({
@@ -496,7 +496,7 @@ async def startup_event():
             
         db.commit()
         db.close()
-        print(f"✅ Marked {len(orphaned_jobs)} orphaned training jobs as FAILED.")
+        # print(f"✅ Marked {len(orphaned_jobs)} orphaned training jobs as FAILED.")
     except Exception as e:
         print(f"⚠️ Failed to clean up orphaned jobs: {e}")
 
@@ -561,7 +561,7 @@ async def startup_event():
     try:
         _spot_syms, _futures_syms = l2_collector.load_symbols_from_db()
         l2_collector.start(_spot_syms, _futures_syms)
-        print(f"✅ L2 Collector started | Spot: {_spot_syms} | Futures: {_futures_syms}")
+        # print(f"✅ L2 Collector started | Spot: {_spot_syms} | Futures: {_futures_syms}")
     except Exception as _l2_err:
         logger.error(f"⚠️ L2 Collector startup failed: {_l2_err}. Falling back to BTC-only.")
         l2_collector.start(["btcusdt"], [])
@@ -584,7 +584,7 @@ async def startup_event():
                     l2_collector.stop()
                     await asyncio.sleep(2)   # let tasks cancel cleanly
                     l2_collector.start(new_spot, new_futures)
-                    print(f"✅ L2 Collector restarted | Spot: {new_spot} | Futures: {new_futures}")
+                    # print(f"✅ L2 Collector restarted | Spot: {new_spot} | Futures: {new_futures}")
                 else:
                     logger.info(f"[L2Watcher] Symbols unchanged: {new_spot + new_futures}")
             except Exception as _we:
@@ -596,7 +596,7 @@ async def startup_event():
     
     # Task D: Active Bot PnL Broadcast
     async def broadcast_active_bot_pnl():
-        print("💰 Starting Active Bot PnL Broadcast...")
+        # print("💰 Starting Active Bot PnL Broadcast...")
         while True:
             try:
                 if not hasattr(app.state, 'bot_manager'):
