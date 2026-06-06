@@ -27,3 +27,7 @@ class TrainingJobResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class StartL2CollectorRequest(BaseModel):
+    symbol: str
+    target_rows: int

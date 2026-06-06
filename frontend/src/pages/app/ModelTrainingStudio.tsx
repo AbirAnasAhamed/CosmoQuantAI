@@ -44,6 +44,7 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
     const [manualTargetRows, setManualTargetRows] = useState<string>('100000'); // Manual input mirror
     const [isManualInputMode, setIsManualInputMode] = useState(false);
     const [isDeepTraining, setIsDeepTraining] = useState(false);
+    const [isL2Scraping, setIsL2Scraping] = useState(false);
     
     // New Feature States
     const [predictionTarget, setPredictionTarget] = useState('classification');
@@ -54,6 +55,7 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
     const [tradingFees, setTradingFees] = useState(0.02); // ✅ New
     const [slippage, setSlippage] = useState(0.01); // ✅ New
     const [sequenceLength, setSequenceLength] = useState(30); // ✅ New
+    const [maxAllowedDrawdown, setMaxAllowedDrawdown] = useState(0); // ✅ Risk Layer
     
     // Execution Strategy States
     const [executionStrategy, setExecutionStrategy] = useState('standard');
@@ -103,6 +105,11 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
     const [tradeVolumeThreshold, setTradeVolumeThreshold] = useState('10.0');
     const [selectedTradeFeatures, setSelectedTradeFeatures] = useState<string[]>(['cvd', 'buy_volume', 'sell_volume', 'trade_count']);
     const [initialLoadedTradeFeatures, setInitialLoadedTradeFeatures] = useState<string[]>([]);
+
+    // L2 Snapshots States
+    const [l2SnapshotFiles, setL2SnapshotFiles] = useState<string[]>([]);
+    const [selectedL2File, setSelectedL2File] = useState('');
+    const [l2ProcessingMode, setL2ProcessingMode] = useState<'raw' | 'bars'>('raw');
 
     // Hybrid Deep (L2 + Live Trade) States
     const [selectedHybridDeepTradeFeatures, setSelectedHybridDeepTradeFeatures] = useState<string[]>([
@@ -169,6 +176,32 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
             }).catch(e => console.error("Failed to load trade files", e));
         }
     }, [dataSource, selectedTradeFile]);
+
+    useEffect(() => {
+        if (dataSource === 'l2_orderbook') {
+            apiClient.get('/model-training/l2-snapshots').then((res) => {
+                setL2SnapshotFiles(res.data);
+                if (res.data.length > 0 && !selectedL2File) {
+                    setSelectedL2File(res.data[0]);
+                }
+            }).catch(e => console.error("Failed to load L2 snapshots", e));
+        }
+    }, [dataSource, selectedL2File]);
+
+    const handleDeleteL2SnapshotFile = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        if (!selectedL2File) return;
+        if (!confirm(`Are you sure you want to delete ${selectedL2File}?`)) return;
+        
+        try {
+            await apiClient.delete(`/model-training/l2-snapshots/${selectedL2File}`);
+            setL2SnapshotFiles(prev => prev.filter(f => f !== selectedL2File));
+            setSelectedL2File('');
+            alert(`✅ Deleted L2 snapshot: ${selectedL2File}`);
+        } catch (error: any) {
+            alert(`❌ Failed to delete L2 snapshot: ${error?.response?.data?.detail || error.message}`);
+        }
+    };
 
     const MULTI_PARAM_MAP: Record<string, string> = {
         'RSI Multi': '[7, 14, 21]',
@@ -413,6 +446,19 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
         setSelectedIndicators(packList);
     };
 
+    const handleStartL2Collector = async () => {
+        try {
+            const targetRows = parseInt(manualTargetRows, 10) || targetRowOptions[targetRowsIndex];
+            await apiClient.post('/training/start-l2-collector', {
+                symbol: symbol,
+                target_rows: targetRows
+            });
+            alert(`✅ L2 Data Collector started for ${symbol} with target ${targetRows} rows! It is running in the background.`);
+        } catch (error: any) {
+            alert(`❌ Failed to start L2 Collector: ${error.response?.data?.detail || error.message}`);
+        }
+    };
+
     const handleStartTraining = async () => {
         try {
             setIsTraining(true);
@@ -449,6 +495,7 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                     initial_balance: initialBalance,
                     commission: tradingFees,
                     slippage: slippage,
+                    max_allowed_drawdown: maxAllowedDrawdown,
                     sequence_length: sequenceLength,
                     exchange: exchange,
                     is_deep_training: (dataSource === 'l2_orderbook' || dataSource === 'hybrid' || dataSource === 'historical_trades') ? isDeepTraining : false,
@@ -465,6 +512,9 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                     bar_size: dataSource === 'historical_trades' ? tradeBarSize : undefined,
                     volume_threshold: dataSource === 'historical_trades' ? tradeVolumeThreshold : undefined,
                     trade_features: dataSource === 'historical_trades' ? selectedTradeFeatures : undefined,
+                    // L2 Snapshot params (new)
+                    l2_snapshot_file: dataSource === 'l2_orderbook' && !isL2Scraping ? selectedL2File : undefined,
+                    l2_processing_mode: dataSource === 'l2_orderbook' && !isL2Scraping ? l2ProcessingMode : undefined,
                     // Hybrid Deep params (new)
                     hybrid_deep_trade_features: dataSource === 'hybrid_deep' ? selectedHybridDeepTradeFeatures : undefined,
                     plp_features: (dataSource === 'hybrid_deep' || dataSource === 'l2_orderbook' || dataSource === 'hybrid') ? selectedPlpFeatures : undefined,
@@ -981,10 +1031,10 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                             )}
 
                             {/* ✅ Advanced RL & Transformer Settings */}
-                            {(algorithm === 'PPO-RL' || algorithm === 'Transformer') && (
+                            {(algorithm === 'Transformer' || algorithm.includes('-RL') || ['QR-DQN', 'CQL', 'GAIL'].includes(algorithm)) && (
                                 <motion.div 
-                                    initial={{ opacity: 0, height: 0 }} 
-                                    animate={{ opacity: 1, height: 'auto' }}
+                                    initial={{ opacity: 0 }} 
+                                    animate={{ opacity: 1 }}
                                     className="mt-4 p-4 bg-cyan-500/5 border border-cyan-500/20 rounded-2xl space-y-4"
                                 >
                                     <h4 className="text-xs font-black text-cyan-400 uppercase tracking-widest flex items-center gap-2">
@@ -1003,8 +1053,8 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                         </div>
                                     )}
 
-                                    {algorithm === 'PPO-RL' && (
-                                        <div className="grid grid-cols-3 gap-3">
+                                    {(algorithm.includes('-RL') || ['QR-DQN', 'CQL', 'GAIL'].includes(algorithm)) && (
+                                        <div className="grid grid-cols-2 gap-3">
                                             <div>
                                                 <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Initial Balance ($)</label>
                                                 <input 
@@ -1032,6 +1082,17 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                                     value={slippage} 
                                                     onChange={e => setSlippage(parseFloat(e.target.value))}
                                                     className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none"
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase" title="0 = Disabled. Mask actions if drawdown exceeds this %">Max Drawdown (%)</label>
+                                                <input 
+                                                    type="number" 
+                                                    step="0.1"
+                                                    value={maxAllowedDrawdown} 
+                                                    onChange={e => setMaxAllowedDrawdown(parseFloat(e.target.value) || 0)}
+                                                    className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none"
+                                                    placeholder="0 = Disabled"
                                                 />
                                             </div>
                                         </div>
@@ -1086,6 +1147,7 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                     Hybrid (OHLCV + L2)
                                 </button>
                             </div>
+                            
                             <div className="grid grid-cols-2 gap-3 mb-5">
                                 <button
                                     onClick={() => setDataSource('historical_trades')}
@@ -1105,6 +1167,129 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                     🔥 Hybrid Deep (L2 + Live Trade)
                                 </button>
                             </div>
+
+                            {/* ── L2 ORDERBOOK ───────────────────────────────────────────── */}
+                            {dataSource === 'l2_orderbook' && (
+                                <div className="mb-5 space-y-4">
+                                    <div className="flex items-center justify-between p-4 bg-purple-500/10 rounded-xl border border-purple-500/20 shadow-inner">
+                                        <div>
+                                            <h4 className="text-sm font-bold text-purple-400">Live L2 Scraping Engine</h4>
+                                            <p className="text-xs text-slate-400 mt-0.5 font-medium">Scrape live L2 partial depth (Top 20) via WebSocket.</p>
+                                        </div>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input 
+                                                type="checkbox" 
+                                                className="sr-only peer" 
+                                                checked={isL2Scraping}
+                                                onChange={() => setIsL2Scraping(!isL2Scraping)}
+                                                disabled={isTraining}
+                                            />
+                                            <div className="w-11 h-6 bg-white/10 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all border-white/5 peer-checked:bg-gradient-to-r peer-checked:from-purple-500 peer-checked:to-pink-500"></div>
+                                        </label>
+                                    </div>
+
+                                    {isL2Scraping && (
+                                        <div className="p-4 bg-white/5 border border-purple-500/20 rounded-xl space-y-4 shadow-inner">
+                                            <div className="flex justify-between items-center">
+                                                <label className="block text-sm font-medium text-slate-300">Target Snapshot Rows</label>
+                                                <span className="text-sm font-bold text-purple-400 bg-purple-500/10 px-2.5 py-1 rounded-lg border border-purple-500/20 font-mono">
+                                                    {targetRowOptions[targetRowsIndex].toLocaleString()} Rows
+                                                </span>
+                                            </div>
+                                            <input 
+                                                type="range" 
+                                                min={0} 
+                                                max={targetRowOptions.length - 1} 
+                                                step={1}
+                                                value={targetRowsIndex} 
+                                                onChange={(e) => handleSliderChange(parseInt(e.target.value))}
+                                                className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-purple-500"
+                                                disabled={isTraining}
+                                            />
+                                            <div className="flex justify-between text-[10px] text-slate-500 font-medium -mt-1">
+                                                <span>1K</span><span>50K</span><span>500K</span><span>5M</span><span>50M</span><span>100M</span>
+                                            </div>
+
+                                            <div className="flex items-center gap-2 mt-2">
+                                                <div className="relative flex-1">
+                                                    <input
+                                                        type="number"
+                                                        min={1}
+                                                        max={100000000}
+                                                        step={1000}
+                                                        value={manualTargetRows}
+                                                        onChange={(e) => handleManualRowInput(e.target.value)}
+                                                        className="w-full bg-[#0A0A0A] border border-purple-500/30 rounded-lg p-2.5 text-purple-400 font-mono text-center pl-8"
+                                                        disabled={isTraining}
+                                                    />
+                                                    <Database className="w-4 h-4 text-purple-500/50 absolute left-3 top-1/2 -translate-y-1/2" />
+                                                </div>
+                                                <button 
+                                                    onClick={() => handleManualRowInput("200000")}
+                                                    className="px-3 py-2.5 bg-purple-500/10 border border-purple-500/20 rounded-lg text-xs font-bold text-purple-300 hover:bg-purple-500/20 transition-all"
+                                                    disabled={isTraining}
+                                                >
+                                                    200K
+                                                </button>
+                                            </div>
+                                            
+                                            <button 
+                                                onClick={handleStartL2Collector}
+                                                disabled={isTraining}
+                                                className="w-full mt-4 py-3 rounded-xl font-black text-sm text-white bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-500 hover:to-pink-500 shadow-[0_0_20px_rgba(168,85,247,0.4)] transition-all flex items-center justify-center gap-2"
+                                            >
+                                                <Play className="w-4 h-4" fill="currentColor" /> Start L2 Data Collector
+                                            </button>
+                                        </div>
+                                    )}
+
+                                    {!isL2Scraping && (
+                                        <div className="p-4 bg-purple-500/10 rounded-xl border border-purple-500/20 shadow-inner space-y-4">
+                                            <div>
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <label className="block text-sm font-medium text-slate-300">Select L2 Snapshot File</label>
+                                                    <button
+                                                        onClick={handleDeleteL2SnapshotFile}
+                                                        disabled={isTraining || !selectedL2File}
+                                                        className="text-xs text-red-400 hover:text-red-300 flex items-center gap-1.5 bg-red-500/10 border border-red-500/20 px-2 py-1 rounded transition-all hover:bg-red-500/20 disabled:opacity-50"
+                                                        title="Delete selected L2 snapshot"
+                                                    >
+                                                        <Trash2 className="w-3 h-3" />
+                                                        Delete
+                                                    </button>
+                                                </div>
+                                                <select 
+                                                    value={selectedL2File} 
+                                                    onChange={(e) => setSelectedL2File(e.target.value)}
+                                                    className="w-full bg-[#0A0A0A] border border-purple-500/30 rounded-lg p-2.5 text-slate-200"
+                                                    disabled={isTraining}
+                                                >
+                                                    {l2SnapshotFiles.length === 0 ? <option value="">No L2 snapshots available</option> : null}
+                                                    {l2SnapshotFiles.map(f => <option key={f} value={f}>{f}</option>)}
+                                                </select>
+                                            </div>
+                                            
+                                            <div>
+                                                <label className="block text-sm font-medium text-slate-300 mb-1">L2 Processing Mode</label>
+                                                <select 
+                                                    value={l2ProcessingMode} 
+                                                    onChange={(e) => setL2ProcessingMode(e.target.value as 'raw' | 'bars')}
+                                                    className="w-full bg-[#0A0A0A] border border-purple-500/30 rounded-lg p-2.5 text-slate-200"
+                                                    disabled={isTraining}
+                                                >
+                                                    <option value="raw">Raw Tick-by-Tick (Direct)</option>
+                                                    <option value="bars">Bar Aggregation (Recommended)</option>
+                                                </select>
+                                                <p className="text-[10px] text-purple-400/80 mt-1.5">
+                                                    {l2ProcessingMode === 'raw' 
+                                                        ? '⚠️ Uses raw snapshots. High memory usage for large files.' 
+                                                        : '⚡ Aggregates ticks into Time/Volume bars for stable RL training.'}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            )}
                             
                             {dataSource === 'historical_trades' && (
                                 <div className="mb-5 space-y-4">

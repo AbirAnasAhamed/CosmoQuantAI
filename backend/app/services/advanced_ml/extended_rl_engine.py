@@ -97,7 +97,12 @@ class ExtendedRLEngine:
             
             env_df = AdvancedDataHandler.prepare_rl_data(df, features)
             def make_env():
-                return AdvancedTradingEnv(env_df, initial_balance, commission, slippage, is_continuous=False)
+                base_env = AdvancedTradingEnv(env_df, features=features, initial_balance=initial_balance, commission=commission, slippage=slippage, is_continuous=False)
+                max_allowed_drawdown = float(config.get("max_allowed_drawdown", 0.0))
+                if max_allowed_drawdown > 0:
+                    from app.services.advanced_ml.risk_layer import MaxDrawdownActionMasker
+                    return MaxDrawdownActionMasker(base_env, max_allowed_drawdown=max_allowed_drawdown)
+                return base_env
             env = DummyVecEnv([make_env])
             
             model = QRDQN("MlpPolicy", env, verbose=0, learning_rate=min(lr, 0.001))
@@ -249,7 +254,12 @@ class ExtendedRLEngine:
             env_df = AdvancedDataHandler.prepare_rl_data(df, features)
             
             def make_env():
-                return AdvancedTradingEnv(env_df, initial_balance, commission, slippage, is_continuous=True)
+                base_env = AdvancedTradingEnv(env_df, features=features, initial_balance=initial_balance, commission=commission, slippage=slippage, is_continuous=True)
+                max_allowed_drawdown = float(config.get("max_allowed_drawdown", 0.0))
+                if max_allowed_drawdown > 0:
+                    from app.services.advanced_ml.risk_layer import MaxDrawdownActionMasker
+                    return MaxDrawdownActionMasker(base_env, max_allowed_drawdown=max_allowed_drawdown)
+                return base_env
                 
             env = DummyVecEnv([make_env])
             
@@ -413,7 +423,12 @@ class ExtendedRLEngine:
         is_continuous = job.algorithm in ["DDPG-RL", "TD3-RL"]
         
         def make_env():
-            return AdvancedTradingEnv(env_df, initial_balance, commission, slippage, is_continuous=is_continuous)
+            base_env = AdvancedTradingEnv(env_df, features=features, initial_balance=initial_balance, commission=commission, slippage=slippage, is_continuous=is_continuous)
+            max_allowed_drawdown = float(config.get("max_allowed_drawdown", 0.0))
+            if max_allowed_drawdown > 0:
+                from app.services.advanced_ml.risk_layer import MaxDrawdownActionMasker
+                return MaxDrawdownActionMasker(base_env, max_allowed_drawdown=max_allowed_drawdown)
+            return base_env
             
         env = DummyVecEnv([make_env])
         total_timesteps = epochs * len(df)

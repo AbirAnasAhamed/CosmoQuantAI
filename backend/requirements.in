@@ -100,3 +100,5 @@ imitation>=1.0.0
 ncps
 sb3-contrib>=2.2.1
 imbalanced-learn
+pyarrow
+fastparquet

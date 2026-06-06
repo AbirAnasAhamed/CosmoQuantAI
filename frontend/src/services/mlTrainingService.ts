@@ -43,6 +43,7 @@ export interface TrainingConfig {
         initial_balance?: number; // ✅ New
         commission?: number;      // ✅ New
         slippage?: number;        // ✅ New
+        max_allowed_drawdown?: number; // ✅ Risk Layer
         sequence_length?: number; // ✅ New
         target_model_id?: string;
         fine_tune?: boolean;
@@ -52,6 +53,9 @@ export interface TrainingConfig {
         bar_size?: string;
         volume_threshold?: string;
         trade_features?: string[];
+        // L2 Snapshot params (new)
+        l2_snapshot_file?: string;
+        l2_processing_mode?: string;
         hybrid_deep_trade_features?: string[]; // ✅ Hybrid Deep (L2 + aggTrade)
         plp_features?: string[]; // ✅ Predatory Liquidity Pipeline (PLP) Features
         execution_strategy?: string;

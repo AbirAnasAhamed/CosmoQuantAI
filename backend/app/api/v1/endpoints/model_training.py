@@ -292,3 +292,73 @@ def predict_signal(
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Prediction failed: {str(e)}")
 
+@router.post("/start-l2-collector")
+def start_l2_collector(
+    request: schemas.StartL2CollectorRequest,
+    background_tasks: BackgroundTasks,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """
+    Start the L2 Orderbook Data Collector script in the background.
+    """
+    import subprocess
+    import os
+    
+    script_path = os.path.join(os.getcwd(), "scripts", "l2_collector.py")
+    
+    # Run the collector in a non-blocking subprocess
+    try:
+        subprocess.Popen(
+            ["python", script_path, "--symbol", request.symbol.lower(), "--target", str(request.target_rows)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
+        return {"status": "success", "message": f"Started L2 Collector for {request.symbol} with target {request.target_rows}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to start collector: {str(e)}")
+
+@router.get("/l2-snapshots", response_model=List[str])
+def list_l2_snapshots(
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """
+    List all downloaded L2 snapshot .parquet files.
+    """
+    import os
+    import glob
+    
+    data_dir = os.path.join(os.getcwd(), "data", "raw", "l2_snapshots")
+    if not os.path.exists(data_dir):
+        return []
+        
+    pattern = os.path.join(data_dir, "*.parquet")
+    files = glob.glob(pattern)
+    # Return just the basenames, sorted by modification time descending
+    files.sort(key=os.path.getmtime, reverse=True)
+    return [os.path.basename(f) for f in files]
+
+@router.delete("/l2-snapshots/{filename}")
+def delete_l2_snapshot(
+    filename: str,
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """
+    Delete a downloaded L2 snapshot .parquet file.
+    """
+    import os
+    
+    # Basic security check to prevent directory traversal
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+        
+    file_path = os.path.join(os.getcwd(), "data", "raw", "l2_snapshots", filename)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    try:
+        os.remove(file_path)
+        return {"status": "success", "message": f"Deleted {filename}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete file: {str(e)}")

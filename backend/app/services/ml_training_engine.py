@@ -631,12 +631,46 @@ def train_model_task(job_id: str, db: Session):
                 if df.empty:
                     raise Exception("Deep Training failed. Scraper returned empty dataset.")
             else:
-                add_log(f"Fetching High-Frequency L2 OrderBook data for {job.symbol} (Last {lookback_hours} hours)...")
-                df = fetch_l2_data(job.symbol, db, lookback_hours, timeframe_to_pass)
-                if resample_l2:
-                    add_log(f"Fetched L2 data and resampled to {job.timeframe} timeframe.")
+                l2_snapshot_file = config.get("l2_snapshot_file")
+                l2_processing_mode = config.get("l2_processing_mode", "raw")
+                
+                if l2_snapshot_file:
+                    file_path = os.path.join(os.getcwd(), "data", "raw", "l2_snapshots", l2_snapshot_file)
+                    if not os.path.exists(file_path):
+                        raise Exception(f"L2 snapshot file not found: {l2_snapshot_file}")
+                        
+                    add_log(f"Loading L2 Snapshot from {file_path}")
+                    df = pd.read_parquet(file_path)
+                    
+                    if 'timestamp' in df.columns:
+                        df['timestamp'] = pd.to_datetime(df['timestamp'])
+                        df.set_index('timestamp', inplace=True)
+                        
+                    add_log(f"Loaded {len(df)} ticks from L2 snapshot.")
+                        
+                    if l2_processing_mode == 'bars':
+                        tf_map = {"1s": "1s", "5s": "5s", "1m": "1min", "5m": "5min"}
+                        pd_tf = tf_map.get(job.timeframe, "1min")
+                        add_log(f"Aggregating L2 ticks into {job.timeframe} Time Bars...")
+                        
+                        # Forward fill any missing microprice before resampling
+                        if 'microprice' in df.columns:
+                            df['microprice'] = df['microprice'].ffill()
+                            
+                        agg_dict = {col: "mean" for col in df.columns if col not in ["Close"]}
+                        agg_dict["Close"] = "last"
+                        
+                        df = df.resample(pd_tf).agg(agg_dict).dropna()
+                        resample_l2 = False
+                        config["resample_l2"] = False
+                        add_log(f"Aggregation complete. Generated {len(df)} L2 Bars.")
                 else:
-                    add_log(f"Fetched {len(df)} ticks of raw High-Frequency L2 data.")
+                    add_log(f"Fetching High-Frequency L2 OrderBook data for {job.symbol} (Last {lookback_hours} hours)...")
+                    df = fetch_l2_data(job.symbol, db, lookback_hours, timeframe_to_pass)
+                    if resample_l2:
+                        add_log(f"Fetched L2 data and resampled to {job.timeframe} timeframe.")
+                    else:
+                        add_log(f"Fetched {len(df)} ticks of raw High-Frequency L2 data.")
             
             job.progress = 100.0
             

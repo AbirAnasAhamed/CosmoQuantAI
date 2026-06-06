@@ -502,7 +502,7 @@ class AdvancedMLEngine:
             raise Exception(error_msg)
         
         def make_env():
-            return AdvancedTradingEnv(
+            base_env = AdvancedTradingEnv(
                 df=env_df, 
                 features=features,
                 initial_balance=initial_balance, 
@@ -510,6 +510,11 @@ class AdvancedMLEngine:
                 slippage=slippage,
                 is_continuous=(job.algorithm == "SAC-RL")
             )
+            max_allowed_drawdown = float(config.get("max_allowed_drawdown", 0.0))
+            if max_allowed_drawdown > 0:
+                from app.services.advanced_ml.risk_layer import MaxDrawdownActionMasker
+                return MaxDrawdownActionMasker(base_env, max_allowed_drawdown=max_allowed_drawdown)
+            return base_env
         
         env = DummyVecEnv([make_env])
         total_timesteps = epochs * len(df)

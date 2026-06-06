@@ -955,3 +955,5 @@ yfinance==1.4.1
 zopfli==0.4.2
     # via fonttools
 imbalanced-learn==0.13.0
+pyarrow==24.0.0
+fastparquet==2026.5.0
