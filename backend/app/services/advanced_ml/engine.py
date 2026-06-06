@@ -504,6 +504,7 @@ class AdvancedMLEngine:
         def make_env():
             return AdvancedTradingEnv(
                 df=env_df, 
+                features=features,
                 initial_balance=initial_balance, 
                 commission=commission,
                 slippage=slippage,

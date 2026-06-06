@@ -20,6 +20,7 @@ class AdvancedTradingEnv(gym.Env):
     def __init__(
         self, 
         df: pd.DataFrame, 
+        features: list = None,
         initial_balance: float = 10000.0, 
         commission: float = 0.0002, # 0.02% per trade (Futures Maker Fee)
         slippage: float = 0.0001,   # 0.01% price impact
@@ -50,9 +51,12 @@ class AdvancedTradingEnv(gym.Env):
             # Action Space: 0 = Neutral (Cash), 1 = Long, 2 = Short
             self.action_space = spaces.Discrete(3)
 
-        # Observation Space: All columns except 'Target' or 'timestamp'
-        # We assume the caller provides a DF already filtered to features + 'Close'
-        self.feature_cols = [col for col in df.columns if col not in ['timestamp', 'Target', 'Raw_Close']]
+        # Observation Space
+        if features is not None:
+            self.feature_cols = features
+        else:
+            self.feature_cols = [col for col in df.columns if col not in ['timestamp', 'Target', 'Raw_Close', 'Close']]
+
         self.observation_space = spaces.Box(
             low=-np.inf, 
             high=np.inf, 
