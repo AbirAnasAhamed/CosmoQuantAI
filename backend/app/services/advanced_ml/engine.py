@@ -680,13 +680,16 @@ class AdvancedMLEngine:
                         profitable_count = sum(1 for t in closed_trades if t.get('pnl', 0) > 0)
                         loss_count = sum(1 for t in closed_trades if t.get('pnl', 0) <= 0)
 
+                        action_val = float(np.ravel(self.locals.get("actions", [0.0]))[0]) if "actions" in self.locals else 0.0
+                        reward_val = float(np.ravel(self.locals.get("rewards", [0.0]))[0]) if "rewards" in self.locals else 0.0
+                        
                         payload = {
                             "step": int(unwrapped_env.current_step),
                             "net_worth": float(unwrapped_env.net_worth),
                             "position": int(unwrapped_env.position),
                             "balance": float(getattr(unwrapped_env, 'balance', 0)),
-                            "action": int(self.locals.get("actions", [0])[0].item() if "actions" in self.locals else 0),
-                            "reward": float(self.locals.get("rewards", [0.0])[0].item() if "rewards" in self.locals else 0.0),
+                            "action": action_val,
+                            "reward": reward_val,
                             "price": float(unwrapped_env.df.loc[unwrapped_env.current_step, 'Close']) if unwrapped_env.current_step < len(unwrapped_env.df) else 0.0,
                             "stats": {
                                 "buy_count": buy_count,
