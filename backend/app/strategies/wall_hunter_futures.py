@@ -13,6 +13,7 @@ from app.strategies.helpers.trend_finder import AdaptiveTrendFinder
 from app.strategies.helpers.ut_bot_tracker import UTBotTracker
 from app.strategies.helpers.ut_standalone_listener import UTStandaloneListener
 from app.strategies.helpers.ml_standalone_listener import MLStandaloneListener
+from app.strategies.helpers.ml_l2_predictor import MLL2Predictor
 from app.strategies.helpers.supertrend_tracker import SupertrendTracker
 from app.strategies.helpers.supertrend_standalone_listener import SupertrendStandaloneListener
 from app.strategies.helpers.dual_engine_standalone_listener import DualEngineStandaloneListener
@@ -150,8 +151,8 @@ class WallHunterFuturesStrategy:
         self.ml_predictor = None
         if self.enable_ml_filter and self.ai_model_id:
             try:
-                from app.strategies.helpers.ml_l2_predictor import MLL2Predictor
                 self.ml_predictor = MLL2Predictor(self.ai_model_id)
+                self.ml_predictor.bullish_threshold = self.config.get("ml_bullish_threshold", 0.5)
             except Exception as e:
                 self.logger.error(f"Failed to initialize ML Predictor: {e}")
         self.ml_standalone_listener = MLStandaloneListener(self)
@@ -711,6 +712,8 @@ class WallHunterFuturesStrategy:
 
             if self.enable_ml_filter:
                 self._ml_standalone_task = asyncio.create_task(self.ml_standalone_listener.start())
+                if hasattr(self, 'ml_predictor') and self.ml_predictor:
+                    await self.ml_predictor.start_background_engine(self.symbol)
             else:
                 self._ml_standalone_task = None
 
@@ -816,6 +819,8 @@ class WallHunterFuturesStrategy:
         logger.info(f"🛑 [FuturesHunter {self.bot_id}] Stopping...")
         if getattr(self, 'session_tracker', None):
             await self.session_tracker.stop_monitor()
+        if hasattr(self, 'ml_predictor') and self.ml_predictor:
+            await self.ml_predictor.stop_background_engine()
 
         
         # --- FIX: Task Memory Leak / CPU Spike Prevention ---
@@ -1090,6 +1095,11 @@ class WallHunterFuturesStrategy:
                     
                 mid_price = (best_bid + best_ask) / 2
                 current_time = time.time()
+
+                # Continuously feed the AI Predictor with Live L2 Snapshots for Advanced Features Memory
+                if getattr(self, 'enable_ml_filter', False) and getattr(self, 'ml_predictor', None):
+                    if hasattr(self.ml_predictor, 'update_l2_memory'):
+                        self.ml_predictor.update_l2_memory(orderbook)
 
                 # Periodic debug info (every 10 seconds)
                 if current_time - self.last_debug_log_time >= 10:
@@ -1845,11 +1855,19 @@ class WallHunterFuturesStrategy:
                 self._save_state()
                 self.active_pos['entry_time'] = time.time()
                 trade_type = "Long" if side == "buy" else "Short"
+                
+                ml_health_str = ""
+                if self.enable_ml_filter and hasattr(self, 'ml_predictor') and self.ml_predictor:
+                    active = getattr(self.ml_predictor, 'last_active_features', 0)
+                    total = getattr(self.ml_predictor, 'total_model_features', 0)
+                    ml_health_str = f"🧠 AI Health: {active}/{total} Features Active\n"
+
                 asyncio.create_task(self._send_telegram(
                     f"⚡ WallHunter Entered!\n"
                     f"Bot Name: {getattr(self, 'bot_name', f'Bot {self.bot_id}')}\n"
                     f"Bot ID: {self.bot_id}\n"
                     f"Trade Types: {trade_type}\n"
+                    f"{ml_health_str}"
                     f"Pair: {self.symbol}\n"
                     f"Entry {actual_entry:.6f}\n"
                     f"TP1: {self.active_pos['tp1']:.6f}\n"
@@ -3460,6 +3478,11 @@ class WallHunterFuturesStrategy:
             if "enable_ml_filter" in new_config:
                 self.enable_ml_filter = new_config["enable_ml_filter"]
                 updates.append(f"ML L2 Filter: {'ON' if self.enable_ml_filter else 'OFF'}")
+                
+            if "ml_bullish_threshold" in new_config:
+                if getattr(self, "ml_predictor", None):
+                    self.ml_predictor.bullish_threshold = new_config["ml_bullish_threshold"]
+                updates.append(f"ML Threshold: {new_config['ml_bullish_threshold']}")
             
             if "ai_model_id" in new_config:
                 self.ai_model_id = new_config["ai_model_id"]
@@ -3468,8 +3491,8 @@ class WallHunterFuturesStrategy:
             if "enable_ml_filter" in new_config or "ai_model_id" in new_config:
                 if getattr(self, "enable_ml_filter", False) and getattr(self, "ai_model_id", ""):
                     try:
-                        from app.strategies.helpers.ml_l2_predictor import MLL2Predictor
                         self.ml_predictor = MLL2Predictor(self.ai_model_id)
+                        self.ml_predictor.bullish_threshold = new_config.get("ml_bullish_threshold", getattr(self.ml_predictor, "bullish_threshold", 0.5))
                         if not getattr(self, '_ml_standalone_task', None) or self._ml_standalone_task.done():
                             self._ml_standalone_task = asyncio.create_task(self.ml_standalone_listener.start())
                     except Exception as e:

@@ -361,8 +361,17 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
         { internal: "liquidity_replenishment_rate", name: "Liquidity Replenishment Rate ✨ (NEW)", desc: "Time-proxy for liquidity refilling after level clearance" },
         { internal: "bbo_flicker_rate", name: "BBO Flicker Rate ✨ (NEW)", desc: "Volatility of the top-of-book levels" },
         { internal: "order_flow_toxicity", name: "Order Flow Toxicity (VPIN) ✨ (NEW)", desc: "Probability of Informed Trading based on depth" },
+        { internal: "order_flow_toxicity", name: "Order Flow Toxicity (VPIN) ✨ (NEW)", desc: "Probability of Informed Trading based on depth" },
         { internal: "hidden_volume_proxy", name: "Hidden Volume Proxy ✨ (NEW)", desc: "Detection of abnormally low slippage despite large volume" }
     ];
+
+    const BASIC_L2_INTERNAL_NAMES = [
+        "obi", "spread", "microprice", "Imbalance_Momentum", "Depth_Ratio", 
+        "CVD_Proxy", "Multi_Level_Imbalance_Top5", "OFI_Acceleration", "Level_1_Imbalance"
+    ];
+
+    const BASIC_L2_FEATURES = ALL_L2_FEATURES.filter(f => BASIC_L2_INTERNAL_NAMES.includes(f.internal));
+    const ADV_L2_FEATURES = ALL_L2_FEATURES.filter(f => !BASIC_L2_INTERNAL_NAMES.includes(f.internal));
 
     const ALL_TRADE_FEATURES = [
         { internal: "cvd", name: "Cumulative Volume Delta (CVD)" },
@@ -1922,8 +1931,29 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                                 </span>
                                             </div>
                                         </div>
-                                        <div className="grid grid-cols-2 gap-2 max-h-[180px] overflow-y-auto pr-1 custom-scrollbar">
-                                            {ALL_L2_FEATURES.map((feat) => {
+                                        <div className="text-[10px] font-bold text-indigo-300 mt-2 mb-2 px-1 border-b border-indigo-500/20 pb-1">Basic Features (0ms Latency Support)</div>
+                                        <div className="grid grid-cols-2 gap-2 mb-3">
+                                            {BASIC_L2_FEATURES.map((feat) => {
+                                                const isSel = selectedL2Features.includes(feat.internal);
+                                                return (
+                                                    <div key={feat.internal}
+                                                        onClick={() => !isTraining && handleToggleL2Feature(feat.internal)}
+                                                        className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition-all ${isSel ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-200' : 'bg-black/30 border-white/5 text-slate-400 hover:bg-white/5'}`}
+                                                    >
+                                                        <div className={`w-3.5 h-3.5 rounded-sm border flex-shrink-0 flex items-center justify-center relative ${isSel ? (isRetrainMode && initialLoadedL2Features.includes(feat.internal) ? 'bg-purple-500 border-purple-400' : 'bg-indigo-500 border-indigo-400') : 'border-white/20'}`}>
+                                                            {isSel && <Check className="w-2.5 h-2.5 text-white" />}
+                                                            {isRetrainMode && initialLoadedL2Features.includes(feat.internal) && isSel && (
+                                                                <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-purple-300 rounded-full animate-ping"></div>
+                                                            )}
+                                                        </div>
+                                                        <span className="text-[10px] font-medium leading-tight truncate" title={feat.name}>{feat.name}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                        <div className="text-[10px] font-bold text-slate-400 mt-2 mb-2 px-1 border-b border-white/10 pb-1">Advanced Features (High Latency)</div>
+                                        <div className="grid grid-cols-2 gap-2 max-h-[140px] overflow-y-auto pr-1 custom-scrollbar">
+                                            {ADV_L2_FEATURES.map((feat) => {
                                                 const isSel = selectedL2Features.includes(feat.internal);
                                                 return (
                                                     <div key={feat.internal}
@@ -2234,8 +2264,29 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                                             {selectedL2Features.length === ALL_L2_FEATURES.length ? 'Deselect All' : 'Select All'}
                                                         </button>
                                                     </div>
+                                                    <div className="text-[10px] font-bold text-indigo-300 mb-2 border-b border-indigo-500/20 pb-1">Basic Features (0ms Latency Support)</div>
+                                                    <div className="grid grid-cols-2 gap-2 mb-4">
+                                                    {BASIC_L2_FEATURES.map((feat, idx) => (
+                                                        <div 
+                                                            key={idx} 
+                                                            onClick={() => !isTraining && handleToggleL2Feature(feat.internal)}
+                                                            className={`flex items-center gap-2 p-2 rounded border cursor-pointer transition-all ${selectedL2Features.includes(feat.internal) ? 'bg-indigo-500/20 border-indigo-500/50 text-indigo-200' : 'bg-black/30 border-white/5 text-slate-400 hover:bg-white/5'}`}
+                                                        >
+                                                            <div className={`w-3.5 h-3.5 rounded-sm border flex items-center justify-center transition-colors flex-shrink-0 relative ${selectedL2Features.includes(feat.internal) ? (isRetrainMode && initialLoadedL2Features.includes(feat.internal) ? 'bg-purple-500 border-purple-400' : 'bg-indigo-500 border-indigo-400') : 'border-white/20'}`}>
+                                                                {selectedL2Features.includes(feat.internal) && <CheckCircle2 className="w-2.5 h-2.5 text-black" />}
+                                                                {isRetrainMode && initialLoadedL2Features.includes(feat.internal) && selectedL2Features.includes(feat.internal) && (
+                                                                    <div className="absolute -top-1 -right-1 w-1.5 h-1.5 bg-purple-300 rounded-full animate-ping"></div>
+                                                                )}
+                                                            </div>
+                                                            <span className="text-[10px] font-medium leading-tight truncate" title={feat.name}>
+                                                                {feat.name}
+                                                            </span>
+                                                        </div>
+                                                    ))}
+                                                    </div>
+                                                    <div className="text-[10px] font-bold text-slate-400 mb-2 border-b border-white/10 pb-1">Advanced Features (High Latency)</div>
                                                     <div className="grid grid-cols-2 gap-2">
-                                                    {ALL_L2_FEATURES.map((feat, idx) => (
+                                                    {ADV_L2_FEATURES.map((feat, idx) => (
                                                         <div 
                                                             key={idx} 
                                                             onClick={() => !isTraining && handleToggleL2Feature(feat.internal)}

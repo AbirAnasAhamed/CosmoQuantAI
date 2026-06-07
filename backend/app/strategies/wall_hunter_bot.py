@@ -1477,6 +1477,8 @@ class WallHunterBot:
 
         if self.enable_ml_filter:
             self._ml_standalone_task = asyncio.create_task(self.ml_standalone_listener.start())
+            if hasattr(self, 'ml_predictor') and self.ml_predictor:
+                await self.ml_predictor.start_background_engine(self.symbol)
         else:
             self._ml_standalone_task = None
 
@@ -1589,6 +1591,8 @@ class WallHunterBot:
         self.logger.info(f"🛑 [WallHunter {self.bot_id}] Stopping...")
         if getattr(self, 'session_tracker', None):
             await self.session_tracker.stop_monitor()
+        if hasattr(self, 'ml_predictor') and self.ml_predictor:
+            await self.ml_predictor.stop_background_engine()
         # --- FIX: Task Memory Leak / CPU Spike Prevention ---
         for task_attr in ['_main_task', '_heartbeat_task', '_vpvr_task', '_atr_task', '_liq_task', '_trades_task', '_btc_task', '_utbot_task', '_ut_standalone_task', '_supertrend_task', '_supertrend_standalone_task', '_dual_engine_task', '_dual_engine_standalone_task', '_native_price_task', '_wick_sr_task', '_vwap_sd_task', '_ml_standalone_task']:
             task = getattr(self, task_attr, None)
@@ -1748,6 +1752,11 @@ class WallHunterBot:
                 best_ask = orderbook['asks'][0][0]
                 mid_price = (best_bid + best_ask) / 2
                 current_time = time.time()
+
+                # Continuously feed the AI Predictor with Live L2 Snapshots for Advanced Features Memory
+                if getattr(self, 'enable_ml_filter', False) and getattr(self, 'ml_predictor', None):
+                    if hasattr(self.ml_predictor, 'update_l2_memory'):
+                        self.ml_predictor.update_l2_memory(orderbook)
 
                 if getattr(self, 'enable_iceberg_trigger', False):
                     # BUG FIX: Only update iceberg tracker with NATIVE orderbook.
@@ -2642,11 +2651,19 @@ class WallHunterBot:
                 self._save_state()
                 self.active_pos['entry_time'] = time.time()
                 trade_type = "Long"
+                
+                ml_health_str = ""
+                if self.enable_ml_filter and hasattr(self, 'ml_predictor') and self.ml_predictor:
+                    active = getattr(self.ml_predictor, 'last_active_features', 0)
+                    total = getattr(self.ml_predictor, 'total_model_features', 0)
+                    ml_health_str = f"🧠 AI Health: {active}/{total} Features Active\n"
+
                 await self._send_telegram(
                     f"⚡ WallHunter Entered!\n"
                     f"Bot Name: {getattr(self, 'bot_name', f'Bot {self.bot_id}')}\n"
                     f"Bot ID: {self.bot_id}\n"
                     f"Trade Types: {trade_type}\n"
+                    f"{ml_health_str}"
                     f"Pair: {self.symbol}\n"
                     f"Entry {actual_entry:.6f}\n"
                     f"TP1: {self.active_pos['tp1']:.6f}\n"

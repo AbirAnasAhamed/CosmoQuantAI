@@ -236,7 +236,8 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
         
         // --- L2 ML Filter ---
         enableMlFilter: false,
-        mlModelId: ''
+        mlModelId: '',
+        mlBullishThreshold: 0.5
     });
 
     const [existingBot, setExistingBot] = useState<any>(null);
@@ -481,7 +482,8 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                             trailingGlobalTpDistance: c.trailing_global_tp_distance !== undefined ? c.trailing_global_tp_distance : 0.0,
 
                             enableMlFilter: c.enable_ml_filter !== undefined ? c.enable_ml_filter : false,
-                            mlModelId: c.ai_model_id || ''
+                            mlModelId: c.ai_model_id || '',
+                            mlBullishThreshold: c.ml_bullish_threshold !== undefined ? c.ml_bullish_threshold : 0.5
                         }));
                     } else {
                         setExistingBot(null);
@@ -861,6 +863,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                     vwap_sd_min_wall: form.vwapSDMinWall,
 
                     enable_ml_filter: form.enableMlFilter,
+                    ml_bullish_threshold: form.mlBullishThreshold,
                     
                     // Advanced Risk Management
                     enable_breakeven_stop: form.enableBreakevenStop,
@@ -1872,6 +1875,25 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                                     ))}
                                                 </select>
                                             )}
+                                            
+                                            <div className="mt-3 bg-black/60 p-3 rounded-lg border border-white/5">
+                                                <div className="flex justify-between items-center mb-1">
+                                                    <label className="text-[10px] font-bold text-gray-300 uppercase">
+                                                        Bullish Probability Threshold
+                                                    </label>
+                                                    <span className="text-xs font-mono text-blue-400">{(form.mlBullishThreshold * 100).toFixed(0)}%</span>
+                                                </div>
+                                                <input 
+                                                    type="range" 
+                                                    min="0.1" max="0.9" step="0.05"
+                                                    value={form.mlBullishThreshold}
+                                                    onChange={(e) => handleFormChange('mlBullishThreshold', parseFloat(e.target.value))}
+                                                    className="w-full accent-blue-500"
+                                                />
+                                                <p className="text-[9px] text-gray-500 mt-1 leading-tight">
+                                                    Lowering this (e.g. 0.40) makes the bot take Longs more easily. Higher (e.g. 0.60) makes it stricter. Defaults to 0.50.
+                                                </p>
+                                            </div>
                                             <p className="text-[9px] text-gray-500 mt-2 italic leading-tight">
                                                 When enabled, the WallHunter will extract L2 state features (Bids/Asks, Imbalance, Spread) and pass them to your Custom AI. It will only fire if the AI predicts "BULLISH" for Longs or "BEARISH" for Shorts. This is the ultimate defense against spoofed walls.
                                             </p>

@@ -3,6 +3,7 @@ import joblib
 import torch
 import torch.nn as nn
 import numpy as np
+import pandas as pd
 import logging
 import warnings
 
@@ -12,6 +13,7 @@ warnings.filterwarnings("ignore", message="X does not have valid feature names")
 from app.db.session import SessionLocal
 from app.models.ml_model import CustomMLModel, ModelVersion
 from app.services.ml_architectures import SimpleLSTM, SimpleGRU, CNN1D, DeepLOB, TimeSeriesTransformer
+from app.services.auto_feature_selector import calculate_l2_advanced_features
 
 logger = logging.getLogger(__name__)
 
@@ -38,6 +40,22 @@ class MLL2Predictor:
         self._ofi_prev = 0.0
         self._prev_level1_imb = 0.5
         self._last_log_time = 0.0
+        self.bg_engine = None
+        self.l2_history = []
+        self.bullish_threshold = 0.5
+
+    async def start_background_engine(self, symbol: str):
+        """Starts the background engine if complex features are needed."""
+        if not self.model_features:
+            return
+        from app.strategies.helpers.background_feature_engine import BackgroundFeatureEngine
+        self.bg_engine = BackgroundFeatureEngine(symbol, self.model_features)
+        await self.bg_engine.start()
+
+    async def stop_background_engine(self):
+        """Stops the background engine if running."""
+        if self.bg_engine:
+            await self.bg_engine.stop()
 
     def _load_model(self):
         if not self.ai_model_id:
@@ -141,7 +159,51 @@ class MLL2Predictor:
         finally:
             db.close()
 
-    def predict(self, orderbook, current_price, target_side) -> bool:
+    def update_l2_memory(self, orderbook):
+        """Continuously maintains L2 history for advanced feature calculation."""
+        import datetime
+        bids_raw = orderbook.get('bids', [])[:20]
+        asks_raw = orderbook.get('asks', [])[:20]
+
+        if not bids_raw or not asks_raw:
+            return
+
+        bids = [[float(x[0]), float(x[1])] for x in bids_raw if len(x) >= 2]
+        asks = [[float(x[0]), float(x[1])] for x in asks_raw if len(x) >= 2]
+
+        if not bids or not asks:
+            return
+
+        best_bid = bids[0][0]
+        best_ask = asks[0][0]
+
+        bid_vol_10 = sum(x[1] for x in bids[:10])
+        ask_vol_10 = sum(x[1] for x in asks[:10])
+        total_vol_10 = bid_vol_10 + ask_vol_10
+
+        obi = bid_vol_10 / (total_vol_10 + 1e-9)
+        spread = (best_ask - best_bid) / (best_bid + 1e-9)
+        
+        if total_vol_10 > 0:
+            microprice = ((bid_vol_10 * best_ask) + (ask_vol_10 * best_bid)) / total_vol_10
+        else:
+            microprice = (best_bid + best_ask) / 2
+
+        self.l2_history.append({
+            "timestamp": datetime.datetime.utcnow(),
+            "Close": microprice,
+            "bids": bids,
+            "asks": asks,
+            "obi": obi,
+            "spread": spread,
+            "microprice": microprice
+        })
+        
+        # Keep rolling window of 15 ticks
+        if len(self.l2_history) > 15:
+            self.l2_history.pop(0)
+
+    def predict(self, orderbook: dict, current_price: float, side: str) -> bool:
         """
         Validates if the target_side (long/short) aligns with the AI's prediction.
         Returns True if valid, False if rejected by AI.
@@ -221,12 +283,42 @@ class MLL2Predictor:
                     "depth_ratio": depth_ratio, "cvd_proxy": cvd_proxy,
                     "multi_level_imb_top5": multi_level_imb_top5, "Close": microprice
                 }
-                features_list = [calculated_features.get(f, 0.0) for f in self.model_features]
+                
+                # Fetch background features if available
+                bg_features = {}
+                if self.bg_engine:
+                    bg_features = self.bg_engine.get_latest_features()
+                    
+                # Advanced L2 Features integration
+                adv_l2_features = {}
+                if getattr(self, 'model_features', None) and any("WAP" in f or "Distance" in f or "Proxy" in f for f in self.model_features):
+                    if len(self.l2_history) >= 2:
+                        df_hist = pd.DataFrame(self.l2_history)
+                        try:
+                            df_adv, _ = calculate_l2_advanced_features(df_hist)
+                            if not df_adv.empty:
+                                adv_l2_features = df_adv.iloc[-1].to_dict()
+                        except Exception as e:
+                            import traceback
+                            logger.error(f"MLL2Predictor Adv L2 Error: {e}\n{traceback.format_exc()}")
+
+                # Merge: L2 calculated takes precedence over background for overlapping ones
+                merged_features = {**bg_features, **calculated_features, **adv_l2_features}
+                
+                features_list = [merged_features.get(f, 0.0) for f in self.model_features]
+                
+                # Calculate feature health (non-zero features)
+                # We only consider it missing if it's not in merged_features or if it's NaN. 
+                # Legitimate 0.0 values (like false boolean flags) are counted as active.
+                self.last_active_features = sum(1 for f in self.model_features if f in merged_features and not pd.isna(merged_features[f]))
+                self.total_model_features = len(self.model_features)
             else:
                 features_list = [
                     obi, spread, microprice, ofi_acceleration, imbalance_momentum,
                     depth_ratio, cvd_proxy, multi_level_imb_top5
                 ]
+                self.last_active_features = 8
+                self.total_model_features = 8
 
             # Dynamic padding to handle missing features or different model requirements (e.g. PPO-RL)
             expected_features = len(features_list)
@@ -236,13 +328,24 @@ class MLL2Predictor:
                 expected_features = self.model.observation_space.shape[0]
 
             if expected_features > len(features_list):
+                missing_count = expected_features - len(features_list)
+                if missing_count > 10:
+                    if not self._feature_mismatch_logged:
+                        logger.error(
+                            f"MLL2Predictor: Severe feature mismatch! Model expects {expected_features} features, "
+                            f"but L2 provides {len(features_list)}. Missing metadata (.json)? "
+                            "Failing open to prevent garbage predictions."
+                        )
+                        self._feature_mismatch_logged = True
+                    raise ValueError(f"Too many missing features ({missing_count}). Cannot predict reliably.")
+                
                 if not self._feature_mismatch_logged:
                     logger.warning(
                         f"MLL2Predictor: Model expects {expected_features} features, but L2 provides "
                         f"{len(features_list)}. Padding with zeros. "
                     )
                     self._feature_mismatch_logged = True
-                features_list.extend([0.0] * (expected_features - len(features_list)))
+                features_list.extend([0.0] * missing_count)
             elif expected_features < len(features_list):
                 features_list = features_list[:expected_features]
                         
@@ -250,7 +353,13 @@ class MLL2Predictor:
 
             # 2. Predict
             if self.model_type in ["Random Forest", "XGBoost", "LightGBM", "CatBoost"]:
-                pred = self.model.predict(features)[0]
+                if self.prediction_target == "classification" and hasattr(self.model, "predict_proba"):
+                    try:
+                        pred = float(self.model.predict_proba(features)[0][1])
+                    except Exception:
+                        pred = float(self.model.predict(features)[0])
+                else:
+                    pred = float(self.model.predict(features)[0])
             elif self.model_type in ["LSTM", "GRU"]:
                 X_t = torch.FloatTensor(features).unsqueeze(1)
                 with torch.no_grad():
@@ -285,16 +394,16 @@ class MLL2Predictor:
             is_bullish = False
             
             if self.prediction_target == "classification":
-                is_bullish = (pred > 0.5)
+                is_bullish = (pred >= self.bullish_threshold)
             else:
                 is_bullish = (pred > current_price)
 
             import time
             if time.time() - self._last_log_time > 10.0:
-                logger.info(f"🤖 MLL2Predictor: Target={target_side.upper()}, Bullish={is_bullish}, Pred={pred:.4f}")
+                logger.info(f"🤖 MLL2Predictor: Target={side.upper()}, Bullish={is_bullish}, Pred={pred:.4f}")
                 self._last_log_time = time.time()
 
-            normalized_side = target_side.lower()
+            normalized_side = side.lower()
             is_long = normalized_side in ("long", "buy")
             if is_long:
                 return is_bullish

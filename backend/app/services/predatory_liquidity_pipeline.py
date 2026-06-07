@@ -298,6 +298,7 @@ def calculate_plp_features(df: pd.DataFrame, selected_features: list) -> pd.Data
         df['momentum_ignition'] = np.where(consecutive & vol_accel, 1.0, 0.0)
 
     # Clean up NaNs
-    plp_df = df[selected_features].replace([np.inf, -np.inf], np.nan).fillna(0)
+    existing_cols = [c for c in selected_features if c in df.columns]
+    plp_df = df[existing_cols].replace([np.inf, -np.inf], np.nan).fillna(0)
     
     return plp_df
