@@ -153,6 +153,7 @@ class WallHunterFuturesStrategy:
             try:
                 self.ml_predictor = MLL2Predictor(self.ai_model_id)
                 self.ml_predictor.bullish_threshold = self.config.get("ml_bullish_threshold", 0.5)
+                self.ml_predictor.bearish_threshold = self.config.get("ml_bearish_threshold", 0.5)
             except Exception as e:
                 self.logger.error(f"Failed to initialize ML Predictor: {e}")
         self.ml_standalone_listener = MLStandaloneListener(self)
@@ -3482,7 +3483,12 @@ class WallHunterFuturesStrategy:
             if "ml_bullish_threshold" in new_config:
                 if getattr(self, "ml_predictor", None):
                     self.ml_predictor.bullish_threshold = new_config["ml_bullish_threshold"]
-                updates.append(f"ML Threshold: {new_config['ml_bullish_threshold']}")
+                updates.append(f"ML Bullish Threshold: {new_config['ml_bullish_threshold']}")
+                
+            if "ml_bearish_threshold" in new_config:
+                if getattr(self, "ml_predictor", None):
+                    self.ml_predictor.bearish_threshold = new_config["ml_bearish_threshold"]
+                updates.append(f"ML Bearish Threshold: {new_config['ml_bearish_threshold']}")
             
             if "ai_model_id" in new_config:
                 self.ai_model_id = new_config["ai_model_id"]
@@ -3493,6 +3499,7 @@ class WallHunterFuturesStrategy:
                     try:
                         self.ml_predictor = MLL2Predictor(self.ai_model_id)
                         self.ml_predictor.bullish_threshold = new_config.get("ml_bullish_threshold", getattr(self.ml_predictor, "bullish_threshold", 0.5))
+                        self.ml_predictor.bearish_threshold = new_config.get("ml_bearish_threshold", getattr(self.ml_predictor, "bearish_threshold", 0.5))
                         if not getattr(self, '_ml_standalone_task', None) or self._ml_standalone_task.done():
                             self._ml_standalone_task = asyncio.create_task(self.ml_standalone_listener.start())
                     except Exception as e:

@@ -43,6 +43,7 @@ class MLL2Predictor:
         self.bg_engine = None
         self.l2_history = []
         self.bullish_threshold = 0.5
+        self.bearish_threshold = 0.5
 
     async def start_background_engine(self, symbol: str):
         """Starts the background engine if complex features are needed."""
@@ -393,22 +394,24 @@ class MLL2Predictor:
             # 3. Interpret Prediction
             is_bullish = False
             
-            if self.prediction_target == "classification":
-                is_bullish = (pred >= self.bullish_threshold)
-            else:
-                is_bullish = (pred > current_price)
-
             import time
             if time.time() - self._last_log_time > 10.0:
-                logger.info(f"🤖 MLL2Predictor: Target={side.upper()}, Bullish={is_bullish}, Pred={pred:.4f}")
+                logger.info(f"🤖 MLL2Predictor: Target={side.upper()}, Pred={pred:.4f}")
                 self._last_log_time = time.time()
 
-            normalized_side = side.lower()
-            is_long = normalized_side in ("long", "buy")
-            if is_long:
-                return is_bullish
+            if self.prediction_target == "classification":
+                is_long = (side.lower() in ("long", "buy"))
+                if is_long:
+                    return pred >= self.bullish_threshold
+                else:
+                    return pred <= self.bearish_threshold
             else:
-                return not is_bullish
+                is_bullish = (pred > current_price)
+                is_long = (side.lower() in ("long", "buy"))
+                if is_long:
+                    return is_bullish
+                else:
+                    return not is_bullish
 
         except Exception as e:
             logger.error(f"MLL2Predictor: Prediction error: {e}")
