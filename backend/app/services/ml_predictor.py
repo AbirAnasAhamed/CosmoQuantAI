@@ -652,10 +652,9 @@ def _infer_rl(model_path: str, algorithm: str, X: np.ndarray, features: list = N
 
         model = model_class.load(model_path)
         
-        if features and 'Close' not in features:
-            obs = np.append(X[-1:], [[current_price]], axis=1) # RL only needs last row unless state_dim is multiplied
-        else:
-            obs = X[-1:] # Take the last row for RL by default
+        # The training environment (AdvancedTradingEnv) only uses `features` for observations.
+        # It does not manually append `current_price` if `Close` is omitted.
+        obs = X[-1:] # Take the last row for RL by default
             
         obs = obs.astype(np.float32)
         action, _ = model.predict(obs, deterministic=True)

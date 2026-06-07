@@ -467,17 +467,51 @@ def build_hybrid_deep_dataset(job, db: Session, config: dict, add_log, check_can
     if sel_plp:
         add_log(f"[HybridDeep] PLP features selected: {len(sel_plp)}")
 
-    # ── Step 1: Dual WebSocket Collection ─────────────────────────────────────
-    df = _run_hybrid_deep_scraper(
-        symbol, target_rows, db, job, add_log, check_cancelled
-    )
-
-    if df.empty:
-        raise Exception(
-            "[HybridDeep] Buffer is empty. Check WebSocket connectivity."
+    # ── Step 1: Dual WebSocket Collection OR File Load ────────────────────────
+    hybrid_snapshot_file = config.get("hybrid_snapshot_file")
+    
+    if hybrid_snapshot_file:
+        import os
+        file_path = os.path.join(os.getcwd(), "data", "raw", "hybrid_snapshots", hybrid_snapshot_file)
+        if not os.path.exists(file_path):
+            raise Exception(f"[HybridDeep] Selected hybrid snapshot file not found: {hybrid_snapshot_file}")
+            
+        add_log(f"[HybridDeep] 📂 Loading dataset from snapshot: {hybrid_snapshot_file}")
+        df = pd.read_parquet(file_path)
+        
+        # Ensure timestamp is the index
+        if 'timestamp' in df.columns:
+            df['timestamp'] = pd.to_datetime(df['timestamp'])
+            df.set_index('timestamp', inplace=True)
+            
+        # Reconstruct bids/asks if missing but flattened columns exist
+        if 'bids' not in df.columns and 'bid_price_1' in df.columns:
+            add_log(f"[HybridDeep] Reconstructing bids/asks arrays from {len(df)} flattened rows...")
+            import json
+            def reconstruct(row, side):
+                book = []
+                for i in range(1, 21):
+                    p = row.get(f'{side}_price_{i}')
+                    v = row.get(f'{side}_volume_{i}')
+                    if pd.notna(p) and pd.notna(v) and p > 0:
+                        book.append([p, v])
+                return json.dumps(book) if book else "[]"
+            
+            df['bids'] = df.apply(lambda r: reconstruct(r, 'bid'), axis=1)
+            df['asks'] = df.apply(lambda r: reconstruct(r, 'ask'), axis=1)
+            
+        add_log(f"[HybridDeep] File loaded successfully. Rows: {len(df)}")
+    else:
+        df = _run_hybrid_deep_scraper(
+            symbol, target_rows, db, job, add_log, check_cancelled
         )
 
-    add_log(f"[HybridDeep] Raw: {len(df)} L2 frames collected with embedded trades.")
+        if df.empty:
+            raise Exception(
+                "[HybridDeep] Buffer is empty. Check WebSocket connectivity."
+            )
+
+        add_log(f"[HybridDeep] Raw: {len(df)} L2 frames collected with embedded trades.")
 
     # ── Step 2: Advanced L2 Feature Calculation ────────────────────────────────
     add_log("[HybridDeep] Calculating advanced L2 microstructure features...")
@@ -488,6 +522,10 @@ def build_hybrid_deep_dataset(job, db: Session, config: dict, add_log, check_can
             l2_prep.rename(columns={l2_prep.columns[0]: 'timestamp'}, inplace=True)
         if 'microprice' in l2_prep.columns:
             l2_prep['Close'] = l2_prep['microprice']
+        elif 'trade_price' in l2_prep.columns:
+            l2_prep['Close'] = l2_prep['trade_price']
+        elif 'bid_price_1' in l2_prep.columns and 'ask_price_1' in l2_prep.columns:
+            l2_prep['Close'] = (l2_prep['bid_price_1'] + l2_prep['ask_price_1']) / 2
 
         df_l2_adv, _ = calculate_l2_advanced_features(l2_prep)
         # Attach advanced feature columns back to df
@@ -526,6 +564,10 @@ def build_hybrid_deep_dataset(job, db: Session, config: dict, add_log, check_can
             df['Close'] = df['price']
         elif 'microprice' in df.columns:
             df['Close'] = df['microprice']
+        elif 'trade_price' in df.columns:
+            df['Close'] = df['trade_price']
+        elif 'bid_price_1' in df.columns and 'ask_price_1' in df.columns:
+            df['Close'] = (df['bid_price_1'] + df['ask_price_1']) / 2
         else:
             raise Exception("[HybridDeep] Cannot find Close price for target.")
 
