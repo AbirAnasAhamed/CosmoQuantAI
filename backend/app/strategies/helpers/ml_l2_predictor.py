@@ -261,8 +261,23 @@ class MLL2Predictor:
                     pred = self.model(X_t).item()
             elif self.model_type in ["PPO-RL", "SAC-RL", "A2C-RL", "DQN-RL"]:
                 action, _ = self.model.predict(features[0].astype(np.float32), deterministic=True)
-                # action: 1 = Buy/Up, 0 = Sell/Down
-                pred = 1.0 if action == 1 else 0.0
+                
+                # Handle both array and scalar action outputs
+                if isinstance(action, np.ndarray):
+                    val = action.item() if action.size == 1 else action[0]
+                else:
+                    val = action
+                    
+                # Handle continuous vs discrete action spaces
+                if hasattr(self.model, 'action_space') and type(self.model.action_space).__name__ == 'Box':
+                    # Continuous action space: > 0 means Buy/Up, <= 0 means Sell/Down
+                    pred = 1.0 if val > 0 else 0.0
+                else:
+                    # Discrete action space: 1 = Buy/Up, 0 = Sell/Down
+                    if isinstance(val, (float, np.floating)) and not float(val).is_integer():
+                        pred = 1.0 if val > 0 else 0.0
+                    else:
+                        pred = 1.0 if val == 1 else 0.0
             else:
                 return True
 
