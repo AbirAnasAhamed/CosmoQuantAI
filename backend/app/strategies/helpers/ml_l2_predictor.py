@@ -96,7 +96,7 @@ class MLL2Predictor:
 
             logger.info(f"🤖 Loading L2 AI Model {self.model_type} from {file_path}...")
             
-            # Attempt to load metadata (features list)
+            # Attempt to load metadata (features list and prediction target)
             self.model_features = None
             metadata_path = file_path.replace(".zip", ".json").replace(".pkl", ".json").replace(".pt", ".json")
             if os.path.exists(metadata_path):
@@ -105,6 +105,11 @@ class MLL2Predictor:
                     with open(metadata_path, "r") as f:
                         meta = json.load(f)
                         self.model_features = meta.get("features")
+                        # Override prediction target if specified in metadata
+                        if "prediction_target" in meta:
+                            self.prediction_target = meta.get("prediction_target")
+                        elif "target_type" in meta:
+                            self.prediction_target = meta.get("target_type")
                 except Exception as e:
                     logger.warning(f"MLL2Predictor: Failed to load metadata: {e}")
 
