@@ -102,3 +102,4 @@ sb3-contrib>=2.2.1
 imbalanced-learn
 pyarrow
 fastparquet
+mplfinance==0.12.10b0

@@ -29,6 +29,10 @@ export const BotSettingsTab: React.FC = () => {
     const [targetSpread, setTargetSpread] = useState(''); // Optional target spread for profit booking
     const [targetSpreadUnit, setTargetSpreadUnit] = useState<'BASE' | 'QUOTE'>('BASE');
 
+    // TA Snapshot Feature
+    const [enableTaSnapshot, setEnableTaSnapshot] = useState(false);
+    const [taSnapshotTimeframe, setTaSnapshotTimeframe] = useState('15m');
+
     // Custom Dropdown States
     const [isPairDropdownOpen, setIsPairDropdownOpen] = useState(false);
     const [pairSearchQuery, setPairSearchQuery] = useState('');
@@ -80,7 +84,9 @@ export const BotSettingsTab: React.FC = () => {
                     stop_loss: parseFloat(stopLoss) || undefined,
                     take_profit: parseFloat(takeProfit) || undefined,
                     trailing_stop: trailingStop ? parseFloat(trailingStop) : undefined,
-                    target_spread: targetSpread ? parseFloat(targetSpread) : undefined
+                    target_spread: targetSpread ? parseFloat(targetSpread) : undefined,
+                    enable_ta_snapshot: enableTaSnapshot,
+                    ta_snapshot_timeframe: taSnapshotTimeframe
                 }
             };
 
@@ -129,7 +135,9 @@ export const BotSettingsTab: React.FC = () => {
                         stop_loss: parseFloat(stopLoss) || undefined,
                         take_profit: parseFloat(takeProfit) || undefined,
                         trailing_stop: trailingStop ? parseFloat(trailingStop) : undefined,
-                        target_spread: targetSpread ? parseFloat(targetSpread) : undefined
+                        target_spread: targetSpread ? parseFloat(targetSpread) : undefined,
+                        enable_ta_snapshot: enableTaSnapshot,
+                        ta_snapshot_timeframe: taSnapshotTimeframe
                     }
                 };
                 const newBot = await botService.createBot(botData);
@@ -425,6 +433,38 @@ export const BotSettingsTab: React.FC = () => {
                                 </select>
                             </div>
                         </div>
+                    </div>
+
+                    {/* TA Snapshot Configuration */}
+                    <div className="bg-gray-50 dark:bg-black/20 p-4 rounded-xl border border-gray-200 dark:border-white/5 space-y-4">
+                        <div className="flex items-center justify-between">
+                            <div>
+                                <h3 className="text-sm font-bold text-gray-800 dark:text-white">TA Snapshot Notification</h3>
+                                <p className="text-xs text-gray-500 mt-1">Send a technical analysis indicator snapshot upon entry.</p>
+                            </div>
+                            <button
+                                onClick={() => setEnableTaSnapshot(!enableTaSnapshot)}
+                                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${enableTaSnapshot ? 'bg-brand-primary' : 'bg-gray-400 dark:bg-gray-600'}`}
+                            >
+                                <span className={`${enableTaSnapshot ? 'translate-x-6' : 'translate-x-1'} inline-block h-4 w-4 transform rounded-full bg-white transition-transform duration-200 ease-in-out`} />
+                            </button>
+                        </div>
+                        {enableTaSnapshot && (
+                            <div className="pt-2">
+                                <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Snapshot Timeframe</label>
+                                <select
+                                    value={taSnapshotTimeframe}
+                                    onChange={(e) => setTaSnapshotTimeframe(e.target.value)}
+                                    className="w-full bg-white dark:bg-[#000000] border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-white rounded-lg px-3 py-2.5 outline-none focus:ring-2 focus:ring-brand-primary"
+                                >
+                                    <option value="1m">1 Minute</option>
+                                    <option value="5m">5 Minutes</option>
+                                    <option value="15m">15 Minutes</option>
+                                    <option value="1h">1 Hour</option>
+                                    <option value="4h">4 Hours</option>
+                                </select>
+                            </div>
+                        )}
                     </div>
 
                     <div>

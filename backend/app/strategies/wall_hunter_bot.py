@@ -27,6 +27,7 @@ from app.strategies.helpers.fibo_tp_calculator import calculate_fibo_extension_t
 from app.strategies.helpers.vwap_sd_tracker import VWAPSDTracker
 from app.strategies.helpers.vwap_sd_standalone_listener import VWAPSDStandaloneListener
 from app.strategies.helpers.advanced_risk_manager import AdvancedRiskManager
+from app.services.ta_snapshot_service import ta_snapshot_service
 
 try:
     from app.core.security import decrypt_key
@@ -358,6 +359,17 @@ class WallHunterBot:
         except Exception as e:
             self.logger.error(f"Failed to auto-stop via bot_manager: {e}")
             self.running = False
+
+    async def _send_telegram_photo(self, photo_bytes: bytes, caption: str):
+        if not self.owner_id: return
+        from app.services.notification import NotificationService
+        from app.db.session import SessionLocal
+        try:
+            db = SessionLocal()
+            await NotificationService.send_photo_bytes(db, self.owner_id, photo_bytes, caption=caption)
+            db.close()
+        except Exception as e:
+            self.logger.error(f"Error sending photo to telegram: {e}")
             
     def _normalize_symbol(self, symbol: str) -> str:
         """Normalizes symbol for robust comparison (e.g. BTC/USDT -> BTCUSDT)"""
@@ -2611,6 +2623,7 @@ class WallHunterBot:
                     f"TP: {self.active_pos['tp']:.6f}\n"
                     f"SL: {self.active_pos['sl']:.6f}"
                 )
+                asyncio.create_task(ta_snapshot_service.send_snapshot_telegram(self, actual_entry, trade_type))
                 
             else:
                 if getattr(self, 'strategy_mode', 'long') == 'short':
@@ -2673,6 +2686,7 @@ class WallHunterBot:
                     f"Final TP: {self.active_pos['tp']:.6f}\n"
                     f"SL: {self.active_pos['sl']:.6f}"
                 )
+                asyncio.create_task(ta_snapshot_service.send_snapshot_telegram(self, actual_entry, trade_type))
 
     async def _fetch_and_update_entry(self, order_id: str, amount: float, mid_price: float):
         """Background task to fetch precise execution price without blocking strategy"""

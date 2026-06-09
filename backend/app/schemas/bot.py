@@ -211,6 +211,10 @@ class StrategyConfig(BaseModel):
     ml_bullish_threshold: Optional[float] = 0.5
     ml_bearish_threshold: Optional[float] = 0.5
 
+    # --- TA Snapshot ---
+    enable_ta_snapshot: Optional[bool] = False
+    ta_snapshot_timeframe: Optional[str] = "15m"
+
     @validator('stop_loss')
     def validate_stop_loss(cls, v):
         if v is not None and (v < 0 or v > 100):

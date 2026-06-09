@@ -146,6 +146,37 @@ class NotificationService:
             raise  # Let caller fall back to text
 
     @staticmethod
+    async def send_photo_bytes(db: Session, user_id: int, photo_bytes: bytes, caption: str = None, parse_mode: str = None):
+        """
+        Sends a photo from memory (bytes) to the user via Telegram.
+        """
+        try:
+            settings = db.query(NotificationSettings).filter(
+                NotificationSettings.user_id == user_id
+            ).first()
+
+            if not settings or not settings.is_enabled or not settings.telegram_bot_token or not settings.telegram_chat_id:
+                return
+
+            bot = _make_bot(settings.telegram_bot_token)
+            
+            import io
+            img_io = io.BytesIO(photo_bytes)
+            img_io.name = "chart.png"
+
+            await bot.send_photo(
+                chat_id=settings.telegram_chat_id,
+                photo=img_io,
+                caption=caption,
+                parse_mode=parse_mode
+            )
+            logger.info(f"Photo bytes notification sent to user {user_id}")
+        except Exception as e:
+            logger.warning(f"[TelegramNotify] Could not send photo to {user_id}: {e} — falling back to text.")
+            if caption:
+                await NotificationService.send_message(db, user_id, caption, parse_mode)
+
+    @staticmethod
     async def force_send_message(bot_token: str, chat_id: str, message: str):
         """
         Sends a test message using provided credentials.

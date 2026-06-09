@@ -33,3 +33,6 @@ while True:
 END
 
 alembic upgrade head
+
+# Install any missing requirements quietly (allows docker-compose up to work without --build)
+pip install -q -r requirements.txt

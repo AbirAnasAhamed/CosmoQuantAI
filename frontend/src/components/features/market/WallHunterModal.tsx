@@ -238,7 +238,10 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
         enableMlFilter: false,
         mlModelId: '',
         mlBullishThreshold: 0.5,
-        mlBearishThreshold: 0.5
+        mlBearishThreshold: 0.5,
+        
+        enableTaSnapshot: true,
+        taSnapshotTimeframe: '15m'
     });
 
     const [existingBot, setExistingBot] = useState<any>(null);
@@ -485,7 +488,10 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                             enableMlFilter: c.enable_ml_filter !== undefined ? c.enable_ml_filter : false,
                             mlModelId: c.ai_model_id || '',
                             mlBullishThreshold: c.ml_bullish_threshold !== undefined ? c.ml_bullish_threshold : 0.5,
-                            mlBearishThreshold: c.ml_bearish_threshold !== undefined ? c.ml_bearish_threshold : 0.5
+                            mlBearishThreshold: c.ml_bearish_threshold !== undefined ? c.ml_bearish_threshold : 0.5,
+                            
+                            enableTaSnapshot: c.enable_ta_snapshot !== undefined ? c.enable_ta_snapshot : true,
+                            taSnapshotTimeframe: c.ta_snapshot_timeframe || '15m'
                         }));
                     } else {
                         setExistingBot(null);
@@ -867,6 +873,9 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                     enable_ml_filter: form.enableMlFilter,
                     ml_bullish_threshold: form.mlBullishThreshold,
                     ml_bearish_threshold: form.mlBearishThreshold,
+                    
+                    enable_ta_snapshot: form.enableTaSnapshot,
+                    ta_snapshot_timeframe: form.taSnapshotTimeframe,
                     
                     // Advanced Risk Management
                     enable_breakeven_stop: form.enableBreakevenStop,
@@ -2852,9 +2861,38 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                 )}
                             </div>
 
-                            <div className="grid grid-cols-2 gap-4">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <InputField label="Spoof Detect Time (Seconds)" value={form.spoofTime} onChange={(v: number) => setForm({ ...form, spoofTime: v })} step={0.5} />
-                                {/* TSL Step is configured in the Risk tab — removed duplicate here to prevent ghost state */}
+                                
+                                {/* TA Snapshot Configuration */}
+                                <div className="bg-black/20 border border-white/5 rounded-xl p-3">
+                                    <div className="flex items-center justify-between mb-3">
+                                        <label className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                                            <span className="text-blue-400">📸</span> TA Snapshot @ Entry
+                                        </label>
+                                        <div className={`w-8 h-4 rounded-full p-0.5 transition-colors duration-200 cursor-pointer ${form.enableTaSnapshot ? 'bg-blue-500' : 'bg-gray-700'}`} onClick={() => setForm({ ...form, enableTaSnapshot: !form.enableTaSnapshot })}>
+                                            <div className={`w-3 h-3 bg-white rounded-full shadow-md transform transition-transform duration-200 ${form.enableTaSnapshot ? 'translate-x-4' : 'translate-x-0'}`}></div>
+                                        </div>
+                                    </div>
+                                    {form.enableTaSnapshot && (
+                                        <div className="animate-fadeIn">
+                                            <label className="text-[10px] font-bold text-gray-500 uppercase mb-1 block">Chart Timeframe</label>
+                                            <select 
+                                                className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-1.5 text-white text-sm focus:outline-none focus:border-blue-500/50"
+                                                value={form.taSnapshotTimeframe}
+                                                onChange={(e) => setForm({ ...form, taSnapshotTimeframe: e.target.value })}
+                                            >
+                                                <option value="1m">1m</option>
+                                                <option value="3m">3m</option>
+                                                <option value="5m">5m</option>
+                                                <option value="15m">15m</option>
+                                                <option value="1h">1h</option>
+                                                <option value="4h">4h</option>
+                                                <option value="1d">1d</option>
+                                            </select>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             {/* --- BTC CORRELATION FILTER SECTION --- */}

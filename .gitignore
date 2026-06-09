@@ -87,6 +87,7 @@ Desktop.ini
 # User Uploads
 backend/static/avatars/
 verify_export_feature.py
+test_ta_snapshot.py
 celerybeat-schedule
 
 # ML Models
