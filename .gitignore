@@ -95,3 +95,5 @@ backend/d3rlpy_logs/
 
 # Raw Data (L2 Snapshots, etc.)
 backend/data/
+
+backend/uploads/
