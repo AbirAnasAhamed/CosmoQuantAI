@@ -27,6 +27,7 @@ class MLL2Predictor:
         self.model = None
         self.model_type = None
         self.prediction_target = "classification"  # default
+        self.model_features = None
         self.is_loaded = False
         self._feature_mismatch_logged = False  # throttle warning — log once only
         self._load_model()
@@ -82,6 +83,10 @@ class MLL2Predictor:
 
             self.model_type = db_model.model_type
             file_path = db_version.file_path
+            
+            # Fix DB bug where file_path points to scaler instead of model
+            if "scaler_train_" in file_path:
+                file_path = file_path.replace("scaler_train_", "model_train_")
             
             # L2 Predictor defaults to classification for spoofing detection
             self.prediction_target = "classification"

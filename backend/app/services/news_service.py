@@ -143,15 +143,20 @@ class NewsService:
                 # 1. Filter duplicates and prepare for batching
                 # Skip items with empty/missing URLs (they would violate the unique constraint)
                 new_items_to_process = []
+                seen_urls = set()
                 for item in news_items:
                     item_url = item.get('url', '').strip()
                     if not item_url:  # Skip empty URLs - they can't be uniquely identified
-                        logger.warning(f"Skipping news item with empty URL: '{item.get('title', 'Unknown')}' from {item.get('source', 'Unknown')}")
                         continue
+                        
+                    if item_url in seen_urls:
+                        continue
+                        
                     existing = db.query(EducationResource).filter(EducationResource.link == item_url).first()
                     if not existing:
                         item['url'] = item_url  # Use stripped URL
                         new_items_to_process.append(item)
+                        seen_urls.add(item_url)
                 
                 if not new_items_to_process:
                      logger.info("✅ Market News Fetch Completed. No new items.")
@@ -203,7 +208,9 @@ class NewsService:
                     elif "ethereum" in title_lower: cat = "Ethereum"
                     elif "defi" in title_lower: cat = "DeFi"
                     
-                    resource = EducationResource(
+                    from sqlalchemy.dialects.postgresql import insert as pg_insert
+                    
+                    stmt = pg_insert(EducationResource).values(
                         title=item['title'],
                         description=f"Source: {item['source']}", # Summary often missing in simple RSS
                         type="News",
@@ -214,16 +221,19 @@ class NewsService:
                         published_at=item.get('published_at', datetime.now(timezone.utc)),
                         impact_level=impact_data['level'],
                         impact_score=impact_data['score']
-                    )
-                    # Save each item individually to prevent one duplicate from aborting the whole batch
+                    ).on_conflict_do_nothing(index_elements=['link'])
+                    
+                    # Save each item safely using on_conflict_do_nothing
                     try:
-                        db.add(resource)
-                        db.flush()  # Detect constraint violations early without committing
-                        new_resources.append(resource)
-                        count += 1
+                        with db.begin_nested():
+                            result = db.execute(stmt)
+                        
+                        if result.rowcount > 0:
+                            resource = db.query(EducationResource).filter(EducationResource.link == item['url']).first()
+                            new_resources.append(resource)
+                            count += 1
                     except Exception as insert_err:
-                        db.rollback()  # Roll back the failed flush
-                        logger.warning(f"Skipping duplicate/invalid news item '{item['title']}': {insert_err}")
+                        logger.debug(f"Skipping invalid news item '{item['title']}': {insert_err}")
                         continue  # Continue saving remaining items
                 
                 db.commit()

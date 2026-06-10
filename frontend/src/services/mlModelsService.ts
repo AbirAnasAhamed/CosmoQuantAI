@@ -48,6 +48,21 @@ export const mlModelsService = {
         return mapModel(response.data);
     },
 
+    // Upload an entire folder directly
+    uploadFolder: async (files: File[]): Promise<CustomMLModel> => {
+        const formData = new FormData();
+        files.forEach((file) => {
+            formData.append('files', file);
+        });
+
+        const response = await api.post('/ml-models/upload-folder', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data',
+            },
+        });
+        return mapModel(response.data);
+    },
+
     // Upload a new version for an existing model
     uploadVersion: async (
         modelId: string,

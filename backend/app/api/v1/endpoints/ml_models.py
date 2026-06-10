@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 from app import crud, models, schemas
 from app.api import deps
 from app.db.session import get_db
+from scripts.sync_models import sync_directory
 
 router = APIRouter()
 
@@ -237,6 +238,44 @@ async def create_custom_model(
     
     # Trigger background processing
     background_tasks.add_task(simulate_processing, version_id)
+
+    return db_model
+
+@router.post("/upload-folder", response_model=schemas.CustomMLModelResponse)
+async def upload_model_folder(
+    files: List[UploadFile] = File(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+) -> Any:
+    """
+    Upload an entire model folder directly.
+    """
+    if not files:
+        raise HTTPException(status_code=400, detail="No files provided")
+
+    timestamp = int(time.time() * 1000)
+    job_id = f"job_custom_{timestamp}"
+    dir_path = os.path.join(UPLOAD_DIR, job_id)
+    os.makedirs(dir_path, exist_ok=True)
+
+    # Save all files to the new directory
+    for file in files:
+        if not file.filename:
+            continue
+        # Only take the basename to flatten the folder structure as discussed
+        filename = os.path.basename(file.filename)
+        file_path = os.path.join(dir_path, filename)
+        
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+
+    # Call sync_directory to process the saved folder and create database entries
+    db_model = sync_directory(dir_path, db, current_user)
+    
+    if not db_model:
+        # If sync failed or no valid model files were found, clean up
+        shutil.rmtree(dir_path)
+        raise HTTPException(status_code=400, detail="Could not parse model files or metadata from the uploaded folder. Make sure valid .zip/.pkl/.pt files exist.")
 
     return db_model
 

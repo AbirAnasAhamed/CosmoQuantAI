@@ -1737,7 +1737,7 @@ class WallHunterFuturesStrategy:
                         "side": "long",
                         "breakeven_hit": False,
                         "tsl_activated": False,
-                        "entry_order_id": res.get('id')
+                        "entry_order_id": res.get('id') if not getattr(self, 'is_paper_trading', False) else None
                     }
                 else: # SHORT
                     sl_price = actual_entry * (1 + (self.initial_risk_pct / 100)) if self.initial_risk_pct > 0 else float('inf')
@@ -1766,7 +1766,7 @@ class WallHunterFuturesStrategy:
                         "side": "short",
                         "breakeven_hit": False,
                         "tsl_activated": False,
-                        "entry_order_id": res.get('id')
+                        "entry_order_id": res.get('id') if not getattr(self, 'is_paper_trading', False) else None
                     }
 
                 self.extreme_price = actual_entry
