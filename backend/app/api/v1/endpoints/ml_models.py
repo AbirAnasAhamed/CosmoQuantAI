@@ -558,41 +558,30 @@ def download_model(
     if not file_path or not os.path.exists(file_path):
         raise HTTPException(status_code=404, detail="Model file not found on server")
 
-    # Build a clean download filename: <model_name>_v<version>.<ext>
-    original_filename = os.path.basename(file_path)
-    # Try to get the extension from the stored filename (after the version prefix)
-    ext = os.path.splitext(original_filename)[1] or ".bin"
+    dir_path = os.path.dirname(file_path)
     safe_model_name = "".join(c if c.isalnum() or c in ("-", "_") else "_" for c in db_model.name)
     
-    # Check if metadata exists
-    json_path = file_path.replace(".pkl", ".json").replace(".pt", ".json").replace(".zip", ".json").replace(".onnx", ".json").replace(".h5", ".json")
+    import zipfile
+    import io
+    from fastapi.responses import Response
     
-    if os.path.exists(json_path):
-        import zipfile
-        import io
-        from fastapi.responses import StreamingResponse
-        
-        # Create a ZIP file in memory
-        zip_buffer = io.BytesIO()
-        with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
-            zip_file.write(file_path, arcname=original_filename)
-            zip_file.write(json_path, arcname=os.path.basename(json_path))
-            
-        zip_buffer.seek(0)
-        download_filename = f"{safe_model_name}_v{version.version:.1f}_bundle.zip"
-        
-        return StreamingResponse(
-            zip_buffer,
-            media_type="application/zip",
-            headers={"Content-Disposition": f"attachment; filename={download_filename}"}
-        )
-    else:
-        download_filename = f"{safe_model_name}_v{version.version:.1f}{ext}"
-        return FileResponse(
-            path=file_path,
-            filename=download_filename,
-            media_type="application/octet-stream",
-        )
+    # Create a ZIP file in memory
+    zip_buffer = io.BytesIO()
+    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
+        for root, _, files in os.walk(dir_path):
+            for file in files:
+                full_path = os.path.join(root, file)
+                # Keep folder structure relative to the model directory
+                arcname = os.path.relpath(full_path, dir_path)
+                zip_file.write(full_path, arcname=arcname)
+                
+    download_filename = f"{safe_model_name}_v{version.version:.1f}_complete_bundle.zip"
+    
+    return Response(
+        content=zip_buffer.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f"attachment; filename={download_filename}"}
+    )
 
 
 @router.get("/{model_id}/dataset/download")
