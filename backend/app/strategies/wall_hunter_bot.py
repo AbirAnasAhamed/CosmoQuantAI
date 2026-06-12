@@ -110,6 +110,7 @@ class WallHunterBot:
         self.sl_order_type = config.get("sl_order_type", "market")
         self.smart_chase_deviation_pct = config.get("smart_chase_deviation_pct", 1.0)
         self.smart_chase_delay_ms = config.get("smart_chase_delay_ms", 1500)
+        self.smart_chase_max_attempts = config.get("smart_chase_max_attempts", 15)
         self.trading_mode = config.get("trading_mode", "spot").lower()
         self.strategy_mode = config.get("strategy_mode", "long").lower()
         
@@ -492,6 +493,9 @@ class WallHunterBot:
             
         if "smart_chase_delay_ms" in new_config and new_config["smart_chase_delay_ms"] != getattr(self, "smart_chase_delay_ms", 1500):
             self.smart_chase_delay_ms = new_config.get("smart_chase_delay_ms")
+            
+        if "smart_chase_max_attempts" in new_config and new_config["smart_chase_max_attempts"] != getattr(self, "smart_chase_max_attempts", 15):
+            self.smart_chase_max_attempts = new_config.get("smart_chase_max_attempts")
             
         if "risk_pct" in new_config and new_config["risk_pct"] != self.initial_risk_pct:
             updates.append(f"Risk Pct: {self.initial_risk_pct}% -> {new_config['risk_pct']}%")
@@ -3380,6 +3384,7 @@ class WallHunterBot:
                     original_sl=self.active_pos['sl'],
                     max_deviation_pct=getattr(self, 'smart_chase_deviation_pct', 1.0),
                     chase_delay_ms=getattr(self, 'smart_chase_delay_ms', 1500),
+                    max_attempts=getattr(self, 'smart_chase_max_attempts', 15),
                     exchange_id=self.exchange_id,
                     is_futures=False
                 )

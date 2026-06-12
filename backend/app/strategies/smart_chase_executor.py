@@ -36,7 +36,10 @@ async def execute_smart_chase(
     final_res = None
     remaining_amount = sell_amount_raw
     
-    while chase_active and attempts < max_attempts:
+    while chase_active:
+        if max_attempts > 0 and attempts >= max_attempts:
+            break
+            
         attempts += 1
         
         # 1. Fetch best maker price from orderbook
@@ -140,9 +143,9 @@ async def execute_smart_chase(
             except Exception as e:
                 logger.error(f"Error checking/cancelling chase order: {e}")
         else:
-            # Failed to place post-only (e.g. order would be taker immediately). Retry quickly
-            logger.debug("Post-Only order rejected (likely crossed the spread). Retrying immediately...")
-            await asyncio.sleep(0.2)
+            # Failed to place post-only (e.g. order would be taker immediately).
+            logger.debug("Post-Only order rejected (likely crossed the spread). Retrying after delay...")
+            await asyncio.sleep(chase_delay_sec)
             
     # 5. Fallback if max attempts reached without filling
     if final_res is None and remaining_amount > 0:

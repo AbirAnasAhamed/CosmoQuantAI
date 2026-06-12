@@ -65,6 +65,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
         slOrderType: 'limit',
         smartChaseDeviationPct: 1.0,
         smartChaseDelayMs: 1500,
+        smartChaseMaxAttempts: 15,
 
         enableWallTrigger: false,        
         maxWallDistancePct: 1.0,        
@@ -340,6 +341,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                             slOrderType: c.sl_order_type || 'limit',
                             smartChaseDeviationPct: c.smart_chase_deviation_pct !== undefined ? c.smart_chase_deviation_pct : 1.0,
                             smartChaseDelayMs: c.smart_chase_delay_ms !== undefined ? c.smart_chase_delay_ms : 1500,
+                            smartChaseMaxAttempts: c.smart_chase_max_attempts !== undefined ? c.smart_chase_max_attempts : 15,
                             spoofTime: c.min_wall_lifetime !== undefined ? c.min_wall_lifetime : 3.0,
                             enablePartialTp: c.partial_tp_pct !== undefined ? c.partial_tp_pct > 0 : false,
                             partialTp: c.partial_tp_pct !== undefined && c.partial_tp_pct > 0 ? c.partial_tp_pct : 20.0,
@@ -722,6 +724,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                     sl_order_type: form.slOrderType,
                     smart_chase_deviation_pct: form.slOrderType === 'smart_chase' ? form.smartChaseDeviationPct : 0.0,
                     smart_chase_delay_ms: form.slOrderType === 'smart_chase' ? form.smartChaseDelayMs : 1500,
+                    smart_chase_max_attempts: form.slOrderType === 'smart_chase' ? form.smartChaseMaxAttempts : 15,
                     min_wall_lifetime: form.spoofTime,
                     partial_tp_pct: form.enablePartialTp ? form.partialTp : 0.0,
                     partial_tp_trigger_pct: form.enablePartialTp ? form.partialTpTriggerPct : 0.0,
@@ -2595,9 +2598,14 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                             <span className="text-xs font-mono font-bold text-brand-primary">{form.smartChaseDeviationPct}%</span>
                                         </div>
                                         <input type="range" min="0.1" max="5.0" step="0.1" className="w-full h-1.5 rounded-lg appearance-none cursor-pointer accent-brand-primary bg-white/10" value={form.smartChaseDeviationPct} onChange={(e) => handleFormChange('smartChaseDeviationPct', parseFloat(e.target.value))} />
-                                        <p className="text-[8.5px] text-gray-500 mt-1 leading-tight">Circuit breaker limit. If market drops beyond this percentage from original SL, bot aborts chase and sweeps at Market to prevent deep losses.</p>
+                                        <p className="text-[8.5px] text-gray-500 mt-1 leading-tight">Circuit breaker limit.</p>
                                     </div>
-                                    <div className="w-[120px] space-y-1">
+                                    <div className="w-[80px] space-y-1">
+                                        <label className="text-[10px] text-brand-primary font-bold uppercase" title="Max number of retries before forcing a market sweep. Set to 0 for infinite retries.">Retries</label>
+                                        <input type="number" step="1" min="0" max="999" className="w-full bg-black/40 border border-brand-primary/30 rounded-xl p-2 text-brand-primary text-center outline-none focus:border-brand-primary text-xs font-mono" value={form.smartChaseMaxAttempts} onChange={(e) => handleFormChange('smartChaseMaxAttempts', parseInt(e.target.value))} />
+                                        <p className="text-[8.5px] text-gray-500 mt-1 text-center">0 = Infinite</p>
+                                    </div>
+                                    <div className="w-[90px] space-y-1">
                                         <label className="text-[10px] text-brand-primary font-bold uppercase">Delay (ms)</label>
                                         <input type="number" step="100" min="200" max="2000" className="w-full bg-black/40 border border-brand-primary/30 rounded-xl p-2 text-brand-primary text-center outline-none focus:border-brand-primary text-xs font-mono" value={form.smartChaseDelayMs} onChange={(e) => handleFormChange('smartChaseDelayMs', parseInt(e.target.value))} />
                                         <p className="text-[8.5px] text-gray-500 mt-1 text-center">API throttling.</p>

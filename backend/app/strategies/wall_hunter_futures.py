@@ -109,6 +109,7 @@ class WallHunterFuturesStrategy:
         self.sl_order_type = self.config.get("sl_order_type", "market")
         self.smart_chase_deviation_pct = self.config.get("smart_chase_deviation_pct", 1.0)
         self.smart_chase_delay_ms = self.config.get("smart_chase_delay_ms", 1500)
+        self.smart_chase_max_attempts = self.config.get("smart_chase_max_attempts", 15)
         self.limit_buffer = self.config.get("limit_buffer", 0.05)  # % buffer for maker limit orders
         self.tsl_activation_pct = self.config.get("tsl_activation_pct", 0.0)
         # Soft Limit TP: how long (seconds) to wait for a postOnly maker TP order before market sweep
@@ -2461,6 +2462,7 @@ class WallHunterFuturesStrategy:
                         original_sl=self.active_pos['sl'],
                         max_deviation_pct=getattr(self, 'smart_chase_deviation_pct', 1.0),
                         chase_delay_ms=getattr(self, 'smart_chase_delay_ms', 1500),
+                        max_attempts=getattr(self, 'smart_chase_max_attempts', 15),
                         exchange_id=self.exchange_id,
                         is_futures=True
                     )
@@ -3122,6 +3124,9 @@ class WallHunterFuturesStrategy:
             
         if "smart_chase_delay_ms" in new_config and new_config["smart_chase_delay_ms"] != getattr(self, "smart_chase_delay_ms", 1500):
             self.smart_chase_delay_ms = new_config.get("smart_chase_delay_ms")
+
+        if "smart_chase_max_attempts" in new_config and new_config["smart_chase_max_attempts"] != getattr(self, "smart_chase_max_attempts", 15):
+            self.smart_chase_max_attempts = new_config.get("smart_chase_max_attempts")
 
         if "leverage" in new_config:
             updates.append(f"Leverage: {self.leverage}x -> {new_config['leverage']}x")
