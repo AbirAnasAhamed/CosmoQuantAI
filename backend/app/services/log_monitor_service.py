@@ -222,6 +222,8 @@ WARNING_OVERRIDE_PATTERNS = [
     # ── Benign Trading Logic Failures (Fallback automatically handled) ──
     re.compile(r'postOnly placement failed', re.IGNORECASE),
     re.compile(r'Exit order execution failed', re.IGNORECASE),
+    re.compile(r'Order execution failed', re.IGNORECASE),
+    re.compile(r'Margin is insufficient', re.IGNORECASE),
     re.compile(r'Futures Hunter Loop Error.*NoneType', re.IGNORECASE),
 
     re.compile(r'Streamer failed to load markets', re.IGNORECASE),

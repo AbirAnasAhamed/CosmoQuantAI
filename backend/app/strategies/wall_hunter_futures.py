@@ -2486,7 +2486,8 @@ class WallHunterFuturesStrategy:
                         chase_delay_ms=getattr(self, 'smart_chase_delay_ms', 1500),
                         max_attempts=getattr(self, 'smart_chase_max_attempts', 15),
                         exchange_id=self.exchange_id,
-                        is_futures=True
+                        is_futures=True,
+                        is_paper_trading=self.is_paper_trading
                     )
 
                 if sl_exec_type in ('limit', 'smart_chase') and not res:

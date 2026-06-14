@@ -15,7 +15,8 @@ async def execute_smart_chase(
     chase_delay_ms: int = 1500,
     max_attempts: int = 15,
     exchange_id: str = "binance",
-    is_futures: bool = False
+    is_futures: bool = False,
+    is_paper_trading: bool = False
 ) -> dict:
     """
     Executes a Smart Chase Limit logic to exit a position using Post-Only maker orders.
@@ -110,7 +111,10 @@ async def execute_smart_chase(
             await asyncio.sleep(chase_delay_sec)
             
             try:
-                chk = await engine.exchange.fetch_order(order_id, symbol)
+                if is_paper_trading:
+                    chk = {'status': 'closed', 'id': order_id, 'filled': remaining_amount}
+                else:
+                    chk = await engine.exchange.fetch_order(order_id, symbol)
                 status = chk.get('status')
                 
                 if status in ['closed', 'filled']:
@@ -119,11 +123,15 @@ async def execute_smart_chase(
                     break
                 else:
                     logger.info(f"⏳ Chase Order {order_id} status is '{status}'. Cancelling to recalculate...")
-                    await engine.cancel_order(order_id)
+                    if not is_paper_trading:
+                        await engine.cancel_order(order_id)
                     await asyncio.sleep(0.3)
                     
                     # Check partial fill after cancel
-                    cancel_chk = await engine.exchange.fetch_order(order_id, symbol)
+                    if is_paper_trading:
+                        cancel_chk = {'status': 'canceled', 'id': order_id, 'filled': 0.0}
+                    else:
+                        cancel_chk = await engine.exchange.fetch_order(order_id, symbol)
                     filled = cancel_chk.get('filled', 0.0)
                     if filled > 0:
                         logger.info(f"🔄 Partial fill detected: {filled}. Adjusting remaining amount.")
