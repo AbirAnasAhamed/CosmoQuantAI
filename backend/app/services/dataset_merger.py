@@ -27,6 +27,10 @@ class DatasetMergerService:
         """
         dataframes = []
 
+        # 0. Convert frontend symbol to DB stream symbol
+        # CCXT 'DOGE/USDC:USDC' -> DB 'DOGEUSDC'
+        db_symbol = symbol.upper().split(":")[0].replace("/", "")
+
         # 1. Load the Uploaded CSV (DVC Snapshot) - Optional
         try:
             if uploaded_csv_path and os.path.exists(uploaded_csv_path):
@@ -41,7 +45,7 @@ class DatasetMergerService:
             raise HTTPException(status_code=400, detail=f"Failed to read uploaded CSV: {str(e)}")
 
         # 2. Load Local Parquet Archives
-        clean_symbol = "".join(c if c.isalnum() else "_" for c in symbol)
+        clean_symbol = "".join(c if c.isalnum() else "_" for c in db_symbol)
         archive_files = glob.glob(os.path.join(ARCHIVE_DIR, f"l2_archive_{clean_symbol}_*.parquet"))
         
         for p_file in archive_files:
@@ -56,8 +60,8 @@ class DatasetMergerService:
 
         # 3. Load Live Database Data
         try:
-            print(f"[DatasetMerger] Fetching live database snapshots for {symbol}...")
-            live_snapshots = db.query(OrderBookSnapshot).filter(OrderBookSnapshot.symbol == symbol).all()
+            print(f"[DatasetMerger] Fetching live database snapshots for {symbol} (DB format: {db_symbol})...")
+            live_snapshots = db.query(OrderBookSnapshot).filter(OrderBookSnapshot.symbol == db_symbol).all()
             if live_snapshots:
                 live_data = []
                 for s in live_snapshots:

@@ -624,16 +624,38 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
             const res = await mlTrainingService.mergeDataset(symbol, mergedFile);
             setMergedResult(res);
         } catch (error: any) {
-            alert(`❌ Merge failed: ${error?.response?.data?.detail || error.message}`);
+            const errorDetail = error?.response?.data?.detail || error.message;
+            if (errorDetail.includes("No data sources found")) {
+                alert(`⚠️ No historical data available to merge right now. You can skip this step and directly click "Start Training" to use live data!`);
+            } else {
+                alert(`❌ Merge failed: ${errorDetail}`);
+            }
         } finally {
             setIsMerging(false);
         }
     };
 
     const handleStartTraining = async () => {
+        let finalMergedResult = mergedResult;
+
         if (['l2_orderbook', 'hybrid_deep'].includes(dataSource) && isIncludeArchived && !mergedResult) {
-            alert("Please click 'Merge & Prepare Dataset' first to prepare the archived data.");
-            return;
+            setIsMerging(true);
+            try {
+                finalMergedResult = await mlTrainingService.mergeDataset(symbol, mergedFile);
+                setMergedResult(finalMergedResult);
+            } catch (error: any) {
+                const errorDetail = error?.response?.data?.detail || error.message;
+                if (errorDetail.includes("No data sources found")) {
+                    alert(`⚠️ No archived data found for ${symbol} yet. Starting training with live data only!`);
+                    // We can proceed with training without the merged file
+                    finalMergedResult = null;
+                } else {
+                    alert(`❌ Merge failed: ${errorDetail}`);
+                    setIsMerging(false);
+                    return;
+                }
+            }
+            setIsMerging(false);
         }
 
         try {
@@ -655,7 +677,7 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                     indicators: (dataSource === 'ohlcv' || dataSource === 'hybrid' || dataSource === 'historical_trades') ? selectedIndicators : [],
                     epochs,
                     dataset_type: dataSource,
-                    use_merged_file: (['l2_orderbook', 'hybrid_deep'].includes(dataSource) && isIncludeArchived && !!mergedResult),
+                    use_merged_file: (['l2_orderbook', 'hybrid_deep'].includes(dataSource) && isIncludeArchived && !!finalMergedResult),
                     is_auto_retrain: isAutoRetrain,
                     retrain_interval_hours: isAutoRetrain ? retrainInterval : undefined,
                     enable_ewc: enableEwc,
@@ -715,7 +737,7 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                     hybrid_deep_trade_features: dataSource === 'hybrid_deep' ? selectedHybridDeepTradeFeatures : undefined,
                     plp_features: (dataSource === 'hybrid_deep' || dataSource === 'l2_orderbook' || dataSource === 'hybrid') ? selectedPlpFeatures : undefined,
                     // Merged Dataset params (new)
-                    merged_file: (['l2_orderbook', 'hybrid_deep'].includes(dataSource) && isIncludeArchived) ? mergedResult?.merged_filename : undefined,
+                    merged_file: (['l2_orderbook', 'hybrid_deep'].includes(dataSource) && isIncludeArchived) ? finalMergedResult?.merged_filename : undefined,
                     // Execution strategy params
                     execution_strategy: executionStrategy,
                     iceberg_slices: executionStrategy === 'iceberg' ? icebergSlices : undefined,

@@ -520,8 +520,19 @@ def build_hybrid_deep_dataset(job, db: Session, config: dict, add_log, check_can
         # Parse stringified JSON bids/asks from CSV
         if 'bids' in df.columns and isinstance(df['bids'].iloc[0], str):
             import json
-            df['bids'] = df['bids'].apply(lambda x: json.loads(x) if isinstance(x, str) else x)
-            df['asks'] = df['asks'].apply(lambda x: json.loads(x) if isinstance(x, str) else x)
+            import ast
+            def safe_parse_book(x):
+                if not isinstance(x, str): return x
+                try:
+                    return json.loads(x)
+                except json.JSONDecodeError:
+                    try:
+                        return ast.literal_eval(x)
+                    except:
+                        return []
+                        
+            df['bids'] = df['bids'].apply(safe_parse_book)
+            df['asks'] = df['asks'].apply(safe_parse_book)
             
         add_log(f"[HybridDeep] File loaded successfully. Rows: {len(df)}")
     else:
