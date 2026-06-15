@@ -2212,6 +2212,7 @@ class WallHunterFuturesStrategy:
                             except Exception as e: pass
 
         # --- NEW: Independent Breakeven SL Logic ---
+        if not self.active_pos: return
         if getattr(self, 'sl_breakeven_trigger_pct', 0.0) > 0 and not self.active_pos.get('breakeven_hit'):
             entry = self.active_pos['entry']
             if side == "long":
@@ -2264,6 +2265,7 @@ class WallHunterFuturesStrategy:
                         asyncio.create_task(self._send_telegram(f"🛡️ Stop-Loss moved to Risk-Free!\nPair: {self.symbol}\nNew SL: {new_breakeven_sl:.6f}"))
 
         # --- NEW: Advanced Risk Manager (Global TP & Break-Even) ---
+        if not self.active_pos: return
         if hasattr(self, 'advanced_risk_manager') and self.advanced_risk_manager:
             entry = self.active_pos['entry']
             amount = self.active_pos['amount']
@@ -2295,6 +2297,7 @@ class WallHunterFuturesStrategy:
                     # Force exit logic will be handled below.
                     
         # TP / SL চেক
+        if not self.active_pos: return
         should_exit = should_exit if 'should_exit' in locals() else False
         reason = reason if 'reason' in locals() else ""
         
