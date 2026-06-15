@@ -6,6 +6,9 @@ import numpy as np
 import pandas as pd
 import logging
 import warnings
+import json
+import traceback
+from typing import Dict, Any, List, Optional
 
 # Suppress sklearn feature names warning
 warnings.filterwarnings("ignore", message="X does not have valid feature names")
@@ -123,7 +126,7 @@ class MLL2Predictor:
                 except Exception as e:
                     logger.warning(f"MLL2Predictor: Failed to load scaler: {e}")
 
-            if self.model_type in ["Random Forest", "XGBoost", "LightGBM", "CatBoost"]:
+            if self.model_type in ["Random Forest", "XGBoost", "LightGBM", "CatBoost", "Ensemble"]:
                 self.model = joblib.load(file_path)
                 self.is_loaded = True
             elif self.model_type in ["LSTM", "GRU", "1D-CNN", "DeepLOB", "Transformer"]:
@@ -441,7 +444,10 @@ class MLL2Predictor:
                 seq_features = np.vstack([padding, seq_features])
 
             # 2. Predict
-            if self.model_type in ["Random Forest", "XGBoost", "LightGBM", "CatBoost"]:
+            if self.model_type in ["Random Forest", "XGBoost", "LightGBM", "CatBoost", "Ensemble"]:
+                if getattr(self, 'model_features', None) and isinstance(features, np.ndarray):
+                    features = pd.DataFrame(features, columns=self.model_features)
+
                 if self.prediction_target == "classification" and hasattr(self.model, "predict_proba"):
                     try:
                         pred = float(self.model.predict_proba(features)[0][1])
