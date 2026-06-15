@@ -619,7 +619,6 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
     };
 
     const handleMergeDataset = async () => {
-        if (!mergedFile) return;
         setIsMerging(true);
         try {
             const res = await mlTrainingService.mergeDataset(symbol, mergedFile);

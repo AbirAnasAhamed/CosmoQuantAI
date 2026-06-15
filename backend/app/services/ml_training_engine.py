@@ -1389,7 +1389,8 @@ def train_model_task(job_id: str, db: Session):
                     return lgb.LGBMClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, verbose=-1, class_weight='balanced') if is_clf else lgb.LGBMRegressor(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, verbose=-1)
                 elif name == "CatBoost":
                     from catboost import CatBoostClassifier, CatBoostRegressor
-                    return CatBoostClassifier(iterations=epochs, learning_rate=learning_rate, depth=max_depth, random_state=42, verbose=False, auto_class_weights='Balanced') if is_clf else CatBoostRegressor(iterations=epochs, learning_rate=learning_rate, depth=max_depth, random_state=42, verbose=False)
+                    cb_depth = min(max_depth, 16)
+                    return CatBoostClassifier(iterations=epochs, learning_rate=learning_rate, depth=cb_depth, random_state=42, verbose=False, auto_class_weights='Balanced') if is_clf else CatBoostRegressor(iterations=epochs, learning_rate=learning_rate, depth=cb_depth, random_state=42, verbose=False)
                 elif name in ["LSTM", "Transformer", "Neural Network (MLP)"]:
                     add_log(f"Mapping {name} to Scikit-Learn MLP for Ensemble compatibility.")
                     from sklearn.neural_network import MLPClassifier, MLPRegressor
@@ -1858,8 +1859,9 @@ def train_model_task(job_id: str, db: Session):
                     add_log(f"✅ Fine-Tuning CatBoost: initialising from previous model")
                 except Exception as _ft_e:
                     add_log(f"⚠️ CatBoost fine-tune load failed ({_ft_e}), training fresh.")
+            cb_depth = min(max_depth, 16)
             if prediction_target == "classification":
-                model = cb.CatBoostClassifier(iterations=epochs, learning_rate=learning_rate, depth=max_depth, random_seed=42, verbose=False, auto_class_weights='Balanced')
+                model = cb.CatBoostClassifier(iterations=epochs, learning_rate=learning_rate, depth=cb_depth, random_seed=42, verbose=False, auto_class_weights='Balanced')
                 model.fit(X_train_df, y_train.ravel(), eval_set=(X_test_df, y_test.ravel()), init_model=_cb_init)
                 start_time = time.time()
                 y_pred = model.predict(X_test_df)
@@ -1867,7 +1869,7 @@ def train_model_task(job_id: str, db: Session):
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
                 process_metrics(calculate_classification_metrics(y_test.ravel(), y_pred), True)
             else:
-                model = cb.CatBoostRegressor(iterations=epochs, learning_rate=learning_rate, depth=max_depth, random_seed=42, verbose=False)
+                model = cb.CatBoostRegressor(iterations=epochs, learning_rate=learning_rate, depth=cb_depth, random_seed=42, verbose=False)
                 model.fit(X_train_df, y_train.ravel(), eval_set=(X_test_df, y_test.ravel()), init_model=_cb_init)
                 start_time = time.time()
                 y_pred = model.predict(X_test_df)
