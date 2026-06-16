@@ -39,6 +39,10 @@ class AdvancedMetricsService:
                         return [json.loads(t) for t in cached_trades]
 
                 # 2. Fallback to REST API if cache is empty
+                if exchange_id.lower() == 'binance':
+                    logger.warning(f"Skipping REST fetch_trades for {symbol} due to Binance IP ban protection. Waiting for WebSocket stream cache.")
+                    return []
+                    
                 exchange = await market_depth_service.get_exchange_instance(exchange_id, symbol)
                 trades = await exchange.fetch_trades(symbol.upper(), limit=limit)
                 
