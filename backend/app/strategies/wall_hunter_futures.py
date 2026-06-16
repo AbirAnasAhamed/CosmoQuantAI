@@ -2445,6 +2445,25 @@ class WallHunterFuturesStrategy:
                     pass
 
             if native_sl_already_filled:
+                # --- DOUBLE VERIFICATION: Did it actually fill or was it manually cancelled? ---
+                if not self.is_paper_trading:
+                    try:
+                        positions = await self.private_exchange.fetch_positions([self.symbol])
+                        has_pos = False
+                        for p in positions:
+                            if p.get('symbol') == self.symbol or self._normalize_symbol(p.get('symbol')) == self._normalize_symbol(self.symbol):
+                                if float(p.get('contracts', 0) or 0) > 0:
+                                    has_pos = True
+                                    break
+                        if has_pos:
+                            logger.warning("🚨 WARNING: Native SL returned 'Unknown Order' but position is STILL OPEN! (Likely manually cancelled). Proceeding with bot exit routing.")
+                            native_sl_already_filled = False
+                    except Exception as e:
+                        logger.error(f"Error verifying position for Native SL fill: {e}")
+                        # In case of API failure, it's safer to attempt the exit routing which uses reduceOnly anyway
+                        native_sl_already_filled = False
+
+            if native_sl_already_filled:
                 logger.info("✅ Native SL already filled/closed natively! Skipping bot exit routing.")
                 assumed_exit = self.active_pos['sl'] if reason == "Stop Loss" else self.active_pos['tp']
                 amount = self.active_pos['amount']
