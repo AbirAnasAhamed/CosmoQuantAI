@@ -2151,13 +2151,23 @@ class WallHunterFuturesStrategy:
                                 await self.engine.cancel_order(self.active_pos['sl_order_id'])
                                 _tsl_sl_type = getattr(self, 'sl_order_type', 'market')
                                 _tsl_order_type = "STOP" if _tsl_sl_type in ('limit', 'stop_limit') else "stop_market"
-                                sl_params = {'reduceOnly': True, 'stopPrice': self.active_pos['sl']}
+                                
+                                native_sl_price = self.active_pos['sl']
+                                if _tsl_sl_type == 'smart_chase':
+                                    max_dev = getattr(self, 'smart_chase_deviation_pct', 1.0)
+                                    native_sl_price = native_sl_price * (1 - (max_dev / 100))
+                                elif _tsl_sl_type == 'soft_limit':
+                                    native_sl_price = native_sl_price * 0.99
+                                    
+                                native_sl_price = float(self.engine.exchange.price_to_precision(self.symbol, native_sl_price)) if hasattr(self.engine.exchange, 'price_to_precision') else native_sl_price
+                                
+                                sl_params = {'reduceOnly': True, 'stopPrice': native_sl_price}
                                 if _tsl_sl_type in ('limit', 'stop_limit'):
-                                    sl_params['price'] = self.active_pos['sl']
-                                sl_res = await self.engine.execute_trade("sell", self.active_pos['amount'], self.active_pos['sl'], order_type=_tsl_order_type, params=sl_params)
+                                    sl_params['price'] = native_sl_price
+                                sl_res = await self.engine.execute_trade("sell", self.active_pos['amount'], native_sl_price, order_type=_tsl_order_type, params=sl_params)
                                 if sl_res and 'id' in sl_res:
                                     self.active_pos['sl_order_id'] = sl_res['id']
-                                    logger.info(f"🔄 Native TSL Exchange Update: LONG SL moved to {self.active_pos['sl']:.6f}")
+                                    logger.info(f"🔄 Native TSL Exchange Update: LONG SL moved to {self.active_pos['sl']:.6f} (Native Trigger: {native_sl_price:.6f})")
                             except Exception as e: pass
         else: # short
             if current_price < self.extreme_price or self.extreme_price == 0:
@@ -2202,13 +2212,23 @@ class WallHunterFuturesStrategy:
                                 await self.engine.cancel_order(self.active_pos['sl_order_id'])
                                 _tsl_sl_type = getattr(self, 'sl_order_type', 'market')
                                 _tsl_order_type = "STOP" if _tsl_sl_type in ('limit', 'stop_limit') else "stop_market"
-                                sl_params = {'reduceOnly': True, 'stopPrice': self.active_pos['sl']}
+                                
+                                native_sl_price = self.active_pos['sl']
+                                if _tsl_sl_type == 'smart_chase':
+                                    max_dev = getattr(self, 'smart_chase_deviation_pct', 1.0)
+                                    native_sl_price = native_sl_price * (1 + (max_dev / 100))
+                                elif _tsl_sl_type == 'soft_limit':
+                                    native_sl_price = native_sl_price * 1.01
+                                    
+                                native_sl_price = float(self.engine.exchange.price_to_precision(self.symbol, native_sl_price)) if hasattr(self.engine.exchange, 'price_to_precision') else native_sl_price
+                                
+                                sl_params = {'reduceOnly': True, 'stopPrice': native_sl_price}
                                 if _tsl_sl_type in ('limit', 'stop_limit'):
-                                    sl_params['price'] = self.active_pos['sl']
-                                sl_res = await self.engine.execute_trade("buy", self.active_pos['amount'], self.active_pos['sl'], order_type=_tsl_order_type, params=sl_params)
+                                    sl_params['price'] = native_sl_price
+                                sl_res = await self.engine.execute_trade("buy", self.active_pos['amount'], native_sl_price, order_type=_tsl_order_type, params=sl_params)
                                 if sl_res and 'id' in sl_res:
                                     self.active_pos['sl_order_id'] = sl_res['id']
-                                    logger.info(f"🔄 Native TSL Exchange Update: SHORT SL moved to {self.active_pos['sl']:.6f}")
+                                    logger.info(f"🔄 Native TSL Exchange Update: SHORT SL moved to {self.active_pos['sl']:.6f} (Native Trigger: {native_sl_price:.6f})")
                             except Exception as e: pass
 
         # --- NEW: Independent Breakeven SL Logic ---
@@ -2230,10 +2250,20 @@ class WallHunterFuturesStrategy:
                                 await self.engine.cancel_order(self.active_pos['sl_order_id'])
                                 _be_sl_type = getattr(self, 'sl_order_type', 'market')
                                 _be_order_type = "STOP" if _be_sl_type in ('limit', 'stop_limit') else "stop_market"
-                                sl_params = {'reduceOnly': True, 'stopPrice': new_breakeven_sl}
+                                
+                                native_sl_price = new_breakeven_sl
+                                if _be_sl_type == 'smart_chase':
+                                    max_dev = getattr(self, 'smart_chase_deviation_pct', 1.0)
+                                    native_sl_price = native_sl_price * (1 - (max_dev / 100))
+                                elif _be_sl_type == 'soft_limit':
+                                    native_sl_price = native_sl_price * 0.99
+                                    
+                                native_sl_price = float(self.engine.exchange.price_to_precision(self.symbol, native_sl_price)) if hasattr(self.engine.exchange, 'price_to_precision') else native_sl_price
+                                
+                                sl_params = {'reduceOnly': True, 'stopPrice': native_sl_price}
                                 if _be_sl_type in ('limit', 'stop_limit'):
-                                    sl_params['price'] = new_breakeven_sl
-                                sl_res = await self.engine.execute_trade("sell", self.active_pos['amount'], new_breakeven_sl, order_type=_be_order_type, params=sl_params)
+                                    sl_params['price'] = native_sl_price
+                                sl_res = await self.engine.execute_trade("sell", self.active_pos['amount'], native_sl_price, order_type=_be_order_type, params=sl_params)
                                 if sl_res and 'id' in sl_res:
                                     self.active_pos['sl_order_id'] = sl_res['id']
                             except Exception as e: pass
@@ -2254,10 +2284,20 @@ class WallHunterFuturesStrategy:
                                 await self.engine.cancel_order(self.active_pos['sl_order_id'])
                                 _be_sl_type = getattr(self, 'sl_order_type', 'market')
                                 _be_order_type = "STOP" if _be_sl_type in ('limit', 'stop_limit') else "stop_market"
-                                sl_params = {'reduceOnly': True, 'stopPrice': new_breakeven_sl}
+                                
+                                native_sl_price = new_breakeven_sl
+                                if _be_sl_type == 'smart_chase':
+                                    max_dev = getattr(self, 'smart_chase_deviation_pct', 1.0)
+                                    native_sl_price = native_sl_price * (1 + (max_dev / 100))
+                                elif _be_sl_type == 'soft_limit':
+                                    native_sl_price = native_sl_price * 1.01
+                                    
+                                native_sl_price = float(self.engine.exchange.price_to_precision(self.symbol, native_sl_price)) if hasattr(self.engine.exchange, 'price_to_precision') else native_sl_price
+                                
+                                sl_params = {'reduceOnly': True, 'stopPrice': native_sl_price}
                                 if _be_sl_type in ('limit', 'stop_limit'):
-                                    sl_params['price'] = new_breakeven_sl
-                                sl_res = await self.engine.execute_trade("buy", self.active_pos['amount'], new_breakeven_sl, order_type=_be_order_type, params=sl_params)
+                                    sl_params['price'] = native_sl_price
+                                sl_res = await self.engine.execute_trade("buy", self.active_pos['amount'], native_sl_price, order_type=_be_order_type, params=sl_params)
                                 if sl_res and 'id' in sl_res:
                                     self.active_pos['sl_order_id'] = sl_res['id']
                             except Exception as e: pass
