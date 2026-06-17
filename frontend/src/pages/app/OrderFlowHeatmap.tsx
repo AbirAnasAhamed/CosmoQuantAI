@@ -2553,7 +2553,7 @@ const OrderFlowHeatmap: React.FC = () => {
     const { activeWallHunterId, setActiveWallHunterId, indicatorSettings, setIndicatorSettings } = useBotStore();
     const { orderFlowActiveTab: activeTab, setOrderFlowActiveTab: setActiveTab, orderFlowShowFootprint: showFootprint, setOrderFlowShowFootprint: setShowFootprint } = useUIStore();
     const { settings: advancedMetrics, updateSettings: onAdvancedMetricsChange } = useAdvancedMetricsSettings();
-    const advancedMetricsData = useAdvancedMetrics(symbol, exchange, interval);
+    const advancedMetricsData = useAdvancedMetrics(symbol, exchange, interval, advancedMetrics);
 
     const [isWallHunterOpen, setIsWallHunterOpen] = useState(false);
     const [isEmergencySelling, setIsEmergencySelling] = useState(false); // NEW STATE

@@ -430,14 +430,15 @@ class MarketDepthService:
 
                 # ── Dynamic cache TTL based on timeframe ───────────────────────
                 # Short timeframes need fresh data; long timeframes can be cached longer.
+                # Increased TTL to prevent IP bans from Binance REST API over-polling.
                 tf_ttl_map = {
                     '1s': 5, '5s': 5, '15s': 5, '30s': 5,
-                    '1m': 10, '3m': 15, '5m': 20, '15m': 30,
-                    '30m': 60, '45m': 60, '1h': 120,
-                    '2h': 240, '4h': 300, '6h': 360, '12h': 600,
-                    '1d': 900, '1w': 1800, '1M': 3600,
+                    '1m': 30, '3m': 60, '5m': 120, '15m': 300,
+                    '30m': 600, '45m': 600, '1h': 1800,
+                    '2h': 3600, '4h': 7200, '6h': 10800, '12h': 21600,
+                    '1d': 43200, '1w': 86400, '1M': 86400,
                 }
-                cache_ttl = tf_ttl_map.get(timeframe, 15)
+                cache_ttl = tf_ttl_map.get(timeframe, 60)
 
                 if redis:
                     await redis.setex(cache_key, cache_ttl, json.dumps(formatted_data))

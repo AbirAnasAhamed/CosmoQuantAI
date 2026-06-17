@@ -231,7 +231,10 @@ class AdvancedMetricsService:
         Detect Delta Divergence by comparing Price trend with CVD trend.
         """
         try:
-            klines = await market_depth_service.fetch_ohlcv(symbol, exchange_id, "5m", limit=20)
+            # Request 200 limit to share cache with TPO and VWAP, then slice to 20
+            klines = await market_depth_service.fetch_ohlcv(symbol, exchange_id, "5m", limit=200)
+            if klines:
+                klines = klines[-20:]
             trades = await self.fetch_recent_trades(symbol, exchange_id, limit=1000)
             
             if not klines or not trades:
