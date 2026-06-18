@@ -100,7 +100,7 @@ class ExtendedRLEngine:
             scaler_path = os.path.join(model_dir, "scaler.pkl")
             env_df = AdvancedDataHandler.prepare_rl_data(df, features, scaler_path=scaler_path)
             def make_env():
-                base_env = AdvancedTradingEnv(env_df, features=features, initial_balance=initial_balance, commission=commission, slippage=slippage, is_continuous=False)
+                base_env = AdvancedTradingEnv(env_df, features=features, initial_balance=initial_balance, commission=commission, slippage=slippage, is_continuous=False, prediction_target=config.get("prediction_target", "classification"))
                 max_allowed_drawdown = float(config.get("max_allowed_drawdown", 0.0))
                 if max_allowed_drawdown > 0:
                     from app.services.advanced_ml.risk_layer import MaxDrawdownActionMasker
@@ -259,7 +259,7 @@ class ExtendedRLEngine:
             env_df = AdvancedDataHandler.prepare_rl_data(df, features, scaler_path=scaler_path)
             
             def make_env():
-                base_env = AdvancedTradingEnv(env_df, features=features, initial_balance=initial_balance, commission=commission, slippage=slippage, is_continuous=True)
+                base_env = AdvancedTradingEnv(env_df, features=features, initial_balance=initial_balance, commission=commission, slippage=slippage, is_continuous=True, prediction_target=config.get("prediction_target", "classification"))
                 max_allowed_drawdown = float(config.get("max_allowed_drawdown", 0.0))
                 if max_allowed_drawdown > 0:
                     from app.services.advanced_ml.risk_layer import MaxDrawdownActionMasker
@@ -430,7 +430,7 @@ class ExtendedRLEngine:
         is_continuous = job.algorithm in ["DDPG-RL", "TD3-RL"]
         
         def make_env():
-            base_env = AdvancedTradingEnv(env_df, features=features, initial_balance=initial_balance, commission=commission, slippage=slippage, is_continuous=is_continuous)
+            base_env = AdvancedTradingEnv(env_df, features=features, initial_balance=initial_balance, commission=commission, slippage=slippage, is_continuous=is_continuous, prediction_target=config.get("prediction_target", "classification"))
             max_allowed_drawdown = float(config.get("max_allowed_drawdown", 0.0))
             if max_allowed_drawdown > 0:
                 from app.services.advanced_ml.risk_layer import MaxDrawdownActionMasker

@@ -630,7 +630,11 @@ def build_hybrid_deep_dataset(job, db: Session, config: dict, add_log, check_can
     if not resample_l2:
         future_shift = max(future_shift, 100) # Minimum 100 ticks for deep tick data
 
-    if pred_target == "classification":
+    if pred_target == "advanced_setup":
+        from app.services.helpers.ml_advanced_setup_target import generate_advanced_setup_targets
+        df = generate_advanced_setup_targets(df, future_shift)
+        df['Target'] = df['Target_Direction'] # Dummy for dropna
+    elif pred_target == "classification":
         future_return = df['Close'].shift(-future_shift) - df['Close']
         df['Target'] = (future_return > 0).astype(int)
         df.loc[future_return.isna(), 'Target'] = np.nan

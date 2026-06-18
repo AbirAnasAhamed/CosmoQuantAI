@@ -16,7 +16,8 @@ from datetime import datetime, timedelta
 import joblib
 from app.services.ml_utils import extract_feature_importance, calculate_classification_metrics, calculate_regression_metrics, generate_real_explainability
 from app.services.auto_feature_selector import calculate_l2_advanced_features
-from app.services.advanced_ml.engine import AdvancedMLEngine # ✅ Import New Engine
+from app.services.advanced_ml.engine import AdvancedMLEngine
+from app.services.helpers.ml_advanced_setup_target import generate_advanced_setup_targets # ✅ Import New Engine
 from app.services.helpers.vwap_calculator import calculate_vwap_sd_features
 from app.services.helpers.institutional_features import add_smc_fvg, add_ict_killzones, add_wick_rejection, add_swing_structure, add_order_blocks
 # ✅ NEW: Modular ML Pipeline Services
@@ -710,7 +711,10 @@ def train_model_task(job_id: str, db: Session):
                 horizon = max(horizon, 100) # Minimum 100 ticks for raw L2
                 
             prediction_target = config.get("prediction_target", "classification")
-            if prediction_target == "classification":
+            if prediction_target == "advanced_setup":
+                df = generate_advanced_setup_targets(df, horizon)
+                df['Target'] = df['Target_Direction'] # Dummy for dropna
+            elif prediction_target == "classification":
                 # Calculate future return 'horizon' steps ahead
                 future_return = df['Close'].shift(-horizon) - df['Close']
                 # Target is 1 if positive return, 0 if negative or zero
@@ -942,7 +946,10 @@ def train_model_task(job_id: str, db: Session):
             add_log(f"Successfully calculated {len(successful_indicators)} features.")
                 
             prediction_target = config.get("prediction_target", "classification")
-            if prediction_target == "classification":
+            if prediction_target == "advanced_setup":
+                df = generate_advanced_setup_targets(df, 5)
+                df['Target'] = df['Target_Direction']
+            elif prediction_target == "classification":
                 # Calculate future return 5 steps ahead
                 future_return = df['Close'].shift(-5) - df['Close']
                 # Target is 1 if positive return, 0 if negative or zero
@@ -1090,7 +1097,10 @@ def train_model_task(job_id: str, db: Session):
                 
             horizon = int(config.get("forecast_horizon", config.get("prediction_horizon", 5)))
             prediction_target = config.get("prediction_target", "classification")
-            if prediction_target == "classification":
+            if prediction_target == "advanced_setup":
+                df = generate_advanced_setup_targets(df, horizon)
+                df['Target'] = df['Target_Direction'] # Dummy for dropna
+            elif prediction_target == "classification":
                 # Calculate future return 'horizon' steps ahead
                 future_return = df['Close'].shift(-horizon) - df['Close']
                 # Target is 1 if positive return, 0 if negative or zero
@@ -1191,8 +1201,12 @@ def train_model_task(job_id: str, db: Session):
             df.iloc[-1, df.columns.get_loc('Target')] = opposite_label
         
         X = df[features].values
-        y = df['Target'].values
+        if prediction_target == "advanced_setup":
+            y = df[['Target_Direction', 'Target_SL', 'Target_TP']].values
+        else:
+            y = df['Target'].values
         
+        is_multi_output = (prediction_target == "advanced_setup")
         scaling_method = config.get("scaling_method", "none")
         if scaling_method == "standard":
             add_log("Using StandardScaler for feature scaling.")
@@ -1219,6 +1233,11 @@ def train_model_task(job_id: str, db: Session):
             # FIX: Classification labels must NOT be scaled.
             y_scaled = y.reshape(-1, 1).astype(int)
             scaler_y = None  # no y scaler needed for classification
+        elif is_multi_output:
+            if scaler_y is not None:
+                y_scaled = scaler_y.fit_transform(y)
+            else:
+                y_scaled = y
         else:
             if scaler_y is not None:
                 y_scaled = scaler_y.fit_transform(y.reshape(-1, 1))
@@ -1228,7 +1247,13 @@ def train_model_task(job_id: str, db: Session):
         # FIX: Create a scaled DataFrame for Advanced ML Engine
         df_scaled = df.copy()
         df_scaled[features] = X_scaled
-        df_scaled['Target'] = y_scaled.ravel()
+        
+        if is_multi_output:
+            df_scaled['Target_Direction'] = y_scaled[:, 0]
+            df_scaled['Target_SL'] = y_scaled[:, 1]
+            df_scaled['Target_TP'] = y_scaled[:, 2]
+        else:
+            df_scaled['Target'] = y_scaled.ravel()
         
         X_train, X_test, y_train, y_test = apply_data_split(X_scaled, y_scaled, config, add_log)
         
@@ -1253,7 +1278,7 @@ def train_model_task(job_id: str, db: Session):
 
         # FIX: Ensure y_train has at least 3 samples of each class for Stacking CV (cv=3)
         if prediction_target_early == "classification":
-            y_train_flat = y_train.ravel()
+            y_train_flat = y_train if is_multi_output else y_train.ravel()
             unique_classes, class_counts = np.unique(y_train_flat, return_counts=True)
             min_count = class_counts.min() if len(class_counts) > 1 else 0
             if len(unique_classes) < 2 or min_count < 3:
@@ -1279,10 +1304,20 @@ def train_model_task(job_id: str, db: Session):
             add_log(f"Applying Data Augmentation ({aug_strategy}) factor {aug_factor}x to training set...")
             from app.services.ml_augmentation import apply_data_augmentation
             _train_df = pd.DataFrame(X_train, columns=features)
-            _train_df['Target'] = y_train.ravel()
+            if is_multi_output:
+                _train_df['Target_Direction'] = y_train[:, 0]
+                _train_df['Target_SL'] = y_train[:, 1]
+                _train_df['Target_TP'] = y_train[:, 2]
+            else:
+                _train_df['Target'] = y_train.ravel()
+            
             _aug_df = apply_data_augmentation(_train_df, strategy=aug_strategy, factor=aug_factor)
             X_train = _aug_df[features].values
-            y_train = _aug_df['Target'].values.reshape(-1, 1)
+            
+            if is_multi_output:
+                y_train = _aug_df[['Target_Direction', 'Target_SL', 'Target_TP']].values
+            else:
+                y_train = _aug_df['Target'].values.reshape(-1, 1)
             add_log(f"Data Augmentation complete. New train size: {len(X_train)} rows.")
         
         # FIX: Wrap X in DataFrame to preserve feature names.
@@ -1325,9 +1360,9 @@ def train_model_task(job_id: str, db: Session):
             best_params = run_optuna_study(
                 algorithm=job.algorithm,
                 X_train=X_train_df,
-                y_train=y_train.ravel(),
+                y_train=y_train if is_multi_output else y_train.ravel(),
                 X_val=X_test_df,
-                y_val=y_test.ravel(),
+                y_val=y_test if is_multi_output else y_test.ravel(),
                 is_classification=is_classification_target,
                 n_trials=n_trials,
                 add_log=add_log
@@ -1447,7 +1482,7 @@ def train_model_task(job_id: str, db: Session):
 
             add_log(f"Training {ensemble_method.capitalize()} Ensemble with {len(estimators)} base models...")
             start_time = time.time()
-            model.fit(X_train_df, y_train.ravel())
+            model.fit(X_train_df, y_train if is_multi_output else y_train.ravel())
             
             # --- Auto Optimize Weights ---
             if ensemble_method == "voting" and auto_optimize_weights and voting_strategy == "soft":
@@ -1457,10 +1492,10 @@ def train_model_task(job_id: str, db: Session):
                 for est in model.estimators_:
                     try:
                         if is_classification_target:
-                            acc = np.mean(est.predict(X_test_df) == y_test.ravel())
+                            acc = np.mean(est.predict(X_test_df) == y_test if is_multi_output else y_test.ravel())
                         else:
                             from sklearn.metrics import r2_score
-                            acc = r2_score(y_test.ravel(), est.predict(X_test_df))
+                            acc = r2_score(y_test if is_multi_output else y_test.ravel(), est.predict(X_test_df))
                         acc_scores.append(max(0.01, acc)) # avoid 0 or negative weights
                     except Exception:
                         acc_scores.append(1.0)
@@ -1494,9 +1529,9 @@ def train_model_task(job_id: str, db: Session):
             
             y_pred = model.predict(X_test_df)
             if is_classification_target:
-                process_metrics(calculate_classification_metrics(y_test.ravel(), y_pred), True)
+                process_metrics(calculate_classification_metrics(y_test if is_multi_output else y_test.ravel(), y_pred), True)
             else:
-                process_metrics(calculate_regression_metrics(y_test.ravel(), y_pred), False)
+                process_metrics(calculate_regression_metrics(y_test if is_multi_output else y_test.ravel(), y_pred), False)
                 
             job.progress = 80.0
             joblib.dump(model, model_path)
@@ -1547,19 +1582,19 @@ def train_model_task(job_id: str, db: Session):
                 else:
                     model = RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42, class_weight='balanced')
                 try:
-                    model.fit(X_train_df, y_train.ravel())
+                    model.fit(X_train_df, y_train if is_multi_output else y_train.ravel())
                 except ValueError as e:
                     if is_fine_tune and "feature" in str(e).lower():
                         add_log(f"⚠️ Fine-tune fit failed: {e}. Falling back to fresh training.")
                         model = RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42, class_weight='balanced')
-                        model.fit(X_train_df, y_train.ravel())
+                        model.fit(X_train_df, y_train if is_multi_output else y_train.ravel())
                     else:
                         raise e
                 start_time = time.time()
                 y_pred = model.predict(X_test_df)
                 end_time = time.time()
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
-                process_metrics(calculate_classification_metrics(y_test.ravel(), y_pred), True)
+                process_metrics(calculate_classification_metrics(y_test if is_multi_output else y_test.ravel(), y_pred), True)
             else:
                 from sklearn.ensemble import RandomForestRegressor
                 if is_fine_tune:
@@ -1573,22 +1608,31 @@ def train_model_task(job_id: str, db: Session):
                     except Exception as _ft_e:
                         add_log(f"⚠️ Fine-tune load failed ({_ft_e}), falling back to fresh.")
                         model = RandomForestRegressor(n_estimators=epochs, max_depth=max_depth, random_state=42)
+                    if prediction_target == "advanced_setup":
+                        from sklearn.multioutput import MultiOutputRegressor
+                        model = MultiOutputRegressor(model)
                 else:
                     model = RandomForestRegressor(n_estimators=epochs, max_depth=max_depth, random_state=42)
+                    if prediction_target == "advanced_setup":
+                        from sklearn.multioutput import MultiOutputRegressor
+                        model = MultiOutputRegressor(model)
                 try:
-                    model.fit(X_train_df, y_train.ravel())
+                    model.fit(X_train_df, y_train if is_multi_output else y_train.ravel())
                 except ValueError as e:
                     if is_fine_tune and "feature" in str(e).lower():
                         add_log(f"⚠️ Fine-tune fit failed: {e}. Falling back to fresh training.")
                         model = RandomForestRegressor(n_estimators=epochs, max_depth=max_depth, random_state=42)
-                        model.fit(X_train_df, y_train.ravel())
+                    if prediction_target == "advanced_setup":
+                        from sklearn.multioutput import MultiOutputRegressor
+                        model = MultiOutputRegressor(model)
+                        model.fit(X_train_df, y_train if is_multi_output else y_train.ravel())
                     else:
                         raise e
                 start_time = time.time()
                 y_pred = model.predict(X_test_df)
                 end_time = time.time()
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
-                process_metrics(calculate_regression_metrics(y_test.ravel(), y_pred), False)
+                process_metrics(calculate_regression_metrics(y_test if is_multi_output else y_test.ravel(), y_pred), False)
                 
             job.progress = 80.0
             joblib.dump(model, model_path)
@@ -1598,7 +1642,7 @@ def train_model_task(job_id: str, db: Session):
                     from app.services.ml_feature_clustering import get_feature_clusters, clustered_mda
                     add_log("Computing Clustered Feature Importance (MDA)...")
                     _clusters = get_feature_clusters(X_train_df, features, threshold=0.5)
-                    _, fi_log = clustered_mda(model, X_test_df, y_test.ravel(), _clusters, is_classification=(prediction_target=="classification"), n_repeats=3)
+                    _, fi_log = clustered_mda(model, X_test_df, y_test if is_multi_output else y_test.ravel(), _clusters, is_classification=(prediction_target=="classification"), n_repeats=3)
                     if fi_log: add_log(fi_log)
                 except Exception as e_clust:
                     add_log(f"⚠️ Clustered MDA failed: {e_clust}. Falling back to default FI.")
@@ -1628,36 +1672,36 @@ def train_model_task(job_id: str, db: Session):
                 spw = num_neg / num_pos
                 model = XGBClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, scale_pos_weight=spw)
                 try:
-                    model.fit(X_train_df, y_train.ravel(), eval_set=[(X_test_df, y_test.ravel())], verbose=False, xgb_model=_xgb_init)
+                    model.fit(X_train_df, y_train if is_multi_output else y_train.ravel(), eval_set=[(X_test_df, y_test if is_multi_output else y_test.ravel())], verbose=False, xgb_model=_xgb_init)
                 except ValueError as e:
                     if is_fine_tune and "feature" in str(e).lower():
                         add_log(f"⚠️ XGBoost fine-tune fit failed: {e}. Falling back to fresh training.")
                         model = XGBClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, scale_pos_weight=spw)
-                        model.fit(X_train_df, y_train.ravel(), eval_set=[(X_test_df, y_test.ravel())], verbose=False)
+                        model.fit(X_train_df, y_train if is_multi_output else y_train.ravel(), eval_set=[(X_test_df, y_test if is_multi_output else y_test.ravel())], verbose=False)
                     else:
                         raise e
                 start_time = time.time()
                 y_pred = model.predict(X_test_df)
                 end_time = time.time()
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
-                process_metrics(calculate_classification_metrics(y_test.ravel(), y_pred), True)
+                process_metrics(calculate_classification_metrics(y_test if is_multi_output else y_test.ravel(), y_pred), True)
             else:
                 from xgboost import XGBRegressor
                 model = XGBRegressor(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
                 try:
-                    model.fit(X_train_df, y_train.ravel(), eval_set=[(X_test_df, y_test.ravel())], verbose=False, xgb_model=_xgb_init)
+                    model.fit(X_train_df, y_train if is_multi_output else y_train.ravel(), eval_set=[(X_test_df, y_test if is_multi_output else y_test.ravel())], verbose=False, xgb_model=_xgb_init)
                 except ValueError as e:
                     if is_fine_tune and "feature" in str(e).lower():
                         add_log(f"⚠️ XGBoost fine-tune fit failed: {e}. Falling back to fresh training.")
                         model = XGBRegressor(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
-                        model.fit(X_train_df, y_train.ravel(), eval_set=[(X_test_df, y_test.ravel())], verbose=False)
+                        model.fit(X_train_df, y_train if is_multi_output else y_train.ravel(), eval_set=[(X_test_df, y_test if is_multi_output else y_test.ravel())], verbose=False)
                     else:
                         raise e
                 start_time = time.time()
                 y_pred = model.predict(X_test_df)
                 end_time = time.time()
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
-                process_metrics(calculate_regression_metrics(y_test.ravel(), y_pred), False)
+                process_metrics(calculate_regression_metrics(y_test if is_multi_output else y_test.ravel(), y_pred), False)
                 
             job.progress = 80.0
             joblib.dump(model, model_path)
@@ -1667,7 +1711,7 @@ def train_model_task(job_id: str, db: Session):
                     from app.services.ml_feature_clustering import get_feature_clusters, clustered_mda
                     add_log("Computing Clustered Feature Importance (MDA)...")
                     _clusters = get_feature_clusters(X_train_df, features, threshold=0.5)
-                    _, fi_log = clustered_mda(model, X_test_df, y_test.ravel(), _clusters, is_classification=(prediction_target=="classification"), n_repeats=3)
+                    _, fi_log = clustered_mda(model, X_test_df, y_test if is_multi_output else y_test.ravel(), _clusters, is_classification=(prediction_target=="classification"), n_repeats=3)
                     if fi_log: add_log(fi_log)
                 except Exception as e_clust:
                     add_log(f"⚠️ Clustered MDA failed: {e_clust}. Falling back to default FI.")
@@ -1701,7 +1745,8 @@ def train_model_task(job_id: str, db: Session):
             X_train_t = torch.FloatTensor(X_train).unsqueeze(1)
             y_train_t = torch.FloatTensor(y_train)
             
-            model = SimpleLSTM(input_size=X_train.shape[1], hidden_size=64, num_layers=2, output_size=1)
+            out_size = 3 if prediction_target == "advanced_setup" else 1
+            model = SimpleLSTM(input_size=X_train.shape[1], hidden_size=64, num_layers=2, output_size=out_size)
             
             # ── Fine-Tune: load previous weights ───────────────────────────
             _ft_lr = learning_rate
@@ -1815,20 +1860,20 @@ def train_model_task(job_id: str, db: Session):
             if prediction_target == "classification":
                 model = lgb.LGBMClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, verbose=-1, class_weight='balanced')
                 # FIX: Use DataFrame (X_train_df) so feature names are preserved -> eliminates warning spam
-                model.fit(X_train_df, y_train.ravel(), eval_set=[(X_test_df, y_test.ravel())], init_model=_lgb_init)
+                model.fit(X_train_df, y_train if is_multi_output else y_train.ravel(), eval_set=[(X_test_df, y_test if is_multi_output else y_test.ravel())], init_model=_lgb_init)
                 start_time = time.time()
                 y_pred = model.predict(X_test_df)
                 end_time = time.time()
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
-                process_metrics(calculate_classification_metrics(y_test.ravel(), y_pred), True)
+                process_metrics(calculate_classification_metrics(y_test if is_multi_output else y_test.ravel(), y_pred), True)
             else:
                 model = lgb.LGBMRegressor(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, verbose=-1)
-                model.fit(X_train_df, y_train.ravel(), eval_set=[(X_test_df, y_test.ravel())], init_model=_lgb_init)
+                model.fit(X_train_df, y_train if is_multi_output else y_train.ravel(), eval_set=[(X_test_df, y_test if is_multi_output else y_test.ravel())], init_model=_lgb_init)
                 start_time = time.time()
                 y_pred = model.predict(X_test_df)
                 end_time = time.time()
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
-                process_metrics(calculate_regression_metrics(y_test.ravel(), y_pred), False)
+                process_metrics(calculate_regression_metrics(y_test if is_multi_output else y_test.ravel(), y_pred), False)
                 
             job.progress = 80.0
             joblib.dump(model, model_path)
@@ -1838,7 +1883,7 @@ def train_model_task(job_id: str, db: Session):
                     from app.services.ml_feature_clustering import get_feature_clusters, clustered_mda
                     add_log("Computing Clustered Feature Importance (MDA)...")
                     _clusters = get_feature_clusters(X_train_df, features, threshold=0.5)
-                    _, fi_log = clustered_mda(model, X_test_df, y_test.ravel(), _clusters, is_classification=(prediction_target=="classification"), n_repeats=3)
+                    _, fi_log = clustered_mda(model, X_test_df, y_test if is_multi_output else y_test.ravel(), _clusters, is_classification=(prediction_target=="classification"), n_repeats=3)
                     if fi_log: add_log(fi_log)
                 except Exception as e_clust:
                     add_log(f"⚠️ Clustered MDA failed: {e_clust}. Falling back to default FI.")
@@ -1862,20 +1907,20 @@ def train_model_task(job_id: str, db: Session):
             cb_depth = min(max_depth, 16)
             if prediction_target == "classification":
                 model = cb.CatBoostClassifier(iterations=epochs, learning_rate=learning_rate, depth=cb_depth, random_seed=42, verbose=False, auto_class_weights='Balanced')
-                model.fit(X_train_df, y_train.ravel(), eval_set=(X_test_df, y_test.ravel()), init_model=_cb_init)
+                model.fit(X_train_df, y_train if is_multi_output else y_train.ravel(), eval_set=(X_test_df, y_test if is_multi_output else y_test.ravel()), init_model=_cb_init)
                 start_time = time.time()
                 y_pred = model.predict(X_test_df)
                 end_time = time.time()
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
-                process_metrics(calculate_classification_metrics(y_test.ravel(), y_pred), True)
+                process_metrics(calculate_classification_metrics(y_test if is_multi_output else y_test.ravel(), y_pred), True)
             else:
                 model = cb.CatBoostRegressor(iterations=epochs, learning_rate=learning_rate, depth=cb_depth, random_seed=42, verbose=False)
-                model.fit(X_train_df, y_train.ravel(), eval_set=(X_test_df, y_test.ravel()), init_model=_cb_init)
+                model.fit(X_train_df, y_train if is_multi_output else y_train.ravel(), eval_set=(X_test_df, y_test if is_multi_output else y_test.ravel()), init_model=_cb_init)
                 start_time = time.time()
                 y_pred = model.predict(X_test_df)
                 end_time = time.time()
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
-                process_metrics(calculate_regression_metrics(y_test.ravel(), y_pred), False)
+                process_metrics(calculate_regression_metrics(y_test if is_multi_output else y_test.ravel(), y_pred), False)
                 
             job.progress = 80.0
             joblib.dump(model, model_path)
@@ -1885,7 +1930,7 @@ def train_model_task(job_id: str, db: Session):
                     from app.services.ml_feature_clustering import get_feature_clusters, clustered_mda
                     add_log("Computing Clustered Feature Importance (MDA)...")
                     _clusters = get_feature_clusters(X_train_df, features, threshold=0.5)
-                    _, fi_log = clustered_mda(model, X_test_df, y_test.ravel(), _clusters, is_classification=(prediction_target=="classification"), n_repeats=3)
+                    _, fi_log = clustered_mda(model, X_test_df, y_test if is_multi_output else y_test.ravel(), _clusters, is_classification=(prediction_target=="classification"), n_repeats=3)
                     if fi_log: add_log(fi_log)
                 except Exception as e_clust:
                     add_log(f"⚠️ Clustered MDA failed: {e_clust}. Falling back to default FI.")
@@ -1918,7 +1963,8 @@ def train_model_task(job_id: str, db: Session):
             X_train_t = torch.FloatTensor(X_train).unsqueeze(1)
             y_train_t = torch.FloatTensor(y_train)
             
-            model = SimpleGRU(input_size=X_train.shape[1], hidden_size=64, num_layers=2, output_size=1)
+            out_size = 3 if prediction_target == "advanced_setup" else 1
+            model = SimpleGRU(input_size=X_train.shape[1], hidden_size=64, num_layers=2, output_size=out_size)
             
             # ── Fine-Tune: load previous weights ───────────────────────────
             _ft_lr = learning_rate
@@ -2002,7 +2048,8 @@ def train_model_task(job_id: str, db: Session):
             X_train_t = torch.FloatTensor(X_train)
             y_train_t = torch.FloatTensor(y_train)
             
-            model = CNN1D(input_size=X_train.shape[1], output_size=1)
+            out_size = 3 if prediction_target == "advanced_setup" else 1
+            model = CNN1D(input_size=X_train.shape[1], output_size=out_size)
             
             # ── Fine-Tune: load previous weights ───────────────────────────
             _ft_lr = learning_rate
@@ -2079,7 +2126,8 @@ def train_model_task(job_id: str, db: Session):
 
             X_train_t = torch.FloatTensor(X_train)
             y_train_t = torch.FloatTensor(y_train)
-            model = DeepLOB(input_size=X_train.shape[1], output_size=1)
+            out_size = 3 if prediction_target == "advanced_setup" else 1
+            model = DeepLOB(input_size=X_train.shape[1], output_size=out_size)
             
             # ── Fine-Tune: load previous weights ───────────────────────────
             _ft_lr = learning_rate
@@ -2310,7 +2358,7 @@ def train_model_task(job_id: str, db: Session):
             if job.algorithm in ["Random Forest", "XGBoost", "LightGBM", "CatBoost"]:
                 add_log("Generating Real Explainability Metrics (SHAP, Feature Importance, etc.)...")
                 is_cls = (prediction_target == "classification")
-                final_explainability = generate_real_explainability(model, X_test, y_test.ravel(), y_pred, features, is_classification=is_cls)
+                final_explainability = generate_real_explainability(model, X_test, y_test if is_multi_output else y_test.ravel(), y_pred, features, is_classification=is_cls)
                 if is_ensemble and ensemble_fi_list is not None:
                     final_explainability["featureImportance"] = ensemble_fi_list
             
@@ -2324,7 +2372,7 @@ def train_model_task(job_id: str, db: Session):
                 try:
                     if is_cls:
                         from sklearn.metrics import confusion_matrix
-                        y_true_int = np.round(y_test.ravel()).astype(int)
+                        y_true_int = np.round(y_test if is_multi_output else y_test.ravel()).astype(int)
                         y_pred_int = np.round(preds_class.ravel()).astype(int) if is_cls else None
                         if y_pred_int is not None:
                             cm = confusion_matrix(y_true_int, y_pred_int)
@@ -2337,8 +2385,8 @@ def train_model_task(job_id: str, db: Session):
                 
                 # 2. Actual vs Predicted time series
                 try:
-                    subset_len = min(50, len(y_test.ravel()))
-                    y_t = y_test.ravel()
+                    subset_len = min(50, len(y_test if is_multi_output else y_test.ravel()))
+                    y_t = y_test if is_multi_output else y_test.ravel()
                     y_p = preds_class.ravel() if is_cls else preds.ravel()
                     ts_data = []
                     for i in range(subset_len):
@@ -2357,9 +2405,9 @@ def train_model_task(job_id: str, db: Session):
                     baseline_preds = preds_class.ravel() if is_cls else preds.ravel()
                     from sklearn.metrics import accuracy_score, mean_squared_error
                     if is_cls:
-                        baseline_score = accuracy_score(y_test.ravel().astype(int), baseline_preds.astype(int))
+                        baseline_score = accuracy_score(y_test if is_multi_output else y_test.ravel().astype(int), baseline_preds.astype(int))
                     else:
-                        baseline_score = -mean_squared_error(y_test.ravel(), baseline_preds)
+                        baseline_score = -mean_squared_error(y_test if is_multi_output else y_test.ravel(), baseline_preds)
                     
                     perm_importances = []
                     for feat_idx, feat_name in enumerate(features):
@@ -2374,10 +2422,10 @@ def train_model_task(job_id: str, db: Session):
                         
                         if is_cls:
                             perm_preds = (1 / (1 + np.exp(-perm_out)) > 0.5).astype(int).ravel()
-                            perm_score = accuracy_score(y_test.ravel().astype(int), perm_preds)
+                            perm_score = accuracy_score(y_test if is_multi_output else y_test.ravel().astype(int), perm_preds)
                         else:
                             perm_preds = perm_out.ravel()
-                            perm_score = -mean_squared_error(y_test.ravel(), perm_preds)
+                            perm_score = -mean_squared_error(y_test if is_multi_output else y_test.ravel(), perm_preds)
                         
                         importance = max(0.0, baseline_score - perm_score)
                         perm_importances.append({"name": feat_name, "value": float(importance)})

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { createChart, IChartApi, ISeriesApi, Time, CandlestickSeries, HistogramSeries } from 'lightweight-charts';
+import { createChart, IChartApi, ISeriesApi, Time, CandlestickSeries, HistogramSeries, LineSeries } from 'lightweight-charts';
 import { X, Maximize2, Minimize2, Activity } from 'lucide-react';
 
 interface DatasetVisualizerModalProps {
@@ -20,6 +20,8 @@ export const DatasetVisualizerModal: React.FC<DatasetVisualizerModalProps> = ({
     const chartRef = useRef<IChartApi | null>(null);
     const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
     const histogramSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
+    const tpSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+    const slSeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
     
     const [isExpanded, setIsExpanded] = useState(false);
     const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
@@ -77,6 +79,22 @@ export const DatasetVisualizerModal: React.FC<DatasetVisualizerModalProps> = ({
             priceScaleId: 'histogram_scale',
         });
         
+        const tpSeries = chart.addSeries(LineSeries, {
+            color: 'rgba(16, 185, 129, 0.6)',
+            lineWidth: 1,
+            lineStyle: 2, // Dashed
+            crosshairMarkerVisible: false,
+            lastValueVisible: false,
+        });
+
+        const slSeries = chart.addSeries(LineSeries, {
+            color: 'rgba(239, 68, 68, 0.6)',
+            lineWidth: 1,
+            lineStyle: 2, // Dashed
+            crosshairMarkerVisible: false,
+            lastValueVisible: false,
+        });
+        
         chart.priceScale('histogram_scale').applyOptions({
             scaleMargins: {
                 top: 0.8,
@@ -87,6 +105,8 @@ export const DatasetVisualizerModal: React.FC<DatasetVisualizerModalProps> = ({
         chartRef.current = chart;
         candleSeriesRef.current = candleSeries;
         histogramSeriesRef.current = histogramSeries;
+        tpSeriesRef.current = tpSeries as any;
+        slSeriesRef.current = slSeries as any;
 
         window.addEventListener('resize', handleResize);
         
@@ -160,6 +180,8 @@ export const DatasetVisualizerModal: React.FC<DatasetVisualizerModalProps> = ({
                         // Parse the final historical dataset
                         const candleData = [];
                         const histData = [];
+                        const tpData = [];
+                        const slData = [];
                         
                         for (const row of data.data) {
                             const ts = new Date(row.timestamp).getTime() / 1000 as Time;
@@ -178,10 +200,31 @@ export const DatasetVisualizerModal: React.FC<DatasetVisualizerModalProps> = ({
                                 value: featureVal,
                                 color: featureVal > 50 ? 'rgba(16, 185, 129, 0.8)' : 'rgba(59, 130, 246, 0.8)'
                             });
+
+                            // If advanced_setup targets exist, plot them as upper/lower bands
+                            if (row.Target_TP !== undefined && row.Target_TP !== null) {
+                                tpData.push({
+                                    time: ts,
+                                    value: row.Close + row.Target_TP
+                                });
+                            }
+                            if (row.Target_SL !== undefined && row.Target_SL !== null) {
+                                slData.push({
+                                    time: ts,
+                                    value: row.Close - row.Target_SL
+                                });
+                            }
                         }
                         
                         candleSeriesRef.current.setData(candleData);
                         histogramSeriesRef.current.setData(histData);
+                        
+                        if (tpSeriesRef.current && tpData.length > 0) {
+                            tpSeriesRef.current.setData(tpData);
+                        }
+                        if (slSeriesRef.current && slData.length > 0) {
+                            slSeriesRef.current.setData(slData);
+                        }
                         
                         if (chartRef.current) {
                             chartRef.current.timeScale().fitContent();

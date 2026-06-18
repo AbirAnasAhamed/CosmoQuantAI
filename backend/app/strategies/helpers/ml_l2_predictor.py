@@ -138,17 +138,18 @@ class MLL2Predictor:
             elif self.model_type in ["LSTM", "GRU", "1D-CNN", "DeepLOB", "Transformer"]:
                 # Determine input size
                 input_size = len(self.model_features) if self.model_features else 3
+                out_size = 3 if self.prediction_target == "advanced_setup" else 1
                 
                 if self.model_type == "LSTM":
-                    self.model = SimpleLSTM(input_size=input_size, hidden_size=64, num_layers=2, output_size=1)
+                    self.model = SimpleLSTM(input_size=input_size, hidden_size=64, num_layers=2, output_size=out_size)
                 elif self.model_type == "GRU":
-                    self.model = SimpleGRU(input_size=input_size, hidden_size=64, num_layers=2, output_size=1)
+                    self.model = SimpleGRU(input_size=input_size, hidden_size=64, num_layers=2, output_size=out_size)
                 elif self.model_type == "1D-CNN":
-                    self.model = CNN1D(input_size=input_size, output_size=1)
+                    self.model = CNN1D(input_size=input_size, output_size=out_size)
                 elif self.model_type == "DeepLOB":
-                    self.model = DeepLOB(input_size=input_size, output_size=1)
+                    self.model = DeepLOB(input_size=input_size, output_size=out_size)
                 elif self.model_type == "Transformer":
-                    self.model = TimeSeriesTransformer(input_size=input_size, output_size=1)
+                    self.model = TimeSeriesTransformer(input_size=input_size, output_size=out_size)
                 
                 try:
                     self.model.load_state_dict(torch.load(file_path))
@@ -450,11 +451,18 @@ class MLL2Predictor:
                 seq_features = np.vstack([padding, seq_features])
 
             # 2. Predict
+            self._last_sl_dist = None
+            self._last_tp_dist = None
             if self.model_type in ["Random Forest", "XGBoost", "LightGBM", "CatBoost", "Ensemble"]:
                 if getattr(self, 'model_features', None) and isinstance(features, np.ndarray):
                     features = pd.DataFrame(features, columns=self.model_features)
                     
-                if self.prediction_target == "classification" and hasattr(self.model, "predict_proba"):
+                if self.prediction_target == "advanced_setup":
+                    preds = self.model.predict(features)[0]
+                    pred = float(preds[0]) # Direction
+                    self._last_sl_dist = float(preds[1])
+                    self._last_tp_dist = float(preds[2])
+                elif self.prediction_target == "classification" and hasattr(self.model, "predict_proba"):
                     try:
                         pred = float(self.model.predict_proba(features)[0][1])
                     except Exception:
@@ -464,11 +472,23 @@ class MLL2Predictor:
             elif self.model_type in ["LSTM", "GRU"]:
                 X_t = torch.FloatTensor(seq_features).unsqueeze(0) # (1, seq_len, num_features)
                 with torch.no_grad():
-                    pred = self.model(X_t).item()
+                    if self.prediction_target == "advanced_setup":
+                        preds = self.model(X_t).squeeze().cpu().numpy()
+                        pred = float(preds[0])
+                        self._last_sl_dist = float(preds[1])
+                        self._last_tp_dist = float(preds[2])
+                    else:
+                        pred = self.model(X_t).item()
             elif self.model_type in ["1D-CNN", "DeepLOB", "Transformer"]:
                 X_t = torch.FloatTensor(seq_features).unsqueeze(0) # (1, seq_len, num_features)
                 with torch.no_grad():
-                    pred = self.model(X_t).item()
+                    if self.prediction_target == "advanced_setup":
+                        preds = self.model(X_t).squeeze().cpu().numpy()
+                        pred = float(preds[0])
+                        self._last_sl_dist = float(preds[1])
+                        self._last_tp_dist = float(preds[2])
+                    else:
+                        pred = self.model(X_t).item()
             elif self.model_type in ["PPO-RL", "SAC-RL", "A2C-RL", "DQN-RL"]:
                 action, _ = self.model.predict(features[0].astype(np.float32), deterministic=True)
                 
@@ -507,7 +527,7 @@ class MLL2Predictor:
                 logger.info(f"🤖 MLL2Predictor: Target={side.upper()}, Pred={pred:.4f}")
                 self._last_log_time = time.time()
 
-            if self.prediction_target == "classification" or self.model_type in ["PPO-RL", "SAC-RL", "A2C-RL", "DQN-RL"]:
+            if self.prediction_target in ["classification", "advanced_setup"] or self.model_type in ["PPO-RL", "SAC-RL", "A2C-RL", "DQN-RL"]:
                 is_long = (side.lower() in ("long", "buy"))
                 if is_long:
                     return pred > self.bullish_threshold
@@ -531,30 +551,54 @@ class MLL2Predictor:
     def predict_advanced(self, orderbook: dict, current_price: float, side: str, bot_instance: Any) -> Dict[str, Any]:
         """
         Executes the basic prediction, and if successful, returns an advanced setup dictionary
-        using the MLAdvancedSetupGenerator. Returns None if the prediction fails (i.e. DO NOT TRADE).
+        using the ML models directly (if advanced_setup target) or MLAdvancedSetupGenerator (if fallback).
         """
-        # 1. First get the basic directional validation
-        # We temporarily hijack the logging so we don't spam if we don't want to, 
-        # but calling predict() is fine as it already handles feature extraction and scaling.
         is_valid = self.predict(orderbook, current_price, side)
         
-        # 2. If valid, generate advanced setup
         if is_valid:
             try:
                 confidence = getattr(self, 'last_prediction_score', 0.5)
-                generator = MLAdvancedSetupGenerator(bot_instance)
-                setup = generator.generate_setup(current_price, side, confidence)
-                return setup
+                
+                # If model is directly trained to output SL/TP
+                if self.prediction_target == "advanced_setup" and hasattr(self, '_last_sl_dist') and self._last_sl_dist is not None:
+                    is_long = (side.lower() in ("long", "buy"))
+                    
+                    sl_dist = max(0.001, self._last_sl_dist) # Provide minimum distance fallback
+                    tp_dist = max(0.001, self._last_tp_dist)
+                    
+                    if is_long:
+                        sl_price = current_price - sl_dist
+                        tp_price = current_price + tp_dist
+                    else:
+                        sl_price = current_price + sl_dist
+                        tp_price = current_price - tp_dist
+                    
+                    rr_ratio = tp_dist / sl_dist if sl_dist > 0 else 0
+                    
+                    return {
+                        "is_valid": True,
+                        "sl_price": float(sl_price),
+                        "tp_price": float(tp_price),
+                        "rr_ratio": float(rr_ratio),
+                        "confidence": float(confidence),
+                        "source": "ML_MultiOutput"
+                    }
+                else:
+                    # Fallback to heuristic generator
+                    generator = MLAdvancedSetupGenerator(bot_instance)
+                    setup = generator.generate_setup(current_price, side, confidence)
+                    setup["source"] = "Heuristic_Fallback"
+                    return setup
             except Exception as e:
                 logger.error(f"MLL2Predictor: Advanced Setup Generation Error: {e}")
-                # Fallback basic dictionary
                 return {
                     "is_valid": True,
                     "sl_price": 0.0,
                     "tp_price": 0.0,
                     "rr_ratio": 0.0,
-                    "confidence": getattr(self, 'last_prediction_score', 0.5)
+                    "confidence": getattr(self, 'last_prediction_score', 0.5),
+                    "source": "Error_Fallback"
                 }
         else:
-            return None # Invalid trade
+            return None
 

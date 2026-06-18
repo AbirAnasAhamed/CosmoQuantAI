@@ -26,7 +26,8 @@ class AdvancedTradingEnv(gym.Env):
         slippage: float = 0.0001,   # 0.01% price impact
         max_leverage: float = 1.0,
         reward_type: str = 'log_returns',
-        is_continuous: bool = False
+        is_continuous: bool = False,
+        prediction_target: str = 'classification'
     ):
         super(AdvancedTradingEnv, self).__init__()
 
@@ -43,12 +44,17 @@ class AdvancedTradingEnv(gym.Env):
         self.max_leverage = max_leverage
         self.reward_type = reward_type
         self.is_continuous = is_continuous
+        self.prediction_target = prediction_target
 
         if self.is_continuous:
-            # Action space for SAC: continuous from -1 to 1
-            self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
+            if self.prediction_target == "advanced_setup":
+                # [Action (-1 to 1), SL_dist (0 to +inf), TP_dist (0 to +inf)]
+                # Since Box needs symmetric bounds typically for DDPG/SAC natively (usually -1 to 1),
+                # We can bound it to [-1, 1] for all 3, and then scale SL/TP during step().
+                self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(3,), dtype=np.float32)
+            else:
+                self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
         else:
-            # Action Space: 0 = Neutral (Cash), 1 = Long, 2 = Short
             self.action_space = spaces.Discrete(3)
 
         # Observation Space
@@ -108,8 +114,16 @@ class AdvancedTradingEnv(gym.Env):
         prev_net_worth = self.net_worth
         
         # 2. Execute Action Logic (Trade)
+        self.current_sl_dist = 0.0
+        self.current_tp_dist = 0.0
+        
         if self.is_continuous:
             action_val = action[0] if isinstance(action, (np.ndarray, list)) else action
+            if self.prediction_target == "advanced_setup" and isinstance(action, (np.ndarray, list)) and len(action) >= 3:
+                # Map from [-1, 1] to positive distances (e.g. up to 10% price movement)
+                self.current_sl_dist = max(0.001, (action[1] + 1.0) / 2.0 * 0.1 * current_price)
+                self.current_tp_dist = max(0.001, (action[2] + 1.0) / 2.0 * 0.1 * current_price)
+                
             if action_val < -0.33:
                 target_position = -1
             elif action_val > 0.33:

@@ -13,7 +13,7 @@ const TargetSelection: React.FC<TargetSelectionProps> = ({ predictionTarget, set
             <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
                 <Target className="w-4 h-4 text-cyan-400" /> Prediction Target
             </label>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <button
                     onClick={() => setPredictionTarget('classification')}
                     disabled={isTraining}
@@ -37,6 +37,18 @@ const TargetSelection: React.FC<TargetSelectionProps> = ({ predictionTarget, set
                 >
                     <span className="block">Exact Price</span>
                     <span className="block text-[10px] font-normal opacity-70 mt-0.5">Regression</span>
+                </button>
+                <button
+                    onClick={() => setPredictionTarget('advanced_setup')}
+                    disabled={isTraining}
+                    className={`py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
+                        predictionTarget === 'advanced_setup' 
+                            ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-[0_0_15px_rgba(8,145,178,0.4)] border border-cyan-400/50' 
+                            : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'
+                    }`}
+                >
+                    <span className="block">Advanced Setup (SL/TP)</span>
+                    <span className="block text-[10px] font-normal opacity-70 mt-0.5">Multi-Output Regression</span>
                 </button>
             </div>
             <p className="text-xs text-slate-500 mt-2 ml-1 font-medium">What should the AI predict for the next candle?</p>

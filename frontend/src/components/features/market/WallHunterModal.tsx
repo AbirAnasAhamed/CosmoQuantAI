@@ -1939,7 +1939,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                                         onClick={() => handleFormChange('mlExecutionMode', 'advanced')}
                                                     >
                                                         <p className="text-xs font-bold uppercase">Dynamic Setup</p>
-                                                        <p className="text-[9px] mt-1 opacity-70 leading-tight">AI enforces Dynamic SL/TP based on Confidence & ATR.</p>
+                                                        <p className="text-[9px] mt-1 opacity-70 leading-tight">AI enforces optimal SL/TP directly from Multi-Output models or falls back to ATR/Confidence rules.</p>
                                                     </div>
                                                 </div>
                                             </div>
