@@ -36,6 +36,15 @@ async def execute_smart_chase(
     attempts = 0
     final_res = None
     remaining_amount = sell_amount_raw
+    if hasattr(engine.exchange, 'amount_to_precision'):
+        try:
+            remaining_amount = float(engine.exchange.amount_to_precision(symbol, remaining_amount))
+        except Exception as e:
+            pass
+            
+    if remaining_amount <= 0:
+        logger.info(f"✅ Smart Chase aborted: remaining amount {sell_amount_raw} is too small (dust).")
+        return {'status': 'closed', 'id': 'dust_prevented', 'filled': sell_amount_raw}
     
     while chase_active:
         if max_attempts > 0 and attempts >= max_attempts:
@@ -144,6 +153,12 @@ async def execute_smart_chase(
                                 pass
                                 
                         remaining_amount = max(0.0, remaining_amount - filled_proper)
+                        if hasattr(engine.exchange, 'amount_to_precision'):
+                            try:
+                                remaining_amount = float(engine.exchange.amount_to_precision(symbol, remaining_amount))
+                            except Exception:
+                                pass
+                                
                         if remaining_amount <= 0:
                             logger.info("✅ Smart Chase fully closed position via partial fills.")
                             final_res = cancel_chk

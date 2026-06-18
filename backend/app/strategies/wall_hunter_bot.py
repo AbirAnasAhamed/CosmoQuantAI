@@ -2464,6 +2464,12 @@ class WallHunterBot:
         else:
             # In Long mode, the UI input is Quote Asset, so convert to Base Asset
             base_amount = float(f"{input_amount / entry_price:.6f}")
+            
+        if hasattr(self.engine.exchange, 'amount_to_precision'):
+            try:
+                base_amount = float(self.engine.exchange.amount_to_precision(self.symbol, base_amount))
+            except Exception:
+                pass
         
         # In Paper Trading, simulating a market buy exactly at the bid wall gives an artificial instant PnL advantage (Bid-Ask spread). 
         # Using mid_price prevents instant fake TP triggers.
