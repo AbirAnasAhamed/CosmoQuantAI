@@ -45,6 +45,7 @@ import { ManualTradeModal } from '../../components/features/market/ManualTradeMo
 import { FloatingTVChartButton } from '../../components/features/market/FloatingTVChartButton';
 import { QuickTradeToolbar } from '../../components/features/market/QuickTradeToolbar';
 import { AIModelDeploymentModal } from '../../components/features/market/AIModelDeploymentModal';
+import { ModelPredictorModal, PredictionResult } from '../../components/features/market/ModelPredictorModal';
 import { DualEngineDashboard } from '../../components/features/market/DualEngineDashboard';
 import { WatchlistScanner } from '../../components/features/market/WatchlistScanner';
 import { DeltaProfileRenderer } from '../../components/features/market/AdvancedMetrics/DeltaProfileRenderer';
@@ -82,7 +83,7 @@ const parseIntervalToMs = (interval: string): number => {
 };
 
 // Chart Component
-const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: string; walls: { price: number, type: 'buy' | 'sell', size?: number }[]; currentPrice: number; showFootprint: boolean; showCVD: boolean; showVPVR: boolean; indicatorSettings: IndicatorSettings; tradeEvent: any; botStatus: any; openOrders: OpenLimitOrder[]; advancedMetrics: AdvancedMetricsSettings; advancedMetricsData: any; selectedApiKeyId: string | null }> = ({ exchange, symbol, interval, walls, currentPrice, showFootprint, showCVD, showVPVR, indicatorSettings, tradeEvent, botStatus, openOrders, advancedMetrics, advancedMetricsData, selectedApiKeyId }) => {
+const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: string; walls: { price: number, type: 'buy' | 'sell', size?: number }[]; currentPrice: number; showFootprint: boolean; showCVD: boolean; showVPVR: boolean; indicatorSettings: IndicatorSettings; tradeEvent: any; botStatus: any; openOrders: OpenLimitOrder[]; advancedMetrics: AdvancedMetricsSettings; advancedMetricsData: any; selectedApiKeyId: string | null; predictionResult: PredictionResult | null; onChartClickPrice?: (price: number) => void }> = ({ exchange, symbol, interval, walls, currentPrice, showFootprint, showCVD, showVPVR, indicatorSettings, tradeEvent, botStatus, openOrders, advancedMetrics, advancedMetricsData, selectedApiKeyId, predictionResult, onChartClickPrice }) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<any>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -100,8 +101,12 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
     const patternMarkersRef = useRef<any[]>([]);
     const wallLinesRef = useRef<Map<string, any>>(new Map());
     const currentPriceLineRef = useRef<any>(null);
+    const mlEntryLineRef = useRef<any>(null);
     const mlSlLineRef = useRef<any>(null);
     const mlTpLineRef = useRef<any>(null);
+    const aiClickPriceLineRef = useRef<any>(null);
+    const crosshairBtnRef = useRef<HTMLButtonElement>(null);
+    const crosshairPriceRef = useRef<number | null>(null);
     const lastCandleRef = useRef<CandlestickData | null>(null);
     const allCandlesRef = useRef<any[]>([]);
     const lastTradeEventRef = useRef<any>(null);
@@ -278,6 +283,30 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
 
         chartRef.current = chart;
         candlestickSeriesRef.current = candlestickSeries;
+        
+        // Remove click listener, we'll use the plus button click instead.
+        // But keep it for drawing the line if they click generally? The user said "zeta click korle e just modal ti oi price a open hobe" (clicking the plus icon).
+        // Let's remove subscribeClick so it doesn't conflict with dragging.
+        
+        chart.subscribeCrosshairMove((param) => {
+            if (crosshairBtnRef.current && crosshairBtnRef.current.matches(':hover')) {
+                // If the user is hovering the button, freeze its position so they can click it
+                return;
+            }
+            if (param.point && param.point.y !== undefined && candlestickSeriesRef.current && crosshairBtnRef.current) {
+                const price = candlestickSeriesRef.current.coordinateToPrice(param.point.y as any);
+                if (price !== null) {
+                    crosshairPriceRef.current = price as number;
+                    crosshairBtnRef.current.style.display = 'flex';
+                    crosshairBtnRef.current.style.left = `auto`;
+                    crosshairBtnRef.current.style.right = `65px`; // Place it firmly near the price axis
+                    crosshairBtnRef.current.style.top = `${param.point.y}px`; // Centered vertically on the crosshair line
+                }
+            } else if (crosshairBtnRef.current) {
+                crosshairBtnRef.current.style.display = 'none';
+                crosshairPriceRef.current = null;
+            }
+        });
         markersPluginRef.current = createSeriesMarkers(candlestickSeries, []);
         emaSeriesRef.current = emaSeries;
         bbUpperSeriesRef.current = bbUpperSeries;
@@ -517,6 +546,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             // Cleanup refs so they respawn on the newly created chart instance
             candlestickSeriesRef.current = null;
             currentPriceLineRef.current = null;
+            mlEntryLineRef.current = null;
             mlSlLineRef.current = null;
             mlTpLineRef.current = null;
             wallLinesRef.current.clear();
@@ -604,6 +634,53 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         }
 
     }, [indicatorSettings]);
+
+    // Draw Prediction Lines Effect
+    useEffect(() => {
+        if (!candlestickSeriesRef.current || !predictionResult) return;
+        
+        // Entry Line
+        if (!mlEntryLineRef.current) {
+            mlEntryLineRef.current = candlestickSeriesRef.current.createPriceLine({
+                price: predictionResult.entry_price,
+                color: '#6366f1',
+                lineWidth: 2,
+                lineStyle: LineStyle.Solid,
+                axisLabelVisible: true,
+                title: 'PRED ENTRY',
+            });
+        } else {
+            mlEntryLineRef.current.applyOptions({ price: predictionResult.entry_price });
+        }
+
+        // SL Line
+        if (!mlSlLineRef.current) {
+            mlSlLineRef.current = candlestickSeriesRef.current.createPriceLine({
+                price: predictionResult.sl,
+                color: '#ef4444',
+                lineWidth: 2,
+                lineStyle: LineStyle.Dashed,
+                axisLabelVisible: true,
+                title: 'PRED SL',
+            });
+        } else {
+            mlSlLineRef.current.applyOptions({ price: predictionResult.sl });
+        }
+
+        // TP Line
+        if (!mlTpLineRef.current) {
+            mlTpLineRef.current = candlestickSeriesRef.current.createPriceLine({
+                price: predictionResult.tp,
+                color: '#10b981',
+                lineWidth: 2,
+                lineStyle: LineStyle.Dashed,
+                axisLabelVisible: true,
+                title: 'PRED TP',
+            });
+        } else {
+            mlTpLineRef.current.applyOptions({ price: predictionResult.tp });
+        }
+    }, [predictionResult]);
 
     // Reference live order flow data to avoid React dependency array thrashing
     const smcDataRef = useRef({ walls, cvdData, footprintData, currentPrice });
@@ -1871,6 +1948,34 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         <div className="w-full h-full flex flex-col absolute inset-0">
             <div className="flex-1 relative">
                 <div ref={chartContainerRef} className="w-full h-full absolute inset-0 z-0" />
+                <button
+                    ref={crosshairBtnRef}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        if (crosshairPriceRef.current !== null && onChartClickPrice) {
+                            onChartClickPrice(crosshairPriceRef.current);
+                            if (aiClickPriceLineRef.current && candlestickSeriesRef.current) {
+                                candlestickSeriesRef.current.removePriceLine(aiClickPriceLineRef.current);
+                            }
+                            if (candlestickSeriesRef.current) {
+                                aiClickPriceLineRef.current = candlestickSeriesRef.current.createPriceLine({
+                                    price: crosshairPriceRef.current,
+                                    color: '#c084fc',
+                                    lineWidth: 2,
+                                    lineStyle: 3,
+                                    axisLabelVisible: true,
+                                    title: '🤖 AI Target',
+                                });
+                            }
+                        }
+                    }}
+                    className="absolute hidden z-50 px-3 h-7 rounded-full bg-gradient-to-br from-purple-600/95 to-indigo-600/95 hover:from-purple-500 hover:to-indigo-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.8)] flex items-center justify-center gap-1.5 backdrop-blur-md border border-white/20 cursor-pointer pointer-events-auto"
+                    title="Predict with AI at this price"
+                    style={{ transform: 'translateY(-50%)', transition: 'none' }} // NO CSS transition so it tracks instantly
+                >
+                    <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+                    <span className="text-[10px] font-bold tracking-wider uppercase whitespace-nowrap">AI Predict</span>
+                </button>
                 <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden" style={{ right: 60, bottom: 26 }}>
                     <GodModeHUD data={godModeData} visible={indicatorSettings.showLiquidationHeatmap} />
                     <DualEngineDashboard settings={indicatorSettings} candles={allCandlesRef.current} currentPrice={currentPrice} />
@@ -2625,6 +2730,9 @@ const OrderFlowHeatmap: React.FC = () => {
     const [isWallHunterOpen, setIsWallHunterOpen] = useState(false);
     const [isEmergencySelling, setIsEmergencySelling] = useState(false); // NEW STATE
     const [isFullscreen, setIsFullscreen] = useState(false); // NEW STATE
+    const [predictionResult, setPredictionResult] = useState<PredictionResult | null>(null);
+    const [externalAIPrice, setExternalAIPrice] = useState<number | null>(null);
+    const [externalAIOpenTrigger, setExternalAIOpenTrigger] = useState<number>(0);
 
     // ── Draggable HUD state ────────────────────────────────────────────────────
     const [hudPos, setHudPos] = useState({ x: 24, y: 24 }); // initial: top-right offset
@@ -2881,7 +2989,13 @@ const OrderFlowHeatmap: React.FC = () => {
                             </button>
                         </div>
                         <div className="flex-1 relative">
-                            <OrderFlowChart exchange={exchange} symbol={symbol} interval={interval} walls={filteredWalls} currentPrice={currentPrice} showFootprint={showFootprint} showCVD={showCVD} showVPVR={showVPVR} indicatorSettings={indicatorSettings} tradeEvent={tradeEvent} botStatus={botStatus} openOrders={openOrders} advancedMetrics={advancedMetrics} advancedMetricsData={advancedMetricsData} selectedApiKeyId={selectedApiKeyId} />
+                            <OrderFlowChart 
+                                exchange={exchange} symbol={symbol} interval={interval} walls={filteredWalls} currentPrice={currentPrice} showFootprint={showFootprint} showCVD={showCVD} showVPVR={showVPVR} indicatorSettings={indicatorSettings} tradeEvent={tradeEvent} botStatus={botStatus} openOrders={openOrders} advancedMetrics={advancedMetrics} advancedMetricsData={advancedMetricsData} selectedApiKeyId={selectedApiKeyId} predictionResult={predictionResult} 
+                                onChartClickPrice={(price) => {
+                                    setExternalAIPrice(price);
+                                    setExternalAIOpenTrigger(Date.now());
+                                }}
+                            />
                         </div>
                     </div>
                     {/* Level 2 Order Book moved to floating modal */}
@@ -3112,6 +3226,14 @@ const OrderFlowHeatmap: React.FC = () => {
                 <div className="w-16 h-16 relative shrink-0">
                     <FloatingTVChartButton symbol={symbol} exchange={exchange} />
                 </div>
+
+                {/* AI PREDICTOR MODAL */}
+                <ModelPredictorModal 
+                    currentPrice={currentPrice} 
+                    onPrediction={setPredictionResult}
+                    externalPrice={externalAIPrice}
+                    externalOpenTrigger={externalAIOpenTrigger}
+                />
 
                 {/* FLOATING LEVEL 2 ORDER BOOK BUTTON */}
                 <button
