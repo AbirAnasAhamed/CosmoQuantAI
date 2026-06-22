@@ -22,6 +22,15 @@ class PredictRequest(BaseModel):
     symbol: Optional[str] = None   # Override symbol (optional)
     sequence_length: Optional[int] = None # Sequence length for dynamic analysis
 
+class CorrelationRequest(BaseModel):
+    features: List[str]
+
+class FormulaValidationRequest(BaseModel):
+    formula: str
+
+class AutoMLRequest(BaseModel):
+    pass  # Could take target feature or settings in the future
+
 router = APIRouter()
 
 
@@ -475,3 +484,27 @@ def delete_hybrid_snapshot(
         return {"status": "success", "message": f"Deleted {filename}"}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to delete file: {str(e)}")
+
+@router.post("/correlation-matrix")
+def get_correlation_matrix(request: CorrelationRequest, current_user: models.User = Depends(deps.get_current_user)):
+    from app.services.advanced_features_service import calculate_correlation_matrix
+    try:
+        return calculate_correlation_matrix(request.features)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/validate-custom-formula")
+def validate_formula(request: FormulaValidationRequest, current_user: models.User = Depends(deps.get_current_user)):
+    from app.services.advanced_features_service import validate_custom_formula
+    result = validate_custom_formula(request.formula)
+    if not result.get("valid"):
+        raise HTTPException(status_code=400, detail=result.get("error", "Invalid formula"))
+    return result
+
+@router.post("/automl-feature-selection")
+def automl_select(current_user: models.User = Depends(deps.get_current_user)):
+    from app.services.advanced_features_service import run_automl_feature_selection
+    try:
+        return run_automl_feature_selection()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))

@@ -25,6 +25,10 @@ import { AlternativeDataSettings } from '@/components/app/AlternativeDataSetting
 import EnsembleBuilder from '@/components/ml/EnsembleBuilder';
 import RLTrainingVisualizer from '@/components/ml/RLTrainingVisualizer';
 
+import { AdvancedAIToolsPanel } from '@/components/ml/AdvancedAIToolsPanel';
+import { FeatureCorrelationModal } from '@/components/ml/FeatureCorrelationModal';
+import { CustomFeatureBuilder } from '@/components/ml/CustomFeatureBuilder';
+
 import { mlModelsService } from '@/services/mlModelsService';
 
 const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ retrainModelId }) => {
@@ -123,6 +127,32 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
     const [selectedAltFeatures, setSelectedAltFeatures] = useState<string[]>(['fng_value']); // ✅ New
     const [analysisStats, setAnalysisStats] = useState<{rows: number, features: number} | null>(null);
     const [showManualFeatures, setShowManualFeatures] = useState(false);
+    
+    // Advanced AI Tool States
+    const [showCorrelationModal, setShowCorrelationModal] = useState(false);
+    const [showFeatureBuilder, setShowFeatureBuilder] = useState(false);
+    const [customFeatures, setCustomFeatures] = useState<{name: string, formula: string}[]>([]);
+
+    const handleAddCustomFeature = (name: string, formula: string) => {
+        setCustomFeatures(prev => [...prev, { name, formula }]);
+        // Automatically select the newly built feature (simulate addition to active dataset)
+        setSelectedL2Features(prev => [...prev, name]);
+    };
+
+    const handleAutoMLSelect = async () => {
+        try {
+            const res = await apiClient.post('/model-training/automl-feature-selection');
+            if (res.data && res.data.top_features) {
+                // Since this combines different feature types, for now we will just populate the L2 and Trade features
+                // In a real complex setup we'd map them to their respective categories
+                setSelectedL2Features(res.data.top_features);
+                alert(`✅ AutoML SHAP Analysis Complete! Top features selected via ${res.data.method}.`);
+            }
+        } catch (error) {
+            console.error("AutoML selection failed", error);
+            alert("Failed to run AutoML feature selection.");
+        }
+    };
     
     const [currentJob, setCurrentJob] = useState<TrainingJob | null>(null);
     const [l2ScrapeJob, setL2ScrapeJob] = useState<TrainingJob | null>(null);
@@ -1386,6 +1416,12 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                                 <h3 className="text-sm font-bold text-emerald-400 flex items-center gap-2 uppercase tracking-widest"><Database className="w-4 h-4" /> Data Engine & Features</h3>
                             </div>
                             <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar h-full">
+                                <AdvancedAIToolsPanel 
+                                    isTraining={isTraining} 
+                                    onOpenCorrelation={() => setShowCorrelationModal(true)} 
+                                    onOpenBuilder={() => setShowFeatureBuilder(true)} 
+                                    onAutoMLSelect={handleAutoMLSelect} 
+                                />
 
                         <div>
                             <div className="flex items-center justify-between mb-3">
@@ -2990,6 +3026,18 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                     symbol={symbol} 
                 />
             )}
+
+            <FeatureCorrelationModal
+                isOpen={showCorrelationModal}
+                onClose={() => setShowCorrelationModal(false)}
+                selectedFeatures={[...selectedIndicators, ...selectedL2Features, ...selectedTradeFeatures, ...selectedPlpFeatures, ...selectedAltFeatures, ...customFeatures.map(f => f.name)]}
+            />
+
+            <CustomFeatureBuilder
+                isOpen={showFeatureBuilder}
+                onClose={() => setShowFeatureBuilder(false)}
+                onAddCustomFeature={handleAddCustomFeature}
+            />
         </div>
     );
 };

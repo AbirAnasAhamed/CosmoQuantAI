@@ -67,6 +67,7 @@ import { useUIStore } from '@/store/uiStore';
 import { useOpenOrders, OpenLimitOrder } from '../../hooks/useOpenOrders';
 import { useAdvancedMetricsSettings, AdvancedMetricsSettings } from '../../hooks/useAdvancedMetricsSettings';
 import { useAdvancedMetrics } from '../../hooks/useAdvancedMetrics';
+import { TradingViewWidget } from '../../components/features/market/TradingViewWidget';
 
 // Helper to convert interval string to ms
 const parseIntervalToMs = (interval: string): number => {
@@ -2730,6 +2731,7 @@ const OrderFlowHeatmap: React.FC = () => {
     const [isWallHunterOpen, setIsWallHunterOpen] = useState(false);
     const [isEmergencySelling, setIsEmergencySelling] = useState(false); // NEW STATE
     const [isFullscreen, setIsFullscreen] = useState(false); // NEW STATE
+    const [isTradingViewMode, setIsTradingViewMode] = useState(false); // TRADINGVIEW TOGGLE STATE
     const [predictionResult, setPredictionResult] = useState<PredictionResult | null>(null);
     const [externalAIPrice, setExternalAIPrice] = useState<number | null>(null);
     const [externalAIOpenTrigger, setExternalAIOpenTrigger] = useState<number>(0);
@@ -2976,7 +2978,23 @@ const OrderFlowHeatmap: React.FC = () => {
                 <div className="flex-1 w-full">
                     <div className="h-full w-full bg-white dark:bg-[#000000] rounded-xl border border-gray-200 dark:border-white/5 overflow-hidden shadow-[0_4px_20px_rgba(0,0,0,0.05)] dark:shadow-[0_4px_20px_rgba(0,0,0,0.2)] flex flex-col">
                         <div className="p-3 border-b border-gray-200 dark:border-white/5 flex justify-between items-center">
-                            <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Order Flow Chart</h3>
+                            <div className="flex items-center gap-4">
+                                <h3 className="text-xs font-bold text-gray-500 uppercase tracking-wider">Chart View</h3>
+                                <div className="flex bg-gray-100 dark:bg-black/20 p-1 rounded-lg border border-gray-200 dark:border-white/5">
+                                    <button
+                                        onClick={() => setIsTradingViewMode(false)}
+                                        className={`px-3 py-1 text-[10px] font-bold rounded-md transition-colors ${!isTradingViewMode ? 'bg-white dark:bg-white/10 text-slate-900 dark:text-white shadow-sm' : 'text-gray-500 hover:text-gray-300'}`}
+                                    >
+                                        Order Flow Heatmap
+                                    </button>
+                                    <button
+                                        onClick={() => setIsTradingViewMode(true)}
+                                        className={`px-3 py-1 text-[10px] font-bold rounded-md transition-colors flex items-center gap-1 ${isTradingViewMode ? 'bg-brand-primary text-white shadow-[0_0_10px_rgba(139,92,246,0.3)]' : 'text-gray-500 hover:text-gray-300'}`}
+                                    >
+                                        TradingView (Drawings)
+                                    </button>
+                                </div>
+                            </div>
                             <button
                                 onClick={() => setIsFullscreen(!isFullscreen)}
                                 className="text-gray-500 hover:text-brand-primary transition-colors"
@@ -2989,13 +3007,17 @@ const OrderFlowHeatmap: React.FC = () => {
                             </button>
                         </div>
                         <div className="flex-1 relative">
-                            <OrderFlowChart 
-                                exchange={exchange} symbol={symbol} interval={interval} walls={filteredWalls} currentPrice={currentPrice} showFootprint={showFootprint} showCVD={showCVD} showVPVR={showVPVR} indicatorSettings={indicatorSettings} tradeEvent={tradeEvent} botStatus={botStatus} openOrders={openOrders} advancedMetrics={advancedMetrics} advancedMetricsData={advancedMetricsData} selectedApiKeyId={selectedApiKeyId} predictionResult={predictionResult} 
-                                onChartClickPrice={(price) => {
-                                    setExternalAIPrice(price);
-                                    setExternalAIOpenTrigger(Date.now());
-                                }}
-                            />
+                            {isTradingViewMode ? (
+                                <TradingViewWidget symbol={symbol} interval={interval} />
+                            ) : (
+                                <OrderFlowChart 
+                                    exchange={exchange} symbol={symbol} interval={interval} walls={filteredWalls} currentPrice={currentPrice} showFootprint={showFootprint} showCVD={showCVD} showVPVR={showVPVR} indicatorSettings={indicatorSettings} tradeEvent={tradeEvent} botStatus={botStatus} openOrders={openOrders} advancedMetrics={advancedMetrics} advancedMetricsData={advancedMetricsData} selectedApiKeyId={selectedApiKeyId} predictionResult={predictionResult} 
+                                    onChartClickPrice={(price) => {
+                                        setExternalAIPrice(price);
+                                        setExternalAIOpenTrigger(Date.now());
+                                    }}
+                                />
+                            )}
                         </div>
                     </div>
                     {/* Level 2 Order Book moved to floating modal */}
