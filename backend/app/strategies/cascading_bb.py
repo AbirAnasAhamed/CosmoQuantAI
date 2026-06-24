@@ -13,6 +13,8 @@ from app.strategies.order_block_bot import OrderBlockExecutionEngine
 logger = logging.getLogger(__name__)
 
 class CascadingBBLogger:
+    _redis_client = None
+
     def __init__(self, bot_id: int):
         self.bot_id = bot_id
         self._logger = logging.getLogger("CascadingBB_" + str(bot_id))
@@ -21,7 +23,12 @@ class CascadingBBLogger:
         try:
             import datetime, json, redis
             from app.core.config import settings
-            r = redis.from_url(settings.REDIS_URL, decode_responses=True)
+            
+            if CascadingBBLogger._redis_client is None:
+                CascadingBBLogger._redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+                
+            r = CascadingBBLogger._redis_client
+            
             timestamp = datetime.datetime.now().strftime("%H:%M:%S")
             log_entry = {"time": timestamp, "type": log_type, "message": str(message)}
             stream_payload = {"channel": f"logs_{self.bot_id}", "data": log_entry}

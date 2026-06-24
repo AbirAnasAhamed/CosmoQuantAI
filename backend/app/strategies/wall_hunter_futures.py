@@ -35,6 +35,8 @@ logger = logging.getLogger(__name__)
 # 🛡️ CosmoQuant Institutional-Grade Shared Logging System
 # ----------------------------------------------------
 class WallHunterFuturesLogger:
+    _redis_client = None
+
     def __init__(self, bot_id: int):
         self.bot_id = bot_id
         import logging
@@ -44,9 +46,16 @@ class WallHunterFuturesLogger:
         try:
             import datetime, json, redis
             from app.core.config import settings
-            r = redis.from_url(settings.REDIS_URL, decode_responses=True)
+            
+            if WallHunterFuturesLogger._redis_client is None:
+                WallHunterFuturesLogger._redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+                
+            r = WallHunterFuturesLogger._redis_client
+            
             timestamp = datetime.datetime.now().strftime("%H:%M:%S")
             log_entry = {"time": timestamp, "type": log_type, "message": str(message)}
+            stream_payload = {"channel": f"logs_{self.bot_id}", "data": log_entry}
+            r.publish("bot_logs", json.dumps(stream_payload))
             # Specific channel for THIS bot (WebSocket uses this)
             r.publish(f"bot_logs:{self.bot_id}", json.dumps(log_entry))
             # Persistent list for history

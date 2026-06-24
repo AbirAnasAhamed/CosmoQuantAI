@@ -40,6 +40,8 @@ except ImportError:
 
 
 class WallHunterLogger:
+    _redis_client = None
+
     def __init__(self, bot_id: int):
         self.bot_id = bot_id
         import logging
@@ -49,7 +51,12 @@ class WallHunterLogger:
         try:
             import datetime, json, redis
             from app.core.config import settings
-            r = redis.from_url(settings.REDIS_URL, decode_responses=True)
+            
+            if WallHunterLogger._redis_client is None:
+                WallHunterLogger._redis_client = redis.from_url(settings.REDIS_URL, decode_responses=True)
+                
+            r = WallHunterLogger._redis_client
+            
             timestamp = datetime.datetime.now().strftime("%H:%M:%S")
             log_entry = {"time": timestamp, "type": log_type, "message": str(message)}
             stream_payload = {"channel": f"logs_{self.bot_id}", "data": log_entry}

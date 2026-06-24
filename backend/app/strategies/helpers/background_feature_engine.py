@@ -12,6 +12,9 @@ class BackgroundFeatureEngine:
     Maintains a rolling cache of slow-to-calculate features (Trade, PLP) so that 
     the real-time L2 predictor can access them instantly without latency.
     """
+    _shared_exchanges = {}
+    _shared_lock = asyncio.Lock()
+
     def __init__(self, symbol: str, required_features: list, is_futures: bool = False):
         self.symbol = symbol
         self.required_features = required_features
@@ -66,11 +69,13 @@ class BackgroundFeatureEngine:
 
     async def _cache_loop(self):
         import ccxt.pro as ccxt_pro
-        # Use binanceusdm for futures if symbol contains ':', else binance spot
-        if self.is_futures:
-            exchange = ccxt_pro.binanceusdm({'enableRateLimit': True})
-        else:
-            exchange = ccxt_pro.binance({'enableRateLimit': True})
+        exchange_id = 'binanceusdm' if self.is_futures else 'binance'
+        
+        async with BackgroundFeatureEngine._shared_lock:
+            if exchange_id not in BackgroundFeatureEngine._shared_exchanges:
+                exchange_class = getattr(ccxt_pro, exchange_id)
+                BackgroundFeatureEngine._shared_exchanges[exchange_id] = exchange_class({'enableRateLimit': True})
+            exchange = BackgroundFeatureEngine._shared_exchanges[exchange_id]
             
         from app.services.hybrid_deep_pipeline import calculate_trade_tick_features
 
@@ -153,7 +158,8 @@ class BackgroundFeatureEngine:
                     # Sleep 5 seconds on general error before next poll to avoid rate limits / spamming
                     await asyncio.sleep(5.0)
             
-        await exchange.close()
+        # We do NOT close the exchange here because it is a shared singleton connection
+        # await exchange.close()
 
     def _calculate_features_sync(self, trades: list) -> dict:
         """
