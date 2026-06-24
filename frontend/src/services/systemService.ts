@@ -24,5 +24,15 @@ export const systemService = {
     getSystemHealth: async (): Promise<SystemHealth> => {
         const response = await client.get('/system/health');
         return response.data;
+    },
+
+    getAutoArchiverStatus: async () => {
+        const response = await client.get('/system/auto-archiver');
+        return response.data;
+    },
+
+    toggleAutoArchiver: async (active: boolean) => {
+        const response = await client.post('/system/auto-archiver', { active });
+        return response.data;
     }
 };

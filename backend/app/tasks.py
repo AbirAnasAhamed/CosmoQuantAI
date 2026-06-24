@@ -1002,15 +1002,24 @@ def prune_l2_data():
             logger.info("No L2 snapshots older than 24 hours to prune.")
             return "No data to prune."
 
+        # Check auto-archiver setting
+        from app.utils import get_redis_client
+        r = get_redis_client()
+        status = r.get("global_auto_archiver_enabled")
+        auto_archiver_enabled = status not in (b"false", "false")
+
         # 2. Archive records to Parquet (includes 10GB smart management)
-        def log_proxy(msg):
-            logger.info(msg)
+        if auto_archiver_enabled:
+            def log_proxy(msg):
+                logger.info(msg)
+                
+            success = DatasetArchiver.archive_snapshots(old_snapshots, add_log_func=log_proxy)
             
-        success = DatasetArchiver.archive_snapshots(old_snapshots, add_log_func=log_proxy)
-        
-        if not success:
-            logger.error("Failed to archive L2 snapshots. Aborting deletion to prevent data loss.")
-            return "Archiving failed. Deletion aborted."
+            if not success:
+                logger.error("Failed to archive L2 snapshots. Aborting deletion to prevent data loss.")
+                return "Archiving failed. Deletion aborted."
+        else:
+            logger.info("Auto-Archiver is disabled in settings. Skipping archiving.")
 
         # 3. Safe Deletion
         deleted_count = db.query(OrderBookSnapshot).filter(OrderBookSnapshot.timestamp < threshold).delete()

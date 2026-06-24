@@ -17,6 +17,9 @@ router = APIRouter()
 class KillSwitchSchema(BaseModel):
     active: bool
 
+class AutoArchiverSwitchSchema(BaseModel):
+    active: bool
+
 class PruneResponse(BaseModel):
     deleted_count: int
     message: str
@@ -48,6 +51,26 @@ def toggle_kill_switch(payload: KillSwitchSchema):
     """
     r = get_redis_client()
     r.set("global_kill_switch", "true" if payload.active else "false")
+    return {"active": payload.active}
+
+@router.get("/auto-archiver", response_model=AutoArchiverSwitchSchema)
+def get_auto_archiver_status():
+    """
+    Get the current status of the Auto-Archiver feature.
+    """
+    r = get_redis_client()
+    status = r.get("global_auto_archiver_enabled")
+    # Default is true if not explicitly set to false
+    is_active = status != "false"
+    return {"active": is_active}
+
+@router.post("/auto-archiver", response_model=AutoArchiverSwitchSchema)
+def toggle_auto_archiver(payload: AutoArchiverSwitchSchema):
+    """
+    Toggle the Auto-Archiver feature.
+    """
+    r = get_redis_client()
+    r.set("global_auto_archiver_enabled", "true" if payload.active else "false")
     return {"active": payload.active}
 
 @router.get("/panic", response_model=KillSwitchSchema)

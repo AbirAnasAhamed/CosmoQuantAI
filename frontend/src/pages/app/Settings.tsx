@@ -9,6 +9,7 @@ import { marketDataService } from '@/services/marketData';
 import { notificationService } from '@/services/notification';
 import { updateUserSecurity, uploadUserAvatar } from '@/services/auth';
 import { fetchExchangeBalance, syncExchangeBalance, ExchangeBalanceResult } from '@/services/settings';
+import { systemService } from '@/services/systemService';
 
 // Icons
 const PlusIcon = ({ className = "w-4 h-4" }: { className?: string }) => (
@@ -150,6 +151,32 @@ const Settings: React.FC<{ initialSection?: string | null }> = ({ initialSection
     });
     const [isSavingNotifications, setIsSavingNotifications] = useState(false);
     const [isTestingNotification, setIsTestingNotification] = useState(false);
+
+    // Auto-Archiver State
+    const [isAutoArchiverEnabled, setIsAutoArchiverEnabled] = useState(true);
+    const [isSavingAutoArchiver, setIsSavingAutoArchiver] = useState(false);
+
+    useEffect(() => {
+        systemService.getAutoArchiverStatus()
+            .then(data => setIsAutoArchiverEnabled(data.active))
+            .catch(console.error);
+    }, []);
+
+    const handleToggleAutoArchiver = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const newValue = e.target.checked;
+        setIsAutoArchiverEnabled(newValue);
+        setIsSavingAutoArchiver(true);
+        try {
+            await systemService.toggleAutoArchiver(newValue);
+            showToast('Auto-Archiver setting updated', 'success');
+        } catch (error) {
+            console.error(error);
+            showToast('Failed to update Auto-Archiver setting', 'error');
+            setIsAutoArchiverEnabled(!newValue);
+        } finally {
+            setIsSavingAutoArchiver(false);
+        }
+    };
 
     // Refs
     const profileRef = useRef<HTMLDivElement>(null);
@@ -712,6 +739,34 @@ const Settings: React.FC<{ initialSection?: string | null }> = ({ initialSection
                             <Button variant="primary" onClick={handleSaveNotification} disabled={isSavingNotifications}>
                                 {isSavingNotifications ? 'Saving...' : 'Save Settings'}
                             </Button>
+                        </div>
+                    </div>
+                </Card>
+            </div>
+
+            {/* System Data Management Section */}
+            <div>
+                <Card>
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white mb-6 border-b border-brand-border-light dark:border-[#1A1A1A] pb-4">Data Management</h2>
+                    <div className="space-y-6">
+                        <div className="flex items-center justify-between p-4 bg-gray-50 dark:bg-[#0A0A0A]/30 rounded-lg border border-gray-200 dark:border-[#1A1A1A]">
+                            <div>
+                                <h3 className="text-lg font-medium text-slate-900 dark:text-white">L2 Data Auto-Archiver</h3>
+                                <p className="text-sm text-gray-500">Automatically compress and save old L2 snapshots into Parquet files to prevent data loss while freeing up database space. If disabled, data older than 24 hours will be permanently deleted.</p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                                {isSavingAutoArchiver && <span className="text-xs text-gray-500">Saving...</span>}
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input
+                                        type="checkbox"
+                                        checked={isAutoArchiverEnabled}
+                                        onChange={handleToggleAutoArchiver}
+                                        disabled={isSavingAutoArchiver}
+                                        className="sr-only peer"
+                                    />
+                                    <div className={`w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-brand-primary/20 rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all ${isAutoArchiverEnabled ? 'bg-brand-primary peer-checked:bg-brand-primary' : ''}`}></div>
+                                </label>
+                            </div>
                         </div>
                     </div>
                 </Card>
