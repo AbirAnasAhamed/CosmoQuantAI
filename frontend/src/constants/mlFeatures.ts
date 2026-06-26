@@ -280,6 +280,25 @@ export const PLP_MODULES = [
         ]
     },
     {
+        id: 'ict_macro_concepts',
+        name: 'ICT Time & Macro Dynamics Module',
+        desc: 'Advanced ICT concepts based on precise UTC Time & Macro Sweeps.',
+        icon: 'Clock',
+        color: 'emerald',
+        features: [
+            { id: 'london_killzone_momentum', name: 'London Killzone Momentum' },
+            { id: 'ny_killzone_momentum', name: 'New York Killzone Momentum' },
+            { id: 'asian_consolidation_breakout', name: 'Asian Consolidation Breakout' },
+            { id: 'true_day_open_deviation', name: 'True Day Open Deviation' },
+            { id: 'pdh_pdl_sweep_proxy', name: 'PDH/PDL Sweep Proxy' },
+            { id: 'smt_divergence_synthetic', name: 'SMT Divergence (Synthetic)' },
+            { id: 'institutional_pricing_magnet', name: 'Institutional Pricing Magnet' },
+            { id: 'judas_swing_probability', name: 'Judas Swing Probability' },
+            { id: 'silver_bullet_time_proximity', name: 'Silver Bullet Proximity' },
+            { id: 'turtle_soup_fakeout', name: 'Turtle Soup Fakeout' }
+        ]
+    },
+    {
         id: 'margin_risk',
         name: 'Margin, Volatility & Risk Evaluation Module',
         desc: 'Quantifies leverage risk, panic selling, and volatility shifts.',
