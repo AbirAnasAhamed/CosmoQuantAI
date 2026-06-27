@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from sqlalchemy.orm import Session
 from typing import List, Any
 import logging
@@ -11,6 +11,21 @@ from app.forex.services.broker import OandaBrokerService
 router = APIRouter()
 logger = logging.getLogger(__name__)
 engine = ForexAlgoEngine()
+
+# Import WS Manager
+from app.forex.services.ws_manager import forex_ws_manager
+
+@router.websocket("/ws/market-data")
+async def websocket_endpoint(websocket: WebSocket, broker: str = "Exness"):
+    await forex_ws_manager.connect(websocket, broker)
+    try:
+        while True:
+            # Client can send message to change broker dynamically if needed
+            # For simplicity, they reconnect with a different query param.
+            data = await websocket.receive_text()
+    except WebSocketDisconnect:
+        forex_ws_manager.disconnect(websocket, broker)
+
 
 @router.get("/dashboard", response_model=schemas.DashboardMetricsResponse)
 async def get_dashboard_metrics(db: Session = Depends(get_db)) -> Any:
@@ -65,6 +80,23 @@ def update_bot_status(bot_id: int, status_update: schemas.ForexBotStatusUpdate, 
         raise HTTPException(status_code=400, detail="Invalid status")
         
     bot.status = status_update.status
+    db.commit()
+    db.refresh(bot)
+    return bot
+
+@router.patch("/bots/{bot_id}", response_model=schemas.ForexBotResponse)
+def update_bot_settings(bot_id: int, settings_update: schemas.ForexBotSettingsUpdate, db: Session = Depends(get_db)) -> Any:
+    """
+    Update the settings of a deployed bot.
+    """
+    bot = db.query(models.ForexBot).filter(models.ForexBot.id == bot_id).first()
+    if not bot:
+        raise HTTPException(status_code=404, detail="Bot not found")
+        
+    update_data = settings_update.dict(exclude_unset=True)
+    for key, value in update_data.items():
+        setattr(bot, key, value)
+        
     db.commit()
     db.refresh(bot)
     return bot

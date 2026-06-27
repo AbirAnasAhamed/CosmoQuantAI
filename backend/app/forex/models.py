@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime
+from sqlalchemy import Column, Integer, String, Float, Boolean, DateTime, JSON
 from sqlalchemy.sql import func
 from app.db.base_class import Base
 
@@ -14,6 +14,9 @@ class ForexBot(Base):
     max_drawdown_percent = Column(Float, default=5.0)
     use_news_filter = Column(Boolean, default=True)
     max_spread_pips = Column(Float, default=2.5)
+    default_take_profit = Column(Float, default=20.0)
+    default_stop_loss = Column(Float, default=10.0)
+    config = Column(JSON, default=dict)
     
     status = Column(String, default="inactive") # active, inactive, paused
     total_pips = Column(Float, default=0.0)

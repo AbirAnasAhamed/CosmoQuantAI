@@ -669,7 +669,7 @@ export enum AppView {
 
   // TradFi Views
   FOREX_DASHBOARD = 'Forex Dashboard',
-  FOREX_PAIRS = 'Currency Pairs',
+  FOREX_PAIRS = 'Forex Market Chart',
   FOREX_CALENDAR = 'Economic Calendar',
   FOREX_BOT_LAB = 'Forex Bot Lab',
   STOCKS_DASHBOARD = 'Stocks Dashboard',

@@ -11,6 +11,9 @@ class ForexBotBase(BaseModel):
     max_drawdown_percent: float = 5.0
     use_news_filter: bool = True
     max_spread_pips: float = 2.5
+    default_take_profit: float = 20.0
+    default_stop_loss: float = 10.0
+    config: Optional[dict] = {}
 
 class ForexBotCreate(ForexBotBase):
     pass
@@ -37,3 +40,9 @@ class DashboardMetricsResponse(BaseModel):
 
 class ForexBotStatusUpdate(BaseModel):
     status: str # "active", "stopped", "paused"
+
+class ForexBotSettingsUpdate(BaseModel):
+    lot_size: Optional[float] = None
+    max_drawdown_percent: Optional[float] = None
+    default_take_profit: Optional[float] = None
+    default_stop_loss: Optional[float] = None

@@ -163,7 +163,7 @@ const Sidebar: React.FC<{
                     title: 'Forex Terminal',
                     items: [
                         { view: AppView.FOREX_DASHBOARD, icon: <DashboardIcon />, label: 'Forex Dashboard' },
-                        { view: AppView.FOREX_PAIRS, icon: <MarketIcon />, label: 'Currency Pairs' },
+                        { view: AppView.FOREX_PAIRS, icon: <MarketIcon />, label: 'Forex Market Chart' },
                         { view: AppView.FOREX_CALENDAR, icon: <FilingsIcon />, label: 'Economic Calendar' },
                         { view: AppView.FOREX_BOT_LAB, icon: <BotLabIcon />, label: 'Forex Bot Lab' },
                         { view: AppView.CORRELATION_MATRIX, icon: <CorrelationIcon />, label: 'Correlation Matrix' },
