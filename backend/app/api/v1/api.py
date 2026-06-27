@@ -71,3 +71,7 @@ api_router.include_router(ml_prediction.router, prefix="/ml-models", tags=["ml-m
 
 api_router.include_router(model_training.router, prefix="/model-training", tags=["model-training"])
 api_router.include_router(dataset_merger.router, prefix="/model-training/dataset", tags=["dataset-merger"])
+
+# Forex Automated Trading Router (Isolated Domain)
+from app.forex import router as forex_router
+api_router.include_router(forex_router.router, prefix="/forex", tags=["forex"])

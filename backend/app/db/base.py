@@ -3,3 +3,6 @@ from app.models import User, ApiKey, StrategyTemplate, MarketData, WhaleAlert, O
 from app.models.grid import GridBot, GridOrder
 from app.models.insider import InsiderFiling
 from app.models.institutional import InstitutionalFund, FundHolding
+
+# Forex specific models (isolated domain)
+from app.forex.models import ForexBot, ForexTrade

@@ -1262,8 +1262,9 @@ def train_model_task(job_id: str, db: Session):
         cv_result = {}
         try:
             from app.services.ml_walk_forward_cv import run_walk_forward_cv
+            actual_algorithm = f"Ensemble ({config.get('ensemble_method', 'voting')})" if config.get("is_ensemble", False) else job.algorithm
             cv_result = run_walk_forward_cv(
-                algorithm=job.algorithm,
+                algorithm=actual_algorithm,
                 X_train=X_train,
                 y_train=y_train,
                 features=features,
@@ -1479,6 +1480,14 @@ def train_model_task(job_id: str, db: Session):
                     from sklearn.linear_model import LinearRegression
                     meta_reg = get_estimator(meta_model_name, False) if meta_model_name != "Logistic Regression" else LinearRegression()
                     model = StackingRegressor(estimators=estimators, final_estimator=meta_reg, cv=3)
+
+            if is_multi_output:
+                if is_classification_target:
+                    from sklearn.multioutput import MultiOutputClassifier
+                    model = MultiOutputClassifier(model)
+                else:
+                    from sklearn.multioutput import MultiOutputRegressor
+                    model = MultiOutputRegressor(model)
 
             add_log(f"Training {ensemble_method.capitalize()} Ensemble with {len(estimators)} base models...")
             start_time = time.time()

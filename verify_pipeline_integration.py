@@ -34,12 +34,13 @@ def test_pipeline():
     
     # We select some standard PLP features, some ICT features, and some Candle Psychology features
     selected_features = [
-        'retail_panic_sweep_proxy', # Old PLP
         'london_killzone_momentum', # ICT
         'smt_divergence_synthetic', # ICT
         'lower_wick_absorption_ratio', # Candle Psych
         'engulfing_momentum_float', # Candle Psych
-        'tick_density_ratio' # Candle Psych
+        'tick_density_ratio', # Candle Psych
+        'swing_failure_pattern_proxy', # Swing Dynamics
+        'equal_highs_lows_pool' # Swing Dynamics
     ]
     
     print(f"\n--- Running Full Pipeline with {len(selected_features)} features ---")

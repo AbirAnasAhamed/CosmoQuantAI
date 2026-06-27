@@ -54,8 +54,11 @@ import MarketSwitcher from '@/components/common/MarketSwitcher';
 import { useSettings } from '@/context/SettingsContext';
 import { useMarketStore } from '@/store/marketStore';
 
-// Temporary Placeholders (Will be replaced with real files)
-const ForexDashboard = () => <div className="p-8 text-white"><h1 className="text-3xl font-bold">Forex Dashboard</h1><p className="text-gray-400 mt-4">Welcome to the Forex Terminal workspace.</p></div>;
+import ForexDashboard from './forex/ForexDashboard';
+import ForexBotLab from './forex/ForexBotLab';
+import ForexCalendar from './forex/ForexCalendar';
+import ForexPairs from './forex/ForexPairs';
+
 const StocksDashboard = () => <div className="p-8 text-white"><h1 className="text-3xl font-bold">Stocks Dashboard</h1><p className="text-gray-400 mt-4">Welcome to the Equities Desk workspace.</p></div>;
 const CommoditiesDashboard = () => <div className="p-8 text-white"><h1 className="text-3xl font-bold">Commodities Dashboard</h1><p className="text-gray-400 mt-4">Welcome to the Commodities workspace.</p></div>;
 const PlaceholderView = ({ title }: { title: string }) => <div className="p-8 text-white"><h1 className="text-3xl font-bold">{title}</h1><p className="text-gray-400 mt-4">This module is under construction.</p></div>;
@@ -486,9 +489,9 @@ const AppDashboard: React.FC<AppDashboardProps> = ({ onLogout }) => {
             
             // TradFi Routes
             case AppView.FOREX_DASHBOARD: return <ForexDashboard />;
-            case AppView.FOREX_PAIRS: return <PlaceholderView title="Forex Currency Pairs" />;
-            case AppView.FOREX_CALENDAR: return <PlaceholderView title="Economic Calendar" />;
-            case AppView.FOREX_BOT_LAB: return <PlaceholderView title="Forex Bot Lab" />;
+            case AppView.FOREX_PAIRS: return <ForexPairs />;
+            case AppView.FOREX_CALENDAR: return <ForexCalendar />;
+            case AppView.FOREX_BOT_LAB: return <ForexBotLab />;
             case AppView.STOCKS_DASHBOARD: return <StocksDashboard />;
             case AppView.STOCKS_SCREENER: return <PlaceholderView title="Stock Screener" />;
             case AppView.EARNINGS_CALENDAR: return <PlaceholderView title="Earnings Calendar" />;

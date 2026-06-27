@@ -407,10 +407,13 @@ def _fetch_live_l2_data(symbol: str, db: Session, sequence_length: Optional[int]
     import ccxt
     
     seq_len = sequence_length if sequence_length and sequence_length > 1 else 1
+    
+    # ALWAYS fetch at least 300 rows to ensure feature engineering engines (Swing/Candle) have historical context
+    min_required_history = max(seq_len, 300)
 
     df_db = None
-    if seq_len > 1:
-        print(f"[ml_predictor] Fetching recent {seq_len} snapshots from DB for {symbol}...")
+    if min_required_history > 1:
+        print(f"[ml_predictor] Fetching recent {min_required_history} snapshots from DB for {symbol} (Context Fetch)...")
         try:
             from app.models.orderbook_snapshot import OrderBookSnapshot
             since = datetime.now(timezone.utc) - timedelta(hours=6)
@@ -420,7 +423,7 @@ def _fetch_live_l2_data(symbol: str, db: Session, sequence_length: Optional[int]
             snapshots = db.query(OrderBookSnapshot).filter(
                 OrderBookSnapshot.symbol.in_([clean_symbol, slash_symbol]),
                 OrderBookSnapshot.timestamp >= since
-            ).order_by(OrderBookSnapshot.timestamp.desc()).limit(seq_len).all()
+            ).order_by(OrderBookSnapshot.timestamp.desc()).limit(min_required_history).all()
             
             if snapshots:
                 data = []

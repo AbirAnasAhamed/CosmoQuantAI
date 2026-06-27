@@ -28,6 +28,14 @@ def calculate_plp_features(df: pd.DataFrame, selected_features: list) -> pd.Data
         else:
             return df # Cannot calculate without price
             
+    # Fallbacks for live tick-level prediction where OHLC may not exist
+    if 'Open' not in df.columns:
+        df['Open'] = df['Close']
+    if 'High' not in df.columns:
+        df['High'] = df['Close']
+    if 'Low' not in df.columns:
+        df['Low'] = df['Close']
+            
     close = df['Close']
     
     # Try to get volume metrics, else fallback to 1.0 (to avoid division by zero)
@@ -311,6 +319,15 @@ def calculate_plp_features(df: pd.DataFrame, selected_features: list) -> pd.Data
         df = ICTFeatureEngine.compute_ict_features(df, selected_features)
     except ImportError as e:
         logger.error(f"Could not import ICTFeatureEngine: {e}")
+        pass
+
+    # ── Market Structure & Swing Dynamics ──
+    try:
+        from app.services.feature_engines.swing_dynamics import SwingDynamicsEngine
+        engine = SwingDynamicsEngine()
+        df = engine.generate_features(df, selected_features)
+    except ImportError as e:
+        logger.error(f"Could not import SwingDynamicsEngine: {e}")
         pass
 
     # Clean up NaNs

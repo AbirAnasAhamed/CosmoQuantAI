@@ -4,6 +4,7 @@ interface TradingViewWidgetProps {
     symbol: string;
     interval: string;
     theme?: 'light' | 'dark';
+    exchange?: string;
 }
 
 // Map the generic timeframe strings to TradingView specific values
@@ -15,7 +16,7 @@ const getTVInterval = (tf: string) => {
     return '60'; // Default 1 hour
 };
 
-export const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({ symbol, interval, theme = 'dark' }) => {
+export const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({ symbol, interval, theme = 'dark', exchange = 'BINANCE' }) => {
     const [widgetKey, setWidgetKey] = useState(Date.now());
 
     useEffect(() => {
@@ -28,10 +29,11 @@ export const TradingViewWidget: React.FC<TradingViewWidgetProps> = ({ symbol, in
 
                 // Replace / with empty string (e.g., BTC/USDT -> BTCUSDT)
                 const cleanSymbol = symbol.replace('/', '');
+                const fullSymbol = exchange ? `${exchange}:${cleanSymbol}` : cleanSymbol;
 
                 new (window as any).TradingView.widget({
                     "autosize": true,
-                    "symbol": `BINANCE:${cleanSymbol}`, 
+                    "symbol": fullSymbol, 
                     "interval": getTVInterval(interval),
                     "timezone": "Etc/UTC",
                     "theme": theme === 'dark' ? 'Dark' : 'Light',

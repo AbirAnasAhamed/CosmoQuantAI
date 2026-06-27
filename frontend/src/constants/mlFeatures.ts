@@ -338,6 +338,25 @@ export const PLP_MODULES = [
         ]
     },
     {
+        id: 'market_structure_swing',
+        name: 'Market Structure & Swing Dynamics',
+        desc: 'Advanced metrics based on Swing Highs/Lows and Liquidity Pools using HFT Timeframe logic.',
+        icon: 'Activity',
+        color: 'purple',
+        features: [
+            { id: 'swing_failure_pattern_proxy', name: 'Swing Failure Pattern (SFP) Proxy' },
+            { id: 'break_of_structure_velocity', name: 'BOS (Break of Structure) Velocity' },
+            { id: 'change_of_character_trigger', name: 'ChoCh (Change of Character) Trigger' },
+            { id: 'equal_highs_lows_pool', name: 'Equal Highs / Lows (Liquidity Pool)' },
+            { id: 'distance_to_liquidity_pool', name: 'Distance to Nearest Liquidity Pool' },
+            { id: 'swing_leg_amplitude', name: 'Swing Leg Amplitude (Expansion)' },
+            { id: 'time_since_last_swing', name: 'Time Since Last Major Swing (Exhaustion)' },
+            { id: 'swing_leg_velocity', name: 'Swing Leg Velocity (Aggression Ratio)' },
+            { id: 'premium_discount_matrix', name: 'Premium vs Discount Matrix (Fib 0.5)' },
+            { id: 'fractal_density_index', name: 'Fractal Density Index' }
+        ]
+    },
+    {
         id: 'margin_risk',
         name: 'Margin, Volatility & Risk Evaluation Module',
         desc: 'Quantifies leverage risk, panic selling, and volatility shifts.',

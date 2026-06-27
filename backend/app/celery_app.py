@@ -10,7 +10,7 @@ celery_app = Celery(
     "cosmoquant_tasks",
     broker=broker_url,
     backend=result_backend,
-    include=["app.tasks"]
+    include=["app.tasks", "app.forex.tasks"]
 )
 
 celery_app.conf.beat_schedule = {
@@ -41,6 +41,10 @@ celery_app.conf.beat_schedule = {
     "evaluate-model-drift": {
         "task": "app.tasks.evaluate_model_drift_task",
         "schedule": crontab(minute=15),  # Every hour at minute 15
+    },
+    "run-forex-bots-every-minute": {
+        "task": "run_forex_bots_task",
+        "schedule": crontab(minute="*"), # Every 1 minute for Forex algorithmic logic
     },
 }
 
