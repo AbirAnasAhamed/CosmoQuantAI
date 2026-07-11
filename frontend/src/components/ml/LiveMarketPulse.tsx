@@ -17,10 +17,35 @@ const LiveMarketPulse: React.FC<LiveMarketPulseProps> = ({ symbol, exchange }) =
     useEffect(() => {
         // We use Binance public WS as a universal live data feed for the UI effect
         // Format symbol: remove anything after colon (like :USDT) and remove slash
+        const isFutures = symbol.includes(':');
         const formattedSymbol = symbol.split(':')[0].replace('/', '').toLowerCase();
-        const wsUrl = `wss://stream.binance.com:9443/ws/${formattedSymbol}@ticker`;
+        
+        // Route to Futures stream if it's a futures pair, else Spot stream
+        const wsUrl = isFutures 
+            ? `wss://fstream.binance.com/ws/${formattedSymbol}@ticker`
+            : `wss://stream.binance.com:9443/ws/${formattedSymbol}@ticker`;
         
         let ws: WebSocket | null = null;
+        let isMounted = true;
+
+        // Fetch initial data via REST (Crucial for weekends when TradFi websockets are silent)
+        const fetchInitialData = async () => {
+            try {
+                const restUrl = isFutures
+                    ? `https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=${formattedSymbol.toUpperCase()}`
+                    : `https://api.binance.com/api/v3/ticker/24hr?symbol=${formattedSymbol.toUpperCase()}`;
+                const res = await fetch(restUrl);
+                const data = await res.json();
+                if (isMounted && data && data.lastPrice) {
+                    setPrice(prev => prev === null ? parseFloat(data.lastPrice) : prev);
+                    setChange(prev => prev === 0 ? parseFloat(data.priceChangePercent) : prev);
+                    setVolume(prev => prev === 0 ? parseFloat(data.volume) : prev);
+                }
+            } catch (e) {
+                console.warn('Failed to fetch initial REST data for', symbol, e);
+            }
+        };
+        fetchInitialData();
 
         try {
             ws = new WebSocket(wsUrl);
@@ -49,6 +74,7 @@ const LiveMarketPulse: React.FC<LiveMarketPulseProps> = ({ symbol, exchange }) =
         }
 
         return () => {
+            isMounted = false;
             if (ws) {
                 ws.close();
             }
