@@ -1333,3 +1333,23 @@ def evaluate_model_drift_task(self):
         db.rollback()
     finally:
         db.close()
+
+@celery_app.task(bind=True, max_retries=1)
+def celery_forex_train_model_task(self, job_id: str):
+    """
+    Background Celery task that wraps the Forex ML training engine.
+    """
+    from app.services.forex_ml_training_engine import run_forex_training_job
+    logger = get_task_logger("forex_worker", "forex_ml_training.log")
+    
+    logger.info(f"🚀 Celery picked up Forex ML Training Job: {job_id}")
+    
+    try:
+        run_forex_training_job(job_id=job_id)
+        logger.info(f"✅ Celery Forex ML Training Job Completed: {job_id}")
+        return {"status": "success", "job_id": job_id}
+    except Exception as e:
+        logger.error(f"❌ Celery Forex ML Training Job Failed {job_id}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "job_id": job_id, "error": str(e)}

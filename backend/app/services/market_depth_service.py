@@ -174,6 +174,10 @@ class MarketDepthService:
                     order_book = {"bids": bids, "asks": asks}
 
             # 2. Fetch Live Data if cache missing
+            if exchange_id.lower() == 'oanda':
+                # OANDA doesn't provide level 2 data, just tick volume
+                return {"symbol": symbol, "exchange": exchange_id, "current_price": 0, "bids": [], "asks": []}
+                
             exchange = await self.get_exchange_instance(exchange_id, symbol)
             
             try:
@@ -259,17 +263,16 @@ class MarketDepthService:
 
     async def get_available_exchanges(self) -> List[str]:
         """
-        Returns a list of all exchanges supported by CCXT.
+        Returns a list of all exchanges supported by CCXT + OANDA.
         """
-        # Filter for major exchanges to avoid overwhelming the UI, or return all
-        # For now, let's return a curated list of popular ones + generic
-        popular = ['binance', 'kraken', 'coinbase', 'kucoin', 'bybit', 'okx', 'bitfinex', 'gateio', 'htx', 'mexc']
+        popular = ['binance', 'kraken', 'coinbase', 'kucoin', 'bybit', 'okx', 'bitfinex', 'gateio', 'htx', 'mexc', 'oanda']
         return popular
 
     async def get_exchange_markets(self, exchange_id: str) -> List[str]:
         """
         Returns a list of symbols for a given exchange.
         For Binance and Kucoin, it merges both Spot and Futures markets.
+        For OANDA, it uses the OANDA REST API to fetch currency pairs.
         """
         cache_key = f"markets:{exchange_id}"
         redis = redis_manager.get_redis()
@@ -282,37 +285,66 @@ class MarketDepthService:
         symbols = []
         try:
             logger.info(f"Fetching markets for {exchange_id}...")
-            # 1. Fetch Spot Markets
-            spot_exchange = await self.get_exchange_instance(exchange_id)
-            spot_markets = await spot_exchange.load_markets()
-            symbols.extend(list(spot_markets.keys()))
-            logger.info(f"Fetched {len(spot_markets)} spot markets for {exchange_id}")
+            
+            if exchange_id.lower() == 'oanda':
+                import requests
+                import os
+                
+                account_id = os.getenv("OANDA_ACCOUNT_ID")
+                api_key = os.getenv("OANDA_API_KEY")
+                
+                if account_id and api_key:
+                    url = f"https://api-fxpractice.oanda.com/v3/accounts/{account_id}/instruments"
+                    headers = {"Authorization": f"Bearer {api_key}"}
+                    try:
+                        response = requests.get(url, headers=headers)
+                        response.raise_for_status()
+                        data = response.json()
+                        for inst in data.get("instruments", []):
+                            if inst.get("type") == "CURRENCY":
+                                # OANDA pairs are returned as EUR_USD. Let's return them as EUR/USD for UI consistency.
+                                symbols.append(inst["name"].replace("_", "/"))
+                    except Exception as e:
+                        logger.error(f"Failed to fetch OANDA markets: {e}")
+                
+                if not symbols:
+                    # Fallback
+                    symbols = ["EUR/USD", "GBP/USD", "USD/JPY"]
+                    
+                symbols = sorted(symbols)
+            else:
+                # 1. Fetch Spot Markets
+                spot_exchange = await self.get_exchange_instance(exchange_id)
+                spot_markets = await spot_exchange.load_markets()
+                symbols.extend(list(spot_markets.keys()))
+                logger.info(f"Fetched {len(spot_markets)} spot markets for {exchange_id}")
 
-            # 2. Fetch Futures Markets (if applicable)
-            if exchange_id == 'binance':
-                logger.info("Fetching Binance Futures markets...")
-                futures_exchange = await self.get_exchange_instance('binance', symbol='BTC/USDT:USDT')
-                futures_markets = await futures_exchange.load_markets()
-                symbols.extend(list(futures_markets.keys()))
-                logger.info(f"Fetched {len(futures_markets)} Binance futures markets")
-            elif exchange_id == 'kucoin':
-                logger.info("Fetching Kucoin Futures markets...")
-                futures_exchange = await self.get_exchange_instance('kucoin', symbol='BTC/USDT:USDT')
-                futures_markets = await futures_exchange.load_markets()
-                symbols.extend(list(futures_markets.keys()))
-                logger.info(f"Fetched {len(futures_markets)} Kucoin futures markets")
-            elif exchange_id == 'kraken':
-                logger.info("Fetching Kraken Futures markets...")
-                try:
-                    futures_exchange = await self.get_exchange_instance('kraken', symbol='BTC/USDT:USDT')
+                # 2. Fetch Futures Markets (if applicable)
+                if exchange_id == 'binance':
+                    logger.info("Fetching Binance Futures markets...")
+                    futures_exchange = await self.get_exchange_instance('binance', symbol='BTC/USDT:USDT')
                     futures_markets = await futures_exchange.load_markets()
                     symbols.extend(list(futures_markets.keys()))
-                    logger.info(f"Fetched {len(futures_markets)} Kraken futures markets")
-                except Exception as e:
-                    logger.error(f"Error fetching Kraken futures markets. It might be due to API accessibility or CCXT version: {e}")
+                    logger.info(f"Fetched {len(futures_markets)} Binance futures markets")
+                elif exchange_id == 'kucoin':
+                    logger.info("Fetching Kucoin Futures markets...")
+                    futures_exchange = await self.get_exchange_instance('kucoin', symbol='BTC/USDT:USDT')
+                    futures_markets = await futures_exchange.load_markets()
+                    symbols.extend(list(futures_markets.keys()))
+                    logger.info(f"Fetched {len(futures_markets)} Kucoin futures markets")
+                elif exchange_id == 'kraken':
+                    logger.info("Fetching Kraken Futures markets...")
+                    try:
+                        futures_exchange = await self.get_exchange_instance('kraken', symbol='BTC/USDT:USDT')
+                        futures_markets = await futures_exchange.load_markets()
+                        symbols.extend(list(futures_markets.keys()))
+                        logger.info(f"Fetched {len(futures_markets)} Kraken futures markets")
+                    except Exception as e:
+                        logger.error(f"Error fetching Kraken futures markets. It might be due to API accessibility or CCXT version: {e}")
+                
+                # Remove duplicates and sort
+                symbols = sorted(list(set(symbols)))
             
-            # Remove duplicates and sort
-            symbols = sorted(list(set(symbols)))
             logger.info(f"Total merged markets for {exchange_id}: {len(symbols)}")
 
             # Cache for 1 hour as markets don't change often
@@ -356,6 +388,88 @@ class MarketDepthService:
                         return cached_data[-limit:]
                     # If not enough, we will fetch fetch_limit from exchange
 
+            if exchange_id.lower() == 'oanda':
+                import requests
+                import os
+                import yfinance as yf
+                from datetime import datetime, timedelta
+                
+                # OANDA uses M1, H1 etc instead of 1m, 1h
+                tf_map = {'1m': 'M1', '5m': 'M5', '15m': 'M15', '30m': 'M30', '1h': 'H1', '4h': 'H4', '1d': 'D'}
+                oanda_tf = tf_map.get(timeframe, 'H1')
+                oanda_symbol = symbol.replace("/", "_")
+                
+                account_id = os.getenv("OANDA_ACCOUNT_ID")
+                api_key = os.getenv("OANDA_API_KEY")
+                
+                formatted_data = []
+                fetch_success = False
+                
+                if account_id and api_key:
+                    url = f"https://api-fxpractice.oanda.com/v3/instruments/{oanda_symbol}/candles?count={limit}&granularity={oanda_tf}&price=M"
+                    headers = {"Authorization": f"Bearer {api_key}"}
+                    try:
+                        response = requests.get(url, headers=headers, timeout=5)
+                        response.raise_for_status()
+                        data = response.json()
+                        candles = data.get("candles", [])
+                        for c in candles:
+                            if c["complete"]:
+                                # OANDA time is RFC3339 string
+                                dt = datetime.fromisoformat(c["time"].replace('Z', '+00:00'))
+                                formatted_data.append({
+                                    "time": int(dt.timestamp()),
+                                    "open": float(c["mid"]["o"]),
+                                    "high": float(c["mid"]["h"]),
+                                    "low": float(c["mid"]["l"]),
+                                    "close": float(c["mid"]["c"]),
+                                    "volume": int(c["volume"])
+                                })
+                        fetch_success = len(formatted_data) > 0
+                    except Exception as e:
+                        logger.error(f"OANDA API failed for {symbol}: {e}. Falling back to yfinance.")
+                
+                if not fetch_success:
+                    # Fallback to yfinance
+                    try:
+                        logger.info(f"Using yfinance fallback for {symbol}")
+                        yf_symbol = f"{symbol.replace('/', '')}=X"
+                        
+                        # map timeframe to yfinance
+                        yf_tf_map = {'1m': '1m', '5m': '5m', '15m': '15m', '30m': '30m', '1h': '1h', '1d': '1d'}
+                        yf_tf = yf_tf_map.get(timeframe, '1h')
+                        
+                        ticker = yf.Ticker(yf_symbol)
+                        
+                        # If timeframe is intraday (e.g. 1m, 1h), yfinance limits the history (e.g. 7 days for 1m, 730 days for 1h)
+                        period = "1mo"
+                        if timeframe == '1m': period = "7d"
+                        
+                        df = ticker.history(period=period, interval=yf_tf)
+                        if not df.empty:
+                            df = df.tail(limit)
+                            for index, row in df.iterrows():
+                                formatted_data.append({
+                                    "time": int(index.timestamp()),
+                                    "open": float(row['Open']),
+                                    "high": float(row['High']),
+                                    "low": float(row['Low']),
+                                    "close": float(row['Close']),
+                                    "volume": float(row['Volume'])
+                                })
+                    except Exception as e:
+                        logger.error(f"yfinance fallback failed for {symbol}: {e}")
+                        raise e
+                
+                # Decorate with candlestick pattern analysis
+                from app.helpers.candlestick_patterns import attach_candlestick_patterns
+                formatted_data = attach_candlestick_patterns(formatted_data)
+                
+                if redis and formatted_data:
+                    await redis.setex(cache_key, 60, json.dumps(formatted_data))
+                    
+                return formatted_data
+                
             exchange = await self.get_exchange_instance(exchange_id, symbol)
 
             # Max candles most exchanges allow per single request
@@ -471,6 +585,16 @@ class MarketDepthService:
                         "timestamp": int(time.time() * 1000),
                         "datetime": None
                     }
+
+            if exchange_id.lower() == 'oanda':
+                return {
+                    "symbol": symbol.upper(),
+                    "exchange": exchange_id.lower(),
+                    "bids": [],
+                    "asks": [],
+                    "timestamp": int(time.time() * 1000),
+                    "datetime": None
+                }
 
             exchange = await self.get_exchange_instance(exchange_id, symbol)
             try:

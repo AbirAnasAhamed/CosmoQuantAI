@@ -102,12 +102,17 @@ from app.core.redis import redis_manager
 from app.services.market_data_streamer import market_data_streamer
 import asyncio
 
+from app.services.oanda_streamer import oanda_streamer
+
 @router.websocket("/ws/{exchange_id}/{symbol:path}")
 async def websocket_market_depth(websocket: WebSocket, exchange_id: str, symbol: str):
     await websocket.accept()
     
-    # Ensure background CCXT stream is running and publishing to Redis
-    await market_data_streamer.start_streaming(exchange_id, symbol)
+    # Ensure background stream is running and publishing to Redis
+    if exchange_id.lower() == 'oanda':
+        oanda_streamer.add_symbol(symbol)
+    else:
+        await market_data_streamer.start_streaming(exchange_id, symbol)
     
     redis = redis_manager.get_redis()
     if not redis:

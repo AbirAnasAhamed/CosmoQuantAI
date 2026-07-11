@@ -35,6 +35,7 @@ from app.services.god_mode_liquidation_service import god_mode_service # ✅ Imp
 from app.services import exchange_pool # ✅ Import Exchange Pool (ManualTradeModal fast-path)
 from app.services.market_depth_service import market_depth_service # ✅ Import Market Depth Service (CCXT pool cleanup)
 from app.services.l2_data_collector import l2_collector # ✅ Import L2 Data Collector
+from app.services.oanda_streamer import oanda_streamer # ✅ Import Oanda Streamer
 
 # Logging setup
 logging.basicConfig(level=logging.INFO)
@@ -581,6 +582,11 @@ async def startup_event():
         logger.error(f"⚠️ L2 Collector startup failed: {_l2_err}. Falling back to BTC-only.")
         l2_collector.start(["btcusdt"], [])
 
+    # Check OANDA API connection and log
+    import os
+    if os.getenv("OANDA_ACCOUNT_ID") and os.getenv("OANDA_API_KEY"):
+        logger.info("🔗 Connected to OANDA API (Forex Data Pipeline)")
+    
     # Task M: Dynamic Symbol Watcher (re-checks DB every 30 min)
     async def dynamic_l2_symbol_watcher():
         """
@@ -608,6 +614,11 @@ async def startup_event():
     watcher_task = asyncio.create_task(dynamic_l2_symbol_watcher())
     running_tasks.add(watcher_task)
     watcher_task.add_done_callback(running_tasks.discard)
+    
+    # Task N: OANDA Streamer Service
+    oanda_task = asyncio.create_task(oanda_streamer.start())
+    running_tasks.add(oanda_task)
+    oanda_task.add_done_callback(running_tasks.discard)
     
     # Task D: Active Bot PnL Broadcast
     async def broadcast_active_bot_pnl():
@@ -722,6 +733,9 @@ async def shutdown_event():
 
     # Stop L2 Data Collector
     l2_collector.stop()
+
+    # Stop Oanda Streamer
+    await oanda_streamer.stop()
 
     print("✅ All background tasks stopped.")
 

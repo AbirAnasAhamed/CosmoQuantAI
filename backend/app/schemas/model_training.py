@@ -7,6 +7,7 @@ class TrainingJobCreate(BaseModel):
     symbol: str
     timeframe: str
     algorithm: str
+    market_type: Optional[str] = "crypto"
     config: Dict[str, Any]
 
 class TrainingJobResponse(BaseModel):
@@ -15,6 +16,7 @@ class TrainingJobResponse(BaseModel):
     symbol: str
     timeframe: str
     algorithm: str
+    market_type: str
     status: TrainingStatus
     progress: float
     config: Optional[Dict[str, Any]] = None

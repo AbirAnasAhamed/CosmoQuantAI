@@ -22,6 +22,7 @@ class ModelTrainingJob(Base):
     algorithm = Column(String, nullable=False)
     
     status = Column(Enum(TrainingStatus), default=TrainingStatus.PENDING, nullable=False)
+    market_type = Column(String, default='crypto', nullable=False) # e.g. crypto, forex, stocks
     progress = Column(Float, default=0.0) # 0.0 to 100.0
     
     config = Column(JSON, nullable=True) # stores epochs, indicators, etc.

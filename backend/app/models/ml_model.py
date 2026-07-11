@@ -16,6 +16,7 @@ class CustomMLModel(Base):
     id = Column(String, primary_key=True, index=True)
     name = Column(String, index=True, nullable=False)
     model_type = Column(String, nullable=False) # e.g. LSTM, ARIMA, Random Forest
+    market_type = Column(String, default='crypto', nullable=False) # e.g. crypto, forex, stocks
     active_version_id = Column(String, ForeignKey("model_versions.id", use_alter=True, name="fk_active_version_id"), nullable=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     

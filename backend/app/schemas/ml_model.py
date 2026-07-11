@@ -25,6 +25,7 @@ class ModelVersionResponse(ModelVersionBase):
 class CustomMLModelBase(BaseModel):
     name: str
     model_type: str
+    market_type: Optional[str] = "crypto"
 
 class CustomMLModelCreate(CustomMLModelBase):
     pass
@@ -34,6 +35,7 @@ class CustomMLModelUpdate(BaseModel):
 
 class CustomMLModelResponse(CustomMLModelBase):
     id: str
+    market_type: str
     active_version_id: Optional[str] = None
     is_auto_retrain: Optional[int] = 0
     retrain_interval_hours: Optional[int] = 6
