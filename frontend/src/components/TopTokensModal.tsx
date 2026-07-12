@@ -21,8 +21,9 @@ export const TopTokensModal: React.FC<TopTokensModalProps> = ({ isOpen, onClose 
     const [isVisible, setIsVisible] = useState(false);
     const [searchQuery, setSearchQuery] = useState('');
     const [category, setCategory] = useState<keyof typeof CATEGORIES>('All');
+    const [baseMarket, setBaseMarket] = useState('USDT');
     
-    const data = useBinanceMarketData(isOpen);
+    const data = useBinanceMarketData(isOpen, baseMarket);
     const { setGlobalSymbol } = useMarketStore();
 
     useEffect(() => {
@@ -38,15 +39,25 @@ export const TopTokensModal: React.FC<TopTokensModalProps> = ({ isOpen, onClose 
 
     const filterTokens = (tokens: TokenData[]) => {
         return tokens.filter(t => {
-            const symbol = t.symbol.replace('USDT', '');
-            const matchesSearch = symbol.toLowerCase().includes(searchQuery.toLowerCase());
+            const baseSymbol = baseMarket === 'All' ? t.symbol : t.symbol.replace(baseMarket, '');
+            const symbol = t.symbol.replace('USDT', ''); // Keep generic replace for category match
+            
+            const matchesSearch = t.symbol.toLowerCase().includes(searchQuery.toLowerCase());
             const matchesCategory = category === 'All' || CATEGORIES[category].includes(symbol);
             return matchesSearch && matchesCategory;
         });
     };
 
     const handleTokenClick = (symbol: string) => {
-        setGlobalSymbol(symbol.replace('USDT', '/USDT'));
+        // Find the quote asset to correctly format the symbol for the store
+        let quote = 'USDT';
+        if (symbol.endsWith('BNB')) quote = 'BNB';
+        else if (symbol.endsWith('BTC')) quote = 'BTC';
+        else if (symbol.endsWith('FDUSD')) quote = 'FDUSD';
+        else if (symbol.endsWith('USDT')) quote = 'USDT';
+        
+        const base = symbol.substring(0, symbol.length - quote.length);
+        setGlobalSymbol(`${base}/${quote}`);
         onClose();
     };
 
@@ -115,8 +126,8 @@ export const TopTokensModal: React.FC<TopTokensModalProps> = ({ isOpen, onClose 
                                         <div className="flex justify-between items-center w-full relative z-10">
                                             <div className="flex items-center gap-1.5">
                                                 <span className="text-gray-600 font-mono text-[9px] w-3 text-left">{index + 1}.</span>
-                                                <span className="font-bold text-[11px] text-gray-200 group-hover/btn:text-white transition-colors tracking-wide">
-                                                    {token.symbol.replace('USDT', '')}
+                                                <span className="font-bold text-[11px] text-gray-200 group-hover/btn:text-white transition-colors tracking-wide truncate max-w-[50px]">
+                                                    {baseMarket === 'All' ? token.symbol : token.symbol.replace(baseMarket, '')}
                                                 </span>
                                             </div>
                                             
@@ -212,6 +223,25 @@ export const TopTokensModal: React.FC<TopTokensModalProps> = ({ isOpen, onClose 
                                     {Object.keys(CATEGORIES).map(cat => (
                                         <option key={cat} value={cat} className="bg-gray-900 font-bold">{cat} Sector</option>
                                     ))}
+                                </select>
+                            </div>
+                        </div>
+
+                        {/* Market Filter */}
+                        <div className="relative group min-w-[120px]">
+                            <div className="absolute inset-0 bg-gradient-to-r from-green-500/20 to-blue-500/20 rounded-full blur opacity-0 group-focus-within:opacity-100 transition-opacity duration-300"></div>
+                            <div className="relative flex items-center bg-black/40 border border-white/10 group-focus-within:border-green-500/50 rounded-full px-3 py-1.5 transition-all cursor-pointer">
+                                <Activity className="w-3.5 h-3.5 text-gray-400 group-focus-within:text-green-400 transition-colors" />
+                                <select 
+                                    value={baseMarket}
+                                    onChange={(e) => setBaseMarket(e.target.value)}
+                                    className="w-full bg-transparent border-none text-[11px] font-bold text-white ml-1.5 focus:outline-none appearance-none cursor-pointer"
+                                >
+                                    <option value="USDT" className="bg-gray-900 font-bold">USDT Market</option>
+                                    <option value="BNB" className="bg-gray-900 font-bold">BNB Market</option>
+                                    <option value="BTC" className="bg-gray-900 font-bold">BTC Market</option>
+                                    <option value="FDUSD" className="bg-gray-900 font-bold">FDUSD Market</option>
+                                    <option value="All" className="bg-gray-900 font-bold">All Market</option>
                                 </select>
                             </div>
                         </div>

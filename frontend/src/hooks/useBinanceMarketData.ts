@@ -20,7 +20,7 @@ export interface DashboardData {
     volume: TokenData[];
 }
 
-export const useBinanceMarketData = (isOpen: boolean) => {
+export const useBinanceMarketData = (isOpen: boolean, baseMarket: string = 'USDT') => {
     const [data, setData] = useState<DashboardData>({
         gainers: [],
         losers: [],
@@ -51,7 +51,8 @@ export const useBinanceMarketData = (isOpen: boolean) => {
                 const initialMap = new Map<string, TokenData>();
                 
                 result.forEach((item: any) => {
-                    if (item.symbol.endsWith('USDT')) {
+                    const isMatch = baseMarket === 'All' ? true : item.symbol.endsWith(baseMarket);
+                    if (isMatch) {
                         const volume = parseFloat(item.quoteVolume);
                         const priceChangePercent = parseFloat(item.priceChangePercent);
                         const lastPrice = parseFloat(item.lastPrice);
@@ -86,7 +87,8 @@ export const useBinanceMarketData = (isOpen: boolean) => {
                 let hasChanges = false;
                 
                 tickers.forEach((t: any) => {
-                    if (t.s.endsWith('USDT')) {
+                    const isMatch = baseMarket === 'All' ? true : t.s.endsWith(baseMarket);
+                    if (isMatch) {
                         const volume = parseFloat(t.q);
                         const priceChangePercent = parseFloat(t.P);
                         const currentPrice = parseFloat(t.c);
@@ -212,7 +214,7 @@ export const useBinanceMarketData = (isOpen: boolean) => {
                 wsRef.current.close();
             }
         };
-    }, [isOpen]);
+    }, [isOpen, baseMarket]);
 
     return data;
 };
