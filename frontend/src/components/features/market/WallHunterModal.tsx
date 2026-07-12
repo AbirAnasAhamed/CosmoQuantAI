@@ -63,6 +63,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
         // --- NEW: Custom Buy Order Type & Buffer ---
         buyOrderType: 'limit',
         limitBuffer: 0.05,
+        entryOrderTimeout: 30.0,
 
         // --- NEW: Risk SL Order Type ---
         slOrderType: 'smart_chase',
@@ -447,6 +448,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                             // Load custom buy order settings
                             buyOrderType: c.buy_order_type || 'limit',
                             limitBuffer: c.limit_buffer !== undefined ? c.limit_buffer : 0.05,
+                            entryOrderTimeout: c.entry_order_timeout || 30.0,
 
                             // Proxy Wall Support
                             enableProxyWall: c.enable_proxy_wall !== undefined ? c.enable_proxy_wall : false,
@@ -865,6 +867,7 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                     // New Buy Order Logic
                     buy_order_type: form.buyOrderType,
                     limit_buffer: form.limitBuffer,
+                    entry_order_timeout: form.entryOrderTimeout,
 
                     // Smart Wick SR
                     enable_wick_sr: form.enableWickSr,
@@ -1279,6 +1282,24 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                         />
                                     </div>
                                 )}
+                            </div>
+
+                            {/* --- Entry Order Timeout --- */}
+                            <div className="flex gap-4 p-3 bg-white/5 border border-white/10 rounded-2xl">
+                                <div className="flex-1 space-y-1">
+                                    <label className="text-[10px] text-gray-400 font-black uppercase">
+                                        Entry Order Timeout (s)
+                                    </label>
+                                    <input
+                                        type="number"
+                                        className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white outline-none focus:border-brand-primary font-mono font-bold text-center"
+                                        value={form.entryOrderTimeout}
+                                        onChange={(e) => handleFormChange('entryOrderTimeout', parseFloat(e.target.value) || 0)}
+                                    />
+                                    <p className="text-[10px] text-gray-500 font-medium pt-1">
+                                        Max wait time before cancelling an unfilled LIMIT entry order.
+                                    </p>
+                                </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-3">

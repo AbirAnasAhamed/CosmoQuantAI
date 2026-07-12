@@ -219,6 +219,7 @@ class WallHunterBot:
         self.buy_order_type = config.get("buy_order_type", "market")
         self.limit_buffer = config.get("limit_buffer", 1.0)
         self.tsl_activation_pct = config.get("tsl_activation_pct", 0.0)
+        self.entry_order_timeout = config.get("entry_order_timeout", 30.0)
         
         # --- NEW: Proxy Orderbook Routing (Lead-Lag) ---
         self.enable_proxy_wall = config.get("enable_proxy_wall", False)
@@ -502,6 +503,10 @@ class WallHunterBot:
         if "tsl_activation_pct" in new_config and new_config["tsl_activation_pct"] != getattr(self, "tsl_activation_pct", 0.0):
             updates.append(f"TSL Activation: {getattr(self, 'tsl_activation_pct', 0.0)}% -> {new_config['tsl_activation_pct']}%")
             self.tsl_activation_pct = new_config.get("tsl_activation_pct")
+            
+        if "entry_order_timeout" in new_config and new_config["entry_order_timeout"] != getattr(self, "entry_order_timeout", 30.0):
+            updates.append(f"Entry Order Timeout: {getattr(self, 'entry_order_timeout', 30.0)}s -> {new_config['entry_order_timeout']}s")
+            self.entry_order_timeout = new_config.get("entry_order_timeout")
             
         if "smart_chase_deviation_pct" in new_config and new_config["smart_chase_deviation_pct"] != getattr(self, "smart_chase_deviation_pct", 1.0):
             if new_config.get("sl_order_type") == "smart_chase":
@@ -2632,9 +2637,10 @@ class WallHunterBot:
             if entry_type in ['limit', 'marketable_limit'] and res.get('id') and not self.is_paper_trading:
                 try:
                     order_status = None
-                    # For Maker Limit, wait 30 seconds (60 * 0.5s). For Marketable Limit, wait 2 seconds (5 * 0.4s).
-                    max_attempts = 60 if snipe_order_type == "limit" else 5
+                    # Use dynamic entry_order_timeout
                     sleep_time = 0.5 if snipe_order_type == "limit" else 0.4
+                    timeout_secs = getattr(self, "entry_order_timeout", 30.0)
+                    max_attempts = int(timeout_secs / sleep_time) if snipe_order_type == "limit" else 5
                     
                     for attempt in range(max_attempts):
                         await asyncio.sleep(sleep_time)
@@ -2657,6 +2663,10 @@ class WallHunterBot:
                         if filled <= 0:
                             self.logger.info(f"❌ Entry order was completely unfilled before cancellation. Aborting snipe.")
                             self.active_pos = None
+                            if side == "buy":
+                                self.total_longs = max(0, self.total_longs - 1)
+                            else:
+                                self.total_shorts = max(0, self.total_shorts - 1)
                             await self._clear_state()
                             return
                             

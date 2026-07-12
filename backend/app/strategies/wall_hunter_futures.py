@@ -121,6 +121,7 @@ class WallHunterFuturesStrategy:
         self.smart_chase_max_attempts = self.config.get("smart_chase_max_attempts", 15)
         self.limit_buffer = self.config.get("limit_buffer", 0.05)  # % buffer for maker limit orders
         self.tsl_activation_pct = self.config.get("tsl_activation_pct", 0.0)
+        self.entry_order_timeout = self.config.get("entry_order_timeout", 30.0)
         # Soft Limit TP: how long (seconds) to wait for a postOnly maker TP order before market sweep
         self.tp_soft_limit_timeout = self.config.get("tp_soft_limit_timeout", 4)
         
@@ -1685,7 +1686,9 @@ class WallHunterFuturesStrategy:
                 if self.buy_order_type in ['limit', 'marketable_limit'] and res.get('id') and not self.is_paper_trading:
                     try:
                         order_status = None
-                        for _ in range(10):
+                        timeout_secs = getattr(self, "entry_order_timeout", 30.0)
+                        max_attempts = max(1, int(timeout_secs / 1.0))
+                        for _ in range(max_attempts):
                             await asyncio.sleep(1.0)
                             try:
                                 order_status = await self.engine.exchange.fetch_order(res['id'], self.symbol)
@@ -3282,6 +3285,10 @@ class WallHunterFuturesStrategy:
         if "tsl_activation_pct" in new_config and new_config["tsl_activation_pct"] != getattr(self, "tsl_activation_pct", 0.0):
             updates.append(f"TSL Activation: {getattr(self, 'tsl_activation_pct', 0.0)}% -> {new_config['tsl_activation_pct']}%")
             self.tsl_activation_pct = new_config.get("tsl_activation_pct")
+            
+        if "entry_order_timeout" in new_config and new_config["entry_order_timeout"] != getattr(self, "entry_order_timeout", 30.0):
+            updates.append(f"Entry Order Timeout: {getattr(self, 'entry_order_timeout', 30.0)}s -> {new_config['entry_order_timeout']}s")
+            self.entry_order_timeout = new_config.get("entry_order_timeout")
             
         if "smart_chase_deviation_pct" in new_config and new_config["smart_chase_deviation_pct"] != getattr(self, "smart_chase_deviation_pct", 1.0):
             if new_config.get("sl_order_type") == "smart_chase":

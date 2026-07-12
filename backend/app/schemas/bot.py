@@ -99,6 +99,8 @@ class StrategyConfig(BaseModel):
     iceberg_time_window_secs: Optional[int] = 10
     iceberg_min_absorbed_vol: Optional[float] = 100000.0
 
+    # --- Entry Settings ---
+    entry_order_timeout: Optional[float] = 30.0
 
     # --- Account Risk Limits (Auto-Stop) ---
     enable_breakeven_stop: Optional[bool] = False
