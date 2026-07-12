@@ -6,6 +6,10 @@ export interface TokenData {
     priceChangePercent: number;
     quoteVolume: number;
     hotScore: number;
+    priceHistory: number[];
+    upTicks: number;
+    downTicks: number;
+    buyPressure: number; // 0 to 100
 }
 
 export interface DashboardData {
@@ -50,12 +54,17 @@ export const useBinanceMarketData = (isOpen: boolean) => {
                     if (item.symbol.endsWith('USDT')) {
                         const volume = parseFloat(item.quoteVolume);
                         const priceChangePercent = parseFloat(item.priceChangePercent);
+                        const lastPrice = parseFloat(item.lastPrice);
                         initialMap.set(item.symbol, {
                             symbol: item.symbol,
-                            lastPrice: parseFloat(item.lastPrice),
+                            lastPrice: lastPrice,
                             priceChangePercent: priceChangePercent,
                             quoteVolume: volume,
-                            hotScore: volume * Math.abs(priceChangePercent)
+                            hotScore: volume * Math.abs(priceChangePercent),
+                            priceHistory: [lastPrice],
+                            upTicks: 0,
+                            downTicks: 0,
+                            buyPressure: 50 // Default neutral
                         });
                     }
                 });
@@ -80,13 +89,43 @@ export const useBinanceMarketData = (isOpen: boolean) => {
                     if (t.s.endsWith('USDT')) {
                         const volume = parseFloat(t.q);
                         const priceChangePercent = parseFloat(t.P);
+                        const currentPrice = parseFloat(t.c);
+                        
+                        const existing = dataMapRef.current.get(t.s);
+                        let priceHistory = existing ? [...existing.priceHistory] : [currentPrice];
+                        let upTicks = existing ? existing.upTicks : 0;
+                        let downTicks = existing ? existing.downTicks : 0;
+                        
+                        if (existing && currentPrice !== existing.lastPrice) {
+                            priceHistory.push(currentPrice);
+                            if (priceHistory.length > 20) {
+                                priceHistory.shift();
+                            }
+                            
+                            // Calculate buy pressure based on recent ticks
+                            if (currentPrice > existing.lastPrice) upTicks++;
+                            else downTicks++;
+                            
+                            // Decay ticks slowly to keep it rolling
+                            if (upTicks + downTicks > 100) {
+                                upTicks = Math.floor(upTicks * 0.9);
+                                downTicks = Math.floor(downTicks * 0.9);
+                            }
+                        }
+                        
+                        const totalTicks = upTicks + downTicks;
+                        const buyPressure = totalTicks > 0 ? Math.round((upTicks / totalTicks) * 100) : 50;
                         
                         dataMapRef.current.set(t.s, {
                             symbol: t.s,
-                            lastPrice: parseFloat(t.c),
+                            lastPrice: currentPrice,
                             priceChangePercent: priceChangePercent,
                             quoteVolume: volume,
-                            hotScore: volume * Math.abs(priceChangePercent)
+                            hotScore: volume * Math.abs(priceChangePercent),
+                            priceHistory,
+                            upTicks,
+                            downTicks,
+                            buyPressure
                         });
                         hasChanges = true;
                     }
