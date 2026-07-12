@@ -68,7 +68,7 @@ import { useOpenOrders, OpenLimitOrder } from '../../hooks/useOpenOrders';
 import { useAdvancedMetricsSettings, AdvancedMetricsSettings } from '../../hooks/useAdvancedMetricsSettings';
 import { useAdvancedMetrics } from '../../hooks/useAdvancedMetrics';
 import { TradingViewWidget } from '../../components/features/market/TradingViewWidget';
-
+import { TopTokensModal } from '../../components/TopTokensModal';
 // Helper to convert interval string to ms
 const parseIntervalToMs = (interval: string): number => {
     const value = parseInt(interval) || 1;
@@ -2735,6 +2735,7 @@ const OrderFlowHeatmap: React.FC = () => {
     const [predictionResult, setPredictionResult] = useState<PredictionResult | null>(null);
     const [externalAIPrice, setExternalAIPrice] = useState<number | null>(null);
     const [externalAIOpenTrigger, setExternalAIOpenTrigger] = useState<number>(0);
+    const [isTopTokensModalOpen, setIsTopTokensModalOpen] = useState(false);
 
     // ── Draggable HUD state ────────────────────────────────────────────────────
     const [hudPos, setHudPos] = useState({ x: 24, y: 24 }); // initial: top-right offset
@@ -3280,6 +3281,17 @@ const OrderFlowHeatmap: React.FC = () => {
                         <path d="M19.967 17.484A4 4 0 0 1 18 18"/>
                     </svg>
                 </button>
+
+                {/* FLOATING TOP TOKENS DASHBOARD BUTTON */}
+                <button
+                    onClick={() => setIsTopTokensModalOpen(true)}
+                    className="relative shrink-0 w-16 h-16 rounded-full flex items-center justify-center bg-gradient-to-br from-orange-500 to-red-600 hover:from-orange-400 hover:to-red-500 border border-orange-400/30 text-white shadow-[0_0_24px_rgba(249,115,22,0.5)] z-[999] transition-all opacity-100 hover:scale-110 focus:outline-none group"
+                    title="Top Tokens Dashboard"
+                >
+                    <svg className="w-8 h-8 group-hover:scale-110 transition-transform bg-transparent" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+                    </svg>
+                </button>
             </div>
 
 
@@ -3339,6 +3351,11 @@ const OrderFlowHeatmap: React.FC = () => {
                     setIsAIDeploymentModalOpen(false);
                     setActiveTab('heatmap');
                 }}
+            />
+
+            <TopTokensModal 
+                isOpen={isTopTokensModalOpen} 
+                onClose={() => setIsTopTokensModalOpen(false)} 
             />
         </div >
     );
