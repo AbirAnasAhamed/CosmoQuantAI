@@ -470,6 +470,21 @@ class ExtendedRLEngine:
                 add_log(f"⚠️ Auto-Resume failed ({e}), starting fresh...")
                 model = None
 
+        if model is None and previous_model_path and os.path.exists(previous_model_path):
+            try:
+                add_log(f"✅ Continuing {job.algorithm} from checkpoint: {previous_model_path}")
+                if job.algorithm == "A2C-RL":
+                    model = A2C.load(previous_model_path, env=env, learning_rate=safe_lr)
+                elif job.algorithm == "DDPG-RL":
+                    model = DDPG.load(previous_model_path, env=env, learning_rate=safe_lr)
+                elif job.algorithm == "DQN-RL":
+                    model = DQN.load(previous_model_path, env=env, learning_rate=safe_lr)
+                elif job.algorithm == "TD3-RL":
+                    model = TD3.load(previous_model_path, env=env, learning_rate=safe_lr)
+            except Exception as e:
+                add_log(f"⚠️ Failed to load previous model ({e}), initializing fresh...")
+                model = None
+
         if model is None:
             add_log(f"Initializing {job.algorithm} Agent...")
             if job.algorithm == "A2C-RL":
@@ -510,14 +525,16 @@ class ExtendedRLEngine:
                     db.refresh(job)
                     if job.status == models.TrainingStatus.PAUSED:
                         self.model.save(self.checkpoint_path)
+                        current_job_timestep = self.n_calls + start_timestep
                         with open(self.state_path, "w") as f:
-                            json.dump({"timestep": self.num_timesteps}, f)
+                            json.dump({"timestep": current_job_timestep}, f)
                         raise Exception("Training paused by user.")
                     if job.status == models.TrainingStatus.FAILED and job.error_message and "cancelled" in job.error_message.lower():
                         raise Exception("Training cancelled by user.")
                     
                     # Update progress every 5 seconds
-                    current_progress = min(100.0, (self.num_timesteps / total_timesteps) * 100)
+                    current_job_timestep = self.n_calls + start_timestep
+                    current_progress = min(100.0, (current_job_timestep / total_timesteps) * 100)
                     job.progress = current_progress
                     db.commit()
                     self.last_db_check_time = now
@@ -527,7 +544,7 @@ class ExtendedRLEngine:
                         self.last_logged_progress = 0.0
                     
                     if current_progress - self.last_logged_progress >= 5.0 or current_progress >= 100.0:
-                        add_log(f"RL Training Progress: {self.num_timesteps}/{total_timesteps} steps ({current_progress:.1f}%)")
+                        add_log(f"RL Training Progress: {current_job_timestep}/{total_timesteps} steps ({current_progress:.1f}%)")
                         self.last_logged_progress = current_progress
                 
                 # 2. Stream Data to Frontend
@@ -562,7 +579,8 @@ class ExtendedRLEngine:
                             }
                         }
                         
-                        capped_progress = min(100.0, (self.num_timesteps / total_timesteps) * 100)
+                        current_job_timestep = self.n_calls + start_timestep
+                        capped_progress = min(100.0, (current_job_timestep / total_timesteps) * 100)
                         message = {
                             "task_type": "RL_TRAINING_STEP",
                             "task_id": job.id,
@@ -573,16 +591,17 @@ class ExtendedRLEngine:
                         }
                         try:
                             redis_client.publish("task_updates", json.dumps(message))
-                            self.last_streamed_step = self.num_timesteps
+                            self.last_streamed_step = current_job_timestep
                             self.last_stream_time = now
                         except Exception:
                             pass
                 
                 # 3. Save Checkpoint
-                if self.num_timesteps > 0 and self.num_timesteps % self.checkpoint_interval == 0:
+                current_job_timestep = self.n_calls + start_timestep
+                if current_job_timestep > 0 and current_job_timestep % self.checkpoint_interval == 0:
                     self.model.save(self.checkpoint_path)
                     with open(self.state_path, "w") as f:
-                        json.dump({"timestep": self.num_timesteps}, f)
+                        json.dump({"timestep": current_job_timestep}, f)
                 
                 return True
 

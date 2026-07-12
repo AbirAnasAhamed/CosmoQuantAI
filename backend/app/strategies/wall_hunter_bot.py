@@ -2975,6 +2975,24 @@ class WallHunterBot:
     async def manage_risk(self, current_price: float):
         if not self.active_pos: return
         
+        # --- Wick Detection via Last Traded Price (Ticker) ---
+        if not getattr(self, 'is_paper_trading', False):
+            import time
+            current_time = time.time()
+            if current_time - getattr(self, '_last_ticker_check_time', 0) > 1.0:
+                self._last_ticker_check_time = current_time
+                try:
+                    ticker = await self.public_exchange.fetch_ticker(self.symbol)
+                    last_price = ticker.get('last')
+                    if last_price:
+                        last_price = float(last_price)
+                        if self._is_active_short():
+                            current_price = max(current_price, last_price)
+                        else:
+                            current_price = min(current_price, last_price)
+                except Exception as e:
+                    pass
+
         # --- NEW: Entry Order Guard (Recovery/Pending Fill Monitoring) ---
         entry_order_id = self.active_pos.get('entry_order_id')
         if entry_order_id and not self.is_paper_trading:
