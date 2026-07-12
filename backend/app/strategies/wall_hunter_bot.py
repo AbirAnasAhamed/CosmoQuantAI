@@ -3384,7 +3384,7 @@ class WallHunterBot:
                 self.logger.info(f"🚨 Zero Tolerance Triggered! Price hit {current_price:.6f}")
         # ------------------------------------
 
-        elif is_risk_triggered or is_zero_tolerance_triggered or (current_price >= self.active_pos['sl'] if self._is_active_short() else current_price <= self.active_pos['sl']):
+        if is_risk_triggered or is_zero_tolerance_triggered or (current_price >= self.active_pos['sl'] if self._is_active_short() else current_price <= self.active_pos['sl']):
             if is_risk_triggered:
                 self.logger.info(f"⚠️ Triggering Advanced Risk Exit: {risk_reason}")
             elif is_zero_tolerance_triggered:
