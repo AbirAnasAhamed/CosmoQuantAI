@@ -65,7 +65,7 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: 20 }}
                         transition={{ duration: 0.3 }}
-                        className="flex-1 h-full w-full pt-12" /* Added padding-top to push UI below the toggle */
+                        className="flex-1 h-full w-full"
                     >
                         <ForexModelTrainingStudio />
                     </motion.div>

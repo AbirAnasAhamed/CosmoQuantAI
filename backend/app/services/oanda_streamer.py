@@ -75,8 +75,8 @@ class OandaStreamer:
                 self._task = asyncio.create_task(self._stream_data())
             return
 
-        # Format symbols for OANDA: EUR/USD -> EUR_USD
-        oanda_instruments = [sym.replace("/", "_") for sym in self.active_symbols]
+        # Format symbols for OANDA: they already come in as EUR_USD
+        oanda_instruments = [sym for sym in self.active_symbols]
         instruments_str = ",".join(oanda_instruments)
 
         url = f"https://stream-fxpractice.oanda.com/v3/accounts/{account_id}/pricing/stream?instruments={instruments_str}"
@@ -98,7 +98,7 @@ class OandaStreamer:
                             error_msg = error_data.get("errorMessage", "")
                             if error_msg.startswith("Invalid Instrument "):
                                 bad_sym_oanda = error_msg.replace("Invalid Instrument ", "").strip()
-                                bad_sym = bad_sym_oanda.replace("_", "/")
+                                bad_sym = bad_sym_oanda
                                 if bad_sym in self.active_symbols:
                                     logger.warning(f"Removing invalid instrument {bad_sym} from active_symbols.")
                                     self.active_symbols.remove(bad_sym)
@@ -139,8 +139,8 @@ class OandaStreamer:
     async def _process_price(self, data: Dict[str, Any]):
         try:
             oanda_sym = data.get("instrument")
-            # EUR_USD -> EUR/USD
-            symbol = oanda_sym.replace("_", "/")
+            # Keep as EUR_USD to match WS subscription channel
+            symbol = oanda_sym
             
             if symbol not in self.active_symbols:
                 return

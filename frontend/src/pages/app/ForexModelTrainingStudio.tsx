@@ -58,14 +58,113 @@ const ForexModelTrainingStudio: React.FC = () => {
     const [activeJob, setActiveJob] = useState<ForexTrainingJob | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
-    const ALGORITHMS = ['Random Forest', 'XGBoost', 'LightGBM', 'LSTM', 'Transformer'];
+    const ALGORITHM_CATEGORIES = [
+        { 
+            name: "Econometric & Statistical (Forex Core)", 
+            desc: "Classic Quant models for Macro & Volatility", 
+            algos: [
+                { id: 'ARIMA', type: 'Statistical', desc: 'AutoRegressive Integrated Moving Average' },
+                { id: 'VAR', type: 'Statistical', desc: 'Vector AutoRegression for multi-pair correlation' },
+                { id: 'GARCH', type: 'Volatility', desc: 'Predicts volatility clustering' },
+                { id: 'EGARCH', type: 'Volatility', desc: 'Exponential GARCH for asymmetric shocks' },
+                { id: 'NeuralProphet', type: 'Time-Series', desc: 'Captures daily/weekly session seasonality' }
+            ] 
+        },
+        { 
+            name: "Market Regime & Macro", 
+            desc: "Detects hidden states and handles uncertainty", 
+            algos: [
+                { id: 'HMM', type: 'Regime Detection', desc: 'Hidden Markov Model for market states' },
+                { id: 'Markov-Switching', type: 'Regime Detection', desc: 'Dynamic weight shifting based on regime' },
+                { id: 'Bayesian NN', type: 'Probabilistic', desc: 'Handles uncertainty of macro-economic events' }
+            ] 
+        },
+        { 
+            name: "Indicator & Tabular Engines", 
+            desc: "Fastest. Best for Technical Indicators & L2 Snapshots", 
+            algos: [
+                { id: 'Random Forest', type: 'Supervised', desc: 'Ensemble of decision trees' },
+                { id: 'XGBoost', type: 'Supervised', desc: 'Optimized gradient boosting' },
+                { id: 'LightGBM', type: 'Supervised', desc: 'Fast, distributed gradient boosting' },
+                { id: 'CatBoost', type: 'Supervised', desc: 'Great for categorical and tabular data' },
+                { id: 'TabNet', type: 'Supervised', desc: 'Deep learning for tabular data with attention' }
+            ] 
+        },
+        { 
+            name: "Trend & Sequence Memory", 
+            desc: "Best for tracking long-term trends & historical patterns", 
+            algos: [
+                { id: 'LSTM', type: 'Supervised', desc: 'Long Short-Term Memory networks' },
+                { id: 'GRU', type: 'Supervised', desc: 'Gated Recurrent Units, faster than LSTM' },
+                { id: 'TCN', type: 'Supervised', desc: 'Temporal Convolutional Network' }
+            ] 
+        },
+        { 
+            name: "Micro-Pattern & Scalping", 
+            desc: "Best for raw Orderbook flow & spatial feature extraction", 
+            algos: [
+                { id: '1D-CNN', type: 'Supervised', desc: '1D Convolutional Neural Network' },
+                { id: 'DeepLOB', type: 'Supervised', desc: 'Deep learning model for Limit Order Books' },
+                { id: 'Transformer', type: 'Supervised', desc: 'Attention-based sequence modeling' }
+            ] 
+        },
+        { 
+            name: "RL: Active Trading Agents", 
+            desc: "Standard self-learning environments (Live/Simulated Trading)", 
+            algos: [
+                { id: 'PPO-RL', type: 'Reinforcement Learning', desc: 'Proximal Policy Optimization' },
+                { id: 'SAC-RL', type: 'Reinforcement Learning', desc: 'Soft Actor-Critic for continuous action' },
+                { id: 'A2C-RL', type: 'Reinforcement Learning', desc: 'Advantage Actor-Critic (Fast Baseline)' },
+                { id: 'DDPG-RL', type: 'Reinforcement Learning', desc: 'Deep Deterministic Policy Gradient' },
+                { id: 'TD3-RL', type: 'Reinforcement Learning', desc: 'Twin Delayed DDPG (Stable Continuous)' },
+                { id: 'DQN-RL', type: 'Reinforcement Learning', desc: 'Dueling Double DQN (Discrete actions)' }
+            ] 
+        },
+        { 
+            name: "RL: Risk-Aware (Distributional)", 
+            desc: "Models that learn the distribution of returns to minimize risk", 
+            algos: [
+                { id: 'QR-DQN', type: 'Distributional RL', desc: 'Quantile Regression DQN (Risk-Aware)' }
+            ] 
+        },
+        { 
+            name: "RL: Offline & Imitation", 
+            desc: "Learn from historical or expert trader demonstrations", 
+            algos: [
+                { id: 'CQL', type: 'Offline RL', desc: 'Conservative Q-Learning (Learn from history)' },
+                { id: 'GAIL', type: 'Imitation Learning', desc: 'Generative Adversarial Imitation Learning' }
+            ] 
+        },
+        { 
+            name: "Next-Gen Architectures", 
+            desc: "Cutting-edge dynamic neural models", 
+            algos: [
+                { id: 'Decision-Transformer', type: 'Offline RL', desc: 'Action generation based on target ROI' },
+                { id: 'Liquid-NN', type: 'Continuous RNN', desc: 'Dynamically adapts weights during live trading' }
+            ] 
+        },
+        { 
+            name: "Anomaly Detection", 
+            desc: "Unsupervised learning for crash/pump detection", 
+            algos: [
+                { id: 'Auto-Encoder', type: 'Unsupervised', desc: 'Finds anomalies via reconstruction loss' }
+            ] 
+        }
+    ];
 
     React.useEffect(() => {
         const loadInstruments = async () => {
             try {
                 const data = await forexMlTrainingService.getInstruments();
                 setInstruments(data);
-                if (data.length > 0) setSymbol(data[0].name);
+                if (data.length > 0) {
+                    const hasEurUsd = data.some((i: any) => i.name === 'EUR_USD');
+                    if (hasEurUsd) {
+                        setSymbol('EUR_USD');
+                    } else {
+                        setSymbol(data[0].name);
+                    }
+                }
             } catch (err) {
                 console.error("Failed to load instruments", err);
             }
@@ -153,7 +252,7 @@ const ForexModelTrainingStudio: React.FC = () => {
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-teal-600/20 blur-[120px] rounded-full pointer-events-none"></div>
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/20 blur-[120px] rounded-full pointer-events-none"></div>
 
-            <header className="flex items-center gap-4 z-10 px-6 pt-6">
+            <header className="flex items-center gap-4 z-10 px-2 mt-2">
                 <h2 className="text-xl font-black text-white flex items-center gap-2">
                     <Globe className="w-5 h-5 text-teal-400" />
                     Forex ML Intelligence Studio
@@ -164,7 +263,7 @@ const ForexModelTrainingStudio: React.FC = () => {
                 </div>
             </header>
 
-            <div className="flex-1 flex flex-col min-h-0 relative z-10 px-6 pb-6">
+            <div className="flex-1 flex flex-col min-h-0 relative z-10">
                 <div className="w-full flex flex-col bg-black/40 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 shadow-[0_8px_32px_rgba(0,0,0,0.5)] relative overflow-hidden h-full">
                     <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 flex-1 min-h-0">
                         
@@ -245,14 +344,33 @@ const ForexModelTrainingStudio: React.FC = () => {
                                 <div className="space-y-4">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-300 mb-2">Algorithm Selection</label>
-                                        <div className="space-y-2">
-                                            {ALGORITHMS.map(algo => (
-                                                <div 
-                                                    key={algo} 
-                                                    onClick={() => !isTraining && setAlgorithm(algo)}
-                                                    className={`p-3 rounded-xl border cursor-pointer transition-all duration-300 ${algorithm === algo ? 'border-blue-400 bg-blue-500/20 shadow-[0_0_15px_rgba(59,130,246,0.2)] text-white' : 'border-white/10 bg-white/5 text-slate-400 hover:bg-white/10'}`}
-                                                >
-                                                    <span className="text-sm font-semibold">{algo}</span>
+                                        <div className="space-y-4">
+                                            {ALGORITHM_CATEGORIES.map(category => (
+                                                <div key={category.name} className="space-y-2">
+                                                    <div>
+                                                        <h4 className="text-[10px] font-black text-teal-400 uppercase tracking-widest">{category.name}</h4>
+                                                        <p className="text-[10px] text-slate-500 font-medium">{category.desc}</p>
+                                                    </div>
+                                                    <div className="grid grid-cols-1 gap-2">
+                                                        {category.algos.map(algo => (
+                                                            <div 
+                                                                key={algo.id} 
+                                                                onClick={() => !isTraining && setAlgorithm(algo.id)}
+                                                                className={`flex items-start p-3 rounded-xl border cursor-pointer transition-all duration-300 relative overflow-hidden ${algorithm === algo.id ? 'border-teal-400 bg-teal-500/20 shadow-[0_0_15px_rgba(20,184,166,0.2)]' : 'border-white/10 bg-white/5 hover:bg-white/10'} ${isTraining ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                            >
+                                                                <div className={`mt-1 w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 ${algorithm === algo.id ? 'border-teal-400' : 'border-white/30'}`}>
+                                                                    {algorithm === algo.id && <div className="w-1.5 h-1.5 bg-teal-400 rounded-full" />}
+                                                                </div>
+                                                                <div className="ml-3 flex-1 min-w-0">
+                                                                    <div className="flex justify-between items-start mb-1">
+                                                                        <span className={`text-xs font-bold ${algorithm === algo.id ? 'text-teal-300' : 'text-slate-300'}`}>{algo.id}</span>
+                                                                        <span className="text-[9px] font-bold tracking-wider uppercase text-slate-500 bg-black/40 px-1.5 py-0.5 rounded border border-white/5">{algo.type}</span>
+                                                                    </div>
+                                                                    <p className="text-[10px] text-slate-400 leading-snug">{algo.desc}</p>
+                                                                </div>
+                                                            </div>
+                                                        ))}
+                                                    </div>
                                                 </div>
                                             ))}
                                         </div>

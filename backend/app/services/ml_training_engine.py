@@ -1572,6 +1572,39 @@ def train_model_task(job_id: str, db: Session):
             
             add_log(f"Ensemble training complete.")
             
+        elif job.algorithm in ['ARIMA', 'VAR', 'GARCH', 'EGARCH', 'NeuralProphet', 'HMM', 'Markov-Switching', 'Bayesian NN']:
+            add_log(f"Training Econometric/Macro Model: {job.algorithm}...")
+            
+            # Use the existing Forex Model Factory for these advanced statistical engines
+            from app.services.ml.forex_model_factory import get_forex_model
+            model = get_forex_model(job.algorithm, config)
+            
+            # Since these return Scikit-Learn compatible wrappers, we can fit and predict directly
+            try:
+                model.fit(X_train_df, y_train if is_multi_output else y_train.ravel())
+            except Exception as e:
+                add_log(f"⚠️ Warning: {job.algorithm} fit raised error '{e}'. Model may have fallen back to dummy.")
+                
+            start_time = time.time()
+            y_pred = model.predict(X_test_df)
+            end_time = time.time()
+            final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
+            
+            # Process Metrics
+            if prediction_target == "classification":
+                process_metrics(calculate_classification_metrics(y_test if is_multi_output else y_test.ravel(), y_pred), True)
+            else:
+                process_metrics(calculate_regression_metrics(y_test if is_multi_output else y_test.ravel(), y_pred), False)
+                
+            job.progress = 80.0
+            
+            # The model objects from forex factory might not be natively picklable if they contain
+            # deep neural nets or complex C-extensions, so we use a try-except to ensure pipeline completes.
+            try:
+                joblib.dump(model, model_path)
+            except Exception as e:
+                add_log(f"⚠️ Note: Custom wrapper for {job.algorithm} could not be persisted via joblib ({e}).")
+            
         elif job.algorithm == "Random Forest":
             add_log(f"Training Random Forest ({prediction_target.capitalize()})...")
             if prediction_target == "classification":

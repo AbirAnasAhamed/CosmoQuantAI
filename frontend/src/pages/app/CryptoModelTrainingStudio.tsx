@@ -325,6 +325,20 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
     ];
     const ALGORITHM_CATEGORIES = [
         { 
+            name: "Econometric & Macro Engines", 
+            desc: "Volatility, Regime Shifts & Probabilistic (Forex Core)", 
+            algos: [
+                { id: 'ARIMA', type: 'Statistical', desc: 'AutoRegressive Integrated Moving Average' },
+                { id: 'VAR', type: 'Statistical', desc: 'Vector AutoRegression for multi-variables' },
+                { id: 'GARCH', type: 'Volatility', desc: 'Predicts market volatility clustering' },
+                { id: 'EGARCH', type: 'Volatility', desc: 'Exponential GARCH for asymmetric shocks' },
+                { id: 'NeuralProphet', type: 'Statistical', desc: 'Facebook Prophet with Neural Networks' },
+                { id: 'HMM', type: 'Regime', desc: 'Hidden Markov Model for market regimes' },
+                { id: 'Markov-Switching', type: 'Regime', desc: 'Detects structural breaks in market' },
+                { id: 'Bayesian NN', type: 'Probabilistic', desc: 'Neural Network with uncertainty estimates' }
+            ] 
+        },
+        { 
             name: "Indicator & Tabular Engines", 
             desc: "Fastest. Best for Technical Indicators & L2 Snapshots", 
             algos: [

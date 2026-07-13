@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 from app.db.session import SessionLocal
 from app.models.model_training import ModelTrainingJob, TrainingStatus
 from app.services.economic_service import economic_service
+from app.services.ml.forex_model_factory import get_forex_model
 
 class ForexMLTrainingEngine:
     def __init__(self, job_id: str):
@@ -137,9 +138,9 @@ class ForexMLTrainingEngine:
                         from app.services.ml.optuna_optimizer import run_optuna_study
                         trials = self.job.config.get('automl_trials', 10)
                         best_params = run_optuna_study(X_train, y_train, algorithm, trials)
-                        model = RandomForestClassifier(**best_params, random_state=42, n_jobs=-1)
+                        model = get_forex_model(algorithm, {**self.job.config, **best_params})
                     else:
-                        model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+                        model = get_forex_model(algorithm, self.job.config)
                         
                     model.fit(X_train, y_train)
                     acc = model.score(X_test, y_test)
@@ -155,10 +156,9 @@ class ForexMLTrainingEngine:
                     from app.services.ml.optuna_optimizer import run_optuna_study
                     trials = self.job.config.get('automl_trials', 30)
                     best_params = run_optuna_study(X_train, y_train, algorithm, trials)
-                    model = RandomForestClassifier(**best_params, random_state=42, n_jobs=-1)
+                    model = get_forex_model(algorithm, {**self.job.config, **best_params})
                 else:
-                    epochs = self.job.config.get('epochs', 10)
-                    model = RandomForestClassifier(n_estimators=max(10, epochs * 10), random_state=42, n_jobs=-1)
+                    model = get_forex_model(algorithm, self.job.config)
                     
                 model.fit(X_train, y_train)
                 accuracy = model.score(X_test, y_test)

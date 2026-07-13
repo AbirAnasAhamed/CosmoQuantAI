@@ -95,7 +95,7 @@ export const ForexAdvancedPipeline: React.FC<ForexAdvancedPipelineProps> = ({
             
             <div className="p-5 bg-black/40 border-b border-white/10 flex-shrink-0 relative z-20">
                 <h3 className="text-sm font-black tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-teal-400 to-blue-500 flex items-center gap-3 uppercase">
-                    <Activity className="w-5 h-5 text-teal-400" /> TradFi Data Pipeline
+                    <Activity className="w-5 h-5 text-teal-400" /> Forex Data Engine & Features
                 </h3>
                 <p className="text-xs text-slate-400 mt-1.5 font-medium max-w-xl">
                     Advanced institutional feature engineering mapped for Forex/TradFi markets.

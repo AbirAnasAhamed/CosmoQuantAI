@@ -11,6 +11,7 @@ import DatasetSplitConfig from '@/components/ml/DatasetSplitConfig';
 import { TripleBarrierToggle } from './TripleBarrierToggle';
 import { MetaLabelingToggle } from './MetaLabelingToggle';
 import { FeatureSelectionDropdown } from './FeatureSelectionDropdown';
+import LiveMarketPulse from '@/components/ml/LiveMarketPulse';
 export interface ForexCoreParametersProps {
     symbol: string;
     setSymbol: (v: string) => void;
@@ -92,23 +93,76 @@ export interface ForexCoreParametersProps {
 
 const TIMEFRAMES = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
 
-const ForexSymbolSelector = ({ symbol, setSymbol, broker, setBroker, instruments }: any) => (
-    <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-            <select value={broker} onChange={(e) => setBroker(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-teal-500/50 outline-none">
-                <option value="oanda" className="bg-gray-900 text-white">OANDA</option>
-                <option value="fxcm" className="bg-gray-900 text-white">FXCM</option>
-                <option value="mt5" className="bg-gray-900 text-white">MetaTrader 5</option>
-            </select>
-            <select value={symbol} onChange={(e) => setSymbol(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-teal-500/50 outline-none flex-1">
-                {instruments.length === 0 && <option value="EUR_USD" className="bg-gray-900 text-white">Loading...</option>}
-                {instruments.map((inst: any) => (
-                    <option key={inst.name} value={inst.name} className="bg-gray-900 text-white">{inst.display_name}</option>
-                ))}
-            </select>
+const ForexSymbolSelector = ({ symbol, setSymbol, broker, setBroker, instruments }: any) => {
+    const [isOpen, setIsOpen] = React.useState(false);
+    const [searchQuery, setSearchQuery] = React.useState('');
+
+    const filteredInstruments = instruments.filter((inst: any) => 
+        inst.display_name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+        inst.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    const selectedInst = instruments.find((i: any) => i.name === symbol);
+    
+    return (
+        <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2">
+                <select value={broker} onChange={(e) => setBroker(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-teal-500/50 outline-none w-[140px]">
+                    <option value="oanda" className="bg-gray-900 text-white">OANDA</option>
+                    <option value="fxcm" className="bg-gray-900 text-white">FXCM</option>
+                    <option value="mt5" className="bg-gray-900 text-white">MetaTrader 5</option>
+                </select>
+                
+                <div className="relative flex-1">
+                    <div 
+                        onClick={() => setIsOpen(!isOpen)}
+                        className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white cursor-pointer hover:bg-white/10 transition-colors flex items-center justify-between"
+                    >
+                        <span>{instruments.length === 0 ? "Loading..." : (selectedInst?.display_name || symbol)}</span>
+                        <svg className={`w-4 h-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M19 9l-7 7-7-7"></path></svg>
+                    </div>
+                    
+                    {isOpen && (
+                        <>
+                            <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)}></div>
+                            <div className="absolute top-full left-0 right-0 mt-2 bg-[#0a0f16] border border-white/10 rounded-xl shadow-2xl z-50 overflow-hidden flex flex-col max-h-[300px]">
+                                <div className="p-2 border-b border-white/10">
+                                    <input 
+                                        type="text"
+                                        placeholder="Search pair..."
+                                        value={searchQuery}
+                                        onChange={(e) => setSearchQuery(e.target.value)}
+                                        className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-teal-500/50"
+                                        autoFocus
+                                    />
+                                </div>
+                                <div className="overflow-y-auto custom-scrollbar p-1">
+                                    {filteredInstruments.length === 0 ? (
+                                        <div className="p-3 text-xs text-slate-400 text-center">No pairs found</div>
+                                    ) : (
+                                        filteredInstruments.map((inst: any) => (
+                                            <div 
+                                                key={inst.name}
+                                                onClick={() => {
+                                                    setSymbol(inst.name);
+                                                    setIsOpen(false);
+                                                    setSearchQuery('');
+                                                }}
+                                                className={`px-3 py-2 text-sm rounded-lg cursor-pointer transition-colors ${symbol === inst.name ? 'bg-teal-500/20 text-teal-400' : 'text-slate-300 hover:bg-white/10 hover:text-white'}`}
+                                            >
+                                                {inst.display_name}
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        </>
+                    )}
+                </div>
+            </div>
         </div>
-    </div>
-);
+    );
+};
 
 export const ForexCoreParametersPanel: React.FC<ForexCoreParametersProps> = (props) => {
     return (
@@ -121,15 +175,18 @@ export const ForexCoreParametersPanel: React.FC<ForexCoreParametersProps> = (pro
             <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar h-full">
                 
                 {/* Upper Half: Asset, Model Name, Targets */}
-                <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-2">Broker & Currency Pair</label>
-                    <ForexSymbolSelector 
-                        symbol={props.symbol} 
-                        setSymbol={props.setSymbol} 
-                        broker={props.broker} 
-                        setBroker={props.setBroker} 
-                        instruments={props.instruments} 
-                    />
+                <div className="flex flex-col gap-4">
+                    <LiveMarketPulse symbol={props.symbol} exchange={props.broker} />
+                    <div>
+                        <label className="block text-sm font-medium text-slate-300 mb-2">Broker & Currency Pair</label>
+                        <ForexSymbolSelector 
+                            symbol={props.symbol} 
+                            setSymbol={props.setSymbol} 
+                            broker={props.broker} 
+                            setBroker={props.setBroker} 
+                            instruments={props.instruments} 
+                        />
+                    </div>
                 </div>
 
                 <div>

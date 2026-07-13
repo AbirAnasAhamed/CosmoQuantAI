@@ -15,51 +15,31 @@ const LiveMarketPulse: React.FC<LiveMarketPulseProps> = ({ symbol, exchange }) =
     const [prevPrice, setPrevPrice] = useState<number | null>(null);
 
     useEffect(() => {
-        // We use Binance public WS as a universal live data feed for the UI effect
-        // Format symbol: remove anything after colon (like :USDT) and remove slash
-        const isFutures = symbol.includes(':');
-        const formattedSymbol = symbol.split(':')[0].replace('/', '').toLowerCase();
-        
-        // Route to Futures stream if it's a futures pair, else Spot stream
-        const wsUrl = isFutures 
-            ? `wss://fstream.binance.com/ws/${formattedSymbol}@ticker`
-            : `wss://stream.binance.com:9443/ws/${formattedSymbol}@ticker`;
-        
         let ws: WebSocket | null = null;
         let isMounted = true;
 
-        // Fetch initial data via REST (Crucial for weekends when TradFi websockets are silent)
-        const fetchInitialData = async () => {
-            try {
-                const restUrl = isFutures
-                    ? `https://fapi.binance.com/fapi/v1/ticker/24hr?symbol=${formattedSymbol.toUpperCase()}`
-                    : `https://api.binance.com/api/v3/ticker/24hr?symbol=${formattedSymbol.toUpperCase()}`;
-                const res = await fetch(restUrl);
-                const data = await res.json();
-                if (isMounted && data && data.lastPrice) {
-                    setPrice(prev => prev === null ? parseFloat(data.lastPrice) : prev);
-                    setChange(prev => prev === 0 ? parseFloat(data.priceChangePercent) : prev);
-                    setVolume(prev => prev === 0 ? parseFloat(data.volume) : prev);
-                }
-            } catch (e) {
-                console.warn('Failed to fetch initial REST data for', symbol, e);
-            }
-        };
-        fetchInitialData();
+        const host = import.meta.env.VITE_API_URL ? new URL(import.meta.env.VITE_API_URL).host : window.location.host;
+        const wsProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        // Connect directly to our backend unified market data stream
+        const wsUrl = `${wsProtocol}//${host}/ws/market-data/${symbol}`;
 
         try {
             ws = new WebSocket(wsUrl);
 
             ws.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                if (data && data.c) {
-                    const newPrice = parseFloat(data.c);
+                const payload = JSON.parse(event.data);
+                // Unified format: { "type": "ticker", "data": {...} }
+                if (payload && payload.type === 'ticker' && payload.data) {
+                    const data = payload.data;
+                    const newPrice = parseFloat(data.price);
+                    
                     setPrice(prev => {
                         setPrevPrice(prev);
                         return newPrice;
                     });
-                    setChange(parseFloat(data.P));
-                    setVolume(parseFloat(data.v));
+                    
+                    setChange(parseFloat(data.changePercent || 0));
+                    setVolume(parseFloat(data.volume || 0));
                     
                     setIsPulsing(true);
                     setTimeout(() => setIsPulsing(false), 150);

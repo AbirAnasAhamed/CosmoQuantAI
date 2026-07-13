@@ -295,6 +295,14 @@ async def fetch_market_data_background():
                     ):
                         continue
                     
+                    # Distinguish Forex vs Crypto (Forex typically has '_', like 'EUR_USD')
+                    is_forex = "_" in symbol
+                    
+                    if is_forex:
+                        current_target_symbols.add(symbol)
+                        oanda_streamer.add_symbol(symbol)
+                        continue
+
                     # Normalize symbol (BTCUSDT -> BTC/USDT)
                     target_symbol = symbol
                     if "/" not in symbol and local_exchange_client.markets:
@@ -380,7 +388,12 @@ async def fetch_market_data_background():
                         t2 = asyncio.create_task(_watch_ob(symbol, target_symbol))
                         active_stream_tasks[symbol] = [t1, t2]
 
-            # Clean up disconnected symbols
+            # --- Cleanup Unused Stream Tasks ---
+            # Also clean up Oanda streamer symbols
+            for s in list(oanda_streamer.active_symbols):
+                if s not in current_target_symbols:
+                    oanda_streamer.remove_symbol(s)
+
             for sym in list(active_stream_tasks.keys()):
                 if sym not in current_target_symbols:
                     for t in active_stream_tasks[sym]:
