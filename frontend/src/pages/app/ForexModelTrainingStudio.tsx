@@ -2,43 +2,54 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrainCircuit, Play, Settings, Activity, Layers, Target, Cpu, CheckCircle2, XCircle, Loader2, Globe } from 'lucide-react';
 import { forexMlTrainingService, ForexTrainingJob } from '@/services/forexMlTrainingService';
-import { ForexDataEngine } from '@/components/features/market/ForexDataEngine';
-
-const ForexSymbolSelector = ({ symbol, setSymbol, broker, setBroker, instruments }: any) => (
-    <div className="flex flex-col gap-2">
-        <div className="flex items-center gap-2">
-            <select value={broker} onChange={(e) => setBroker(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-teal-500/50 outline-none">
-                <option value="oanda">OANDA</option>
-                <option value="fxcm">FXCM</option>
-                <option value="mt5">MetaTrader 5</option>
-            </select>
-            <select value={symbol} onChange={(e) => setSymbol(e.target.value)} className="bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-teal-500/50 outline-none flex-1">
-                {instruments.length === 0 && <option value="EUR_USD">Loading...</option>}
-                {instruments.map((inst: any) => (
-                    <option key={inst.name} value={inst.name}>{inst.display_name}</option>
-                ))}
-            </select>
-        </div>
-    </div>
-);
+import { ForexAdvancedPipeline } from '@/components/features/market/ForexAdvancedPipeline';
+import { ForexCoreParametersPanel } from '@/components/ml/forex/ForexCoreParametersPanel';
+import { AutoMlToggle } from '@/components/ml/forex/AutoMlToggle';
 
 const ForexModelTrainingStudio: React.FC = () => {
     // Core Parameters
-    const [symbol, setSymbol] = useState('EUR/USD');
+    const [symbol, setSymbol] = useState('EUR_USD');
     const [broker, setBroker] = useState('oanda');
     const [timeframe, setTimeframe] = useState('1h');
-    const [algorithm, setAlgorithm] = useState('Random Forest');
-    const [epochs, setEpochs] = useState(50);
     const [targetRows, setTargetRows] = useState(100000);
+    const [modelName, setModelName] = useState('');
+    const [predictionTarget, setPredictionTarget] = useState('classification');
+    const [forecastHorizon, setForecastHorizon] = useState(2);
+    const [lookbackWindow, setLookbackWindow] = useState(60);
+    const [evalMetric, setEvalMetric] = useState('f1');
+    const [outlierRemoval, setOutlierRemoval] = useState('none');
+    const [scalingMethod, setScalingMethod] = useState('standard');
+    const [fractionalDiff, setFractionalDiff] = useState(false);
+    const [fractionalDValue, setFractionalDValue] = useState(0.5);
+    const [augmentationStrategy, setAugmentationStrategy] = useState('none');
+    const [augmentationFactor, setAugmentationFactor] = useState(1);
+    const [useClusteredImportance, setUseClusteredImportance] = useState(false);
+    const [enableAdversarial, setEnableAdversarial] = useState(false);
+    const [adversarialEpsilon, setAdversarialEpsilon] = useState(0.01);
+    const [splitMethod, setSplitMethod] = useState('chronological');
+    const [trainRatio, setTrainRatio] = useState(70);
+    const [valRatio, setValRatio] = useState(15);
+    const [testRatio, setTestRatio] = useState(15);
+    const [imbalanceStrategy, setImbalanceStrategy] = useState('none');
+    const [purgeLength, setPurgeLength] = useState(0);
+    
+    // Advanced Quant States
+    const [useTripleBarrier, setUseTripleBarrier] = useState(false);
+    const [ptSlRatio, setPtSlRatio] = useState(1.5);
+    const [barrierTimeout, setBarrierTimeout] = useState(24);
+    const [useAutoMl, setUseAutoMl] = useState(false);
+    const [autoMlTrials, setAutoMlTrials] = useState(50);
+    const [enableMetaLabeling, setEnableMetaLabeling] = useState(false);
+    const [featureSelectionMethod, setFeatureSelectionMethod] = useState('none');
+    const [wfoWindows, setWfoWindows] = useState(5);
 
     // Forex Specific Engine Features
-    const [macroCalendar, setMacroCalendar] = useState(true);
-    const [sessionFeatures, setSessionFeatures] = useState(true);
-    const [ignoreWeekend, setIgnoreWeekend] = useState(true);
-    const [tickVolume, setTickVolume] = useState(false);
-    const [cotData, setCotData] = useState(false);
-    const [currencyCorrelation, setCurrencyCorrelation] = useState(false);
-    const [yieldDifferentials, setYieldDifferentials] = useState(false);
+    // Advanced UI Features (PLP Style)
+    const [selectedForexFeatures, setSelectedForexFeatures] = useState<string[]>(['session_features', 'macro_calendar']);
+    
+    // Neural Architecture
+    const [algorithm, setAlgorithm] = useState('Random Forest');
+    const [epochs, setEpochs] = useState(50);
     
     const [instruments, setInstruments] = useState<{name: string, display_name: string}[]>([]);
     
@@ -47,7 +58,6 @@ const ForexModelTrainingStudio: React.FC = () => {
     const [activeJob, setActiveJob] = useState<ForexTrainingJob | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
-    const TIMEFRAMES = ['1m', '5m', '15m', '1h', '4h', '1d'];
     const ALGORITHMS = ['Random Forest', 'XGBoost', 'LightGBM', 'LSTM', 'Transformer'];
 
     React.useEffect(() => {
@@ -87,14 +97,44 @@ const ForexModelTrainingStudio: React.FC = () => {
                 config: {
                     epochs,
                     broker,
-                    market_session_features: sessionFeatures,
-                    ignore_weekend_gaps: ignoreWeekend,
-                    macroeconomic_calendar: macroCalendar,
-                    tick_volume_profiler: tickVolume,
-                    cot_data: cotData,
-                    currency_correlation: currencyCorrelation,
-                    yield_differentials: yieldDifferentials,
-                    target_rows: targetRows
+                    model_name: modelName,
+                    prediction_target: predictionTarget,
+                    forecast_horizon: forecastHorizon,
+                    lookback_window: lookbackWindow,
+                    eval_metric: evalMetric,
+                    outlier_removal: outlierRemoval,
+                    scaling_method: scalingMethod,
+                    fractional_diff: fractionalDiff,
+                    fractional_d_value: fractionalDValue,
+                    augmentation_strategy: augmentationStrategy,
+                    augmentation_factor: augmentationFactor,
+                    use_clustered_importance: useClusteredImportance,
+                    enable_adversarial: enableAdversarial,
+                    adversarial_epsilon: adversarialEpsilon,
+                    split_method: splitMethod,
+                    train_ratio: trainRatio,
+                    val_ratio: valRatio,
+                    test_ratio: testRatio,
+                    imbalance_strategy: imbalanceStrategy,
+                    purge_length: purgeLength,
+                    
+                    market_session_features: selectedForexFeatures.includes('session_features'),
+                    ignore_weekend_gaps: selectedForexFeatures.includes('weekend_gap'),
+                    macroeconomic_calendar: selectedForexFeatures.includes('macro_calendar'),
+                    tick_volume_profiler: selectedForexFeatures.includes('tick_volume_profiler'),
+                    cot_data: selectedForexFeatures.includes('cot_sentiment'),
+                    currency_correlation: selectedForexFeatures.includes('currency_correlation'),
+                    yield_differentials: selectedForexFeatures.includes('yield_differentials'),
+                    target_rows: targetRows,
+                    use_triple_barrier: useTripleBarrier,
+                    pt_sl_ratio: ptSlRatio,
+                    barrier_timeout: barrierTimeout,
+                    use_automl: useAutoMl,
+                    automl_trials: autoMlTrials,
+                    enable_meta_labeling: enableMetaLabeling,
+                    feature_selection_method: featureSelectionMethod,
+                    wfo_windows: wfoWindows,
+                    selected_forex_features: selectedForexFeatures
                 }
             });
             setActiveJob(job);
@@ -128,79 +168,80 @@ const ForexModelTrainingStudio: React.FC = () => {
                 <div className="w-full flex flex-col bg-black/40 backdrop-blur-2xl border border-white/10 rounded-3xl p-6 shadow-[0_8px_32px_rgba(0,0,0,0.5)] relative overflow-hidden h-full">
                     <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 flex-1 min-h-0">
                         
-                        {/* COLUMN 1: Core Parameters */}
-                        <div className="flex flex-col h-full bg-white/5 border border-teal-500/30 rounded-2xl shadow-[0_0_12px_rgba(20,184,166,0.1)] overflow-hidden">
-                            <div className="p-5 bg-black/40 border-b border-white/10 flex-shrink-0 relative z-20">
-                                <h3 className="text-sm font-bold text-teal-400 flex items-center gap-2 uppercase tracking-widest"><Settings className="w-4 h-4" /> Asset & Horizon</h3>
-                            </div>
-                            <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar h-full">
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-2">Broker & Currency Pair</label>
-                                    <ForexSymbolSelector symbol={symbol} setSymbol={setSymbol} broker={broker} setBroker={setBroker} instruments={instruments} />
-                                </div>
+                        {/* COLUMN 1: Core Parameters (Modularized) */}
+                        <ForexCoreParametersPanel
+                            symbol={symbol}
+                            setSymbol={setSymbol}
+                            broker={broker}
+                            setBroker={setBroker}
+                            instruments={instruments}
+                            isTraining={isTraining}
+                            isDeleting={isDeleting}
+                            handleDeleteDataset={handleDeleteDataset}
+                            timeframe={timeframe}
+                            setTimeframe={setTimeframe}
+                            targetRows={targetRows}
+                            setTargetRows={setTargetRows}
+                            modelName={modelName}
+                            setModelName={setModelName}
+                            predictionTarget={predictionTarget}
+                            setPredictionTarget={setPredictionTarget}
+                            forecastHorizon={forecastHorizon}
+                            setForecastHorizon={setForecastHorizon}
+                            lookbackWindow={lookbackWindow}
+                            setLookbackWindow={setLookbackWindow}
+                            evalMetric={evalMetric}
+                            setEvalMetric={setEvalMetric}
+                            outlierRemoval={outlierRemoval}
+                            setOutlierRemoval={setOutlierRemoval}
+                            scalingMethod={scalingMethod}
+                            setScalingMethod={setScalingMethod}
+                            fractionalDiff={fractionalDiff}
+                            setFractionalDiff={setFractionalDiff}
+                            fractionalDValue={fractionalDValue}
+                            setFractionalDValue={setFractionalDValue}
+                            augmentationStrategy={augmentationStrategy}
+                            setAugmentationStrategy={setAugmentationStrategy}
+                            augmentationFactor={augmentationFactor}
+                            setAugmentationFactor={setAugmentationFactor}
+                            useClusteredImportance={useClusteredImportance}
+                            setUseClusteredImportance={setUseClusteredImportance}
+                            enableAdversarial={enableAdversarial}
+                            setEnableAdversarial={setEnableAdversarial}
+                            adversarialEpsilon={adversarialEpsilon}
+                            setAdversarialEpsilon={setAdversarialEpsilon}
+                            splitMethod={splitMethod}
+                            setSplitMethod={setSplitMethod}
+                            trainRatio={trainRatio}
+                            setTrainRatio={setTrainRatio}
+                            valRatio={valRatio}
+                            setValRatio={setValRatio}
+                            testRatio={testRatio}
+                            setTestRatio={setTestRatio}
+                            imbalanceStrategy={imbalanceStrategy}
+                            setImbalanceStrategy={setImbalanceStrategy}
+                            purgeLength={purgeLength}
+                            setPurgeLength={setPurgeLength}
+                            useTripleBarrier={useTripleBarrier}
+                            setUseTripleBarrier={setUseTripleBarrier}
+                            ptSlRatio={ptSlRatio}
+                            setPtSlRatio={setPtSlRatio}
+                            barrierTimeout={barrierTimeout}
+                            setBarrierTimeout={setBarrierTimeout}
+                            enableMetaLabeling={enableMetaLabeling}
+                            setEnableMetaLabeling={setEnableMetaLabeling}
+                            featureSelectionMethod={featureSelectionMethod}
+                            setFeatureSelectionMethod={setFeatureSelectionMethod}
+                            wfoWindows={wfoWindows}
+                            setWfoWindows={setWfoWindows}
+                        />
 
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1">Timeframe (Resolution)</label>
-                                    <div className="grid grid-cols-3 gap-2">
-                                        {TIMEFRAMES.map(tf => (
-                                            <button
-                                                key={tf}
-                                                disabled={isTraining}
-                                                onClick={() => setTimeframe(tf)}
-                                                className={`py-2 rounded-xl text-sm font-bold transition-all duration-300 ${timeframe === tf ? 'bg-teal-500/20 text-teal-400 border border-teal-400/50 shadow-[0_0_15px_rgba(20,184,166,0.3)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'}`}
-                                            >
-                                                {tf}
-                                            </button>
-                                        ))}
-                                    </div>
-                                </div>
-                                
-                                <div>
-                                    <label className="block text-sm font-medium text-slate-300 mb-1">Target Historical Ticks</label>
-                                    <input 
-                                        type="number" 
-                                        value={targetRows} 
-                                        onChange={e => setTargetRows(parseInt(e.target.value))}
-                                        className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-teal-500/50 outline-none mb-4"
-                                    />
-                                    
-                                    <button 
-                                        onClick={handleDeleteDataset}
-                                        disabled={isDeleting}
-                                        className="w-full py-2 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 rounded-xl text-xs font-bold uppercase transition-all flex items-center justify-center gap-2"
-                                    >
-                                        {isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-                                        Clear Local Dataset
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        {/* COLUMN 2: Forex Data Engine */}
-                        <div className="flex flex-col h-full bg-white/5 border border-teal-500/30 rounded-2xl shadow-[0_0_12px_rgba(20,184,166,0.1)] overflow-hidden">
-                            <div className="p-5 bg-black/40 border-b border-white/10 flex-shrink-0 relative z-20">
-                                <h3 className="text-sm font-bold text-teal-400 flex items-center gap-2 uppercase tracking-widest"><Activity className="w-4 h-4" /> TradFi Data Pipeline</h3>
-                            </div>
-                            <div className="p-6 overflow-y-auto custom-scrollbar h-full">
-                                <ForexDataEngine 
-                                    macroCalendar={macroCalendar} setMacroCalendar={setMacroCalendar}
-                                    sessionFeatures={sessionFeatures} setSessionFeatures={setSessionFeatures}
-                                    ignoreWeekend={ignoreWeekend} setIgnoreWeekend={setIgnoreWeekend}
-                                    tickVolume={tickVolume} setTickVolume={setTickVolume}
-                                    cotData={cotData} setCotData={setCotData}
-                                    currencyCorrelation={currencyCorrelation} setCurrencyCorrelation={setCurrencyCorrelation}
-                                    yieldDifferentials={yieldDifferentials} setYieldDifferentials={setYieldDifferentials}
-                                    disabled={isTraining}
-                                />
-                            </div>
-                        </div>
-
-                        {/* COLUMN 3: Neural Architecture */}
+                        {/* COLUMN 2: Neural Architecture */}
                         <div className="flex flex-col h-full bg-white/5 border border-teal-500/30 rounded-2xl shadow-[0_0_12px_rgba(20,184,166,0.1)] overflow-hidden">
                             <div className="p-5 bg-black/40 border-b border-white/10 flex-shrink-0 relative z-20">
                                 <h3 className="text-sm font-bold text-blue-400 flex items-center gap-2 uppercase tracking-widest"><Cpu className="w-4 h-4" /> Neural Architecture</h3>
                             </div>
-                            <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar h-full flex flex-col justify-between">
+                            <div className="p-6 space-y-6 overflow-y-auto custom-scrollbar h-full flex flex-col">
                                 <div className="space-y-4">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-300 mb-2">Algorithm Selection</label>
@@ -216,37 +257,50 @@ const ForexModelTrainingStudio: React.FC = () => {
                                             ))}
                                         </div>
                                     </div>
-                                    <div>
-                                        <label className="block text-sm font-medium text-slate-300 mb-1">Epochs / Trees</label>
-                                        <input 
-                                            type="number" 
-                                            value={epochs} 
-                                            onChange={e => setEpochs(parseInt(e.target.value))}
-                                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-blue-500/50 outline-none"
-                                        />
-                                    </div>
-                                </div>
-                                
-                                <div className="pt-4 border-t border-white/10">
-                                    <button
-                                        onClick={handleStartTraining}
-                                        disabled={isTraining}
-                                        className="w-full py-4 rounded-xl font-black uppercase tracking-widest transition-all duration-300 flex items-center justify-center gap-2 bg-gradient-to-r from-teal-500 to-blue-600 hover:from-teal-400 hover:to-blue-500 text-white shadow-[0_0_30px_rgba(20,184,166,0.3)] disabled:opacity-50"
-                                    >
-                                        {isTraining ? (
-                                            <><Loader2 className="w-5 h-5 animate-spin" /> Initializing...</>
-                                        ) : (
-                                            <><Play className="w-5 h-5 fill-current" /> Compile & Train Model</>
-                                        )}
-                                    </button>
+                                    <AutoMlToggle 
+                                        useAutoMl={useAutoMl}
+                                        setUseAutoMl={setUseAutoMl}
+                                        autoMlTrials={autoMlTrials}
+                                        setAutoMlTrials={setAutoMlTrials}
+                                        epochs={epochs}
+                                        setEpochs={setEpochs}
+                                        isTraining={isTraining}
+                                    />
                                 </div>
                             </div>
                         </div>
 
+                        {/* COLUMN 3: Forex Data Engine (TradFi Data Pipeline) */}
+                        <ForexAdvancedPipeline 
+                            selectedFeatures={selectedForexFeatures}
+                            onToggleFeature={(id) => {
+                                setSelectedForexFeatures(prev => 
+                                    prev.includes(id) ? prev.filter(f => f !== id) : [...prev, id]
+                                );
+                            }}
+                            onSetMultipleFeatures={setSelectedForexFeatures}
+                            disabled={isTraining}
+                        />
+
+                        </div>
+
+                    </div>
+                    
+                    <div className="pt-6 mt-2 relative z-10 flex flex-col gap-3 border-t border-white/10">
+                        <button
+                            onClick={handleStartTraining}
+                            disabled={isTraining}
+                            className={`w-full py-4 rounded-2xl font-black text-[15px] flex items-center justify-center gap-3 transition-all duration-300 shadow-xl bg-gradient-to-r from-teal-500 via-blue-500 to-indigo-600 text-white hover:shadow-[0_0_30px_rgba(20,184,166,0.5)] border border-white/20 hover:scale-[1.02] ${isTraining ? 'opacity-50 cursor-wait' : ''}`}
+                        >
+                            {isTraining ? (
+                                <><Loader2 className="w-5 h-5 animate-spin" /> INITIALIZING...</>
+                            ) : (
+                                <><Play className="w-5 h-5 fill-current" /> START DEEP TRAINING</>
+                            )}
+                        </button>
                     </div>
                 </div>
             </div>
-        </div>
     );
 };
 

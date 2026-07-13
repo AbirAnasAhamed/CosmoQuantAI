@@ -96,40 +96,95 @@ class ForexMLTrainingEngine:
             self.db.commit()
             
             # Step 5: Preparing Target Variable
-            self._log("Preparing target variables for classification...")
-            # Predict if next close is higher than current close
-            df['target'] = (df['close'].shift(-1) > df['close']).astype(int)
+            use_triple_barrier = self.job.config.get('use_triple_barrier', False)
+            if use_triple_barrier:
+                self._log("Applying Triple Barrier Method...")
+                from app.services.ml.triple_barrier import apply_triple_barrier
+                pt_sl = self.job.config.get('pt_sl_ratio', 1.5)
+                timeout = self.job.config.get('barrier_timeout', 24)
+                df['target'] = apply_triple_barrier(df, pt_sl, timeout)
+            else:
+                self._log("Preparing target variables for classification...")
+                df['target'] = (df['close'].shift(-1) > df['close']).astype(int)
+            
             df.dropna(inplace=True)
             
             features = [col for col in df.columns if col not in ['target', 'open', 'high', 'low', 'close']]
             X = df[features]
             y = df['target']
             
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+            # Feature Selection
+            feature_method = self.job.config.get('feature_selection_method', 'none')
+            if feature_method != 'none':
+                self._log(f"Applying {feature_method.upper()} Feature Selection...")
+                from app.services.ml.feature_selection import select_features
+                X = select_features(X, y, method=feature_method)
 
-            # Step 6: Model Training
+            # Step 6: Model Training & WFO
             algorithm = self.job.algorithm
-            epochs = self.job.config.get('epochs', 10) # Using epochs as a proxy for n_estimators for RF
+            use_automl = self.job.config.get('use_automl', False)
+            split_method = self.job.config.get('split_method', 'chronological')
             
-            self._log(f"Starting Training using {algorithm} (proxy n_estimators={epochs * 10})...")
-            
-            model = RandomForestClassifier(n_estimators=max(10, epochs * 10), random_state=42)
-            model.fit(X_train, y_train)
-            
-            accuracy = model.score(X_test, y_test)
-            self._log(f"Training completed. Validation Accuracy: {accuracy*100:.2f}%")
+            if split_method == 'walk_forward':
+                self._log("Starting Walk-Forward Optimization (WFO)...")
+                from app.services.ml.wfo_validator import walk_forward_split
+                wfo_windows = self.job.config.get('wfo_windows', 5)
+                
+                accuracies = []
+                for i, (X_train, X_test, y_train, y_test) in enumerate(walk_forward_split(X, y, n_splits=wfo_windows)):
+                    if use_automl and i == wfo_windows - 1:
+                        self._log(f"Running AutoML Optuna on Fold {i+1}...")
+                        from app.services.ml.optuna_optimizer import run_optuna_study
+                        trials = self.job.config.get('automl_trials', 10)
+                        best_params = run_optuna_study(X_train, y_train, algorithm, trials)
+                        model = RandomForestClassifier(**best_params, random_state=42, n_jobs=-1)
+                    else:
+                        model = RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+                        
+                    model.fit(X_train, y_train)
+                    acc = model.score(X_test, y_test)
+                    accuracies.append(acc)
+                    self._log(f"Fold {i+1} Accuracy: {acc*100:.2f}%")
+                    
+                accuracy = np.mean(accuracies)
+                self._log(f"Walk-Forward Average Accuracy: {accuracy*100:.2f}%")
+            else:
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+                if use_automl:
+                    self._log("Running AutoML Optuna...")
+                    from app.services.ml.optuna_optimizer import run_optuna_study
+                    trials = self.job.config.get('automl_trials', 30)
+                    best_params = run_optuna_study(X_train, y_train, algorithm, trials)
+                    model = RandomForestClassifier(**best_params, random_state=42, n_jobs=-1)
+                else:
+                    epochs = self.job.config.get('epochs', 10)
+                    model = RandomForestClassifier(n_estimators=max(10, epochs * 10), random_state=42, n_jobs=-1)
+                    
+                model.fit(X_train, y_train)
+                accuracy = model.score(X_test, y_test)
+                self._log(f"Training completed. Validation Accuracy: {accuracy*100:.2f}%")
+                
             self.job.progress = 90.0
             self.db.commit()
             
-            # Step 7: Saving Model to isolated Forex folder
+            # Step 7: Meta Labeling & Saving
             models_dir = os.path.join(os.getcwd(), "uploads", "models", "forex")
             os.makedirs(models_dir, exist_ok=True)
+            
+            if self.job.config.get('enable_meta_labeling', False):
+                self._log("Training Secondary Meta-Labeling Model...")
+                from app.services.ml.meta_labeler import train_meta_model
+                meta_model = train_meta_model(X_train, y_train, model, algorithm)
+                
+                meta_model_filename = f"{self.job_id}_meta_{clean_symbol}.pkl"
+                joblib.dump(meta_model, os.path.join(models_dir, meta_model_filename))
+                self._log(f"Meta-Model saved to {meta_model_filename}")
             
             model_filename = f"{self.job_id}_{clean_symbol}.pkl"
             model_filepath = os.path.join(models_dir, model_filename)
             joblib.dump(model, model_filepath)
             
-            self._log(f"Model saved to {model_filepath}")
+            self._log(f"Primary Model saved to {model_filepath}")
             
             self.job.status = TrainingStatus.COMPLETED
             self.job.progress = 100.0

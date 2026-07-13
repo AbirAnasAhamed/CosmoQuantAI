@@ -14,6 +14,8 @@ export interface DatasetSplitConfigProps {
   setImbalanceStrategy: (val: string) => void;
   purgeLength?: number;
   setPurgeLength?: (val: number) => void;
+  wfoWindows?: number;
+  setWfoWindows?: (val: number) => void;
 }
 
 const DatasetSplitConfig: React.FC<DatasetSplitConfigProps> = ({
@@ -28,7 +30,9 @@ const DatasetSplitConfig: React.FC<DatasetSplitConfigProps> = ({
   imbalanceStrategy,
   setImbalanceStrategy,
   purgeLength = 5,
-  setPurgeLength
+  setPurgeLength,
+  wfoWindows = 5,
+  setWfoWindows
 }) => {
   useEffect(() => {
     // Ensure ratios sum to 100
@@ -76,6 +80,26 @@ const DatasetSplitConfig: React.FC<DatasetSplitConfigProps> = ({
                 />
                 <p className="text-[10px] text-indigo-400/80 mt-2 leading-relaxed">
                     Drops samples between train and validation sets to prevent data leakage from overlapping features (e.g. rolling means).
+                </p>
+            </div>
+          )}
+
+          {splitMethod === 'walk_forward' && setWfoWindows && (
+            <div className="mt-3 p-3 bg-teal-500/10 border border-teal-500/20 rounded-lg">
+                <div className="flex justify-between text-[11px] font-bold text-teal-300 mb-2 uppercase">
+                    <span>WFO Windows (Folds)</span>
+                    <span>{wfoWindows}</span>
+                </div>
+                <input 
+                    type="range" 
+                    min="2" 
+                    max="20" 
+                    value={wfoWindows}
+                    onChange={(e) => setWfoWindows(Number(e.target.value))}
+                    className="w-full accent-teal-500"
+                />
+                <p className="text-[10px] text-teal-400/80 mt-2 leading-relaxed">
+                    Simulates real-world periodic retraining. Data is divided into {wfoWindows || 5} chronological segments.
                 </p>
             </div>
           )}

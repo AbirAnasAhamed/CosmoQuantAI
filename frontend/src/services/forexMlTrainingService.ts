@@ -23,6 +23,26 @@ export interface ForexTrainingConfig {
     config: {
         epochs: number;
         broker?: string;
+        model_name?: string;
+        prediction_target?: string;
+        forecast_horizon?: number;
+        lookback_window?: number;
+        eval_metric?: string;
+        outlier_removal?: string;
+        scaling_method?: string;
+        fractional_diff?: boolean;
+        fractional_d_value?: number;
+        augmentation_strategy?: string;
+        augmentation_factor?: number;
+        use_clustered_importance?: boolean;
+        enable_adversarial?: boolean;
+        adversarial_epsilon?: number;
+        split_method?: string;
+        train_ratio?: number;
+        val_ratio?: number;
+        test_ratio?: number;
+        imbalance_strategy?: string;
+        purge_length?: number;
         market_session_features?: boolean;
         ignore_weekend_gaps?: boolean;
         macroeconomic_calendar?: boolean;
@@ -31,10 +51,26 @@ export interface ForexTrainingConfig {
         currency_correlation?: boolean;
         yield_differentials?: boolean;
         use_automl?: boolean;
+        automl_trials?: number;
         is_ensemble?: boolean;
         base_models?: string[];
         meta_model?: string;
         target_rows?: number;
+        use_triple_barrier?: boolean;
+        pt_sl_ratio?: number;
+        barrier_timeout?: number;
+        enable_meta_labeling?: boolean;
+        feature_selection_method?: string;
+        wfo_windows?: number;
+        
+        // Advanced Features
+        enable_smc_features?: boolean;
+        enable_ict_killzones?: boolean;
+        enable_stop_hunt_models?: boolean;
+        enable_tick_microstructure?: boolean;
+        enable_central_bank_nlp?: boolean;
+        
+        selected_forex_features?: string[];
     };
 }
 

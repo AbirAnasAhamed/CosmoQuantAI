@@ -91,6 +91,23 @@ class OandaStreamer:
                 if response.status != 200:
                     text = await response.text()
                     logger.error(f"OandaStreamer Connection Error: {response.status} {text}")
+                    
+                    if response.status == 400 and "Invalid Instrument" in text:
+                        try:
+                            error_data = json.loads(text)
+                            error_msg = error_data.get("errorMessage", "")
+                            if error_msg.startswith("Invalid Instrument "):
+                                bad_sym_oanda = error_msg.replace("Invalid Instrument ", "").strip()
+                                bad_sym = bad_sym_oanda.replace("_", "/")
+                                if bad_sym in self.active_symbols:
+                                    logger.warning(f"Removing invalid instrument {bad_sym} from active_symbols.")
+                                    self.active_symbols.remove(bad_sym)
+                                elif bad_sym_oanda in self.active_symbols:
+                                    logger.warning(f"Removing invalid instrument {bad_sym_oanda} from active_symbols.")
+                                    self.active_symbols.remove(bad_sym_oanda)
+                        except Exception as e:
+                            logger.error(f"Failed to parse Oanda error: {e}")
+
                     await asyncio.sleep(10)
                     if self._running:
                         self._task = asyncio.create_task(self._stream_data())

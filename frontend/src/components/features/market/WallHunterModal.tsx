@@ -1254,25 +1254,25 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                 </div>
                             )}
 
-                            {/* --- NEW: BUY ORDER TYPE & BUFFER --- */}
+                            {/* --- NEW: BUY ORDER TYPE & TIMEOUT --- */}
                             <div className="flex gap-4 p-3 bg-white/5 border border-white/10 rounded-2xl">
                                 <div className="flex-1 space-y-1">
                                     <label className="text-[10px] text-gray-400 font-black uppercase">
                                         {tradingMode === 'spot' && strategyMode === 'short' ? 'Buy Order (TP)' : 'Buy Order Type'}
                                     </label>
                                     <select
-                                        className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white outline-none focus:border-brand-primary text-sm font-bold"
+                                        className="w-full bg-black/40 border border-white/10 rounded-xl p-2.5 text-white outline-none focus:border-brand-primary text-sm font-bold truncate"
                                         value={form.buyOrderType}
                                         onChange={(e) => handleFormChange('buyOrderType', e.target.value)}
                                     >
-                                        <option className="bg-[#000000]" value="market">Market (Normal)</option>
-                                        <option className="bg-[#000000]" value="limit">Limit (Maker)</option>
-                                        <option className="bg-[#000000]" value="marketable_limit">Marketable Limit (Recommended for MEXC)</option>
+                                        <option className="bg-[#000000]" value="market">Market</option>
+                                        <option className="bg-[#000000]" value="limit">Limit</option>
+                                        <option className="bg-[#000000]" value="marketable_limit">Marketable Limit</option>
                                     </select>
                                 </div>
                                 {(form.buyOrderType === 'marketable_limit' || form.sellOrderType === 'marketable_limit') && (
-                                    <div className="w-1/3 space-y-1 animate-fadeIn">
-                                        <label className="text-[10px] text-orange-400 font-black uppercase">Limit Buffer (%)</label>
+                                    <div className="w-1/4 space-y-1 animate-fadeIn">
+                                        <label className="text-[10px] text-orange-400 font-black uppercase">Buffer %</label>
                                         <input
                                             type="number"
                                             step="0.01"
@@ -1282,13 +1282,9 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                         />
                                     </div>
                                 )}
-                            </div>
-
-                            {/* --- Entry Order Timeout --- */}
-                            <div className="flex gap-4 p-3 bg-white/5 border border-white/10 rounded-2xl">
-                                <div className="flex-1 space-y-1">
-                                    <label className="text-[10px] text-gray-400 font-black uppercase">
-                                        Entry Order Timeout (s)
+                                <div className="w-1/4 space-y-1">
+                                    <label className="text-[10px] text-gray-400 font-black uppercase" title="Max wait time before cancelling an unfilled LIMIT entry order.">
+                                        Timeout (s)
                                     </label>
                                     <input
                                         type="number"
@@ -1296,9 +1292,6 @@ export const WallHunterModal: FC<{ isOpen: boolean; onClose: () => void; symbol:
                                         value={form.entryOrderTimeout}
                                         onChange={(e) => handleFormChange('entryOrderTimeout', parseFloat(e.target.value) || 0)}
                                     />
-                                    <p className="text-[10px] text-gray-500 font-medium pt-1">
-                                        Max wait time before cancelling an unfilled LIMIT entry order.
-                                    </p>
                                 </div>
                             </div>
 
