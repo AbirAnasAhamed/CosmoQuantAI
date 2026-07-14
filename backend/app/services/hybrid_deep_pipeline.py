@@ -460,17 +460,22 @@ def build_hybrid_deep_dataset(job, db: Session, config: dict, add_log, check_can
     sel_plp         = config.get("plp_features", [])
     pred_target     = config.get("prediction_target", "classification")
 
+    hybrid_snapshot_file = config.get("hybrid_snapshot_file")
+    use_merged_file = config.get("use_merged_file", False)
+    merged_file = config.get("merged_file")
+
     add_log(f"[HybridDeep] ═══ Starting Hybrid Deep Training for {symbol} ═══")
-    add_log(f"[HybridDeep] Target: {target_rows:,} Rows (100ms L2 Frames)")
+    if (use_merged_file and merged_file) or hybrid_snapshot_file:
+        add_log("[HybridDeep] Mode: Training from pre-collected dataset")
+    else:
+        add_log(f"[HybridDeep] Mode: Live Scraping - Target: {target_rows:,} Rows (100ms L2 Frames)")
+
     add_log(f"[HybridDeep] L2 features selected: {len(sel_l2)}")
     add_log(f"[HybridDeep] Trade features selected: {len(sel_trade)}")
     if sel_plp:
         add_log(f"[HybridDeep] PLP features selected: {len(sel_plp)}")
 
     # ── Step 1: Dual WebSocket Collection OR File Load ────────────────────────
-    hybrid_snapshot_file = config.get("hybrid_snapshot_file")
-    use_merged_file = config.get("use_merged_file", False)
-    merged_file = config.get("merged_file")
     
     if use_merged_file and merged_file:
         import os

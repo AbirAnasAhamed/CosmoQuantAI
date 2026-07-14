@@ -430,8 +430,17 @@ def start_hybrid_collector(
     
     # Run the collector in a non-blocking subprocess
     try:
+        cmd = ["python", script_path, "--symbol", request.symbol.lower(), "--target", str(request.target_rows), "--job_id", job_id, "--resolution", request.resolution]
+        
+        if request.trigger_type:
+            cmd.extend(["--trigger_type", request.trigger_type])
+        if request.trigger_value:
+            cmd.extend(["--trigger_value", str(request.trigger_value)])
+        if request.schedule_time:
+            cmd.extend(["--schedule_time", request.schedule_time])
+            
         subprocess.Popen(
-            ["python", script_path, "--symbol", request.symbol.lower(), "--target", str(request.target_rows), "--job_id", job_id],
+            cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )

@@ -37,3 +37,7 @@ class StartL2CollectorRequest(BaseModel):
 class StartHybridCollectorRequest(BaseModel):
     symbol: str
     target_rows: int
+    resolution: str = "100ms"
+    trigger_type: Optional[str] = None
+    trigger_value: Optional[float] = None
+    schedule_time: Optional[str] = None

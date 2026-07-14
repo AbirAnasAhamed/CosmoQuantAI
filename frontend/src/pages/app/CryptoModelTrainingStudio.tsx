@@ -26,6 +26,7 @@ import EnsembleBuilder from '@/components/ml/EnsembleBuilder';
 import RLTrainingVisualizer from '@/components/ml/RLTrainingVisualizer';
 
 import { AdvancedAIToolsPanel } from '@/components/ml/AdvancedAIToolsPanel';
+import { AdvancedHybridCollectorPanel } from '@/components/ml/AdvancedHybridCollectorPanel';
 import { FeatureCorrelationModal } from '@/components/ml/FeatureCorrelationModal';
 import { CustomFeatureBuilder } from '@/components/ml/CustomFeatureBuilder';
 
@@ -487,12 +488,11 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
         return () => clearInterval(interval);
     }, [hybridScrapeJob?.id, hybridScrapeJob?.status, dataSource]);
 
-    const handleStartHybridCollector = async () => {
+    const handleStartHybridCollector = async (config: any) => {
         try {
-            const targetRows = parseInt(manualTargetRows, 10) || targetRowOptions[targetRowsIndex];
             const response = await apiClient.post('/model-training/start-hybrid-collector', {
                 symbol: symbol,
-                target_rows: targetRows
+                ...config
             });
             setHybridScrapeJob(response.data);
         } catch (error: any) {
@@ -1855,70 +1855,13 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                                     </div>
 
                                     {isHybridScraping && (
-                                        <div className="p-4 bg-rose-500/5 rounded-xl border border-rose-500/20 shadow-inner space-y-4">
-                                            <div>
-                                                <div className="flex justify-between items-center mb-1">
-                                                    <label className="block text-sm font-medium text-slate-300">Target Rows (100ms Frames)</label>
-                                                    <span className="text-xs font-bold text-rose-400 font-mono bg-rose-500/10 px-2 py-0.5 rounded">
-                                                        {manualTargetRows || targetRowOptions[targetRowsIndex].toLocaleString()} Rows
-                                                    </span>
-                                                </div>
-                                                <div className="flex items-center gap-3">
-                                                    <input
-                                                        type="number"
-                                                        min={100}
-                                                        max={10000000}
-                                                        step={100}
-                                                        value={manualTargetRows}
-                                                        onChange={(e) => setManualTargetRows(e.target.value)}
-                                                        disabled={isTraining || (hybridScrapeJob !== null && ['PENDING', 'RUNNING'].includes(hybridScrapeJob.status))}
-                                                        className="w-full bg-[#0A0A0A] border border-rose-500/30 rounded-lg p-2.5 text-slate-200"
-                                                        placeholder="e.g. 200000"
-                                                    />
-                                                </div>
-                                            </div>
-
-                                            {(!hybridScrapeJob || ['COMPLETED', 'FAILED'].includes(hybridScrapeJob.status)) && (
-                                                <button
-                                                    onClick={handleStartHybridCollector}
-                                                    disabled={isTraining}
-                                                    className="w-full py-2.5 rounded-lg font-bold text-sm bg-rose-500/20 text-rose-400 hover:bg-rose-500/30 border border-rose-500/50 transition-all shadow-[0_0_15px_rgba(244,63,94,0.2)] disabled:opacity-50"
-                                                >
-                                                    Start Hybrid Data Collector
-                                                </button>
-                                            )}
-
-                                            {hybridScrapeJob && (
-                                                <div className="mt-3 p-3 bg-[#0A0A0A]/50 rounded-lg border border-rose-500/20">
-                                                    <div className="flex justify-between items-end mb-2">
-                                                        <span className="text-xs font-medium text-slate-400">Collector Progress</span>
-                                                        <span className="text-sm font-bold text-rose-400">{hybridScrapeJob.progress}%</span>
-                                                    </div>
-                                                    <div className="w-full bg-slate-800 rounded-full h-1.5 mb-3 overflow-hidden">
-                                                        <div 
-                                                            className="bg-gradient-to-r from-rose-500 to-orange-500 h-1.5 rounded-full transition-all duration-300" 
-                                                            style={{ width: `${hybridScrapeJob.progress}%` }}
-                                                        />
-                                                    </div>
-                                                    <div className="text-[10px] text-slate-400 font-mono mb-3 truncate">
-                                                        {hybridScrapeJob.logs && hybridScrapeJob.logs.length > 0 ? hybridScrapeJob.logs[hybridScrapeJob.logs.length - 1] : 'Initializing...'}
-                                                    </div>
-                                                    
-                                                    {['PENDING', 'RUNNING'].includes(hybridScrapeJob.status) ? (
-                                                        <button 
-                                                            onClick={handleCancelHybridScrape}
-                                                            className="w-full py-1.5 rounded-lg border border-red-500/30 text-red-400 text-xs hover:bg-red-500/10 transition-colors"
-                                                        >
-                                                            Stop Collector
-                                                        </button>
-                                                    ) : (
-                                                        <div className={`text-center text-xs font-bold ${hybridScrapeJob.status === 'COMPLETED' ? 'text-green-400' : 'text-red-400'}`}>
-                                                            {hybridScrapeJob.status === 'COMPLETED' ? '✅ Completed Successfully' : '❌ ' + (hybridScrapeJob.error_message || 'Stopped')}
-                                                        </div>
-                                                    )}
-                                                </div>
-                                            )}
-                                        </div>
+                                        <AdvancedHybridCollectorPanel
+                                            symbol={symbol}
+                                            isTraining={isTraining}
+                                            hybridScrapeJob={hybridScrapeJob}
+                                            onStartCollector={handleStartHybridCollector}
+                                            onCancelCollector={handleCancelHybridScrape}
+                                        />
                                     )}
 
                                     {!isHybridScraping && (
@@ -1942,69 +1885,13 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                                                     className="w-full bg-[#0A0A0A] border border-rose-500/30 rounded-lg p-2.5 text-slate-200"
                                                     disabled={isTraining}
                                                 >
-                                                    <option value="">⚡ Fetch Database Ticks (Default)</option>
+                                                    <option value="" disabled>📂 Select a snapshot file...</option>
                                                     {hybridSnapshotFiles.length === 0 ? <option value="" disabled>No Hybrid snapshots available</option> : null}
                                                     {hybridSnapshotFiles.map(f => <option key={f} value={f}>📂 {f}</option>)}
                                                 </select>
                                             </div>
 
-                                            {!selectedHybridFile && (
-                                                <div className="p-4 bg-white/5 border border-rose-500/20 rounded-xl space-y-4 shadow-inner">
-                                                    <div className="flex justify-between items-center">
-                                                        <label className="block text-sm font-medium text-slate-300">Target Rows (100ms Frames)</label>
-                                                        <span className="text-sm font-bold text-rose-400 bg-rose-500/10 px-2.5 py-1 rounded-lg border border-rose-500/20 font-mono">
-                                                            {targetRowOptions[targetRowsIndex].toLocaleString()} Rows
-                                                        </span>
-                                                    </div>
-                                                    <input
-                                                        type="range"
-                                                        min={0}
-                                                        max={targetRowOptions.length - 1}
-                                                        step={1}
-                                                        value={targetRowsIndex}
-                                                        onChange={(e) => handleSliderChange(parseInt(e.target.value))}
-                                                        disabled={isTraining}
-                                                        className="w-full h-2 bg-white/10 rounded-lg appearance-none cursor-pointer accent-rose-500"
-                                                    />
-                                                    <div className="flex justify-between text-[10px] text-slate-500 font-medium -mt-1">
-                                                        <span>1K</span><span>50K</span><span>500K</span><span>5M</span><span>50M</span><span>100M</span>
-                                                    </div>
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="relative flex-1">
-                                                            <input
-                                                                type="number"
-                                                                min={1}
-                                                                max={100000000}
-                                                                step={1000}
-                                                                value={manualTargetRows}
-                                                                onChange={(e) => handleManualRowInput(e.target.value)}
-                                                                onBlur={() => {
-                                                                    const num = parseInt(manualTargetRows.replace(/,/g, ''), 10);
-                                                                    if (!isNaN(num) && num > 0) {
-                                                                        const clamped = Math.max(1, Math.min(100_000_000, num));
-                                                                        setTargetRowsIndex(snapToNearestPreset(clamped));
-                                                                        setManualTargetRows(String(clamped));
-                                                                    }
-                                                                }}
-                                                                disabled={isTraining}
-                                                                className="w-full bg-black/50 border border-rose-500/30 rounded-xl px-4 py-2.5 text-sm text-white font-mono focus:ring-2 focus:ring-rose-500/50 outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
-                                                            />
-                                                            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-bold text-rose-400/60 uppercase pointer-events-none">rows</span>
-                                                        </div>
-                                                    </div>
-                                                    <div className="grid grid-cols-6 gap-1.5">
-                                                        {[{label:'1K',val:1_000},{label:'10K',val:10_000},{label:'100K',val:100_000},{label:'1M',val:1_000_000},{label:'10M',val:10_000_000},{label:'100M',val:100_000_000}].map(({label,val}) => {
-                                                            const isActive = targetRowOptions[targetRowsIndex] === val;
-                                                            return (
-                                                                <button key={label} disabled={isTraining}
-                                                                    onClick={() => { const idx = targetRowOptions.indexOf(val); setTargetRowsIndex(idx); setManualTargetRows(String(val)); }}
-                                                                    className={`py-1 text-[10px] font-black rounded-lg border transition-all ${isActive ? 'bg-rose-600/30 border-rose-400/60 text-rose-300' : 'bg-black/30 border-white/10 text-slate-400 hover:border-rose-500/40 hover:text-rose-300'}`}
-                                                                >{label}</button>
-                                                            );
-                                                        })}
-                                                    </div>
-                                                </div>
-                                            )}
+
                                         </div>
                                     )}
 
@@ -2685,8 +2572,8 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                         {!isTraining ? (
                             <button 
                                 onClick={handleStartTraining}
-                                disabled={!symbol}
-                                className={`w-full py-4 rounded-2xl font-black text-[15px] flex items-center justify-center gap-3 transition-all duration-300 shadow-xl ${isRetrainMode ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 text-white hover:shadow-[0_0_30px_rgba(236,72,153,0.5)] border border-white/20 hover:scale-[1.02]' : 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 text-white hover:shadow-[0_0_30px_rgba(56,189,248,0.5)] border border-white/20 hover:scale-[1.02]'}`}
+                                disabled={!symbol || (dataSource === 'hybrid_deep' && !isHybridScraping && !selectedHybridFile)}
+                                className={`w-full py-4 rounded-2xl font-black text-[15px] flex items-center justify-center gap-3 transition-all duration-300 shadow-xl ${(!symbol || (dataSource === 'hybrid_deep' && !isHybridScraping && !selectedHybridFile)) ? 'opacity-50 cursor-not-allowed bg-gray-800 text-gray-500 border-gray-700' : isRetrainMode ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 text-white hover:shadow-[0_0_30px_rgba(236,72,153,0.5)] border border-white/20 hover:scale-[1.02]' : 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 text-white hover:shadow-[0_0_30px_rgba(56,189,248,0.5)] border border-white/20 hover:scale-[1.02]'}`}
                             >
                                 <Play className="w-5 h-5 fill-current" /> {isRetrainMode ? "START INCREMENTAL FINE-TUNING" : "START DEEP TRAINING"}
                             </button>

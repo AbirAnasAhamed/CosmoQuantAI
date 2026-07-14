@@ -71,17 +71,22 @@ async def trade_listener(symbol_ws: str, stop_event: asyncio.Event):
         except Exception:
             await asyncio.sleep(2)  # Reconnect delay
 
-async def l2_listener(target_rows: int, symbol_ws: str, symbol_orig: str, session_id: str, job_id: str, stop_event: asyncio.Event):
-    url = f"wss://stream.binance.com:9443/ws/{symbol_ws}@depth{DEPTH_LEVELS}@{UPDATE_SPEED}"
+async def l2_listener(target_rows: int, symbol_ws: str, symbol_orig: str, session_id: str, job_id: str, stop_event: asyncio.Event, resolution: str, trigger_type: str, trigger_value: float):
+    binance_speed = "100ms" if resolution in ["10ms", "50ms", "100ms"] else "1000ms"
+    url = f"wss://stream.binance.com:9443/ws/{symbol_ws}@depth{DEPTH_LEVELS}@{binance_speed}"
     buffer = []
     total_collected = 0
+    total_trades_collected = 0
     chunk_index = 0
     chunk_files = []
     last_logged_percent = -1
+    initial_price = None
     
     db = SessionLocal()
     add_job_log(db, job_id, f"Starting Hybrid Collector for {symbol_orig.upper()}")
-    add_job_log(db, job_id, f"Target: {target_rows:,} rows. Syncing L2 + Trades...")
+    add_job_log(db, job_id, f"Target: {target_rows:,} rows at {resolution}. Syncing L2 + Trades...")
+    if trigger_type == "price_volatility" and trigger_value:
+        add_job_log(db, job_id, f"🛡️ Smart Trigger Enabled: Stop if price moves by {trigger_value}%")
 
     try:
         async with websockets.connect(url) as websocket:
@@ -113,6 +118,8 @@ async def l2_listener(target_rows: int, symbol_ws: str, symbol_orig: str, sessio
                     row["buy_volume"] = latest_trade["buy_volume"]
                     row["sell_volume"] = latest_trade["sell_volume"]
                     
+                    total_trades_collected += latest_trade["trade_count"]
+
                     # Reset accumulators for next 100ms L2 frame
                     latest_trade["trade_volume"] = 0.0
                     latest_trade["trade_count"] = 0
@@ -140,6 +147,27 @@ async def l2_listener(target_rows: int, symbol_ws: str, symbol_orig: str, sessio
                 buffer.append(row)
                 total_collected += 1
 
+                # Smart Trigger Logic
+                if trigger_type == "price_volatility" and trigger_value and row.get("trade_price"):
+                    if initial_price is None:
+                        initial_price = row["trade_price"]
+                    else:
+                        price_diff_percent = abs(row["trade_price"] - initial_price) / initial_price * 100
+                        if price_diff_percent >= trigger_value:
+                            add_job_log(db, job_id, f"🚨 Smart Trigger Activated! Price moved by {price_diff_percent:.2f}% (Limit: {trigger_value}%). Stopping early.")
+                            stop_event.set()
+                            break
+
+                # Sleep to enforce user-requested resolution if it's slower than binance stream
+                if resolution == "500ms":
+                    await asyncio.sleep(0.4)
+                elif resolution == "1s":
+                    await asyncio.sleep(0.9)
+                elif resolution == "50ms":
+                    await asyncio.sleep(0.05)
+                elif resolution == "10ms":
+                    await asyncio.sleep(0.01)
+
                 current_percent = int((total_collected / target_rows) * 100)
                 if current_percent > last_logged_percent and job_id:
                     last_logged_percent = current_percent
@@ -147,7 +175,7 @@ async def l2_listener(target_rows: int, symbol_ws: str, symbol_orig: str, sessio
                     if job:
                         job.progress = float(current_percent)
                         db.commit()
-                    add_job_log(db, job_id, f"⬇️ Hybrid Download: {current_percent}% ({total_collected:,} / {target_rows:,} rows)")
+                    add_job_log(db, job_id, f"⬇️ Hybrid Download: {current_percent}% ({total_collected:,} / {target_rows:,} L2 Frames | {total_trades_collected:,} Trades)")
 
                 if len(buffer) >= CHUNK_SIZE or total_collected >= target_rows:
                     chunk_index += 1
@@ -176,14 +204,28 @@ async def l2_listener(target_rows: int, symbol_ws: str, symbol_orig: str, sessio
     stop_event.set()
     return chunk_files, db
 
-async def collect_hybrid_data(target_rows: int, symbol: str = SYMBOL, job_id: str = None):
+async def collect_hybrid_data(target_rows: int, symbol: str = SYMBOL, job_id: str = None, resolution: str = "100ms", trigger_type: str = None, trigger_value: float = None, schedule_time: str = None):
     symbol_ws = symbol.replace("/", "").lower()
     os.makedirs(DATA_DIR, exist_ok=True)
     session_id = datetime.now().strftime("%Y%m%d_%H%M%S")
     stop_event = asyncio.Event()
+    db = SessionLocal()
+
+    if schedule_time:
+        try:
+            target_time = datetime.fromisoformat(schedule_time.replace("Z", "+00:00"))
+            now_utc = datetime.utcnow()
+            target_time_utc = target_time.replace(tzinfo=None)
+            wait_seconds = (target_time_utc - now_utc).total_seconds()
+            if wait_seconds > 0:
+                add_job_log(db, job_id, f"🕒 Scheduled run. Waiting {int(wait_seconds)} seconds until {schedule_time}...")
+                await asyncio.sleep(wait_seconds)
+        except Exception as e:
+            add_job_log(db, job_id, f"⚠️ Failed to parse schedule_time: {e}. Starting immediately.")
+    db.close()
 
     task1 = asyncio.create_task(trade_listener(symbol_ws, stop_event))
-    task2 = asyncio.create_task(l2_listener(target_rows, symbol_ws, symbol, session_id, job_id, stop_event))
+    task2 = asyncio.create_task(l2_listener(target_rows, symbol_ws, symbol, session_id, job_id, stop_event, resolution, trigger_type, trigger_value))
 
     chunk_files, db = await task2
     await task1
@@ -215,7 +257,7 @@ async def collect_hybrid_data(target_rows: int, symbol: str = SYMBOL, job_id: st
                     db.commit()
                     if job.user_id:
                         from app.services.notification import NotificationService
-                        await NotificationService.send_message(db, job.user_id, f"✅ *Hybrid Collection Complete*\nSymbol: {symbol_orig.upper()}\nRows: {target_rows:,}", parse_mode="Markdown")
+                        await NotificationService.send_message(db, job.user_id, f"✅ *Hybrid Collection Complete*\nSymbol: {symbol.upper()}\nRows: {target_rows:,}", parse_mode="Markdown")
                     
         except Exception as e:
             add_job_log(db, job_id, f"Error during merge process: {e}")
@@ -227,7 +269,7 @@ async def collect_hybrid_data(target_rows: int, symbol: str = SYMBOL, job_id: st
                     db.commit()
                     if job.user_id:
                         from app.services.notification import NotificationService
-                        await NotificationService.send_message(db, job.user_id, f"❌ *Hybrid Merge Failed*\nSymbol: {symbol_orig.upper()}\nError: {e}", parse_mode="Markdown")
+                        await NotificationService.send_message(db, job.user_id, f"❌ *Hybrid Merge Failed*\nSymbol: {symbol.upper()}\nError: {e}", parse_mode="Markdown")
     else:
         msg = "No hybrid data collected to merge."
         add_job_log(db, job_id, msg)
@@ -246,10 +288,14 @@ if __name__ == "__main__":
     parser.add_argument("--target", type=int, default=200000, help="Total number of rows to collect")
     parser.add_argument("--symbol", type=str, default="btcusdt", help="Trading pair symbol")
     parser.add_argument("--job_id", type=str, default=None, help="Database Job ID to track progress")
+    parser.add_argument("--resolution", type=str, default="100ms", help="Data resolution (10ms, 100ms, 1s, etc)")
+    parser.add_argument("--trigger_type", type=str, default=None, help="Smart stopping trigger")
+    parser.add_argument("--trigger_value", type=float, default=None, help="Smart stopping trigger value")
+    parser.add_argument("--schedule_time", type=str, default=None, help="ISO string to wait until before starting")
     
     args = parser.parse_args()
     
     try:
-        asyncio.run(collect_hybrid_data(args.target, args.symbol, args.job_id))
+        asyncio.run(collect_hybrid_data(args.target, args.symbol, args.job_id, args.resolution, args.trigger_type, args.trigger_value, args.schedule_time))
     except KeyboardInterrupt:
         print("\nHybrid Collector stopped manually.")
