@@ -235,3 +235,54 @@ def delete_forex_dataset(
     else:
         raise HTTPException(status_code=404, detail="Dataset not found")
 
+
+class CheckDataQualityRequest(BaseModel):
+    symbol: str
+    timeframe: str
+    mode: str
+    target_rows: int
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
+@router.post("/check-data-quality")
+def check_forex_data_quality(
+    request: CheckDataQualityRequest,
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """
+    Check if the requested data range is valid and what limits might apply.
+    """
+    expected_rows = request.target_rows
+    if request.mode == 'date' and request.start_date and request.end_date:
+        try:
+            start = datetime.datetime.strptime(request.start_date, "%Y-%m-%d")
+            end = datetime.datetime.strptime(request.end_date, "%Y-%m-%d")
+            days = (end - start).days
+            
+            if days < 0:
+                return {"status": "error", "message": "End Date must be after Start Date."}
+                
+            rows_per_day = 24
+            tf = request.timeframe.lower()
+            if tf == '1m': rows_per_day = 1440
+            elif tf == '5m': rows_per_day = 288
+            elif tf == '15m': rows_per_day = 96
+            elif tf == '30m': rows_per_day = 48
+            elif tf == '1d': rows_per_day = 1
+            
+            # 5 days a week ~ 71% of days
+            expected_rows = int(days * rows_per_day * 0.71)
+            
+            # Check YF 1m limit (7 days)
+            if tf == '1m' and start < datetime.datetime.now() - datetime.timedelta(days=7):
+                return {"status": "warning", "message": "Yahoo Finance only provides 1m data for the last 7 days. Ensure OANDA API keys are active for deep history."}
+        except ValueError:
+            return {"status": "error", "message": "Invalid date format."}
+            
+    if expected_rows > 500000:
+        return {"status": "warning", "message": f"Extremely high density ({expected_rows:,} rows). May encounter API limits or timeouts."}
+    elif expected_rows < 1000:
+        return {"status": "error", "message": f"Too few rows ({expected_rows:,}). Not enough data to train a reliable model."}
+        
+    return {"status": "ok", "message": f"Data integrity check passed. Estimated ~{expected_rows:,} rows."}
+

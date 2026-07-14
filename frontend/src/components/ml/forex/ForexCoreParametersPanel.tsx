@@ -12,6 +12,7 @@ import { TripleBarrierToggle } from './TripleBarrierToggle';
 import { MetaLabelingToggle } from './MetaLabelingToggle';
 import { FeatureSelectionDropdown } from './FeatureSelectionDropdown';
 import LiveMarketPulse from '@/components/ml/LiveMarketPulse';
+import { DataRangeSelector } from './DataRangeSelector';
 export interface ForexCoreParametersProps {
     symbol: string;
     setSymbol: (v: string) => void;
@@ -22,11 +23,17 @@ export interface ForexCoreParametersProps {
     isDeleting: boolean;
     handleDeleteDataset: () => void;
     
-    // Timeframe & Rows
+    // Timeframe & Rows & Dates
     timeframe: string;
     setTimeframe: (v: string) => void;
     targetRows: number;
     setTargetRows: (v: number) => void;
+    dateRangeMode: 'ticks' | 'date';
+    setDateRangeMode: (v: 'ticks' | 'date') => void;
+    startDate: string;
+    setStartDate: (v: string) => void;
+    endDate: string;
+    setEndDate: (v: string) => void;
     
     // Core Parameters
     modelName: string;
@@ -246,20 +253,25 @@ export const ForexCoreParametersPanel: React.FC<ForexCoreParametersProps> = (pro
                     </div>
                 </div>
                 
-                <div>
-                    <label className="block text-sm font-medium text-slate-300 mb-1">Target Historical Ticks</label>
-                    <input 
-                        type="number" 
-                        value={props.targetRows} 
-                        onChange={e => props.setTargetRows(parseInt(e.target.value))}
-                        disabled={props.isTraining}
-                        className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-teal-500/50 outline-none mb-4 shadow-inner"
+                <div className="pt-2">
+                    <DataRangeSelector 
+                        dateRangeMode={props.dateRangeMode}
+                        setDateRangeMode={props.setDateRangeMode}
+                        targetRows={props.targetRows}
+                        setTargetRows={props.setTargetRows}
+                        startDate={props.startDate}
+                        setStartDate={props.setStartDate}
+                        endDate={props.endDate}
+                        setEndDate={props.setEndDate}
+                        isTraining={props.isTraining}
+                        timeframe={props.timeframe}
+                        symbol={props.symbol}
                     />
                     
                     <button 
                         onClick={props.handleDeleteDataset}
                         disabled={props.isDeleting || props.isTraining}
-                        className="w-full py-2 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 rounded-xl text-xs font-bold uppercase transition-all flex items-center justify-center gap-2"
+                        className="w-full mt-4 py-2 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 rounded-xl text-xs font-bold uppercase transition-all flex items-center justify-center gap-2"
                     >
                         {props.isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
                         Clear Local Dataset

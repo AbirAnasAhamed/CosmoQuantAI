@@ -12,6 +12,9 @@ const ForexModelTrainingStudio: React.FC = () => {
     const [broker, setBroker] = useState('oanda');
     const [timeframe, setTimeframe] = useState('1h');
     const [targetRows, setTargetRows] = useState(100000);
+    const [dateRangeMode, setDateRangeMode] = useState<'ticks' | 'date'>('ticks');
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
     const [modelName, setModelName] = useState('');
     const [predictionTarget, setPredictionTarget] = useState('classification');
     const [forecastHorizon, setForecastHorizon] = useState(2);
@@ -225,6 +228,9 @@ const ForexModelTrainingStudio: React.FC = () => {
                     currency_correlation: selectedForexFeatures.includes('currency_correlation'),
                     yield_differentials: selectedForexFeatures.includes('yield_differentials'),
                     target_rows: targetRows,
+                    date_range_mode: dateRangeMode,
+                    start_date: startDate,
+                    end_date: endDate,
                     use_triple_barrier: useTripleBarrier,
                     pt_sl_ratio: ptSlRatio,
                     barrier_timeout: barrierTimeout,
@@ -281,6 +287,12 @@ const ForexModelTrainingStudio: React.FC = () => {
                             setTimeframe={setTimeframe}
                             targetRows={targetRows}
                             setTargetRows={setTargetRows}
+                            dateRangeMode={dateRangeMode}
+                            setDateRangeMode={setDateRangeMode}
+                            startDate={startDate}
+                            setStartDate={setStartDate}
+                            endDate={endDate}
+                            setEndDate={setEndDate}
                             modelName={modelName}
                             setModelName={setModelName}
                             predictionTarget={predictionTarget}

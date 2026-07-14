@@ -56,6 +56,9 @@ export interface ForexTrainingConfig {
         base_models?: string[];
         meta_model?: string;
         target_rows?: number;
+        date_range_mode?: 'ticks' | 'date';
+        start_date?: string;
+        end_date?: string;
         use_triple_barrier?: boolean;
         pt_sl_ratio?: number;
         barrier_timeout?: number;
