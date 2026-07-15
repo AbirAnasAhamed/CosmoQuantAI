@@ -2572,8 +2572,8 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                         {!isTraining ? (
                             <button 
                                 onClick={handleStartTraining}
-                                disabled={!symbol || (dataSource === 'hybrid_deep' && !isHybridScraping && !selectedHybridFile)}
-                                className={`w-full py-4 rounded-2xl font-black text-[15px] flex items-center justify-center gap-3 transition-all duration-300 shadow-xl ${(!symbol || (dataSource === 'hybrid_deep' && !isHybridScraping && !selectedHybridFile)) ? 'opacity-50 cursor-not-allowed bg-gray-800 text-gray-500 border-gray-700' : isRetrainMode ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 text-white hover:shadow-[0_0_30px_rgba(236,72,153,0.5)] border border-white/20 hover:scale-[1.02]' : 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 text-white hover:shadow-[0_0_30px_rgba(56,189,248,0.5)] border border-white/20 hover:scale-[1.02]'}`}
+                                disabled={!symbol || (dataSource === 'hybrid_deep' && (isHybridScraping || !selectedHybridFile))}
+                                className={`w-full py-4 rounded-2xl font-black text-[15px] flex items-center justify-center gap-3 transition-all duration-300 shadow-xl ${(!symbol || (dataSource === 'hybrid_deep' && (isHybridScraping || !selectedHybridFile))) ? 'opacity-50 cursor-not-allowed bg-gray-800 text-gray-500 border-gray-700' : isRetrainMode ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 text-white hover:shadow-[0_0_30px_rgba(236,72,153,0.5)] border border-white/20 hover:scale-[1.02]' : 'bg-gradient-to-r from-cyan-500 via-blue-500 to-purple-600 text-white hover:shadow-[0_0_30px_rgba(56,189,248,0.5)] border border-white/20 hover:scale-[1.02]'}`}
                             >
                                 <Play className="w-5 h-5 fill-current" /> {isRetrainMode ? "START INCREMENTAL FINE-TUNING" : "START DEEP TRAINING"}
                             </button>

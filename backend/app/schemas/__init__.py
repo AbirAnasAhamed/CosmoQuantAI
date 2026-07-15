@@ -146,7 +146,7 @@ class ConversionRequest(BaseModel):
 # --- Bot & Indicator Schemas ---
 from .bot import Bot, BotCreate, BotUpdate
 from .indicator import *
-from .model_training import TrainingJobCreate, TrainingJobResponse, StartL2CollectorRequest, StartHybridCollectorRequest
+from .model_training import TrainingJobCreate, TrainingJobResponse, StartL2CollectorRequest, StartHybridCollectorRequest, StartForexCollectorRequest
 
 # 👇 This is the new line
 from .education import *

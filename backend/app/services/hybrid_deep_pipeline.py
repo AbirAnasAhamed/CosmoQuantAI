@@ -483,8 +483,8 @@ def build_hybrid_deep_dataset(job, db: Session, config: dict, add_log, check_can
         if not os.path.exists(file_path):
             raise Exception(f"[HybridDeep] Merged dataset file not found: {file_path}")
             
-        add_log(f"[HybridDeep] 📂 Loading merged archive dataset: {merged_file}")
         df = pd.read_csv(file_path)
+        add_log(f"[HybridDeep] 📂 Loading merged archive dataset: {merged_file} (Rows: {len(df)})")
         
         # Ensure timestamp is the index
         if 'timestamp' in df.columns:
@@ -497,8 +497,8 @@ def build_hybrid_deep_dataset(job, db: Session, config: dict, add_log, check_can
         if not os.path.exists(file_path):
             raise Exception(f"[HybridDeep] Selected hybrid snapshot file not found: {hybrid_snapshot_file}")
             
-        add_log(f"[HybridDeep] 📂 Loading dataset from snapshot: {hybrid_snapshot_file}")
         df = pd.read_parquet(file_path)
+        add_log(f"[HybridDeep] 📂 Loading dataset from snapshot: {hybrid_snapshot_file} (Rows: {len(df)})")
         
         # Ensure timestamp is the index
         if 'timestamp' in df.columns:

@@ -65,6 +65,7 @@ export interface ForexTrainingConfig {
         enable_meta_labeling?: boolean;
         feature_selection_method?: string;
         wfo_windows?: number;
+        snapshot_file?: string;
         
         // Advanced Features
         enable_smc_features?: boolean;
@@ -105,6 +106,21 @@ export const forexMlTrainingService = {
 
     deleteDataset: async (symbol: string): Promise<{status: string, message: string}> => {
         const response = await apiClient.delete(`/forex-model-training/dataset/${symbol}`);
+        return response.data;
+    },
+
+    startForexCollector: async (config: {symbol: string, target_rows: number, mode?: string, start_date?: string, end_date?: string, timeframe?: string}): Promise<ForexTrainingJob> => {
+        const response = await apiClient.post('/forex-model-training/start-forex-collector', config);
+        return response.data;
+    },
+
+    getForexSnapshots: async (): Promise<string[]> => {
+        const response = await apiClient.get('/forex-model-training/forex-snapshots');
+        return response.data;
+    },
+
+    deleteForexSnapshot: async (filename: string): Promise<{status: string, message: string}> => {
+        const response = await apiClient.delete(`/forex-model-training/forex-snapshots/${filename}`);
         return response.data;
     }
 };

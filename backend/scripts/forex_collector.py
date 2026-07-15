@@ -12,7 +12,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
 from app.db.session import SessionLocal
 from app.models.model_training import ModelTrainingJob, TrainingStatus
 
-def run_forex_collector(symbol: str, target_rows: int, job_id: str):
+def run_forex_collector(symbol: str, target_rows: int, job_id: str, mode: str = "ticks", start_date: str = None, end_date: str = None, timeframe: str = "15m"):
     db = SessionLocal()
     job = db.query(ModelTrainingJob).filter_by(id=job_id).first()
     
@@ -37,11 +37,12 @@ def run_forex_collector(symbol: str, target_rows: int, job_id: str):
         return
 
     # Create data directory if it doesn't exist
-    data_dir = os.path.join(os.getcwd(), "data", "forex")
+    data_dir = os.path.join(os.getcwd(), "data", "raw", "forex_snapshots")
     os.makedirs(data_dir, exist_ok=True)
     
     clean_symbol = symbol.replace("/", "_")
-    output_file = os.path.join(data_dir, f"{clean_symbol}_data.csv")
+    timestamp_str = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    output_file = os.path.join(data_dir, f"{clean_symbol}_{timestamp_str}.parquet")
 
     try:
         _log(f"Starting OANDA Collector for {symbol} (Target: {target_rows} rows)...")
@@ -53,13 +54,32 @@ def run_forex_collector(symbol: str, target_rows: int, job_id: str):
         # OANDA v20 API uses EUR_USD format
         instrument = symbol.replace("/", "_")
         
-        # Max count per request is 5000.
-        granularity = "M15" # Default to 15m for now, ideally parameterized
-        count = min(target_rows, 5000)
+        # Map common timeframes to OANDA granularity
+        tf_map = {
+            "5s": "S5",
+            "10s": "S10",
+            "30s": "S30",
+            "1m": "M1",
+            "5m": "M5",
+            "15m": "M15",
+            "30m": "M30",
+            "1h": "H1",
+            "4h": "H4",
+            "1d": "D",
+        }
+        granularity = tf_map.get(timeframe.lower(), "M15")
         
-        url = f"https://api-fxpractice.oanda.com/v3/instruments/{instrument}/candles?count={count}&granularity={granularity}&price=M"
+        if mode == "date" and start_date and end_date:
+            _log(f"Fetching {timeframe} data from OANDA API for range {start_date} to {end_date}...")
+            # Convert YYYY-MM-DD to RFC3339 for OANDA (e.g., 2023-10-01T00:00:00Z)
+            from_time = f"{start_date}T00:00:00Z"
+            to_time = f"{end_date}T23:59:59Z"
+            url = f"https://api-fxpractice.oanda.com/v3/instruments/{instrument}/candles?from={from_time}&to={to_time}&granularity={granularity}&price=M"
+        else:
+            _log(f"Fetching recent {target_rows} candles ({timeframe}) from OANDA API...")
+            count = min(target_rows, 5000)
+            url = f"https://api-fxpractice.oanda.com/v3/instruments/{instrument}/candles?count={count}&granularity={granularity}&price=M"
         
-        _log(f"Fetching data from OANDA API...")
         response = requests.get(url, headers=headers)
         response.raise_for_status()
         
@@ -91,7 +111,7 @@ def run_forex_collector(symbol: str, target_rows: int, job_id: str):
         # Convert time to standard datetime
         df["time"] = pd.to_datetime(df["time"]).dt.tz_localize(None)
         
-        df.to_csv(output_file, index=False)
+        df.to_parquet(output_file, index=False)
         _log(f"Successfully saved {len(df)} rows to {output_file}")
             
         if job.status == TrainingStatus.RUNNING:
@@ -112,6 +132,10 @@ if __name__ == "__main__":
     parser.add_argument("--symbol", type=str, required=True)
     parser.add_argument("--target", type=int, required=True)
     parser.add_argument("--job_id", type=str, required=True)
+    parser.add_argument("--mode", type=str, default="ticks")
+    parser.add_argument("--start_date", type=str, default=None)
+    parser.add_argument("--end_date", type=str, default=None)
+    parser.add_argument("--timeframe", type=str, default="15m")
     args = parser.parse_args()
     
-    run_forex_collector(args.symbol, args.target, args.job_id)
+    run_forex_collector(args.symbol, args.target, args.job_id, args.mode, args.start_date, args.end_date, args.timeframe)

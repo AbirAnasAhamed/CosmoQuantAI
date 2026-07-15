@@ -12,7 +12,9 @@ import { TripleBarrierToggle } from './TripleBarrierToggle';
 import { MetaLabelingToggle } from './MetaLabelingToggle';
 import { FeatureSelectionDropdown } from './FeatureSelectionDropdown';
 import LiveMarketPulse from '@/components/ml/LiveMarketPulse';
-import { DataRangeSelector } from './DataRangeSelector';
+import { ForexScraperPanel } from './ForexScraperPanel';
+import { Trash2 } from 'lucide-react';
+
 export interface ForexCoreParametersProps {
     symbol: string;
     setSymbol: (v: string) => void;
@@ -96,9 +98,18 @@ export interface ForexCoreParametersProps {
     setPtSlRatio: (v: number) => void;
     barrierTimeout: number;
     setBarrierTimeout: (v: number) => void;
+    
+    // Scraper Props
+    forexSnapshotFiles: string[];
+    selectedForexFile: string;
+    setSelectedForexFile: (v: string) => void;
+    handleDeleteSnapshot: (e: React.MouseEvent) => void;
+    forexScrapeJob: any;
+    onStartCollector: (config: any) => void;
+    onCancelCollector: () => void;
 }
 
-const TIMEFRAMES = ['1m', '5m', '15m', '30m', '1h', '4h', '1d'];
+const TIMEFRAMES = ['5s', '10s', '30s', '1m', '5m', '15m', '30m', '1h', '4h', '1d'];
 
 const ForexSymbolSelector = ({ symbol, setSymbol, broker, setBroker, instruments }: any) => {
     const [isOpen, setIsOpen] = React.useState(false);
@@ -253,29 +264,42 @@ export const ForexCoreParametersPanel: React.FC<ForexCoreParametersProps> = (pro
                     </div>
                 </div>
                 
-                <div className="pt-2">
-                    <DataRangeSelector 
-                        dateRangeMode={props.dateRangeMode}
-                        setDateRangeMode={props.setDateRangeMode}
-                        targetRows={props.targetRows}
-                        setTargetRows={props.setTargetRows}
-                        startDate={props.startDate}
-                        setStartDate={props.setStartDate}
-                        endDate={props.endDate}
-                        setEndDate={props.setEndDate}
-                        isTraining={props.isTraining}
-                        timeframe={props.timeframe}
+                <div className="pt-2 border-t border-white/10 mt-4">
+                    <div className="mb-4">
+                        <label className="block text-sm font-bold text-slate-300 mb-2">Select Dataset Snapshot (Parquet)</label>
+                        <div className="flex items-center gap-2">
+                            <select 
+                                value={props.selectedForexFile} 
+                                onChange={e => props.setSelectedForexFile(e.target.value)}
+                                disabled={props.isTraining}
+                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-teal-500/50 outline-none"
+                            >
+                                {props.forexSnapshotFiles.length === 0 && <option value="" className="text-slate-500">No snapshots available. Please collect data first.</option>}
+                                {props.forexSnapshotFiles.map(f => (
+                                    <option key={f} value={f} className="bg-gray-900 text-white">{f}</option>
+                                ))}
+                            </select>
+                            {props.selectedForexFile && (
+                                <button
+                                    onClick={props.handleDeleteSnapshot}
+                                    disabled={props.isTraining}
+                                    className="p-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl border border-red-500/20 transition-all flex items-center justify-center"
+                                    title="Delete selected snapshot"
+                                >
+                                    <Trash2 className="w-5 h-5" />
+                                </button>
+                            )}
+                        </div>
+                    </div>
+
+                    <ForexScraperPanel 
                         symbol={props.symbol}
+                        isTraining={props.isTraining}
+                        forexScrapeJob={props.forexScrapeJob}
+                        onStartCollector={props.onStartCollector}
+                        onCancelCollector={props.onCancelCollector}
+                        timeframe={props.timeframe}
                     />
-                    
-                    <button 
-                        onClick={props.handleDeleteDataset}
-                        disabled={props.isDeleting || props.isTraining}
-                        className="w-full mt-4 py-2 bg-red-500/10 border border-red-500/20 hover:bg-red-500/20 text-red-400 rounded-xl text-xs font-bold uppercase transition-all flex items-center justify-center gap-2"
-                    >
-                        {props.isDeleting ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
-                        Clear Local Dataset
-                    </button>
                 </div>
 
                 {/* Lower Half: Advanced Preprocessing UI */}

@@ -34,6 +34,14 @@ class StartL2CollectorRequest(BaseModel):
     symbol: str
     target_rows: int
 
+class StartForexCollectorRequest(BaseModel):
+    symbol: str
+    target_rows: int
+    timeframe: str = "15m"
+    mode: str = "ticks" # "ticks" or "date"
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+
 class StartHybridCollectorRequest(BaseModel):
     symbol: str
     target_rows: int

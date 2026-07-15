@@ -280,7 +280,9 @@ async def fetch_market_data_background():
 
             # --- 1. Process Individual Subscriptions (Existing Logic) ---
             NON_MARKET_CHANNELS = {
-                "general", "backtest", "block_trades", "system_alerts", "container_logs",
+                "general", "backtest", "block_trades", "dashboard",
+                "options_live", "correlation_feed", "system_alerts", "container_logs",
+                "training_visualizer"
             }
             
             current_target_symbols = set()

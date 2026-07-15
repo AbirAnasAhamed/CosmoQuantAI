@@ -17,7 +17,8 @@ class ForexARIMAModel:
             from statsmodels.tsa.arima.model import ARIMA
             # ARIMA is univariate, we fit on the target directly
             # For a true exog model we would pass X as exog
-            model = ARIMA(y, exog=X if not X.empty else None, order=self.order)
+            exog_data = X if (hasattr(X, 'empty') and not X.empty) or (isinstance(X, np.ndarray) and X.size > 0) else None
+            model = ARIMA(y, exog=exog_data, order=self.order)
             self.model_fit = model.fit()
         except ImportError:
             print("Warning: statsmodels not installed. Using dummy ARIMA.")
@@ -30,7 +31,8 @@ class ForexARIMAModel:
             return np.random.choice([0, 1], size=len(X))
             
         # Statsmodels forecasting with exog
-        predictions = self.model_fit.forecast(steps=len(X), exog=X if not X.empty else None)
+        exog_data = X if (hasattr(X, 'empty') and not X.empty) or (isinstance(X, np.ndarray) and X.size > 0) else None
+        predictions = self.model_fit.forecast(steps=len(X), exog=exog_data)
         # Convert continuous predictions back to binary classification (0 or 1)
         # assuming the target y was binary 0/1 for price going up/down
         return (predictions > 0.5).astype(int).values

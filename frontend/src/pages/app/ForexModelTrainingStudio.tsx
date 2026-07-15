@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BrainCircuit, Play, Settings, Activity, Layers, Target, Cpu, CheckCircle2, XCircle, Loader2, Globe } from 'lucide-react';
+import { BrainCircuit, Play, Settings, Activity, Layers, Target, Cpu, CheckCircle2, XCircle, Loader2, Globe, Terminal, Database } from 'lucide-react';
 import { forexMlTrainingService, ForexTrainingJob } from '@/services/forexMlTrainingService';
 import { ForexAdvancedPipeline } from '@/components/features/market/ForexAdvancedPipeline';
 import { ForexCoreParametersPanel } from '@/components/ml/forex/ForexCoreParametersPanel';
@@ -60,6 +60,13 @@ const ForexModelTrainingStudio: React.FC = () => {
     const [isTraining, setIsTraining] = useState(false);
     const [activeJob, setActiveJob] = useState<ForexTrainingJob | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    const [showTerminal, setShowTerminal] = useState(false);
+    const logsEndRef = useRef<HTMLDivElement>(null);
+
+    // Scraper States
+    const [forexScrapeJob, setForexScrapeJob] = useState<ForexTrainingJob | null>(null);
+    const [forexSnapshotFiles, setForexSnapshotFiles] = useState<string[]>([]);
+    const [selectedForexFile, setSelectedForexFile] = useState('');
 
     const ALGORITHM_CATEGORIES = [
         { 
@@ -175,6 +182,107 @@ const ForexModelTrainingStudio: React.FC = () => {
         loadInstruments();
     }, []);
 
+    // Auto-scroll logs
+    useEffect(() => {
+        if (logsEndRef.current) {
+            logsEndRef.current.scrollIntoView({ behavior: 'smooth' });
+        }
+    }, [activeJob?.logs, forexScrapeJob?.logs]);
+
+    // Load Forex Snapshots
+    useEffect(() => {
+        forexMlTrainingService.getForexSnapshots().then((files) => {
+            setForexSnapshotFiles(files);
+            if (files.length > 0 && !selectedForexFile) {
+                setSelectedForexFile(files[0]);
+            }
+        }).catch(err => console.error("Failed to load forex snapshots", err));
+    }, []);
+
+    // Polling logic for Training Job
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (isTraining && activeJob && ['PENDING', 'RUNNING'].includes(activeJob.status)) {
+            interval = setInterval(async () => {
+                try {
+                    const latestJob = await forexMlTrainingService.getJobStatus(activeJob.id);
+                    setActiveJob(latestJob);
+                    if (['COMPLETED', 'FAILED'].includes(latestJob.status)) {
+                        setIsTraining(false);
+                        clearInterval(interval);
+                    }
+                } catch (error) {
+                    console.error("Error fetching job status:", error);
+                }
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [isTraining, activeJob?.id, activeJob?.status]);
+
+    // Polling logic for Scraper Job
+    useEffect(() => {
+        let interval: NodeJS.Timeout;
+        if (forexScrapeJob && ['PENDING', 'RUNNING'].includes(forexScrapeJob.status)) {
+            interval = setInterval(async () => {
+                try {
+                    const latestJob = await forexMlTrainingService.getJobStatus(forexScrapeJob.id);
+                    setForexScrapeJob(latestJob);
+                    if (['COMPLETED', 'FAILED'].includes(latestJob.status)) {
+                        clearInterval(interval);
+                        if (latestJob.status === 'COMPLETED') {
+                            forexMlTrainingService.getForexSnapshots().then((files) => {
+                                setForexSnapshotFiles(files);
+                                if (files.length > 0) {
+                                    setSelectedForexFile(files[0]);
+                                }
+                            });
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error fetching scrape job status:", error);
+                }
+            }, 1000);
+        }
+        return () => clearInterval(interval);
+    }, [forexScrapeJob?.id, forexScrapeJob?.status]);
+
+    const handleStartForexCollector = async (config: {target_rows: number, mode?: string, start_date?: string, end_date?: string, timeframe?: string}) => {
+        try {
+            const job = await forexMlTrainingService.startForexCollector({
+                symbol: symbol,
+                ...config
+            });
+            setForexScrapeJob(job);
+        } catch (error: any) {
+            alert(`Failed to start collector: ${error.message}`);
+        }
+    };
+
+    const handleCancelForexCollector = async () => {
+        if (!forexScrapeJob) return;
+        if (!window.confirm("Are you sure you want to stop data collection?")) return;
+        try {
+            await forexMlTrainingService.cancelTraining(forexScrapeJob.id);
+            setForexScrapeJob(prev => prev ? { ...prev, status: 'FAILED', error_message: 'Collection cancelled by user.' } : null);
+        } catch (error: any) {
+            alert(`Failed to cancel collection: ${error.message}`);
+        }
+    };
+
+    const handleDeleteSnapshot = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        if (!selectedForexFile) return;
+        if (!window.confirm(`Are you sure you want to delete ${selectedForexFile}?`)) return;
+        try {
+            await forexMlTrainingService.deleteForexSnapshot(selectedForexFile);
+            setForexSnapshotFiles(prev => prev.filter(f => f !== selectedForexFile));
+            setSelectedForexFile('');
+            alert(`Deleted ${selectedForexFile}`);
+        } catch (error: any) {
+            alert(`Failed to delete snapshot: ${error.message}`);
+        }
+    };
+
     const handleDeleteDataset = async () => {
         if (!confirm(`Are you sure you want to delete the local dataset for ${symbol}?`)) return;
         setIsDeleting(true);
@@ -239,21 +347,35 @@ const ForexModelTrainingStudio: React.FC = () => {
                     enable_meta_labeling: enableMetaLabeling,
                     feature_selection_method: featureSelectionMethod,
                     wfo_windows: wfoWindows,
-                    selected_forex_features: selectedForexFeatures
+                    selected_forex_features: selectedForexFeatures,
+                    snapshot_file: selectedForexFile
                 }
             });
             setActiveJob(job);
+            setShowTerminal(true);
             alert("Training job started successfully!");
         } catch (error) {
             console.error("Failed to start training", error);
             alert("Failed to start Forex training job.");
-        } finally {
-            setIsTraining(false); // Remove this if we want to stay in 'training' UI state polling
+        }
+    };
+
+    const handleCancelTraining = async () => {
+        if (!activeJob) return;
+        if (!window.confirm("Are you sure you want to stop this training job?")) return;
+        try {
+            await forexMlTrainingService.cancelTraining(activeJob.id);
+            setIsTraining(false);
+            setActiveJob(prev => prev ? { ...prev, status: 'FAILED', error_message: 'Training cancelled by user.' } : null);
+        } catch (error) {
+            console.error("Failed to cancel training", error);
+            alert("Failed to cancel training job.");
         }
     };
 
     return (
-        <div className="h-full flex flex-col space-y-3 relative overflow-hidden bg-black/20 rounded-3xl">
+        <>
+            <div className="h-full flex flex-col space-y-3 relative overflow-hidden bg-black/20 rounded-3xl">
             {/* Background Orbs adapted for Forex (Teal/Blue vibe) */}
             <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-teal-600/20 blur-[120px] rounded-full pointer-events-none"></div>
             <div className="absolute bottom-[-10%] right-[-10%] w-[40%] h-[40%] bg-blue-600/20 blur-[120px] rounded-full pointer-events-none"></div>
@@ -345,6 +467,13 @@ const ForexModelTrainingStudio: React.FC = () => {
                             setFeatureSelectionMethod={setFeatureSelectionMethod}
                             wfoWindows={wfoWindows}
                             setWfoWindows={setWfoWindows}
+                            forexSnapshotFiles={forexSnapshotFiles}
+                            selectedForexFile={selectedForexFile}
+                            setSelectedForexFile={setSelectedForexFile}
+                            handleDeleteSnapshot={handleDeleteSnapshot}
+                            forexScrapeJob={forexScrapeJob}
+                            onStartCollector={handleStartForexCollector}
+                            onCancelCollector={handleCancelForexCollector}
                         />
 
                         {/* COLUMN 2: Neural Architecture */}
@@ -417,20 +546,112 @@ const ForexModelTrainingStudio: React.FC = () => {
                     </div>
                     
                     <div className="pt-6 mt-2 relative z-10 flex flex-col gap-3 border-t border-white/10">
-                        <button
-                            onClick={handleStartTraining}
-                            disabled={isTraining}
-                            className={`w-full py-4 rounded-2xl font-black text-[15px] flex items-center justify-center gap-3 transition-all duration-300 shadow-xl bg-gradient-to-r from-teal-500 via-blue-500 to-indigo-600 text-white hover:shadow-[0_0_30px_rgba(20,184,166,0.5)] border border-white/20 hover:scale-[1.02] ${isTraining ? 'opacity-50 cursor-wait' : ''}`}
-                        >
-                            {isTraining ? (
-                                <><Loader2 className="w-5 h-5 animate-spin" /> INITIALIZING...</>
-                            ) : (
-                                <><Play className="w-5 h-5 fill-current" /> START DEEP TRAINING</>
-                            )}
-                        </button>
+                        {isTraining && activeJob ? (
+                            <div className="flex gap-3">
+                                <button 
+                                    onClick={() => setShowTerminal(true)}
+                                    className="flex-1 py-4 rounded-2xl font-black text-[15px] flex items-center justify-center gap-3 bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 hover:bg-cyan-500/30 transition-all duration-300 shadow-xl"
+                                >
+                                    <Activity className="w-5 h-5" /> SHOW LIVE TERMINAL
+                                </button>
+                                <button 
+                                    onClick={handleCancelTraining}
+                                    className="flex-1 py-4 rounded-2xl font-black text-[15px] flex items-center justify-center gap-2 bg-red-500/10 text-red-400 border border-red-500/30 hover:bg-red-500/20 transition-all"
+                                >
+                                    <XCircle className="w-5 h-5" /> CANCEL
+                                </button>
+                            </div>
+                        ) : (
+                            <button
+                                onClick={handleStartTraining}
+                                disabled={isTraining}
+                                className={`w-full py-4 rounded-2xl font-black text-[15px] flex items-center justify-center gap-3 transition-all duration-300 shadow-xl bg-gradient-to-r from-teal-500 via-blue-500 to-indigo-600 text-white hover:shadow-[0_0_30px_rgba(20,184,166,0.5)] border border-white/20 hover:scale-[1.02] ${isTraining ? 'opacity-50 cursor-wait' : ''}`}
+                            >
+                                <Play className="w-5 h-5 fill-current" /> START DEEP TRAINING
+                            </button>
+                        )}
                     </div>
                 </div>
             </div>
+
+            {/* Live Execution Terminal Modal */}
+            <AnimatePresence>
+                {showTerminal && (
+                    <motion.div 
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        exit={{ opacity: 0, scale: 0.95 }}
+                        className="fixed inset-0 z-[100] flex items-center justify-center p-6 bg-black/80 backdrop-blur-sm"
+                    >
+                        <div className="w-full max-w-6xl h-[85vh] relative flex flex-col min-h-0">
+                            <button 
+                                onClick={() => setShowTerminal(false)}
+                                className="absolute -top-12 right-0 p-2 text-slate-400 hover:text-white transition-colors"
+                            >
+                                <XCircle className="w-8 h-8" />
+                            </button>
+
+                            <div className="flex flex-col bg-black/60 backdrop-blur-2xl border border-cyan-500/20 rounded-3xl shadow-[0_0_50px_rgba(56,189,248,0.1)] overflow-hidden h-full relative z-10 w-full">
+                                {/* Header */}
+                                <div className="px-6 py-4 bg-gradient-to-r from-cyan-900/40 to-blue-900/20 border-b border-cyan-500/20 flex items-center justify-between flex-shrink-0">
+                                    <div className="flex items-center gap-3">
+                                        <Terminal className="w-5 h-5 text-cyan-400" />
+                                        <span className="text-sm font-mono text-cyan-100 tracking-widest font-bold">LIVE_CONSOLE_OUTPUT</span>
+                                    </div>
+                                    <div className="flex gap-2">
+                                        <div className="w-3.5 h-3.5 rounded-full bg-red-500/50 border border-red-400 shadow-[0_0_10px_#ef4444]"></div>
+                                        <div className="w-3.5 h-3.5 rounded-full bg-yellow-500/50 border border-yellow-400 shadow-[0_0_10px_#eab308]"></div>
+                                        <div className="w-3.5 h-3.5 rounded-full bg-green-500/50 border border-green-400 shadow-[0_0_10px_#22c55e]"></div>
+                                    </div>
+                                </div>
+
+                                {/* Terminal Logs Area */}
+                                <div className="flex-1 p-5 overflow-y-auto custom-scrollbar font-mono text-sm leading-relaxed">
+                                    {!activeJob ? (
+                                        <div className="h-full flex flex-col items-center justify-center text-gray-600 space-y-4">
+                                            <Database className="w-12 h-12 opacity-20" />
+                                            <p>Awaiting training instructions...</p>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-1.5 pb-8">
+                                            {activeJob.logs?.map((log, i) => {
+                                                const isError = log.includes("ERROR") || log.includes("CRITICAL");
+                                                const isWarning = log.includes("WARNING");
+                                                const isSuccess = log.includes("SUCCESS") || log.includes("Model saved");
+                                                return (
+                                                    <div key={i} className={`flex ${isError ? 'text-red-400 font-semibold bg-red-500/10 p-1 rounded' : isWarning ? 'text-yellow-300' : isSuccess ? 'text-green-400 font-semibold' : 'text-cyan-300 hover:text-cyan-100'}`}>
+                                                        <span className="opacity-50 mr-3 select-none">[{i.toString().padStart(4, '0')}]</span>
+                                                        <span className="break-all">{log}</span>
+                                                    </div>
+                                                );
+                                            })}
+                                            {activeJob.status === 'RUNNING' && (
+                                                <div className="flex items-center gap-2 text-cyan-500/50 mt-4 animate-pulse">
+                                                    <span className="w-2 h-4 bg-cyan-400 block" />
+                                                    <span>PROCESSING...</span>
+                                                </div>
+                                            )}
+                                            {activeJob.status === 'FAILED' && (
+                                                <div className="mt-4 p-4 border border-red-500/30 bg-red-500/10 rounded-xl text-red-400">
+                                                    <div className="font-bold mb-1">PROCESS TERMINATED</div>
+                                                    <div>{activeJob.error_message}</div>
+                                                </div>
+                                            )}
+                                            {activeJob.status === 'COMPLETED' && (
+                                                <div className="mt-4 text-green-400 font-bold">
+                                                    PROCESS COMPLETED SUCCESSFULLY
+                                                </div>
+                                            )}
+                                            <div ref={logsEndRef} />
+                                        </div>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+        </>
     );
 };
 

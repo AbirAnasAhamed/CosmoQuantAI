@@ -125,7 +125,7 @@ def cancel_forex_training_job(
 
 @router.post("/start-forex-collector", response_model=schemas.TrainingJobResponse)
 def start_forex_collector(
-    request: schemas.StartL2CollectorRequest, # Reusing schema for now
+    request: schemas.StartForexCollectorRequest,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(deps.get_current_user),
@@ -148,8 +148,8 @@ def start_forex_collector(
         status=models.TrainingStatus.RUNNING,
         market_type="forex",
         progress=0.0,
-        config={"target_rows": request.target_rows, "dataset_type": "forex_collector"},
-        logs=[f"[{datetime.utcnow().strftime('%H:%M:%S')}] Started Forex Collector for {request.symbol} with target {request.target_rows}"]
+        config={"target_rows": request.target_rows, "dataset_type": "forex_collector", "mode": request.mode},
+        logs=[f"[{datetime.utcnow().strftime('%H:%M:%S')}] Started Forex Collector for {request.symbol} in {request.mode} mode"]
     )
     db.add(new_job)
     db.commit()
@@ -158,8 +158,12 @@ def start_forex_collector(
     script_path = os.path.join(os.getcwd(), "scripts", "forex_collector.py")
     
     try:
+        cmd = ["python", script_path, "--symbol", request.symbol.upper(), "--target", str(request.target_rows), "--job_id", job_id, "--mode", request.mode, "--timeframe", request.timeframe]
+        if request.mode == 'date' and request.start_date and request.end_date:
+            cmd.extend(["--start_date", request.start_date, "--end_date", request.end_date])
+            
         subprocess.Popen(
-            ["python", script_path, "--symbol", request.symbol.upper(), "--target", str(request.target_rows), "--job_id", job_id],
+            cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL
         )
@@ -169,6 +173,49 @@ def start_forex_collector(
         new_job.error_message = f"Failed to start forex collector subprocess: {str(e)}"
         db.commit()
         raise HTTPException(status_code=500, detail=f"Failed to start collector: {str(e)}")
+
+@router.get("/forex-snapshots", response_model=List[str])
+def list_forex_snapshots(
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """
+    List all downloaded forex snapshot .parquet files.
+    """
+    import os
+    import glob
+    
+    data_dir = os.path.join(os.getcwd(), "data", "raw", "forex_snapshots")
+    if not os.path.exists(data_dir):
+        return []
+        
+    pattern = os.path.join(data_dir, "*.parquet")
+    files = glob.glob(pattern)
+    files.sort(key=os.path.getmtime, reverse=True)
+    return [os.path.basename(f) for f in files]
+
+@router.delete("/forex-snapshots/{filename}")
+def delete_forex_snapshot(
+    filename: str,
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """
+    Delete a downloaded forex snapshot .parquet file.
+    """
+    import os
+    
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+        
+    file_path = os.path.join(os.getcwd(), "data", "raw", "forex_snapshots", filename)
+    
+    if not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail="File not found")
+        
+    try:
+        os.remove(file_path)
+        return {"status": "success", "message": f"Deleted {filename}"}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to delete file: {str(e)}")
 
 
 @router.get("/instruments")
