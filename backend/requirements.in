@@ -103,3 +103,6 @@ imbalanced-learn
 pyarrow
 fastparquet
 mplfinance==0.12.10b0
+cloudscraper
+
+cloudscraper

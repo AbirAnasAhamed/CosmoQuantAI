@@ -7,7 +7,7 @@ import pandas as pd
 from datetime import datetime
 
 # Ensure we can import app modules if running as a standalone script
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'backend')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from app.db.session import SessionLocal
 from app.models.model_training import ModelTrainingJob, TrainingStatus
@@ -69,47 +69,111 @@ def run_forex_collector(symbol: str, target_rows: int, job_id: str, mode: str = 
         }
         granularity = tf_map.get(timeframe.lower(), "M15")
         
+        all_records = []
+        session = requests.Session()
+        session.headers.update(headers)
+        
         if mode == "date" and start_date and end_date:
             _log(f"Fetching {timeframe} data from OANDA API for range {start_date} to {end_date}...")
-            # Convert YYYY-MM-DD to RFC3339 for OANDA (e.g., 2023-10-01T00:00:00Z)
-            from_time = f"{start_date}T00:00:00Z"
-            to_time = f"{end_date}T23:59:59Z"
-            url = f"https://api-fxpractice.oanda.com/v3/instruments/{instrument}/candles?from={from_time}&to={to_time}&granularity={granularity}&price=M"
+            current_from = f"{start_date}T00:00:00Z"
+            end_time = f"{end_date}T23:59:59Z"
+            
+            while True:
+                url = f"https://api-fxpractice.oanda.com/v3/instruments/{instrument}/candles?from={current_from}&count=5000&granularity={granularity}&price=M"
+                response = session.get(url)
+                if response.status_code != 200:
+                    _log(f"OANDA API error: {response.text}")
+                    break
+                    
+                data = response.json()
+                candles = data.get("candles", [])
+                if not candles:
+                    break
+                    
+                _log(f"Fetched {len(candles)} candles starting from {current_from}...")
+                
+                for c in candles:
+                    if not c["complete"]:
+                        continue
+                    if c["time"] > end_time:
+                        continue
+                    all_records.append({
+                        "time": c["time"],
+                        "open": float(c["mid"]["o"]),
+                        "high": float(c["mid"]["h"]),
+                        "low": float(c["mid"]["l"]),
+                        "close": float(c["mid"]["c"]),
+                        "volume": int(c["volume"])
+                    })
+                
+                if candles[-1]["time"] >= end_time:
+                    break
+                    
+                next_from = candles[-1]["time"]
+                if next_from == current_from:
+                    break
+                current_from = next_from
+                time.sleep(0.2)
+                
         else:
             _log(f"Fetching recent {target_rows} candles ({timeframe}) from OANDA API...")
-            count = min(target_rows, 5000)
-            url = f"https://api-fxpractice.oanda.com/v3/instruments/{instrument}/candles?count={count}&granularity={granularity}&price=M"
-        
-        response = requests.get(url, headers=headers)
-        response.raise_for_status()
-        
-        data = response.json()
-        candles = data.get("candles", [])
-        
-        if not candles:
+            remaining = target_rows
+            current_to = None
+            
+            while remaining > 0:
+                fetch_count = min(remaining, 5000)
+                url = f"https://api-fxpractice.oanda.com/v3/instruments/{instrument}/candles?count={fetch_count}&granularity={granularity}&price=M"
+                if current_to:
+                    url += f"&to={current_to}"
+                    
+                response = session.get(url)
+                if response.status_code != 200:
+                    _log(f"OANDA API error: {response.text}")
+                    break
+                    
+                data = response.json()
+                candles = data.get("candles", [])
+                if not candles:
+                    break
+                    
+                _log(f"Fetched {len(candles)} candles ending at {current_to or 'now'}... ({remaining} remaining)")
+                
+                batch_records = []
+                for c in candles:
+                    if not c["complete"]:
+                        continue
+                    batch_records.append({
+                        "time": c["time"],
+                        "open": float(c["mid"]["o"]),
+                        "high": float(c["mid"]["h"]),
+                        "low": float(c["mid"]["l"]),
+                        "close": float(c["mid"]["c"]),
+                        "volume": int(c["volume"])
+                    })
+                
+                all_records = batch_records + all_records
+                remaining -= len(candles)
+                
+                if len(candles) < fetch_count:
+                    _log("No more historical data available from OANDA.")
+                    break
+                    
+                current_to = candles[0]["time"]
+                time.sleep(0.2)
+                
+        if not all_records:
             _log("No candles returned from OANDA.")
             job.status = TrainingStatus.FAILED
             db.commit()
             return
             
-        _log(f"Received {len(candles)} candles. Parsing data...")
+        _log(f"Finished downloading. Total records collected: {len(all_records)}. Parsing data...")
         
-        records = []
-        for c in candles:
-            if not c["complete"]:
-                continue
-            records.append({
-                "time": c["time"],
-                "open": float(c["mid"]["o"]),
-                "high": float(c["mid"]["h"]),
-                "low": float(c["mid"]["l"]),
-                "close": float(c["mid"]["c"]),
-                "volume": int(c["volume"]) # Tick volume
-            })
-            
-        df = pd.DataFrame(records)
+        df = pd.DataFrame(all_records)
+        df.drop_duplicates(subset=["time"], inplace=True)
         # Convert time to standard datetime
         df["time"] = pd.to_datetime(df["time"]).dt.tz_localize(None)
+        df.sort_values("time", inplace=True)
         
         df.to_parquet(output_file, index=False)
         _log(f"Successfully saved {len(df)} rows to {output_file}")

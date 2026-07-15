@@ -1,8 +1,11 @@
 import time
 import asyncio
 import datetime
+import logging
 from typing import List, Any, Optional
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect
+
+logger = logging.getLogger(__name__)
 from sqlalchemy.orm import Session
 from app.services.websocket_manager import manager
 
@@ -155,18 +158,18 @@ def start_forex_collector(
     db.commit()
     db.refresh(new_job)
     
-    script_path = os.path.join(os.getcwd(), "scripts", "forex_collector.py")
+    script_name = "dukascopy_collector.py" if request.data_source == "dukascopy" else "forex_collector.py"
+    script_path = os.path.join(os.getcwd(), "scripts", script_name)
     
     try:
         cmd = ["python", script_path, "--symbol", request.symbol.upper(), "--target", str(request.target_rows), "--job_id", job_id, "--mode", request.mode, "--timeframe", request.timeframe]
         if request.mode == 'date' and request.start_date and request.end_date:
+            logger.info(f"🚀 Starting Forex Collector for {request.symbol} from {request.start_date} to {request.end_date}")
             cmd.extend(["--start_date", request.start_date, "--end_date", request.end_date])
+        else:
+            logger.info(f"🚀 Starting Forex Collector for {request.symbol} for {request.target_rows} rows")
             
-        subprocess.Popen(
-            cmd,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL
-        )
+        subprocess.Popen(cmd)
         return new_job
     except Exception as e:
         new_job.status = models.TrainingStatus.FAILED

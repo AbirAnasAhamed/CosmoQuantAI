@@ -28,7 +28,16 @@ class SpotBiDirectionalExecutor:
             ml_pred = None
             if getattr(self.bot, 'enable_ml_filter', False) and getattr(self.bot, 'ml_predictor', None):
                 try:
-                    ml_pred = self.bot.ml_predictor.predict(orderbook)
+                    import inspect
+                    # ML predict requires current_price and side. We use mid_price and "long" just to trigger a prediction
+                    # so we can read the raw probability score from the predictor state.
+                    if inspect.iscoroutinefunction(self.bot.ml_predictor.predict):
+                        await self.bot.ml_predictor.predict(orderbook, mid_price, "long")
+                    else:
+                        self.bot.ml_predictor.predict(orderbook, mid_price, "long")
+                    
+                    prob = getattr(self.bot.ml_predictor, 'last_prediction_score', 0.5)
+                    ml_pred = {'probability': prob}
                 except Exception as e:
                     self.bot.logger.warning(f"ML Predictor error in Bi-directional mode: {e}")
 

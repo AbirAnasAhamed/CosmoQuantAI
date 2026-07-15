@@ -246,7 +246,7 @@ const ForexModelTrainingStudio: React.FC = () => {
         return () => clearInterval(interval);
     }, [forexScrapeJob?.id, forexScrapeJob?.status]);
 
-    const handleStartForexCollector = async (config: {target_rows: number, mode?: string, start_date?: string, end_date?: string, timeframe?: string}) => {
+    const handleStartForexCollector = async (config: {target_rows: number, mode?: string, start_date?: string, end_date?: string, timeframe?: string, data_source?: string}) => {
         try {
             const job = await forexMlTrainingService.startForexCollector({
                 symbol: symbol,

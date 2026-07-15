@@ -20,6 +20,7 @@ export const ForexScraperPanel: React.FC<ForexScraperPanelProps> = ({
     onCancelCollector,
     timeframe
 }) => {
+    const [dataSource, setDataSource] = useState<'oanda' | 'dukascopy'>('oanda');
     const [dateRangeMode, setDateRangeMode] = useState<'ticks' | 'date'>('date');
     const [targetRows, setTargetRows] = useState<number>(10000);
     const [startDate, setStartDate] = useState(() => {
@@ -54,29 +55,42 @@ export const ForexScraperPanel: React.FC<ForexScraperPanelProps> = ({
             const e = new Date(endDate).getTime();
             const days = Math.max(0, (e - s) / (1000 * 3600 * 24));
             
-            let rowsPerDay = 24; 
-            if (timeframe === '5s') rowsPerDay = 17280;
-            if (timeframe === '10s') rowsPerDay = 8640;
-            if (timeframe === '30s') rowsPerDay = 2880;
-            if (timeframe === '1m') rowsPerDay = 1440;
-            if (timeframe === '5m') rowsPerDay = 288;
-            if (timeframe === '15m') rowsPerDay = 96;
-            if (timeframe === '30m') rowsPerDay = 48;
-            if (timeframe === '1h') rowsPerDay = 24;
-            if (timeframe === '4h') rowsPerDay = 6;
-            if (timeframe === '1d') rowsPerDay = 1;
-            
-            estimatedRows = Math.floor(days * rowsPerDay * 0.71); // ~5 trading days a week
+            if (dataSource === 'dukascopy') {
+                // Average Forex tick volume per day is ~100,000 ticks
+                let rowsPerDay = 100000;
+                estimatedRows = Math.floor(days * rowsPerDay * 0.71); // ~5 trading days a week
+            } else {
+                let rowsPerDay = 24; 
+                if (timeframe === '5s') rowsPerDay = 17280;
+                if (timeframe === '10s') rowsPerDay = 8640;
+                if (timeframe === '30s') rowsPerDay = 2880;
+                if (timeframe === '1m') rowsPerDay = 1440;
+                if (timeframe === '5m') rowsPerDay = 288;
+                if (timeframe === '15m') rowsPerDay = 96;
+                if (timeframe === '30m') rowsPerDay = 48;
+                if (timeframe === '1h') rowsPerDay = 24;
+                if (timeframe === '4h') rowsPerDay = 6;
+                if (timeframe === '1d') rowsPerDay = 1;
+                
+                estimatedRows = Math.floor(days * rowsPerDay * 0.71); // ~5 trading days a week
+            }
         }
         
-        const sizeMb = (estimatedRows * 100) / (1024 * 1024); // approx 100 bytes per row
-        const timeSecs = Math.max(5, Math.floor(estimatedRows / 5000)); // Rough estimate
+        const sizeMb = (estimatedRows * (dataSource === 'dukascopy' ? 40 : 100)) / (1024 * 1024); // Ticks are smaller
+        let timeSecs = Math.max(5, Math.floor(estimatedRows / 5000));
+        
+        if (dataSource === 'dukascopy' && dateRangeMode === 'date') {
+            const s = new Date(startDate).getTime();
+            const e = new Date(endDate).getTime();
+            const days = Math.max(0, (e - s) / (1000 * 3600 * 24));
+            timeSecs = Math.max(5, Math.floor(days * 0.5)); // ~0.5 secs per day to fetch bi5
+        }
         
         return {
             rows: estimatedRows,
             size: sizeMb < 1 ? sizeMb.toFixed(2) : Math.round(sizeMb),
             time: timeSecs > 60 ? `${(timeSecs/60).toFixed(1)} mins` : `${timeSecs} secs`,
-            isDangerous: sizeMb > 500 // 500MB warning
+            isDangerous: sizeMb > (dataSource === 'dukascopy' ? 1000 : 500) // Ticks can easily reach 1GB
         };
     };
 
@@ -84,7 +98,8 @@ export const ForexScraperPanel: React.FC<ForexScraperPanelProps> = ({
 
     const handleStart = () => {
         onStartCollector({
-            timeframe: timeframe,
+            data_source: dataSource,
+            timeframe: dataSource === 'oanda' ? timeframe : undefined,
             mode: dateRangeMode,
             target_rows: targetRows,
             start_date: dateRangeMode === 'date' ? startDate : undefined,
@@ -104,16 +119,35 @@ export const ForexScraperPanel: React.FC<ForexScraperPanelProps> = ({
                     <h4 className="text-sm font-black text-teal-400 flex items-center gap-2 tracking-wide uppercase">
                         <Activity className="w-4 h-4" /> Live Forex Data Scraper
                     </h4>
-                    <p className="text-xs text-slate-400 mt-1 font-medium">Download high-quality historical tick/candle data directly from OANDA.</p>
+                    <p className="text-xs text-slate-400 mt-1 font-medium">Download high-quality historical tick/candle data directly from OANDA or Dukascopy.</p>
                 </div>
+            </div>
+
+            {/* Data Source Toggles */}
+            <div className="flex bg-black/40 rounded-xl p-1 border border-white/5">
+                <button
+                    onClick={() => { setDataSource('oanda'); }}
+                    disabled={isDisabled}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${dataSource === 'oanda' ? 'bg-teal-500/20 text-teal-400 shadow-[0_0_10px_rgba(20,184,166,0.2)]' : 'text-slate-500 hover:text-slate-300'}`}
+                >
+                    <Database className="w-4 h-4" /> OANDA (Candles / S5)
+                </button>
+                <button
+                    onClick={() => { setDataSource('dukascopy'); setDateRangeMode('date'); }}
+                    disabled={isDisabled}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${dataSource === 'dukascopy' ? 'bg-indigo-500/20 text-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.2)]' : 'text-slate-500 hover:text-slate-300'}`}
+                >
+                    <ShieldCheck className="w-4 h-4" /> Dukascopy (Pure Ticks)
+                </button>
             </div>
 
             {/* Mode Toggles */}
             <div className="flex bg-black/40 rounded-xl p-1 border border-white/5">
                 <button
                     onClick={() => setDateRangeMode('ticks')}
-                    disabled={isDisabled}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${dateRangeMode === 'ticks' ? 'bg-teal-500/20 text-teal-400 shadow-[0_0_10px_rgba(20,184,166,0.2)]' : 'text-slate-500 hover:text-slate-300'}`}
+                    disabled={isDisabled || dataSource === 'dukascopy'}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${dateRangeMode === 'ticks' ? 'bg-teal-500/20 text-teal-400 shadow-[0_0_10px_rgba(20,184,166,0.2)]' : 'text-slate-500 hover:text-slate-300'} ${dataSource === 'dukascopy' ? 'opacity-50 cursor-not-allowed' : ''}`}
+                    title={dataSource === 'dukascopy' ? 'Fixed Rows is disabled for Dukascopy ticks. Use Date Range.' : ''}
                 >
                     <Hash className="w-4 h-4" /> Fixed Rows
                 </button>
@@ -160,9 +194,10 @@ export const ForexScraperPanel: React.FC<ForexScraperPanelProps> = ({
                     <div className="space-y-3 animate-in fade-in zoom-in duration-300">
                         <div className="flex justify-between items-center mb-1">
                             <label className="text-xs font-bold text-slate-300">Date Range</label>
-                            <span className="text-sm font-black text-indigo-400 bg-indigo-500/10 px-2.5 py-1 rounded-lg border border-indigo-500/20 font-mono">
-                                ~{est.rows.toLocaleString()} Rows Est.
-                            </span>
+                            <div className={`px-3 py-1.5 rounded-lg border text-xs font-bold font-mono shadow-inner flex items-center gap-1.5 ${est.isDangerous ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300'}`}>
+                                ~{est.rows.toLocaleString()} {dataSource === 'dukascopy' ? 'Ticks Est.' : 'Rows Est.'}
+                                {est.isDangerous && <AlertTriangle className="w-3 h-3 text-red-400" />}
+                            </div>
                         </div>
                         <div className="flex gap-4">
                             <div className="flex-1">
@@ -253,7 +288,7 @@ export const ForexScraperPanel: React.FC<ForexScraperPanelProps> = ({
                                 {['PENDING', 'RUNNING'].includes(forexScrapeJob.status) && <Loader2 className={`w-3.5 h-3.5 animate-spin ${dateRangeMode === 'date' ? 'text-indigo-500' : 'text-teal-500'}`} />}
                                 Collector Status
                             </span>
-                            <span className={`text-sm font-black ${dateRangeMode === 'date' ? 'text-indigo-400' : 'text-teal-400'}`}>{forexScrapeJob.progress}%</span>
+                            <span className={`text-sm font-black ${dateRangeMode === 'date' ? 'text-indigo-400' : 'text-teal-400'}`}>{Number(forexScrapeJob.progress).toFixed(1)}%</span>
                         </div>
                         
                         <div className="w-full bg-slate-800 rounded-full h-2 mb-3 overflow-hidden shadow-inner">

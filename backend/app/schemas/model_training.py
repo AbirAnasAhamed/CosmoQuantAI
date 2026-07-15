@@ -41,6 +41,7 @@ class StartForexCollectorRequest(BaseModel):
     mode: str = "ticks" # "ticks" or "date"
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+    data_source: str = "oanda" # "oanda" or "dukascopy"
 
 class StartHybridCollectorRequest(BaseModel):
     symbol: str

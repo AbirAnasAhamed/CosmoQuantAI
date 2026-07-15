@@ -109,7 +109,7 @@ export const forexMlTrainingService = {
         return response.data;
     },
 
-    startForexCollector: async (config: {symbol: string, target_rows: number, mode?: string, start_date?: string, end_date?: string, timeframe?: string}): Promise<ForexTrainingJob> => {
+    startForexCollector: async (config: {symbol: string, target_rows: number, mode?: string, start_date?: string, end_date?: string, timeframe?: string, data_source?: string}): Promise<ForexTrainingJob> => {
         const response = await apiClient.post('/forex-model-training/start-forex-collector', config);
         return response.data;
     },
