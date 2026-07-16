@@ -113,6 +113,17 @@ def run_forex_collector(symbol: str, target_rows: int, job_id: str, mode: str = 
                 if next_from == current_from:
                     break
                 current_from = next_from
+                
+                try:
+                    start_ts = pd.to_datetime(f"{start_date}T00:00:00Z").timestamp()
+                    end_ts = pd.to_datetime(f"{end_date}T23:59:59Z").timestamp()
+                    curr_ts = pd.to_datetime(current_from).timestamp()
+                    if end_ts > start_ts:
+                        job.progress = min(99.0, max(0.0, ((curr_ts - start_ts) / (end_ts - start_ts)) * 100))
+                        db.commit()
+                except Exception:
+                    pass
+                
                 time.sleep(0.2)
                 
         else:
@@ -153,6 +164,10 @@ def run_forex_collector(symbol: str, target_rows: int, job_id: str, mode: str = 
                 
                 all_records = batch_records + all_records
                 remaining -= len(candles)
+                
+                if target_rows > 0:
+                    job.progress = min(99.0, max(0.0, ((target_rows - remaining) / target_rows) * 100))
+                    db.commit()
                 
                 if len(candles) < fetch_count:
                     _log("No more historical data available from OANDA.")
