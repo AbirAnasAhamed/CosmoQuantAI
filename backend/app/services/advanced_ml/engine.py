@@ -745,7 +745,9 @@ class AdvancedMLEngine:
                 # 3. Save Checkpoint
                 current_job_timestep = self.n_calls + start_timestep
                 if current_job_timestep > 0 and current_job_timestep % self.checkpoint_interval == 0:
-                    self.model.save(self.checkpoint_path)
+                    tmp_path = self.checkpoint_path + ".tmp"
+                    self.model.save(tmp_path)
+                    os.replace(tmp_path, self.checkpoint_path)
                     with open(self.state_path, "w") as f:
                         json.dump({"timestep": current_job_timestep}, f)
                 

@@ -569,6 +569,29 @@ def train_model_task(job_id: str, db: Session):
         ft_label = f"🔄 Resuming from Checkpoint: {_prev_path}" if is_auto_resume else (f"🔄 Fine-Tune from: {_prev_path}" if is_fine_tune else "🆕 Fresh Training (no prior checkpoint)")
         add_log(ft_label)
         
+        if (is_fine_tune or is_auto_resume) and _prev_path:
+            import re
+            match = re.search(r'job_(train_\d+)', str(_prev_path))
+            if match:
+                prev_job_id = match.group(1)
+                add_log(f"🔍 Extracting feature configuration from previous job {prev_job_id} to prevent observation space mismatch...")
+                try:
+                    prev_job = db.query(models.ModelTrainingJob).filter(models.ModelTrainingJob.id == prev_job_id).first()
+                    if prev_job and prev_job.config:
+                        prev_config = prev_job.config
+                        if isinstance(prev_config, str):
+                            import json
+                            prev_config = json.loads(prev_config)
+                        feature_keys = ["features", "l2_features", "plp_features", "indicators", "resample_l2", "is_deep_training", "dataset_type", "fractional_diff"]
+                        for k in feature_keys:
+                            if k in prev_config:
+                                config[k] = prev_config[k]
+                                add_log(f"   ↳ Inherited config: {k}")
+                        job.config = config
+                        db.commit()
+                except Exception as e_cfg:
+                    add_log(f"⚠️ Failed to inherit previous config: {e_cfg}")
+        
         is_cross_algorithm_transfer = config.get("is_cross_algorithm_transfer", False)
         if is_cross_algorithm_transfer and _prev_path and os.path.exists(_prev_path):
             if source_algo:
@@ -1177,7 +1200,47 @@ def train_model_task(job_id: str, db: Session):
         
         # ── GLOBAL FEATURE CLEANER ──
         # Ensure no non-stationary or raw price columns leak into ANY dataset type (Hybrid, L2, OHLCV, etc.)
-        global_forbidden = ["Close", "Open", "High", "Low", "microprice", "timestamp", "datetime", "CVD_Proxy", "vwap", "VWAP"]
+        global_forbidden = ["Close", "Open", "High", "Low", "microprice", "timestamp", "datetime", "CVD_Proxy", "vwap", "VWAP", "Target", "Target_Direction", "Target_SL", "Target_TP"]
+        
+        if is_fine_tune and _prev_path:
+            import re, json
+            match = re.search(r'job_(train_\d+)', str(_prev_path))
+            if match:
+                prev_job_id = match.group(1)
+                json_path = str(_prev_path).replace('.zip', '.json')
+                if os.path.exists(json_path):
+                    try:
+                        with open(json_path, 'r') as f:
+                            meta = json.load(f)
+                        if "features" in meta and len(meta["features"]) > 0:
+                            old_features = meta["features"]
+                            add_log(f"🔄 Hard-syncing {len(old_features)} exact features from JSON metadata to prevent observation space mismatch.")
+                            features = old_features
+                            # Pad missing columns with 0.0 in current df
+                            missing = [f for f in features if f not in df.columns]
+                            if missing:
+                                add_log(f"⚠️ Padding {len(missing)} missing features with 0.0 to match old model shape.")
+                                for col in missing:
+                                    df[col] = 0.0
+                    except Exception as e:
+                        add_log(f"⚠️ Failed to hard-sync features from JSON metadata: {e}")
+                else:
+                    old_dataset = os.path.join(dataset_dir, f"dataset_{prev_job_id}.csv")
+                    if os.path.exists(old_dataset):
+                        try:
+                            old_df = pd.read_csv(old_dataset, nrows=0)
+                            old_features = [c for c in old_df.columns if c not in global_forbidden]
+                            add_log(f"🔄 Hard-syncing {len(old_features)} exact features from previous dataset {prev_job_id} to prevent observation space mismatch.")
+                            features = old_features
+                            # Pad missing columns with 0.0 in current df
+                            missing = [f for f in features if f not in df.columns]
+                            if missing:
+                                add_log(f"⚠️ Padding {len(missing)} missing features with 0.0 to match old model shape.")
+                                for col in missing:
+                                    df[col] = 0.0
+                        except Exception as e:
+                            add_log(f"⚠️ Failed to hard-sync features from old dataset: {e}")
+
         original_feature_count = len(features)
         features = [f for f in features if f not in global_forbidden and f in df.columns]
         if len(features) < original_feature_count:

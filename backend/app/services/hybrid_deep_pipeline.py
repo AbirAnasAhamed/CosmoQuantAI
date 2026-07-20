@@ -663,22 +663,33 @@ def build_hybrid_deep_dataset(job, db: Session, config: dict, add_log, check_can
         )
 
     # ── Step 6: Modular Feature List ──────────────────────────────────────────
-    final_features = []
-    for col in df.columns:
-        if col in _EXCLUDE_COLS:
-            continue
-        if col in _KNOWN_L2_FEATURES:
-            if col in sel_l2:
+    forced_features = config.get("features")
+    
+    if forced_features and isinstance(forced_features, list) and len(forced_features) > 0:
+        add_log(f"🔄 Using forced feature list from config ({len(forced_features)} features) to preserve observation space.")
+        final_features = forced_features
+        # Pad missing columns with 0.0 to prevent shape mismatches
+        missing = [f for f in final_features if f not in df.columns]
+        if missing:
+            add_log(f"⚠️ Padding {len(missing)} missing features with 0.0: {missing[:5]}...")
+            for col in missing:
+                df[col] = 0.0
+    else:
+        final_features = []
+        for col in df.columns:
+            if col in _EXCLUDE_COLS:
+                continue
+            if col in _KNOWN_L2_FEATURES:
+                if col in sel_l2:
+                    final_features.append(col)
+            elif col in _KNOWN_TRADE_FEATURES:
+                if col in sel_trade:
+                    final_features.append(col)
+            elif sel_plp and col in sel_plp:
                 final_features.append(col)
-        elif col in _KNOWN_TRADE_FEATURES:
-            if col in sel_trade:
-                final_features.append(col)
-        elif sel_plp and col in sel_plp:
-            final_features.append(col)
-        # All other columns (e.g., mid_price from merge) are excluded cleanly
 
-    if not final_features:
-        final_features = ['Close']
+        if not final_features:
+            final_features = ['Close']
 
     l2_cnt    = sum(1 for f in final_features if f in _KNOWN_L2_FEATURES)
     trade_cnt = sum(1 for f in final_features if f in _KNOWN_TRADE_FEATURES)
