@@ -580,7 +580,6 @@ def train_model_task(job_id: str, db: Session):
                     if prev_job and prev_job.config:
                         prev_config = prev_job.config
                         if isinstance(prev_config, str):
-                            import json
                             prev_config = json.loads(prev_config)
                         feature_keys = ["features", "l2_features", "plp_features", "indicators", "resample_l2", "is_deep_training", "dataset_type", "fractional_diff"]
                         for k in feature_keys:
@@ -1203,7 +1202,7 @@ def train_model_task(job_id: str, db: Session):
         global_forbidden = ["Close", "Open", "High", "Low", "microprice", "timestamp", "datetime", "CVD_Proxy", "vwap", "VWAP", "Target", "Target_Direction", "Target_SL", "Target_TP"]
         
         if is_fine_tune and _prev_path:
-            import re, json
+            import re
             match = re.search(r'job_(train_\d+)', str(_prev_path))
             if match:
                 prev_job_id = match.group(1)

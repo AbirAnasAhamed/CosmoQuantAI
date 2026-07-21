@@ -136,11 +136,11 @@ class AdvancedTradingEnv(gym.Env):
             if action == 1: target_position = 1
             elif action == 2: target_position = -1
         
+        # 3. Update Net Worth based on current price BEFORE closing/opening positions
+        self._update_net_worth(current_price)
+        
         if target_position != self.position:
             self._handle_position_change(target_position, current_price)
-        
-        # 3. Update Net Worth based on current price
-        self._update_net_worth(current_price)
         
         # 4. Calculate Reward
         reward = self._calculate_reward(prev_net_worth)
@@ -218,8 +218,11 @@ class AdvancedTradingEnv(gym.Env):
         # Correct approach for continuous step:
         if self.current_step > 0:
             prev_price = self.df.loc[self.current_step - 1, 'Raw_Close'] if 'Raw_Close' in self.df.columns else self.df.loc[self.current_step - 1, 'Close']
-            # If we just opened the position this step, the return starts from entry_price
-            ref_price = prev_price if self.trade_history and self.trade_history[-1]['step'] < self.current_step else self.entry_price
+            # Since update happens BEFORE position change, if position was opened in the PREVIOUS step, it starts from entry_price
+            if self.trade_history and self.trade_history[-1]['step'] == self.current_step - 1 and self.trade_history[-1]['type'].startswith('open'):
+                ref_price = self.entry_price
+            else:
+                ref_price = prev_price
             
             if ref_price <= 0:
                 ref_price = 1e-8

@@ -66,6 +66,10 @@ class AdvancedDataHandler:
             
         res_df = df[needed_cols].copy()
         
+        # FIX: Preserve Raw_Close for unscaled PnL calculation in the TradingEnv
+        if 'Close' in df.columns:
+            res_df['Raw_Close'] = df['Close']
+        
         # FIX: Ensure no NaNs or Infs
         res_df.replace([np.inf, -np.inf], np.nan, inplace=True)
         res_df.ffill(inplace=True)
