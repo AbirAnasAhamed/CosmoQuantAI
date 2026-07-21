@@ -41,7 +41,7 @@ watchfiles==1.1.1
 websockets==15.0.1
 fastapi-mail
 ccxt  # This includes ccxt.pro automatically
-pandas
+pandas<3.0.0
 numpy
 backtrader
 google-genai
@@ -106,3 +106,6 @@ mplfinance==0.12.10b0
 cloudscraper
 
 cloudscraper
+neuralprophet
+holidays==0.24.0
+zopfli>=0.4.3

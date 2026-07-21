@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Database, Activity, HardDrive, Cpu, AlertTriangle, Loader2, Calendar, Hash, CheckCircle2, Clock, ShieldCheck } from 'lucide-react';
-import { ForexTrainingJob } from '@/services/forexMlTrainingService';
+import { Database, Activity, HardDrive, Cpu, AlertTriangle, Loader2, Calendar, Hash, CheckCircle2, Clock, ShieldCheck, UploadCloud } from 'lucide-react';
+import { ForexTrainingJob, forexMlTrainingService } from '@/services/forexMlTrainingService';
 
 interface ForexScraperPanelProps {
     symbol: string;
@@ -10,6 +10,7 @@ interface ForexScraperPanelProps {
     onStartCollector: (config: any) => void;
     onCancelCollector: () => void;
     timeframe: string;
+    setForexScrapeJob?: (job: ForexTrainingJob) => void;
 }
 
 export const ForexScraperPanel: React.FC<ForexScraperPanelProps> = ({
@@ -18,9 +19,13 @@ export const ForexScraperPanel: React.FC<ForexScraperPanelProps> = ({
     forexScrapeJob,
     onStartCollector,
     onCancelCollector,
-    timeframe
+    timeframe,
+    setForexScrapeJob
 }) => {
-    const [dataSource, setDataSource] = useState<'oanda' | 'dukascopy'>('oanda');
+    const [dataSource, setDataSource] = useState<'oanda' | 'tickstory'>('oanda');
+    const [uploadFile, setUploadFile] = useState<File | null>(null);
+    const [isUploading, setIsUploading] = useState(false);
+    const [uploadProgress, setUploadProgress] = useState(0);
     const [dateRangeMode, setDateRangeMode] = useState<'ticks' | 'date'>('date');
     const [targetRows, setTargetRows] = useState<number>(10000);
     const [startDate, setStartDate] = useState(() => {
@@ -55,10 +60,9 @@ export const ForexScraperPanel: React.FC<ForexScraperPanelProps> = ({
             const e = new Date(endDate).getTime();
             const days = Math.max(0, (e - s) / (1000 * 3600 * 24));
             
-            if (dataSource === 'dukascopy') {
-                // Average Forex tick volume per day is ~100,000 ticks
+            if (dataSource === 'tickstory') {
                 let rowsPerDay = 100000;
-                estimatedRows = Math.floor(days * rowsPerDay * 0.71); // ~5 trading days a week
+                estimatedRows = Math.floor(days * rowsPerDay * 0.71);
             } else {
                 let rowsPerDay = 24; 
                 if (timeframe === '5s') rowsPerDay = 17280;
@@ -76,27 +80,50 @@ export const ForexScraperPanel: React.FC<ForexScraperPanelProps> = ({
             }
         }
         
-        const sizeMb = (estimatedRows * (dataSource === 'dukascopy' ? 40 : 100)) / (1024 * 1024); // Ticks are smaller
-        let timeSecs = Math.max(5, Math.floor(estimatedRows / 5000));
+        const sizeMb = uploadFile ? (uploadFile.size / (1024 * 1024)) : ((estimatedRows * (dataSource === 'tickstory' ? 40 : 100)) / (1024 * 1024));
+        let timeSecs = uploadFile ? Math.max(5, Math.floor(sizeMb * 0.5)) : Math.max(5, Math.floor(estimatedRows / 5000));
         
-        if (dataSource === 'dukascopy' && dateRangeMode === 'date') {
-            const s = new Date(startDate).getTime();
-            const e = new Date(endDate).getTime();
-            const days = Math.max(0, (e - s) / (1000 * 3600 * 24));
-            timeSecs = Math.max(5, Math.floor(days * 0.5)); // ~0.5 secs per day to fetch bi5
+        if (dataSource === 'tickstory' && uploadFile) {
+            timeSecs = Math.max(10, Math.floor(sizeMb * 0.2)); // ~0.2 secs per MB parsing speed
         }
         
         return {
-            rows: estimatedRows,
+            rows: uploadFile ? "N/A" : estimatedRows,
             size: sizeMb < 1 ? sizeMb.toFixed(2) : Math.round(sizeMb),
             time: timeSecs > 60 ? `${(timeSecs/60).toFixed(1)} mins` : `${timeSecs} secs`,
-            isDangerous: sizeMb > (dataSource === 'dukascopy' ? 1000 : 500) // Ticks can easily reach 1GB
+            isDangerous: sizeMb > (dataSource === 'tickstory' ? 1000 : 500)
         };
     };
 
     const est = calculateEstimates();
 
-    const handleStart = () => {
+    const handleStart = async () => {
+        if (dataSource === 'tickstory') {
+            if (!uploadFile) {
+                alert("Please select a CSV file first.");
+                return;
+            }
+            setIsUploading(true);
+            setUploadProgress(0);
+            try {
+                const job = await forexMlTrainingService.uploadTickstoryCsv(symbol, uploadFile, (progressEvent) => {
+                    const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+                    setUploadProgress(percentCompleted);
+                });
+                if (setForexScrapeJob) {
+                    setForexScrapeJob(job);
+                } else {
+                    // Fallback if prop not provided
+                    alert("Upload started: " + job.id);
+                }
+            } catch (err: any) {
+                alert("Upload failed: " + (err.response?.data?.detail || err.message));
+            } finally {
+                setIsUploading(false);
+            }
+            return;
+        }
+
         onStartCollector({
             data_source: dataSource,
             timeframe: dataSource === 'oanda' ? timeframe : undefined,
@@ -108,7 +135,7 @@ export const ForexScraperPanel: React.FC<ForexScraperPanelProps> = ({
     };
 
     const isRunning = forexScrapeJob && ['PENDING', 'RUNNING'].includes(forexScrapeJob.status);
-    const isDisabled = isTraining || isRunning;
+    const isDisabled = isTraining || isRunning || isUploading;
 
     return (
         <div className="p-5 bg-gradient-to-br from-teal-900/10 to-blue-900/10 rounded-2xl border border-teal-500/30 shadow-[0_0_25px_rgba(20,184,166,0.05)] space-y-6">
@@ -133,21 +160,20 @@ export const ForexScraperPanel: React.FC<ForexScraperPanelProps> = ({
                     <Database className="w-4 h-4" /> OANDA (Candles / S5)
                 </button>
                 <button
-                    onClick={() => { setDataSource('dukascopy'); setDateRangeMode('date'); }}
+                    onClick={() => { setDataSource('tickstory'); setDateRangeMode('date'); }}
                     disabled={isDisabled}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${dataSource === 'dukascopy' ? 'bg-indigo-500/20 text-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.2)]' : 'text-slate-500 hover:text-slate-300'}`}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${dataSource === 'tickstory' ? 'bg-indigo-500/20 text-indigo-400 shadow-[0_0_10px_rgba(99,102,241,0.2)]' : 'text-slate-500 hover:text-slate-300'}`}
                 >
-                    <ShieldCheck className="w-4 h-4" /> Dukascopy (Pure Ticks)
+                    <UploadCloud className="w-4 h-4" /> Tickstory (CSV Upload)
                 </button>
             </div>
 
             {/* Mode Toggles */}
-            <div className="flex bg-black/40 rounded-xl p-1 border border-white/5">
+            <div className={`flex bg-black/40 rounded-xl p-1 border border-white/5 ${dataSource === 'tickstory' ? 'opacity-50 pointer-events-none hidden' : ''}`}>
                 <button
                     onClick={() => setDateRangeMode('ticks')}
-                    disabled={isDisabled || dataSource === 'dukascopy'}
-                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${dateRangeMode === 'ticks' ? 'bg-teal-500/20 text-teal-400 shadow-[0_0_10px_rgba(20,184,166,0.2)]' : 'text-slate-500 hover:text-slate-300'} ${dataSource === 'dukascopy' ? 'opacity-50 cursor-not-allowed' : ''}`}
-                    title={dataSource === 'dukascopy' ? 'Fixed Rows is disabled for Dukascopy ticks. Use Date Range.' : ''}
+                    disabled={isDisabled || dataSource === 'tickstory'}
+                    className={`flex-1 flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-bold transition-all ${dateRangeMode === 'ticks' ? 'bg-teal-500/20 text-teal-400 shadow-[0_0_10px_rgba(20,184,166,0.2)]' : 'text-slate-500 hover:text-slate-300'}`}
                 >
                     <Hash className="w-4 h-4" /> Fixed Rows
                 </button>
@@ -162,7 +188,29 @@ export const ForexScraperPanel: React.FC<ForexScraperPanelProps> = ({
 
             {/* Main Configuration Area */}
             <div className="bg-black/30 p-4 rounded-xl border border-white/5 space-y-4">
-                {dateRangeMode === 'ticks' ? (
+                {dataSource === 'tickstory' ? (
+                    <div className="space-y-4 animate-in fade-in zoom-in duration-300">
+                        <div className="flex justify-between items-center mb-1">
+                            <label className="text-xs font-bold text-slate-300">Upload Tickstory CSV Data</label>
+                        </div>
+                        <div className="border-2 border-dashed border-indigo-500/30 rounded-xl p-8 flex flex-col items-center justify-center bg-indigo-900/10 hover:bg-indigo-900/20 transition-colors relative">
+                            <input 
+                                type="file" 
+                                accept=".csv"
+                                onChange={(e) => setUploadFile(e.target.files ? e.target.files[0] : null)}
+                                disabled={isDisabled}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                            />
+                            <UploadCloud className="w-8 h-8 text-indigo-400 mb-3" />
+                            <p className="text-sm font-bold text-indigo-300 text-center">
+                                {uploadFile ? uploadFile.name : "Drag & drop CSV file or click to browse"}
+                            </p>
+                            <p className="text-[10px] text-slate-400 mt-2 text-center max-w-[250px]">
+                                {uploadFile ? `${(uploadFile.size / (1024 * 1024)).toFixed(2)} MB - Ready to process` : "Supports large Tickstory tick exports (GBs). Processed in background."}
+                            </p>
+                        </div>
+                    </div>
+                ) : dateRangeMode === 'ticks' ? (
                     <div className="space-y-3 animate-in fade-in zoom-in duration-300">
                         <div className="flex justify-between items-center">
                             <label className="text-xs font-bold text-slate-300">Target Rows</label>
@@ -195,7 +243,7 @@ export const ForexScraperPanel: React.FC<ForexScraperPanelProps> = ({
                         <div className="flex justify-between items-center mb-1">
                             <label className="text-xs font-bold text-slate-300">Date Range</label>
                             <div className={`px-3 py-1.5 rounded-lg border text-xs font-bold font-mono shadow-inner flex items-center gap-1.5 ${est.isDangerous ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-indigo-500/10 border-indigo-500/30 text-indigo-300'}`}>
-                                ~{est.rows.toLocaleString()} {dataSource === 'dukascopy' ? 'Ticks Est.' : 'Rows Est.'}
+                                ~{est.rows.toLocaleString()} Rows Est.
                                 {est.isDangerous && <AlertTriangle className="w-3 h-3 text-red-400" />}
                             </div>
                         </div>
@@ -263,58 +311,64 @@ export const ForexScraperPanel: React.FC<ForexScraperPanelProps> = ({
 
             {/* Action Buttons & Status */}
             <div>
-                {(!forexScrapeJob || ['COMPLETED', 'FAILED'].includes(forexScrapeJob.status)) && (
+                {(!forexScrapeJob || ['COMPLETED', 'FAILED'].includes(forexScrapeJob.status)) && !isUploading && (
                     <button
                         onClick={handleStart}
-                        disabled={isDisabled || (dateRangeMode === 'ticks' && targetRows <= 0)}
-                        className={`w-full py-3.5 rounded-xl font-black text-sm text-white transition-all shadow-[0_0_20px_rgba(20,184,166,0.3)] disabled:opacity-50 disabled:shadow-none hover:scale-[1.01] ${dateRangeMode === 'date' ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500' : 'bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-500 hover:to-blue-500'}`}
+                        disabled={isDisabled || (dataSource !== 'tickstory' && dateRangeMode === 'ticks' && targetRows <= 0)}
+                        className={`w-full py-3.5 rounded-xl font-black text-sm text-white transition-all shadow-[0_0_20px_rgba(20,184,166,0.3)] disabled:opacity-50 disabled:shadow-none hover:scale-[1.01] ${dateRangeMode === 'date' || dataSource === 'tickstory' ? 'bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500' : 'bg-gradient-to-r from-teal-600 to-blue-600 hover:from-teal-500 hover:to-blue-500'}`}
                     >
-                        Start Data Collector
+                        {dataSource === 'tickstory' ? 'Upload & Process Data' : 'Start Data Collector'}
                     </button>
                 )}
 
-                {forexScrapeJob && (
+                {(forexScrapeJob || isUploading) && (
                     <motion.div 
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         className={`mt-4 p-4 bg-[#0A0A0A] rounded-xl border relative overflow-hidden ${dateRangeMode === 'date' ? 'border-indigo-500/30' : 'border-teal-500/30'}`}
                     >
-                        {['PENDING', 'RUNNING'].includes(forexScrapeJob.status) && (
+                        {(isUploading || (forexScrapeJob && ['PENDING', 'RUNNING'].includes(forexScrapeJob.status))) && (
                             <div className={`absolute top-0 left-0 w-full h-[1px] bg-gradient-to-r animate-[moveBg_2s_linear_infinite] bg-[length:200%_100%] ${dateRangeMode === 'date' ? 'from-indigo-500 via-purple-500 to-indigo-500' : 'from-teal-500 via-blue-500 to-teal-500'}`}></div>
                         )}
                         
                         <div className="flex justify-between items-end mb-2">
                             <span className="text-xs font-bold text-slate-400 flex items-center gap-2">
-                                {['PENDING', 'RUNNING'].includes(forexScrapeJob.status) && <Loader2 className={`w-3.5 h-3.5 animate-spin ${dateRangeMode === 'date' ? 'text-indigo-500' : 'text-teal-500'}`} />}
-                                Collector Status
+                                {(isUploading || (forexScrapeJob && ['PENDING', 'RUNNING'].includes(forexScrapeJob.status))) && <Loader2 className={`w-3.5 h-3.5 animate-spin ${dateRangeMode === 'date' ? 'text-indigo-500' : 'text-teal-500'}`} />}
+                                {isUploading ? 'Uploading Data to Server...' : 'Data Processing Status'}
                             </span>
-                            <span className={`text-sm font-black ${dateRangeMode === 'date' ? 'text-indigo-400' : 'text-teal-400'}`}>{Number(forexScrapeJob.progress).toFixed(1)}%</span>
+                            <span className={`text-sm font-black ${dateRangeMode === 'date' ? 'text-indigo-400' : 'text-teal-400'}`}>
+                                {isUploading ? `${uploadProgress}%` : (forexScrapeJob ? `${Number(forexScrapeJob.progress).toFixed(1)}%` : '0%')}
+                            </span>
                         </div>
                         
                         <div className="w-full bg-slate-800 rounded-full h-2 mb-3 overflow-hidden shadow-inner">
                             <div 
                                 className={`h-2 rounded-full transition-all duration-300 relative bg-gradient-to-r ${dateRangeMode === 'date' ? 'from-indigo-500 to-purple-500' : 'from-teal-500 to-blue-500'}`}
-                                style={{ width: `${forexScrapeJob.progress}%` }}
+                                style={{ width: `${isUploading ? uploadProgress : (forexScrapeJob?.progress || 0)}%` }}
                             >
                                 <div className="absolute inset-0 bg-white/20 w-full animate-[shimmer_1.5s_infinite]"></div>
                             </div>
                         </div>
                         
-                        <div className="text-[10px] text-slate-300 font-mono mb-4 p-2 bg-black/40 rounded border border-white/5 break-words">
-                            {forexScrapeJob.logs && forexScrapeJob.logs.length > 0 ? forexScrapeJob.logs[forexScrapeJob.logs.length - 1] : 'Initializing engine...'}
-                        </div>
-                        
-                        {['PENDING', 'RUNNING'].includes(forexScrapeJob.status) ? (
-                            <button 
-                                onClick={onCancelCollector}
-                                className="w-full py-2 rounded-lg border border-red-500/30 text-red-400 text-xs font-bold hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2"
-                            >
-                                <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div> Stop Collection
-                            </button>
-                        ) : (
-                            <div className={`text-center text-xs font-bold py-2 rounded-lg ${forexScrapeJob.status === 'COMPLETED' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-                                {forexScrapeJob.status === 'COMPLETED' ? '✅ Dataset Compiled Successfully' : '❌ ' + (forexScrapeJob.error_message || 'Stopped')}
+                        {!isUploading && forexScrapeJob && (
+                            <div className="text-[10px] text-slate-300 font-mono mb-4 p-2 bg-black/40 rounded border border-white/5 break-words">
+                                {forexScrapeJob.logs && forexScrapeJob.logs.length > 0 ? forexScrapeJob.logs[forexScrapeJob.logs.length - 1] : 'Initializing engine...'}
                             </div>
+                        )}
+                        
+                        {!isUploading && forexScrapeJob && (
+                            ['PENDING', 'RUNNING'].includes(forexScrapeJob.status) ? (
+                                <button 
+                                    onClick={onCancelCollector}
+                                    className="w-full py-2 rounded-lg border border-red-500/30 text-red-400 text-xs font-bold hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2"
+                                >
+                                    <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div> Stop Collection
+                                </button>
+                            ) : (
+                                <div className={`text-center text-xs font-bold py-2 rounded-lg ${forexScrapeJob.status === 'COMPLETED' ? 'bg-green-500/10 text-green-400 border border-green-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                                    {forexScrapeJob.status === 'COMPLETED' ? '✅ Data Processing Completed' : '❌ ' + (forexScrapeJob.error_message || 'Stopped')}
+                                </div>
+                            )
                         )}
                     </motion.div>
                 )}

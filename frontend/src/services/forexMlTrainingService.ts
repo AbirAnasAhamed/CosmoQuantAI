@@ -122,5 +122,19 @@ export const forexMlTrainingService = {
     deleteForexSnapshot: async (filename: string): Promise<{status: string, message: string}> => {
         const response = await apiClient.delete(`/forex-model-training/forex-snapshots/${filename}`);
         return response.data;
+    },
+
+    uploadTickstoryCsv: async (symbol: string, file: File, onUploadProgress?: (progressEvent: any) => void): Promise<ForexTrainingJob> => {
+        const formData = new FormData();
+        formData.append('symbol', symbol);
+        formData.append('file', file);
+        
+        const response = await apiClient.post('/forex-model-training/upload-tickstory', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            },
+            onUploadProgress: onUploadProgress
+        });
+        return response.data;
     }
 };

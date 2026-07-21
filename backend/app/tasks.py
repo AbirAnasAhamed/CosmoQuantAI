@@ -1353,3 +1353,35 @@ def celery_forex_train_model_task(self, job_id: str):
         import traceback
         traceback.print_exc()
         return {"status": "error", "job_id": job_id, "error": str(e)}
+
+@celery_app.task(bind=True, max_retries=1)
+def parse_tickstory_csv_task(self, symbol: str, input_csv_path: str, job_id: str):
+    """
+    Background Celery task that parses a large Tickstory CSV upload.
+    """
+    import sys
+    import os
+    scripts_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+    if scripts_dir not in sys.path:
+        sys.path.append(scripts_dir)
+        
+    try:
+        from tickstory_parser import run_tickstory_parser
+    except ImportError:
+        # Fallback if script path issues
+        sys.path.insert(0, os.getcwd())
+        from scripts.tickstory_parser import run_tickstory_parser
+        
+    logger = get_task_logger("forex_worker", "tickstory_parser.log")
+    
+    logger.info(f"🚀 Celery picked up Tickstory parsing for: {symbol}")
+    
+    try:
+        run_tickstory_parser(symbol, input_csv_path, job_id)
+        logger.info(f"✅ Celery Tickstory parsing completed: {job_id}")
+        return {"status": "success", "job_id": job_id}
+    except Exception as e:
+        logger.error(f"❌ Celery Tickstory Parsing Failed {job_id}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "job_id": job_id, "error": str(e)}

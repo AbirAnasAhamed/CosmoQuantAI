@@ -88,27 +88,68 @@ class TradingEnv(gym.Env):
     Custom Environment that follows gym interface.
     This environment is used both for training and inference (prediction) for the PPO agent.
     """
-    def __init__(self, X, y=None):
+    def __init__(self, X, y=None, is_continuous=False):
         super(TradingEnv, self).__init__()
         self.X = np.array(X)
         self.y = np.array(y) if y is not None else np.zeros(len(X))
         self.current_step = 0
         self.max_steps = len(self.X) - 1
+        self.is_continuous = is_continuous
         
-        self.action_space = spaces.Discrete(2) # 0: Hold/Sell, 1: Buy
+        if self.is_continuous:
+            self.action_space = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
+        else:
+            self.action_space = spaces.Discrete(2) # 0: Hold/Sell, 1: Buy
+            
         self.observation_space = spaces.Box(low=-np.inf, high=np.inf, shape=(self.X.shape[1],), dtype=np.float32)
         
+        # State tracking for Live Visualizer
+        self.initial_balance = 10000.0
+        self.balance = self.initial_balance
+        self.net_worth = self.initial_balance
+        self.position = 0
+        self.equity_history = []
+        self.trade_history = []
+        
     def reset(self, seed=None, options=None):
+        super().reset(seed=seed)
         self.current_step = 0
+        self.balance = self.initial_balance
+        self.net_worth = self.initial_balance
+        self.position = 0
+        self.equity_history = [self.initial_balance]
+        self.trade_history = []
         return self.X[self.current_step].astype(np.float32), {}
         
     def step(self, action):
         reward = 0
         if self.y is not None:
-            if action == 1 and self.y[self.current_step] > 0:
+            if self.is_continuous:
+                action_val = action[0] if isinstance(action, (np.ndarray, list)) else action
+                discrete_action = 1 if action_val > 0 else 0
+            else:
+                discrete_action = action
+                
+            self.position = discrete_action
+            
+            if discrete_action == 1 and self.y[self.current_step] > 0:
                 reward = 1
-            elif action == 1 and self.y[self.current_step] <= 0:
+                self.net_worth += 10.0 # Dummy profit
+                self.trade_history.append({"type": "open_long", "pnl": 10.0})
+            elif discrete_action == 1 and self.y[self.current_step] <= 0:
                 reward = -1
+                self.net_worth -= 10.0 # Dummy loss
+                self.trade_history.append({"type": "close", "pnl": -10.0})
+            else:
+                # Hold/Sell logic (neutral)
+                if discrete_action == 0 and self.y[self.current_step] <= 0:
+                    self.trade_history.append({"type": "open_short", "pnl": 5.0})
+                    self.net_worth += 5.0
+                elif discrete_action == 0 and self.y[self.current_step] > 0:
+                    self.trade_history.append({"type": "close", "pnl": -5.0})
+                    self.net_worth -= 5.0
+                    
+            self.equity_history.append(self.net_worth)
                 
         self.current_step += 1
         done = self.current_step >= self.max_steps

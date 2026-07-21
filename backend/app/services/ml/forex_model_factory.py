@@ -34,7 +34,7 @@ def get_forex_model(algorithm_name: str, config: dict = None):
     # 3. Indicator & Tabular Engines (Scikit-Learn / Boosters)
     elif algorithm_name == 'Random Forest':
         from sklearn.ensemble import RandomForestClassifier
-        return RandomForestClassifier(n_estimators=config.get('epochs', 100), random_state=42, n_jobs=-1)
+        return RandomForestClassifier(n_estimators=config.get('epochs', 100), random_state=42, n_jobs=1)
     elif algorithm_name == 'XGBoost':
         try:
             from xgboost import XGBClassifier
@@ -59,7 +59,7 @@ def get_forex_model(algorithm_name: str, config: dict = None):
     elif algorithm_name == 'TabNet':
         # Assuming pytorch-tabnet is used, else fallback
         from sklearn.ensemble import RandomForestClassifier
-        return RandomForestClassifier(n_estimators=config.get('epochs', 100), random_state=42, n_jobs=-1)
+        return RandomForestClassifier(n_estimators=config.get('epochs', 100), random_state=42, n_jobs=1)
 
     # 4. Deep Learning Models (Native PyTorch)
     elif algorithm_name == 'LSTM':
@@ -90,26 +90,26 @@ def get_forex_model(algorithm_name: str, config: dict = None):
     # 5. Reinforcement Learning Models (Native stable-baselines3)
     elif algorithm_name == 'PPO-RL':
         from app.services.ml.forex_rl_models import ForexPPORL
-        return ForexPPORL()
+        return ForexPPORL(epochs=config.get('epochs', 10))
     elif algorithm_name == 'SAC-RL':
         from app.services.ml.forex_rl_models import ForexSACRL
-        return ForexSACRL()
+        return ForexSACRL(epochs=config.get('epochs', 10))
     elif algorithm_name == 'A2C-RL':
         from app.services.ml.forex_rl_models import ForexA2CRL
-        return ForexA2CRL()
+        return ForexA2CRL(epochs=config.get('epochs', 10))
     elif algorithm_name == 'DDPG-RL':
         from app.services.ml.forex_rl_models import ForexDDPGRL
-        return ForexDDPGRL()
+        return ForexDDPGRL(epochs=config.get('epochs', 10))
     elif algorithm_name == 'TD3-RL':
         from app.services.ml.forex_rl_models import ForexTD3RL
-        return ForexTD3RL()
+        return ForexTD3RL(epochs=config.get('epochs', 10))
     elif algorithm_name == 'DQN-RL':
         from app.services.ml.forex_rl_models import ForexDQNRL
-        return ForexDQNRL()
+        return ForexDQNRL(epochs=config.get('epochs', 10))
     elif algorithm_name in ['QR-DQN', 'CQL', 'GAIL', 'Decision-Transformer']:
         from app.services.ml.forex_rl_models import ForexAdvancedRL
-        return ForexAdvancedRL(algo_name=algorithm_name)
+        return ForexAdvancedRL(algo_name=algorithm_name, epochs=config.get('epochs', 10))
     else:
         print(f"Algorithm '{algorithm_name}' not natively supported in Forex Engine yet. Falling back to Random Forest.")
         from sklearn.ensemble import RandomForestClassifier
-        return RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=-1)
+        return RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=1)

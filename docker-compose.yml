@@ -50,7 +50,7 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: cosmo_celery_worker_heavy
-    command: celery -A app.core.celery_app worker -Q heavy --loglevel=warning --concurrency=1
+    command: celery -A app.core.celery_app worker -Q heavy --loglevel=warning --pool=solo
     volumes:
       - ./backend:/app
     depends_on:

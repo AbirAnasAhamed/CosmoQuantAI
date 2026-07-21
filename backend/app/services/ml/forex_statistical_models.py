@@ -6,6 +6,10 @@ from typing import Any, Dict
 # Disable warnings from statsmodels
 warnings.filterwarnings("ignore")
 
+# Numpy 2.0 compatibility for NeuralProphet
+if not hasattr(np, 'NaN'):
+    np.NaN = np.nan
+
 class ForexARIMAModel:
     """Wrapper for statsmodels ARIMA"""
     def __init__(self, order=(5,1,0), **kwargs):
@@ -84,6 +88,22 @@ class ForexNeuralProphetModel:
         
     def fit(self, X: pd.DataFrame, y: pd.Series):
         try:
+            import torch
+            # PyTorch 2.6+ defaults weights_only=True, which breaks NeuralProphet/PTL checkpoint loading
+            if not hasattr(torch, '_patched_load'):
+                _original_load = torch.load
+                def _patched_load(*args, **kwargs):
+                    if 'weights_only' not in kwargs:
+                        kwargs['weights_only'] = False
+                    return _original_load(*args, **kwargs)
+                torch.load = _patched_load
+                torch._patched_load = True
+
+            import pytorch_lightning.core.optimizer as opt
+            # Bypass PyTorch Lightning 1.7 check that fails with PyTorch 2.0+ LRScheduler
+            if hasattr(opt, '_validate_scheduler_api'):
+                opt._validate_scheduler_api = lambda *args, **kwargs: None
+                
             from neuralprophet import NeuralProphet
             self.model = NeuralProphet(epochs=10, batch_size=32)
             # NeuralProphet expects a dataframe with 'ds' (datetime) and 'y' (target)

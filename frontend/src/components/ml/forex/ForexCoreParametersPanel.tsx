@@ -105,6 +105,7 @@ export interface ForexCoreParametersProps {
     setSelectedForexFile: (v: string) => void;
     handleDeleteSnapshot: (e: React.MouseEvent) => void;
     forexScrapeJob: any;
+    setForexScrapeJob: (job: any) => void;
     onStartCollector: (config: any) => void;
     onCancelCollector: () => void;
 }
@@ -296,6 +297,7 @@ export const ForexCoreParametersPanel: React.FC<ForexCoreParametersProps> = (pro
                         symbol={props.symbol}
                         isTraining={props.isTraining}
                         forexScrapeJob={props.forexScrapeJob}
+                        setForexScrapeJob={props.setForexScrapeJob}
                         onStartCollector={props.onStartCollector}
                         onCancelCollector={props.onCancelCollector}
                         timeframe={props.timeframe}

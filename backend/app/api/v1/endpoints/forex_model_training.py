@@ -3,7 +3,7 @@ import asyncio
 import datetime
 import logging
 from typing import List, Any, Optional
-from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, Depends, Form, HTTPException, BackgroundTasks, WebSocket, WebSocketDisconnect
 
 logger = logging.getLogger(__name__)
 from sqlalchemy.orm import Session
@@ -53,7 +53,7 @@ def start_forex_training_job(
     
     # trigger celery background task
     from app.tasks import celery_forex_train_model_task
-    celery_forex_train_model_task.apply_async(args=[job_id], task_id=job_id)
+    celery_forex_train_model_task.apply_async(args=[job_id], task_id=job_id, queue="heavy")
     
     return job
 
@@ -176,6 +176,75 @@ def start_forex_collector(
         new_job.error_message = f"Failed to start forex collector subprocess: {str(e)}"
         db.commit()
         raise HTTPException(status_code=500, detail=f"Failed to start collector: {str(e)}")
+
+from fastapi import File, UploadFile
+import shutil
+
+@router.post("/upload-tickstory", response_model=schemas.TrainingJobResponse)
+async def upload_tickstory_csv(
+    symbol: str = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """
+    Upload a Tickstory CSV file and parse it in the background.
+    """
+    import os
+    import uuid
+    import subprocess
+    from datetime import datetime
+    
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="Only CSV files are allowed")
+
+    job_id = f"forex_job_{uuid.uuid4().hex[:8]}"
+    new_job = models.ModelTrainingJob(
+        id=job_id,
+        user_id=current_user.id,
+        symbol=symbol.upper(),
+        timeframe="Tick",
+        algorithm="Tickstory CSV Parser",
+        status=models.TrainingStatus.RUNNING,
+        market_type="forex",
+        progress=0.0,
+        config={"dataset_type": "tickstory_upload"},
+        logs=[f"[{datetime.utcnow().strftime('%H:%M:%S')}] Receiving upload for {file.filename}..."]
+    )
+    db.add(new_job)
+    db.commit()
+    db.refresh(new_job)
+
+    # Save uploaded file to temp directory
+    temp_dir = os.path.join(os.getcwd(), "data", "temp")
+    os.makedirs(temp_dir, exist_ok=True)
+    temp_file_path = os.path.join(temp_dir, f"{job_id}_{file.filename}")
+    
+    try:
+        # Stream the file to disk to avoid memory issues with large files
+        with open(temp_file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+            
+        # Log successful upload
+        logs = list(new_job.logs)
+        logs.append(f"[{datetime.utcnow().strftime('%H:%M:%S')}] Upload complete. Spawning parser in background...")
+        new_job.logs = logs
+        db.commit()
+
+        # Start the tickstory parser in background via Celery
+        from app.tasks import parse_tickstory_csv_task
+        parse_tickstory_csv_task.apply_async(
+            kwargs={"symbol": symbol.upper(), "input_csv_path": temp_file_path, "job_id": job_id},
+            queue="heavy"
+        )
+        
+        return new_job
+        
+    except Exception as e:
+        new_job.status = models.TrainingStatus.FAILED
+        new_job.error_message = f"Failed to handle upload: {str(e)}"
+        db.commit()
+        raise HTTPException(status_code=500, detail=f"Failed to handle upload: {str(e)}")
 
 @router.get("/forex-snapshots", response_model=List[str])
 def list_forex_snapshots(

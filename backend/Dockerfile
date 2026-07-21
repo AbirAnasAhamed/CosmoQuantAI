@@ -46,8 +46,8 @@ RUN mkdir -p /tmp/.cache && chmod 777 /tmp/.cache \
 
 # Install dependencies
 COPY requirements.txt .
-RUN --mount=type=cache,target=/root/.cache/pip \
-    pip install --default-timeout=1000 -r requirements.txt
+RUN pip install "pip<24.1" && \
+    pip install --no-cache-dir --default-timeout=1000 -r requirements.txt
 
 # Copy all backend files
 COPY . .

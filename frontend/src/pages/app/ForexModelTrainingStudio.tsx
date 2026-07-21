@@ -472,6 +472,7 @@ const ForexModelTrainingStudio: React.FC = () => {
                             setSelectedForexFile={setSelectedForexFile}
                             handleDeleteSnapshot={handleDeleteSnapshot}
                             forexScrapeJob={forexScrapeJob}
+                            setForexScrapeJob={setForexScrapeJob}
                             onStartCollector={handleStartForexCollector}
                             onCancelCollector={handleCancelForexCollector}
                         />
@@ -604,6 +605,18 @@ const ForexModelTrainingStudio: React.FC = () => {
                                         <div className="w-3.5 h-3.5 rounded-full bg-green-500/50 border border-green-400 shadow-[0_0_10px_#22c55e]"></div>
                                     </div>
                                 </div>
+
+                                {/* Progress Bar */}
+                                {activeJob && (
+                                    <div className="h-1.5 bg-gray-900 w-full relative overflow-hidden shadow-inner flex-shrink-0 border-b border-cyan-900/50">
+                                        <motion.div 
+                                            className={`absolute top-0 left-0 h-full ${activeJob.status === 'FAILED' ? 'bg-red-500 shadow-[0_0_10px_#ef4444]' : activeJob.status === 'COMPLETED' ? 'bg-emerald-500 shadow-[0_0_10px_#10b981]' : 'bg-gradient-to-r from-cyan-400 to-purple-500 shadow-[0_0_15px_#22d3ee]'}`}
+                                            initial={{ width: 0 }}
+                                            animate={{ width: `${activeJob.progress}%` }}
+                                            transition={{ duration: 0.5 }}
+                                        />
+                                    </div>
+                                )}
 
                                 {/* Terminal Logs Area */}
                                 <div className="flex-1 p-5 overflow-y-auto custom-scrollbar font-mono text-sm leading-relaxed">

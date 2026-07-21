@@ -60,6 +60,17 @@ class ForexMLTrainingEngine:
             df['time'] = pd.to_datetime(df['time'], utc=True).dt.tz_localize(None)
             df.set_index('time', inplace=True)
             self._log(f"Loaded {len(df)} rows of data.")
+            
+            if 'close' not in df.columns and 'bid' in df.columns:
+                self._log("Tick data detected (no 'close' column). Resampling to 1-minute OHLC...")
+                df['bid'] = pd.to_numeric(df['bid'], errors='coerce')
+                df['ask'] = pd.to_numeric(df['ask'], errors='coerce')
+                df['mid'] = (df['bid'] + df['ask']) / 2
+                # Resample to 1-minute OHLC
+                df = df['mid'].resample('1min').ohlc()
+                df.dropna(inplace=True)
+                self._log(f"Resampled to {len(df)} OHLC rows.")
+                
             self.job.progress = 10.0
             self.db.commit()
 
@@ -128,6 +139,89 @@ class ForexMLTrainingEngine:
 
             # Step 6: Model Training & WFO
             algorithm = self.job.algorithm
+            
+            # RL Live Streaming Callback
+            callback = None
+            if algorithm.endswith('-RL'):
+                try:
+                    from stable_baselines3.common.callbacks import BaseCallback
+                    import redis
+                    import json
+                    from app.core.config import settings
+                    redis_client = redis.from_url(settings.REDIS_URL)
+                    
+                    class ForexLiveStreamingCallback(BaseCallback):
+                        def __init__(self, job, db_session, log_func):
+                            super().__init__()
+                            self.job = job
+                            self.db = db_session
+                            self.log_func = log_func
+                            self.last_log_step = 0
+                            
+                        def _on_step(self) -> bool:
+                            env = self.training_env.envs[0]
+                            env = getattr(env, 'unwrapped', env)
+                            
+                            step = self.num_timesteps
+                            total = self.locals.get('total_timesteps', 10000)
+                            
+                            # Log every 1000 steps
+                            if step - self.last_log_step >= 1000 or step == 1:
+                                pct = (step / total) * 100
+                                self.log_func(f"RL Training Progress: {step}/{total} steps ({pct:.1f}%)")
+                                self.job.progress = min(90.0, max(50.0, 50.0 + (pct * 0.4))) # Scale progress between 50 and 90
+                                self.db.commit()
+                                self.last_log_step = step
+                                
+                            # Payload for Live Visualizer
+                            action = self.locals.get('actions', [0])
+                            action_val = float(np.ravel(action)[0]) if action is not None else 0.0
+                            
+                            reward = self.locals.get('rewards', [0.0])
+                            reward_val = float(np.ravel(reward)[0]) if reward is not None else 0.0
+                            
+                            # Safely extract dummy state variables
+                            position = getattr(env, 'position', 0)
+                            net_worth = getattr(env, 'net_worth', 10000.0)
+                            balance = getattr(env, 'balance', 10000.0)
+                            trade_history = getattr(env, 'trade_history', [])
+                            buy_count = sum(1 for t in trade_history if t['type'] == 'open_long')
+                            sell_count = sum(1 for t in trade_history if t['type'] == 'open_short')
+                            profitable_count = sum(1 for t in trade_history if t.get('pnl', 0) > 0)
+                            loss_count = sum(1 for t in trade_history if t.get('pnl', 0) < 0)
+                            
+                            payload = {
+                                "step": step,
+                                "net_worth": float(net_worth),
+                                "position": int(position),
+                                "balance": float(balance),
+                                "action": action_val,
+                                "reward": reward_val,
+                                "price": float(net_worth), # Simulated price based on net_worth for Forex
+                                "stats": {
+                                    "buy_count": buy_count,
+                                    "sell_count": sell_count,
+                                    "profitable_count": profitable_count,
+                                    "loss_count": loss_count
+                                }
+                            }
+                            
+                            capped_progress = min(100.0, (step / total) * 100)
+                            message = {
+                                "task_type": "RL_TRAINING_STEP",
+                                "task_id": self.job.id,
+                                "status": "processing",
+                                "progress": int(capped_progress),
+                                "data": payload,
+                                "features": []
+                            }
+                            redis_client.publish("task_updates", json.dumps(message))
+                            return True
+                            
+                    callback = ForexLiveStreamingCallback(self.job, self.db, self._log)
+                except ImportError:
+                    pass
+                    
             use_automl = self.job.config.get('use_automl', False)
             split_method = self.job.config.get('split_method', 'chronological')
             
@@ -147,7 +241,10 @@ class ForexMLTrainingEngine:
                     else:
                         model = get_forex_model(algorithm, self.job.config)
                         
-                    model.fit(X_train, y_train)
+                    if algorithm.endswith('-RL'):
+                        model.fit(X_train, y_train, callback=callback)
+                    else:
+                        model.fit(X_train, y_train)
                     acc = model.score(X_test, y_test)
                     accuracies.append(acc)
                     self._log(f"Fold {i+1} Accuracy: {acc*100:.2f}%")
@@ -165,7 +262,10 @@ class ForexMLTrainingEngine:
                 else:
                     model = get_forex_model(algorithm, self.job.config)
                     
-                model.fit(X_train, y_train)
+                if algorithm.endswith('-RL'):
+                    model.fit(X_train, y_train, callback=callback)
+                else:
+                    model.fit(X_train, y_train)
                 accuracy = model.score(X_test, y_test)
                 self._log(f"Training completed. Validation Accuracy: {accuracy*100:.2f}%")
                 
@@ -217,7 +317,7 @@ class ForexMLTrainingEngine:
                 description=f"Trained on {clean_symbol} using {algorithm}",
                 file_path=model_filepath,
                 status=models.ModelStatus.READY,
-                accuracy=accuracy if 'accuracy' in locals() else 0.0,
+                accuracy=float(accuracy) if 'accuracy' in locals() else 0.0,
                 dataset_path=data_file
             )
             self.db.add(db_version)
