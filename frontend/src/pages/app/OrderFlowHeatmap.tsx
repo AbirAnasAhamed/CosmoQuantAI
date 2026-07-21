@@ -44,6 +44,8 @@ import { WallHunterModal } from '../../components/features/market/WallHunterModa
 import { ManualTradeModal } from '../../components/features/market/ManualTradeModal';
 import { FloatingTVChartButton } from '../../components/features/market/FloatingTVChartButton';
 import { QuickTradeToolbar } from '../../components/features/market/QuickTradeToolbar';
+import { AetherFlowRenderer } from '../../components/features/market/AetherFlowRenderer';
+import { useAetherFlowData } from '../../hooks/useAetherFlowData';
 import { AIModelDeploymentModal } from '../../components/features/market/AIModelDeploymentModal';
 import { ModelPredictorModal, PredictionResult } from '../../components/features/market/ModelPredictorModal';
 import { DualEngineDashboard } from '../../components/features/market/DualEngineDashboard';
@@ -100,6 +102,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
     const quantumAiMarkersRef = useRef<any[]>([]);
     const botTradeMarkersRef = useRef<any[]>([]);
     const patternMarkersRef = useRef<any[]>([]);
+    const aetherMarkersRef = useRef<any[]>([]);
     const wallLinesRef = useRef<Map<string, any>>(new Map());
     const currentPriceLineRef = useRef<any>(null);
     const mlEntryLineRef = useRef<any>(null);
@@ -138,6 +141,8 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
     const [wickSRCandles, setWickSRCandles] = useState<any[]>([]);
     const [bbData, setBbData] = useState<BollingerBandsDataPoint[]>([]);
     const [vwapSDData, setVwapSDData] = useState<VWAPSDDataPoint[]>([]);
+
+    const { data: aetherFlowData } = useAetherFlowData(symbol, exchange, interval, indicatorSettings.showAetherFlow);
 
     // Default to the right side (rough estimate, can be adjusted by screen size)
     const [quantumAiHudPos, setQuantumAiHudPos] = useState(() => {
@@ -1039,6 +1044,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             ...utBotMarkersRef.current,
             ...quantumAiMarkersRef.current,
             ...patternMarkersRef.current,
+            ...aetherMarkersRef.current,
         ];
 
         const grouped = allMarkers.reduce((acc, curr) => {
@@ -1087,6 +1093,51 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
         }
         safeSetMarkers();
     }, [quantumAiData, indicatorSettings.showQuantumAI]);
+
+    // ── SMC Flow / Aether Flow Marker Rendering Effect ──
+    useEffect(() => {
+        if (!markersPluginRef.current) return;
+        if (!indicatorSettings.showAetherFlow || !aetherFlowData) {
+            aetherMarkersRef.current = [];
+        } else {
+            let markers: any[] = [];
+            if (indicatorSettings.aetherUtBot && aetherFlowData.ut_bot?.length > 0) {
+                aetherFlowData.ut_bot.forEach(d => {
+                    const isBuy = indicatorSettings.aetherSupertrend ? d.filtered_buy : d.buy_signal;
+                    const isSell = indicatorSettings.aetherSupertrend ? d.filtered_sell : d.sell_signal;
+                    if (isBuy) markers.push({ time: d.time, position: 'belowBar', color: '#22c55e', shape: 'arrowUp', text: 'BUY' });
+                    if (isSell) markers.push({ time: d.time, position: 'aboveBar', color: '#ef4444', shape: 'arrowDown', text: 'SELL' });
+                });
+            }
+            if (indicatorSettings.aetherSmc && aetherFlowData.smc) {
+                aetherFlowData.smc.swing_highs?.forEach((d: any) => {
+                    markers.push({ time: d.time, position: 'aboveBar', color: '#f59e0b', shape: 'circle', text: 'HH' });
+                });
+                aetherFlowData.smc.swing_lows?.forEach((d: any) => {
+                    markers.push({ time: d.time, position: 'belowBar', color: '#3b82f6', shape: 'circle', text: 'LL' });
+                });
+            }
+            if (indicatorSettings.aether3BarReversal && aetherFlowData.three_bar_reversal) {
+                aetherFlowData.three_bar_reversal.forEach((d: any) => {
+                    if (d.type === 'bullish') markers.push({ time: d.time, position: 'belowBar', color: '#10b981', shape: 'arrowUp', text: '3BR Bull' });
+                    if (d.type === 'bearish') markers.push({ time: d.time, position: 'aboveBar', color: '#ef4444', shape: 'arrowDown', text: '3BR Bear' });
+                });
+            }
+            if (indicatorSettings.aetherSupertrend && aetherFlowData.supertrend && aetherFlowData.supertrend.length > 0) {
+                let lastTrend = aetherFlowData.supertrend[0].trend;
+                for (let i = 1; i < aetherFlowData.supertrend.length; i++) {
+                    const d = aetherFlowData.supertrend[i];
+                    if (d.trend !== lastTrend) {
+                        if (d.trend === 'bullish') markers.push({ time: d.time, position: 'belowBar', color: '#10b981', shape: 'arrowUp', text: 'ST Buy' });
+                        if (d.trend === 'bearish') markers.push({ time: d.time, position: 'aboveBar', color: '#ef4444', shape: 'arrowDown', text: 'ST Sell' });
+                        lastTrend = d.trend;
+                    }
+                }
+            }
+            aetherMarkersRef.current = markers;
+        }
+        safeSetMarkers();
+    }, [aetherFlowData, indicatorSettings.showAetherFlow, indicatorSettings.aetherUtBot, indicatorSettings.aetherSupertrend, indicatorSettings.aetherSmc, indicatorSettings.aether3BarReversal]);
 
     // ── Candlestick Pattern Interval & Marker Data ──
     useEffect(() => {
@@ -1990,6 +2041,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                     <OIBOscillatorRenderer chart={chartRef.current} series={candlestickSeriesRef.current} visible={advancedMetrics.showOIBOscillator} data={advancedMetricsData?.oibData} />
                     <TPOProfileRenderer chart={chartRef.current} series={candlestickSeriesRef.current} visible={advancedMetrics.showTPOProfile} data={advancedMetricsData?.tpoData} />
                     <DeltaDivergenceRenderer chart={chartRef.current} series={candlestickSeriesRef.current} visible={advancedMetrics.showDeltaDivergence} data={advancedMetricsData?.divergenceData} />
+                    <AetherFlowRenderer chart={chartRef.current} series={candlestickSeriesRef.current!} data={aetherFlowData} settings={indicatorSettings} />
 
                     <LiquidityHeatmapRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={realHeatmapData} />
                     <FibonacciCloudRenderer chart={chartRef.current} series={candlestickSeriesRef.current} data={fiboData} />

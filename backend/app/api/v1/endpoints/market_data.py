@@ -12,6 +12,7 @@ from app.services.market_service import MarketService
 from app.services.websocket_manager import manager
 
 from app.services.ccxt_service import CcxtService
+from app.strategies.helpers.aether_flow_analyzer import AetherFlowAnalyzer
 
 router = APIRouter()
 market_service = MarketService()
@@ -161,6 +162,40 @@ async def get_klines(
         raise he
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch klines: {str(e)}")
+
+# ✅ 7.5 Aether Flow System Endpoint
+@router.get("/aether-flow")
+async def get_aether_flow(
+    symbol: str,
+    interval: str = "1h",
+    limit: int = 500,
+    exchange: str = "binance"
+):
+    try:
+        from app.services.market_depth_service import market_depth_service
+        
+        ex = await market_depth_service.get_exchange_instance(exchange, symbol)
+        ohlcv = await ex.fetch_ohlcv(symbol, interval, limit=limit)
+        
+        # Convert to dictionary format
+        data = []
+        for row in ohlcv:
+            data.append({
+                "time": row[0] / 1000 if row[0] > 9999999999 else row[0], # ensure unix seconds or match frontend format
+                "open": row[1],
+                "high": row[2],
+                "low": row[3],
+                "close": row[4],
+                "volume": row[5]
+            })
+            
+        analyzer = AetherFlowAnalyzer()
+        result = analyzer.analyze(data)
+        
+        return result
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to calculate aether flow: {str(e)}")
 
 # ✅ 8. WebSocket for Real-Time Candle Updates (Polling Simulation)
 @router.websocket("/ws/candle")

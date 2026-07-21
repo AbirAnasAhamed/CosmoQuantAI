@@ -195,6 +195,16 @@ export interface IndicatorSettings {
     vwapSDMultiplier2: number;
     vwapSDMultiplier3: number;
     vwapAnchor: 'Session' | 'Daily' | 'Weekly';
+    // ── Aether Flow System ──
+    showAetherFlow: boolean;
+    aetherUtBot: boolean;
+    aetherSupertrend: boolean;
+    aetherSmc: boolean;
+    aetherFvg: boolean;
+    aetherHull: boolean;
+    aetherOrderBlocks: boolean;
+    aether3BarReversal: boolean;
+    aetherAutoFibo: boolean;
 }
 
 interface IndicatorSelectorProps {
@@ -607,6 +617,74 @@ export const IndicatorSelector: React.FC<IndicatorSelectorProps> = ({ settings, 
                             </label>
                            </div>
                         </div>
+                        
+                        {/* SMC Flow Indicator */}
+                        <div className="flex flex-col gap-2 p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-colors group border-t border-gray-100 dark:border-white/5 mt-1 pt-3">
+                           <div className="flex items-center justify-between">
+                            <label className="flex items-center cursor-pointer flex-1">
+                                <input
+                                    type="checkbox"
+                                    checked={settings.showAetherFlow}
+                                    onChange={() => toggleIndicator('showAetherFlow')}
+                                    className="w-4 h-4 text-brand-primary bg-gray-100 border-gray-300 rounded focus:ring-brand-primary dark:focus:ring-brand-primary dark:ring-offset-gray-800 focus:ring-2 dark:bg-gray-700 dark:border-gray-600"
+                                />
+                                <span className="ml-3 text-sm font-bold bg-clip-text text-transparent bg-gradient-to-r from-purple-400 to-pink-500 group-hover:from-purple-300 group-hover:to-pink-400 transition-colors">SMC Flow</span>
+                            </label>
+                           </div>
+                           {settings.showAetherFlow && (
+                               <div className="flex flex-col gap-1.5 pl-7 animate-in slide-in-from-top-1 duration-200">
+                                   <label className="flex items-center gap-2 cursor-pointer">
+                                       <input type="checkbox" checked={settings.aetherUtBot}
+                                           onChange={() => onSettingsChange({...settings, aetherUtBot: !settings.aetherUtBot})}
+                                           className="w-3 h-3 rounded text-purple-500" />
+                                       <span className="text-[10px] text-gray-500">UT Bot (Signals & Trailing Stop)</span>
+                                   </label>
+                                   <label className="flex items-center gap-2 cursor-pointer">
+                                       <input type="checkbox" checked={settings.aetherSupertrend}
+                                           onChange={() => onSettingsChange({...settings, aetherSupertrend: !settings.aetherSupertrend})}
+                                           className="w-3 h-3 rounded text-purple-500" />
+                                       <span className="text-[10px] text-gray-500">Supertrend Filter</span>
+                                   </label>
+                                   <label className="flex items-center gap-2 cursor-pointer">
+                                       <input type="checkbox" checked={settings.aetherSmc}
+                                           onChange={() => onSettingsChange({...settings, aetherSmc: !settings.aetherSmc})}
+                                           className="w-3 h-3 rounded text-purple-500" />
+                                       <span className="text-[10px] text-gray-500">SMC (Market Structure)</span>
+                                   </label>
+                                   <label className="flex items-center gap-2 cursor-pointer">
+                                       <input type="checkbox" checked={settings.aetherFvg}
+                                           onChange={() => onSettingsChange({...settings, aetherFvg: !settings.aetherFvg})}
+                                           className="w-3 h-3 rounded text-purple-500" />
+                                       <span className="text-[10px] text-gray-500">FVG (Fair Value Gaps)</span>
+                                   </label>
+                                   <label className="flex items-center gap-2 cursor-pointer">
+                                       <input type="checkbox" checked={settings.aetherOrderBlocks}
+                                           onChange={() => onSettingsChange({...settings, aetherOrderBlocks: !settings.aetherOrderBlocks})}
+                                           className="w-3 h-3 rounded text-purple-500" />
+                                       <span className="text-[10px] text-gray-500">LuxAlgo Order Blocks</span>
+                                   </label>
+                                   <label className="flex items-center gap-2 cursor-pointer">
+                                       <input type="checkbox" checked={settings.aether3BarReversal}
+                                           onChange={() => onSettingsChange({...settings, aether3BarReversal: !settings.aether3BarReversal})}
+                                           className="w-3 h-3 rounded text-purple-500" />
+                                       <span className="text-[10px] text-gray-500">3-Bar Reversal Pattern</span>
+                                   </label>
+                                   <label className="flex items-center gap-2 cursor-pointer">
+                                       <input type="checkbox" checked={settings.aetherHull}
+                                           onChange={() => onSettingsChange({...settings, aetherHull: !settings.aetherHull})}
+                                           className="w-3 h-3 rounded text-purple-500" />
+                                       <span className="text-[10px] text-gray-500">Hull Suite (HMA Band)</span>
+                                   </label>
+                                   <label className="flex items-center gap-2 cursor-pointer">
+                                       <input type="checkbox" checked={settings.aetherAutoFibo}
+                                           onChange={() => onSettingsChange({...settings, aetherAutoFibo: !settings.aetherAutoFibo})}
+                                           className="w-3 h-3 rounded text-purple-500" />
+                                       <span className="text-[10px] text-gray-500">Auto Fibo (SMC)</span>
+                                   </label>
+                               </div>
+                           )}
+                        </div>
+
                          {/* Wick Rejection Support & Resistance */}
                          <div className="flex flex-col gap-2 p-2 hover:bg-gray-50 dark:hover:bg-white/5 rounded-lg transition-colors group border-t border-gray-100 dark:border-white/5 mt-1 pt-3">
                             <div className="flex items-center justify-between">
