@@ -20,6 +20,7 @@ from app.services.advanced_ml.engine import AdvancedMLEngine
 from app.services.helpers.ml_advanced_setup_target import generate_advanced_setup_targets # ✅ Import New Engine
 from app.services.helpers.vwap_calculator import calculate_vwap_sd_features
 from app.services.helpers.institutional_features import add_smc_fvg, add_ict_killzones, add_wick_rejection, add_swing_structure, add_order_blocks
+from app.services.aether_ml_features import add_aether_smc_features
 # ✅ NEW: Modular ML Pipeline Services
 from app.services.ml_walk_forward_cv import run_walk_forward_cv
 from app.services.ml_backtest_runner import run_post_training_backtest
@@ -919,6 +920,7 @@ def train_model_task(job_id: str, db: Session):
                 "Wick Rejection": lambda d: add_wick_rejection(d),
                 "Market Structure": lambda d: add_swing_structure(d),
                 "Order Blocks": lambda d: add_order_blocks(d),
+                "Aether SMC Flow": lambda d: add_aether_smc_features(d),
                 
                 # --- Multi-Parameter (Dynamic) Variants ---
                 # Momentum Multi
@@ -1069,6 +1071,7 @@ def train_model_task(job_id: str, db: Session):
                 "Wick Rejection": lambda d: add_wick_rejection(d),
                 "Market Structure": lambda d: add_swing_structure(d),
                 "Order Blocks": lambda d: add_order_blocks(d),
+                "Aether SMC Flow": lambda d: add_aether_smc_features(d),
                 
                 # --- Multi-Parameter (Dynamic) Variants ---
                 # Momentum Multi

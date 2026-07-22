@@ -143,9 +143,13 @@ def _generate_signals(model, algorithm: str, X_test: np.ndarray, prediction_targ
 
             if prediction_target == "classification":
                 raw_preds = model.predict(X_pred)
+                if len(raw_preds.shape) > 1 and raw_preds.shape[1] > 1:
+                    raw_preds = raw_preds[:, 0]
                 signals = raw_preds.astype(int).tolist()
             else:
                 raw_preds = model.predict(X_pred)
+                if len(raw_preds.shape) > 1 and raw_preds.shape[1] > 1:
+                    raw_preds = raw_preds[:, 0]
                 signals = (raw_preds > np.median(raw_preds)).astype(int).tolist()
 
         add_log(f"[Post-Backtest] Generated {len(signals)} signals. BUY signals: {sum(signals)} ({sum(signals)/max(1,len(signals))*100:.1f}%)")
