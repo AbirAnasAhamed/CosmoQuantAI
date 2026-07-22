@@ -291,6 +291,86 @@ export const FOREX_MODULES = [
             { id: 'time_decay_imbalance', name: 'Time-Decay Weighted Imbalance' },
             { id: 'bid_ask_volume_div', name: 'Bid-Ask Volume Divergence' }
         ]
+    },
+    {
+        id: 'plp_liquidity_cluster',
+        title: 'Liquidity Cluster & Density Module (PLP)',
+        icon: Target,
+        description: 'Maps retail trapped funds and liquidation zones synthetically.',
+        source: 'l2_orderbook',
+        features: [
+            { id: 'abs_long_liq_pool_proxy', name: 'Absolute Long Liquidation Pool Proxy 🚀' },
+            { id: 'abs_short_liq_pool_proxy', name: 'Absolute Short Liquidation Pool Proxy 🚀' },
+            { id: 'liquidation_density_z_score_proxy', name: 'Liquidation Density Z-Score Proxy 🚀' },
+            { id: 'leverage_washout_z_score_proxy', name: 'Leverage Washout Z-Score Proxy 🚀' },
+            { id: 'high_leverage_cluster_proximity_proxy', name: 'High-Leverage Cluster Proximity 🚀' },
+            { id: 'margin_call_proximity_index_proxy', name: 'Margin Call Proximity Index 🚀' },
+            { id: 'magnetic_liquidity_pull_vector_proxy', name: 'Magnetic Liquidity Pull Vector 🚀' },
+            { id: 'liq_cluster_density_heatmap_proxy', name: 'Liquidation Cluster Density Heatmap 🚀' },
+            { id: 'synthetic_leverage_ratio_proxy', name: 'Synthetic Leverage Ratio 🚀' },
+            { id: 'hidden_liquidity_absorption_proxy', name: 'Hidden Liquidity Absorption 🚀' },
+            { id: 'stale_liquidity_decay_proxy', name: 'Stale Liquidity Decay 🚀' },
+            { id: 'cross_margin_cascade_risk_proxy', name: 'Cross-Margin Cascade Risk 🚀' },
+            { id: 'stealth_liquidation_proxies_proxy', name: 'Stealth Liquidation Proxies 🚀' },
+            { id: 'gamma_exposure_imbalance_proxy', name: 'GEX Imbalance Proxy 🚀' },
+            { id: 'zero_dte_options_proxy_pull', name: '0-DTE Options Pull Proxy 🚀' },
+            { id: 'retail_pain_threshold_proxy', name: 'Retail Pain Threshold 🚀' },
+            { id: 'liquidation_void_zones_proxy', name: 'Liquidation Void Zones 🚀' },
+            { id: 'smart_money_trap_indicator_proxy', name: 'Smart Money Trap 🚀' },
+            { id: 'leveraged_retail_skew_proxy', name: 'Leveraged Retail Skew 🚀' }
+        ]
+    },
+    {
+        id: 'plp_cascade_dynamics',
+        title: 'Cascade & Trigger Dynamics Module (PLP)',
+        icon: Zap,
+        description: 'Measures domino effects and chain reactions synthetically.',
+        source: 'l2_orderbook',
+        features: [
+            { id: 'liquidation_cascade_multiplier_proxy', name: 'Liquidation Cascade Multiplier 🚀' },
+            { id: 'long_squeeze_probability_proxy', name: 'Long Squeeze Probability 🚀' },
+            { id: 'short_squeeze_probability_proxy', name: 'Short Squeeze Probability 🚀' },
+            { id: 'cascade_velocity_index_proxy', name: 'Cascade Velocity Index 🚀' },
+            { id: 'domino_effect_threshold_proxy', name: 'Domino Effect Threshold 🚀' },
+            { id: 'cascade_decay_rate_proxy', name: 'Cascade Decay Rate 🚀' },
+            { id: 'forced_liquidation_trigger_pts_proxy', name: 'Forced Liquidation Trigger Points 🚀' },
+            { id: 'volatility_expansion_on_liq_proxy', name: 'Volatility Expansion on Liquidation 🚀' },
+            { id: 'squeeze_exhaustion_metric_proxy', name: 'Squeeze Exhaustion Metric 🚀' },
+            { id: 'liquidator_bot_activity_proxy', name: 'Liquidator Bot Activity Proxy 🚀' },
+            { id: 'domino_trigger_threshold_alpha_proxy', name: 'Domino Trigger Alpha 🚀' },
+            { id: 'contagion_effect_probability_proxy', name: 'Contagion Effect Prob 🚀' },
+            { id: 'price_volume_dislocation_liq_proxy', name: 'Price-Volume Dislocation 🚀' },
+            { id: 'cascade_halflife_decay_proxy', name: 'Cascade Half-life Decay 🚀' },
+            { id: 'liquidation_wall_impact_proxy', name: 'Liquidation Wall Impact 🚀' },
+            { id: 'short_squeeze_velocity_factor_proxy', name: 'Short Squeeze Velocity Factor 🚀' },
+            { id: 'synthetic_domino_proxy', name: 'Synthetic Domino Proxy 🚀' }
+        ]
+    },
+    {
+        id: 'plp_stop_hunt',
+        title: 'Stop-Hunt & Sweep Mechanism Module (PLP)',
+        icon: Crosshair,
+        description: 'Identifies retail stop-loss hunts and fakeouts synthetically.',
+        source: 'l2_orderbook',
+        features: [
+            { id: 'stop_hunt_probability_proxy', name: 'Stop-Hunt Probability 🚀' },
+            { id: 'liquidity_sweep_velocity_proxy', name: 'Liquidity Sweep Velocity 🚀' },
+            { id: 'fakeout_prob_model_proxy', name: 'Fakeout Probability Model (FPM) 🚀' },
+            { id: 'sweep_and_reversal_ratio_proxy', name: 'Sweep and Reversal Ratio 🚀' },
+            { id: 'stop_loss_trigger_density_proxy', name: 'Stop-Loss Trigger Density 🚀' },
+            { id: 'predatory_algo_footprint_proxy', name: 'Predatory Algo Footprint 🚀' },
+            { id: 'institutional_sweep_divergence_proxy', name: 'Institutional Sweep Divergence 🚀' },
+            { id: 'retail_trap_indicator_proxy', name: 'Retail Trap Indicator 🚀' },
+            { id: 'high_frequency_hunt_ratio_proxy', name: 'High Frequency Hunt Ratio 🚀' },
+            { id: 'sweep_efficiency_score_proxy', name: 'Sweep Efficiency Score 🚀' },
+            { id: 'low_latency_sweep_detection_proxy', name: 'Low-Latency Sweep Detect 🚀' },
+            { id: 'wash_trade_sweep_detection_proxy', name: 'Wash Trade Sweep Detect 🚀' },
+            { id: 'institutional_footprint_masking_proxy', name: 'Institutional Masking 🚀' },
+            { id: 'fakeout_velocity_acceleration_proxy', name: 'Fakeout Velocity Accel 🚀' },
+            { id: 'stop_hunt_asymmetry_proxy', name: 'Stop-Hunt Asymmetry 🚀' },
+            { id: 'retail_panic_sweep_proxy', name: 'Retail Panic Sweep Proxy 🚀' },
+            { id: 'algo_hunt_intensity_proxy', name: 'Algo Hunt Intensity 🚀' }
+        ]
     }
 ];
 
