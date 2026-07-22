@@ -1,3 +1,4 @@
+import json
 import time
 import os
 import random
@@ -175,6 +176,10 @@ class ForexMLTrainingEngine:
             X = df[features]
             y = df['target']
             
+            # Map Triple Barrier [-1, 0, 1] to [0, 1, 2] for XGBoost/LightGBM compatibility
+            if use_triple_barrier:
+                y = y + 1
+            
             # Feature Selection
             feature_method = self.job.config.get('feature_selection_method', 'none')
             if feature_method != 'none':
@@ -191,7 +196,6 @@ class ForexMLTrainingEngine:
                 try:
                     from stable_baselines3.common.callbacks import BaseCallback
                     import redis
-                    import json
                     from app.core.config import settings
                     redis_client = redis.from_url(settings.REDIS_URL)
                     
@@ -321,9 +325,13 @@ class ForexMLTrainingEngine:
                 # Calculate simple close-to-close returns
                 test_returns = df.loc[X_test.index, 'close'].pct_change().shift(-1).fillna(0)
                 
-                # Signal: 1 is Long, 0 is Short
-                # Return is positive if Long and price goes up, or Short and price goes down
-                strategy_returns = np.where(preds == 1, test_returns, -test_returns)
+                # Signal logic
+                if use_triple_barrier:
+                    # 2 is Long, 0 is Short, 1 is Hold
+                    strategy_returns = np.where(preds == 2, test_returns, np.where(preds == 0, -test_returns, 0.0))
+                else:
+                    # 1 is Long, 0 is Short
+                    strategy_returns = np.where(preds == 1, test_returns, -test_returns)
                 
                 winning_trades = np.sum(strategy_returns > 0)
                 losing_trades = np.sum(strategy_returns < 0)
@@ -351,7 +359,7 @@ class ForexMLTrainingEngine:
             self.db.commit()
             
             # Step 7: Meta Labeling & Saving
-            models_dir = os.path.join(os.getcwd(), "uploads", "models", "forex")
+            models_dir = os.path.join(os.getcwd(), "uploads", "models", f"forex_{self.job_id}")
             os.makedirs(models_dir, exist_ok=True)
             
             if self.job.config.get('enable_meta_labeling', False):
@@ -393,6 +401,19 @@ class ForexMLTrainingEngine:
                 "sharpe_ratio": float(backtest_sharpe) if 'backtest_sharpe' in locals() else 0.0,
                 "trades_count": int(total_trades) if 'total_trades' in locals() else 0
             }
+
+            # Generate and save metadata.json
+            metadata_path = os.path.join(models_dir, f"{self.job_id}_{clean_symbol}_metadata.json")
+            metadata = {
+                "features": list(X.columns),
+                "dataset_type": "forex",
+                "indicators": [],
+                "timeframe": self.job.timeframe,
+                "symbol": clean_symbol,
+                "prediction_target": "classification"
+            }
+            with open(metadata_path, "w") as f:
+                json.dump(metadata, f)
             
             version_id = f"v1.0-{int(time.time())}"
             db_version = models.ModelVersion(
@@ -404,7 +425,8 @@ class ForexMLTrainingEngine:
                 status=models.ModelStatus.READY,
                 accuracy=float(accuracy) if 'accuracy' in locals() else 0.0,
                 dataset_path=data_file,
-                explainability=explainability_data
+                explainability=explainability_data,
+                metadata_path=metadata_path
             )
             self.db.add(db_version)
             self.db.flush()

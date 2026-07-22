@@ -2,11 +2,16 @@ import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BrainCircuit, Play, Settings, Activity, Layers, Target, Cpu, CheckCircle2, XCircle, Loader2, Globe, Terminal, Database } from 'lucide-react';
 import { forexMlTrainingService, ForexTrainingJob } from '@/services/forexMlTrainingService';
+import { mlModelsService } from '@/services/mlModelsService';
 import { ForexAdvancedPipeline } from '@/components/features/market/ForexAdvancedPipeline';
 import { ForexCoreParametersPanel } from '@/components/ml/forex/ForexCoreParametersPanel';
 import { AutoMlToggle } from '@/components/ml/forex/AutoMlToggle';
 
-const ForexModelTrainingStudio: React.FC = () => {
+interface ForexModelTrainingStudioProps {
+    retrainModelId?: string | null;
+}
+
+const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ retrainModelId }) => {
     // Core Parameters
     const [symbol, setSymbol] = useState('EUR_USD');
     const [broker, setBroker] = useState('oanda');
@@ -58,8 +63,29 @@ const ForexModelTrainingStudio: React.FC = () => {
     
     // Status
     const [isTraining, setIsTraining] = useState(false);
+    const [trainingJobId, setTrainingJobId] = useState<string | null>(null);
     const [activeJob, setActiveJob] = useState<ForexTrainingJob | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    // Fetch config for retrain
+    useEffect(() => {
+        if (retrainModelId) {
+            mlModelsService.getModelConfig(retrainModelId).then((config) => {
+                if (config) {
+                    if (config.symbol) setSymbol(config.symbol);
+                    if (config.prediction_target) setPredictionTarget(config.prediction_target);
+                    if (config.forecast_horizon) setForecastHorizon(config.forecast_horizon);
+                    if (config.lookback_window) setLookbackWindow(config.lookback_window);
+                    if (config.eval_metric) setEvalMetric(config.eval_metric);
+                    if (config.algorithm) setAlgorithm(config.algorithm);
+                    
+                    if (config.features && Array.isArray(config.features)) {
+                        setSelectedForexFeatures(config.features);
+                    }
+                }
+            }).catch(console.error);
+        }
+    }, [retrainModelId]);
 
     // L2 Orderbook State
     const [l2OrderbookFiles, setL2OrderbookFiles] = useState<string[]>([]);

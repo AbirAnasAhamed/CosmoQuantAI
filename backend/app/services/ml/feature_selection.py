@@ -35,10 +35,15 @@ def select_features(X: pd.DataFrame, y: pd.Series, method: str = 'shap') -> pd.D
         shap_values = explainer.shap_values(X_sample)
         
         # Calculate mean absolute SHAP values per feature
-        if isinstance(shap_values, list): # Multi-class
+        if isinstance(shap_values, list): # Multi-class (older SHAP API)
             mean_shap = np.abs(shap_values[1]).mean(axis=0) # Assuming class 1 is the positive class
         else:
-            mean_shap = np.abs(shap_values).mean(axis=0)
+            if len(shap_values.shape) == 3:
+                # 3D array: (n_samples, n_features, n_classes)
+                # Take the mean over samples (axis=0) and then mean over classes (axis=1)
+                mean_shap = np.abs(shap_values).mean(axis=0).mean(axis=1)
+            else:
+                mean_shap = np.abs(shap_values).mean(axis=0)
             
         # Create a series with feature names and their SHAP importance
         importance = pd.Series(mean_shap, index=X.columns)

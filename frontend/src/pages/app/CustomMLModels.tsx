@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -7,6 +6,7 @@ import { mlTrainingService } from '@/services/mlTrainingService';
 import { toast } from 'react-hot-toast';
 import Card from '@/components/common/Card';
 import Button from '@/components/common/Button';
+import ForexModelCard from '@/components/ml/forex/ForexModelCard';
 import { LstmIcon, RandomForestIcon, ArimaIcon, OtherModelIcon, CheckCircleIcon, ClockIcon, ExclamationCircleIcon } from '@/constants';
 import type { CustomMLModel, ModelVersion } from '@/types';
 import { BarChart, Bar, XAxis, YAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell, AreaChart, Area, LineChart, Line } from 'recharts';
@@ -191,7 +191,7 @@ const UploadModelModal: React.FC<{
 
 // --- Signal Modal ---
 
-type SignalResult = {
+export type SignalResult = {
     signal: 'BUY' | 'SELL' | 'HOLD';
     confidence: number;
     price: number;
@@ -202,7 +202,7 @@ type SignalResult = {
     dataset_type?: string;
 };
 
-const SignalModal: React.FC<{
+export const SignalModal: React.FC<{
     result: SignalResult;
     modelName: string;
     onClose: () => void;
@@ -1711,19 +1711,36 @@ const CustomMLModels: React.FC<{ onNavigate?: (view: AppView, section?: string) 
                         </div>
                     ) : (
                         <>
-                            {models.map((model, index) => (
-                                <ModelCard
-                                    key={model.id}
-                                    model={model}
-                                    onDelete={handleDelete}
-                                    onUploadVersion={(m) => setModalState({ isOpen: true, modelToUpdate: m })}
-                                    onSetActiveVersion={handleSetActiveVersion}
-                                    onRetrain={handleRetrain}
-                                    onViewDetails={handleViewDetails}
-                                    onDownloadDataset={handleDownloadDataset}
-                                    animationDelay={index * 100}
-                                />
-                            ))}
+                            {models.map((model, index) => {
+                                const anyModel = model as any;
+                                const isForex = model.name.toLowerCase().includes('forex') || (anyModel.datasetPath && anyModel.datasetPath.toLowerCase().includes('forex'));
+                                if (isForex) {
+                                    return (
+                                        <ForexModelCard
+                                            key={model.id}
+                                            model={model}
+                                            onDelete={handleDelete}
+                                            onRetrain={handleRetrain}
+                                            onViewDetails={handleViewDetails}
+                                            onDownloadDataset={handleDownloadDataset}
+                                            animationDelay={index * 100}
+                                        />
+                                    );
+                                }
+                                return (
+                                    <ModelCard
+                                        key={model.id}
+                                        model={model}
+                                        onDelete={handleDelete}
+                                        onUploadVersion={(m) => setModalState({ isOpen: true, modelToUpdate: m })}
+                                        onSetActiveVersion={handleSetActiveVersion}
+                                        onRetrain={handleRetrain}
+                                        onViewDetails={handleViewDetails}
+                                        onDownloadDataset={handleDownloadDataset}
+                                        animationDelay={index * 100}
+                                    />
+                                );
+                            })}
 
                             {/* Add New Placeholder */}
                             <button

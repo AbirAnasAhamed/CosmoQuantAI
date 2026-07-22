@@ -114,7 +114,7 @@ const PredatoryLiquidityPipeline: React.FC<PredatoryLiquidityPipelineProps> = ({
                 <div className="space-y-3">
                     {PLP_MODULES.map((module) => {
                         const isExpanded = expandedModule === module.id;
-                        const Icon = module.icon;
+                        const Icon = module.icon as React.ElementType;
                         const moduleFeatureIds = module.features.map(f => f.id);
                         const selectedInModule = moduleFeatureIds.filter(id => selectedFeatures.includes(id));
                         const isAllSelected = selectedInModule.length === moduleFeatureIds.length;

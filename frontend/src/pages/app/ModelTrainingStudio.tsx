@@ -1,11 +1,27 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { mlModelsService } from '@/services/mlModelsService';
 import CryptoModelTrainingStudio from './CryptoModelTrainingStudio';
 import ForexModelTrainingStudio from './ForexModelTrainingStudio';
 
 const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ retrainModelId }) => {
     // Determine initial mode based on some global state or default to crypto
     const [mode, setMode] = useState<'crypto' | 'forex'>('crypto');
+
+    useEffect(() => {
+        if (retrainModelId) {
+            mlModelsService.getModelConfig(retrainModelId).then((config) => {
+                if (config) {
+                    const isForex = 
+                        config.dataset_type === 'forex' || 
+                        (config.symbol && config.symbol.includes('_'));
+                    if (isForex) {
+                        setMode('forex');
+                    }
+                }
+            }).catch(err => console.error("Failed to fetch retrain model config", err));
+        }
+    }, [retrainModelId]);
 
     return (
         <div className="h-full flex flex-col relative w-full overflow-visible">
@@ -67,7 +83,7 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                         transition={{ duration: 0.3 }}
                         className="flex-1 h-full w-full"
                     >
-                        <ForexModelTrainingStudio />
+                        <ForexModelTrainingStudio retrainModelId={retrainModelId} />
                     </motion.div>
                 )}
             </AnimatePresence>

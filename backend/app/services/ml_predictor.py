@@ -168,7 +168,7 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session, sequence
         if df is None or df.empty:
             raise RuntimeError(f"Live L2 data is currently unavailable for {symbol}. Cannot generate a valid prediction for an L2-trained model.")
     else:
-        df = _fetch_live_ohlcv(symbol, timeframe)
+        df = _fetch_live_ohlcv(symbol, timeframe, dataset_type)
 
     if df is None or df.empty:
         raise RuntimeError(f"Could not fetch live data for {symbol}.")
@@ -186,6 +186,26 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session, sequence
                     df[col] = plp_df[col]
         except Exception as e:
             print(f"[ml_predictor] Failed to calculate PLP features: {e}")
+
+    # ── 5.1 Fetch Forex Features ─────────────────────────────────────────────
+    if dataset_type == 'forex' or '_' in symbol or len(symbol) == 7 and '/' in symbol and not symbol.endswith('USDT'):
+        try:
+            # We already have plp_features which includes forex features, but we should make sure we use the forex engine
+            from app.services.ml.forex_feature_engine import generate_ohlcv_features
+            
+            # The features list for forex models usually contains strings like "session_features", "macro_calendar"
+            # We will use the ones stored in plp_features or features
+            forex_feats_to_calc = plp_features if plp_features else [f for f in features if f in ["session_features", "macro_calendar", "cot_data", "order_flow_imbalance", "liquidity_voids", "retail_sentiment"]]
+            
+            # Plus include any feature that generate_ohlcv_features can calculate
+            # (which is just the entire feature list since the function handles it gracefully)
+            forex_feats_to_calc = list(set(forex_feats_to_calc + features))
+            
+            if forex_feats_to_calc:
+                print(f"[ml_predictor] Applying Forex Feature Engine for: {forex_feats_to_calc}")
+                df = generate_ohlcv_features(df, forex_feats_to_calc)
+        except Exception as e:
+            print(f"[ml_predictor] Failed to calculate Forex features: {e}")
 
     # ── 5.5 Fetch Recent Trades for Hybrid/Trade features ─────────────────────
     trade_features = {'cvd', 'buy_volume', 'sell_volume', 'trade_count', 'aggressor_ratio', 'large_trade_flag', 'vwap_deviation', 'trade_imbalance_ratio', 'tick_speed', 'price_impact', 'rolling_cvd_5', 'rolling_cvd_20'}
@@ -326,11 +346,80 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session, sequence
 
 # ─── Internal Helpers ─────────────────────────────────────────────────────────
 
-def _fetch_live_ohlcv(symbol: str, timeframe: str) -> Optional[pd.DataFrame]:
-    """Fetch the last 100 candles via CCXT.
-    Automatically uses binanceusdm for futures symbols (containing ':').
-    """
+def _fetch_live_ohlcv(symbol: str, timeframe: str, dataset_type: str = "ohlcv") -> Optional[pd.DataFrame]:
+    """Fetch the last 1000 candles via CCXT or OANDA for Forex."""
     try:
+        if dataset_type == 'forex' or '_' in symbol or len(symbol) == 7 and '/' in symbol and not symbol.endswith('USDT'):
+            # It's likely a Forex pair
+            import requests
+            import os
+            from datetime import datetime
+            import yfinance as yf
+            
+            clean_symbol = symbol.replace('_', '/')
+            if '/' not in clean_symbol and len(clean_symbol) == 6:
+                clean_symbol = f"{clean_symbol[:3]}/{clean_symbol[3:]}"
+                
+            tf_map = {'1m': 'M1', '5m': 'M5', '15m': 'M15', '30m': 'M30', '1h': 'H1', '4h': 'H4', '1d': 'D'}
+            oanda_tf = tf_map.get(timeframe, 'H1')
+            oanda_symbol = clean_symbol.replace("/", "_")
+            
+            account_id = os.getenv("OANDA_ACCOUNT_ID")
+            api_key = os.getenv("OANDA_API_KEY")
+            
+            df = None
+            if account_id and api_key:
+                url = f"https://api-fxpractice.oanda.com/v3/instruments/{oanda_symbol}/candles?count=1000&granularity={oanda_tf}&price=M"
+                headers = {"Authorization": f"Bearer {api_key}"}
+                try:
+                    response = requests.get(url, headers=headers, timeout=5)
+                    response.raise_for_status()
+                    data = response.json()
+                    candles = data.get("candles", [])
+                    formatted_data = []
+                    for c in candles:
+                        if c["complete"]:
+                            dt = datetime.fromisoformat(c["time"].replace('Z', '+00:00'))
+                            formatted_data.append({
+                                "timestamp": dt,
+                                "Open": float(c["mid"]["o"]),
+                                "High": float(c["mid"]["h"]),
+                                "Low": float(c["mid"]["l"]),
+                                "Close": float(c["mid"]["c"]),
+                                "Volume": int(c["volume"])
+                            })
+                    if formatted_data:
+                        df = pd.DataFrame(formatted_data)
+                        df.set_index('timestamp', inplace=True)
+                except Exception as e:
+                    print(f"OANDA API failed for {symbol}: {e}. Falling back to yfinance.")
+            
+            if df is None or df.empty:
+                print(f"Using yfinance fallback for {symbol}")
+                yf_symbol = f"{clean_symbol.replace('/', '')}=X"
+                yf_tf_map = {'1m': '1m', '5m': '5m', '15m': '15m', '30m': '30m', '1h': '1h', '1d': '1d'}
+                yf_tf = yf_tf_map.get(timeframe, '1h')
+                period = "1mo"
+                if timeframe == '1m': period = "7d"
+                
+                ticker = yf.Ticker(yf_symbol)
+                yf_df = ticker.history(period=period, interval=yf_tf)
+                if not yf_df.empty:
+                    yf_df = yf_df.tail(1000)
+                    yf_df.reset_index(inplace=True)
+                    # Yfinance index is usually 'Datetime' or 'Date'
+                    time_col = 'Datetime' if 'Datetime' in yf_df.columns else 'Date'
+                    yf_df.rename(columns={time_col: 'timestamp'}, inplace=True)
+                    # Convert to naive UTC
+                    yf_df['timestamp'] = pd.to_datetime(yf_df['timestamp'], utc=True).dt.tz_convert(None)
+                    yf_df.set_index('timestamp', inplace=True)
+                    df = yf_df[['Open', 'High', 'Low', 'Close', 'Volume']]
+            
+            if df is None or df.empty:
+                return None
+            return df
+
+        # Default Crypto CCXT logic
         import ccxt
         tf_map = {
             "1m": "1m", "5m": "5m", "15m": "15m", "30m": "30m",
@@ -743,7 +832,16 @@ def _infer_sklearn(model_path: str, X: np.ndarray, prediction_target: str, featu
             label = int(model.predict(X_input)[0])
             confidence = 0.6
 
-        signal_str = "BUY" if label == 1 else "SELL"
+        # Check if it's a 3-class Triple Barrier model
+        if hasattr(model, 'classes_') and len(model.classes_) == 3:
+            if label == 2:
+                signal_str = "BUY"
+            elif label == 0:
+                signal_str = "SELL"
+            else:
+                signal_str = "HOLD"
+        else:
+            signal_str = "BUY" if label == 1 else "SELL"
     else:
         pred = float(model.predict(X_input)[0])
         signal_str = "BUY" if pred > 0 else "SELL"

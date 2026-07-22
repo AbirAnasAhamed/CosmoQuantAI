@@ -90,8 +90,8 @@ def generate_smc_and_pattern_features(df: pd.DataFrame, selected_features: list[
             df['is_up_candle'] = (df['close'] > df['open']).astype(int)
             
             # Simple OB heuristic: A down candle immediately preceding a 3-candle strong up move (or FVG).
-            df['bullish_ob_proxy'] = (df['is_down_candle'] & df['fvg_bullish'].shift(-2)).astype(int)
-            df['bearish_ob_proxy'] = (df['is_up_candle'] & df['fvg_bearish'].shift(-2)).astype(int)
+            df['bullish_ob_proxy'] = ((df['is_down_candle'] == 1) & (df['fvg_bullish'].shift(-2) == 1)).astype(int)
+            df['bearish_ob_proxy'] = ((df['is_up_candle'] == 1) & (df['fvg_bearish'].shift(-2) == 1)).astype(int)
             # No look-ahead bias: Shift it back to action time
             df['bullish_ob_signal'] = df['bullish_ob_proxy'].shift(2)
             df['bearish_ob_signal'] = df['bearish_ob_proxy'].shift(2)
