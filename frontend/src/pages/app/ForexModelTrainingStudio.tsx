@@ -4,7 +4,6 @@ import { BrainCircuit, Play, Settings, Activity, Layers, Target, Cpu, CheckCircl
 import { forexMlTrainingService, ForexTrainingJob } from '@/services/forexMlTrainingService';
 import { mlModelsService } from '@/services/mlModelsService';
 import { ForexAdvancedPipeline } from '@/components/features/market/ForexAdvancedPipeline';
-import { ForexFeatureSelection } from '@/components/ml/forex/ForexFeatureSelection';
 import AdvancedHyperparameters from '@/components/ml/AdvancedHyperparameters';
 import { ForexCoreParametersPanel } from '@/components/ml/forex/ForexCoreParametersPanel';
 import { AutoMlToggle } from '@/components/ml/forex/AutoMlToggle';
