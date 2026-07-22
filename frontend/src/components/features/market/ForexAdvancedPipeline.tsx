@@ -181,16 +181,115 @@ export const FOREX_MODULES = [
         ]
     },
     {
-        id: 'microstructure',
-        title: 'Microstructure & High Frequency',
-        icon: Terminal,
-        description: 'Tick-level velocity and informed trading proxies.',
+        id: 'l2_price_spread',
+        title: 'Price & Spread (L2)',
+        icon: AlignLeft,
+        description: 'Best prices, spreads, and micro-price.',
         source: 'l2_orderbook',
         features: [
-            { id: 'vpin_proxy', name: 'VPIN Proxy (Probability of Informed Trading)' },
-            { id: 'synthetic_cvd', name: 'Synthetic CVD (Cumulative Volume Delta)' },
-            { id: 'tick_acceleration', name: 'Tick Acceleration & Velocity' },
-            { id: 'tick_volume_profiler', name: 'Tick Volume Profiler' },
+            { id: 'l1_best_bid', name: 'Best Bid Price' },
+            { id: 'l1_best_ask', name: 'Best Ask Price' },
+            { id: 'l2_mid_price', name: 'Mid Price' },
+            { id: 'spread_absolute', name: 'Bid-Ask Spread (Absolute)' },
+            { id: 'spread_bps', name: 'Bid-Ask Spread (BPS)' },
+            { id: 'weighted_mid_price', name: 'Weighted Mid Price' },
+            { id: 'micro_price', name: 'Micro-Price' },
+            { id: 'spread_sma', name: 'Spread Moving Average' },
+            { id: 'spread_volatility', name: 'Spread Volatility' },
+            { id: 'spread_roc', name: 'Spread Rate of Change' }
+        ]
+    },
+    {
+        id: 'l2_imbalance',
+        title: 'Order Book Imbalance (L2)',
+        icon: BarChart2,
+        description: 'Bid/Ask pressure and volume ratios.',
+        source: 'l2_orderbook',
+        features: [
+            { id: 'l1_imbalance', name: 'Level 1 Imbalance' },
+            { id: 'top5_imbalance', name: 'Top 5 Levels Imbalance' },
+            { id: 'top10_imbalance', name: 'Top 10 Levels Imbalance' },
+            { id: 'cumulative_imbalance', name: 'Cumulative Imbalance (N pips)' },
+            { id: 'price_weighted_imbalance', name: 'Price-Weighted Imbalance' },
+            { id: 'volume_weighted_imbalance', name: 'Volume-Weighted Imbalance' },
+            { id: 'imbalance_sma', name: 'Imbalance Moving Average' },
+            { id: 'imbalance_roc', name: 'Imbalance Rate of Change' },
+            { id: 'order_book_skewness', name: 'Order Book Skewness' },
+            { id: 'order_book_kurtosis', name: 'Order Book Kurtosis' }
+        ]
+    },
+    {
+        id: 'l2_liquidity',
+        title: 'Liquidity & Depth (L2)',
+        icon: Database,
+        description: 'Volume depth and depletion rates.',
+        source: 'l2_orderbook',
+        features: [
+            { id: 'total_bid_depth', name: 'Total Bid Volume (Depth)' },
+            { id: 'total_ask_depth', name: 'Total Ask Volume (Depth)' },
+            { id: 'market_depth_ratio', name: 'Market Depth Ratio' },
+            { id: 'near_touch_liquidity', name: 'Near-Touch Liquidity' },
+            { id: 'far_touch_liquidity', name: 'Far-from-Touch Liquidity' },
+            { id: 'bid_depletion_rate', name: 'Bid Side Depletion Rate' },
+            { id: 'ask_depletion_rate', name: 'Ask Side Depletion Rate' },
+            { id: 'orderbook_vwap_bid', name: 'Orderbook VWAP (Bid)' },
+            { id: 'orderbook_vwap_ask', name: 'Orderbook VWAP (Ask)' },
+            { id: 'cost_of_execution', name: 'Cost of Execution (Market Impact)' }
+        ]
+    },
+    {
+        id: 'l2_order_flow',
+        title: 'Order Flow & Microstructure (L2)',
+        icon: Layers,
+        description: 'OFI, VPIN, and replenishment rates.',
+        source: 'l2_orderbook',
+        features: [
+            { id: 'ofi', name: 'Order Flow Imbalance (OFI)' },
+            { id: 'multi_level_ofi', name: 'Multi-level OFI' },
+            { id: 'bid_replenishment', name: 'Bid Replenishment Rate' },
+            { id: 'ask_replenishment', name: 'Ask Replenishment Rate' },
+            { id: 'bid_cancellation', name: 'Bid Cancellation Rate' },
+            { id: 'ask_cancellation', name: 'Ask Cancellation Rate' },
+            { id: 'quote_stuffing_ratio', name: 'Quote Stuffing Ratio' },
+            { id: 'vpin_proxy', name: 'VPIN Proxy (Informed Trading)' },
+            { id: 'trade_sign_proxy', name: 'Trade Sign Proxy (Lee-Ready)' },
+            { id: 'market_vs_limit', name: 'Market vs Limit Arrival Rate' }
+        ]
+    },
+    {
+        id: 'l2_volatility',
+        title: 'Volatility & Price Pressure (L2)',
+        icon: Target,
+        description: 'High-frequency volatility and bounces.',
+        source: 'l2_orderbook',
+        features: [
+            { id: 'hf_realized_volatility', name: 'High-Freq Realized Volatility' },
+            { id: 'bid_ask_bounce', name: 'Bid/Ask Bounce Ratio' },
+            { id: 'buying_pressure_tick', name: 'Buying Pressure (Tick)' },
+            { id: 'selling_pressure_tick', name: 'Selling Pressure (Tick)' },
+            { id: 'micro_rsi', name: 'Micro-RSI (Mid Price)' },
+            { id: 'lob_slope_bid', name: 'LOB Slope (Bid)' },
+            { id: 'lob_slope_ask', name: 'LOB Slope (Ask)' },
+            { id: 'amihud_illiquidity', name: 'Amihud Illiquidity Proxy' },
+            { id: 'depth_to_spread', name: 'Depth-to-Spread Ratio' },
+            { id: 'toxic_order_flow', name: 'Toxic Order Flow Indicator' }
+        ]
+    },
+    {
+        id: 'l2_advanced_math',
+        title: 'Advanced Derived ML (L2)',
+        icon: Terminal,
+        description: 'Derivatives, Entropy, and Center of Mass.',
+        source: 'l2_orderbook',
+        features: [
+            { id: 'l1_imbalance_deriv1', name: '1st Derivative of L1 Imbalance' },
+            { id: 'l1_imbalance_deriv2', name: '2nd Derivative of L1 Imbalance' },
+            { id: 'spread_imbalance_corr', name: 'Spread-Imbalance Cross-Correlation' },
+            { id: 'top5_imbalance_zscore', name: 'Z-Score of Top 5 Imbalance' },
+            { id: 'entropy_order_book', name: 'Entropy of Order Book' },
+            { id: 'center_of_mass', name: 'Order Book Center of Mass' },
+            { id: 'time_decay_imbalance', name: 'Time-Decay Weighted Imbalance' },
+            { id: 'bid_ask_volume_div', name: 'Bid-Ask Volume Divergence' }
         ]
     }
 ];
@@ -264,7 +363,7 @@ export const ForexAdvancedPipeline: React.FC<ForexAdvancedPipelineProps> = (prop
                         Standard OHLCV
                     </button>
                     <button
-                        onClick={() => { setDataSource('l2_orderbook'); setExpandedModule('microstructure'); }}
+                        onClick={() => { setDataSource('l2_orderbook'); setExpandedModule('l2_price_spread'); }}
                         disabled={props.isTraining}
                         className={`py-2 rounded-xl text-[11px] font-bold transition-all duration-300 ${dataSource === 'l2_orderbook' ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'}`}
                     >

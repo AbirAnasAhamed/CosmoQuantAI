@@ -136,11 +136,22 @@ class ForexMLTrainingEngine:
                             l2_df[time_col] = pd.to_datetime(l2_df[time_col], utc=True).dt.tz_localize(None)
                             l2_df.set_index(time_col, inplace=True)
                             
-                            # Feature extraction from L2
-                            if 'best_bid' in l2_df.columns and 'best_ask' in l2_df.columns:
-                                l2_df['l2_spread'] = l2_df['best_ask'] - l2_df['best_bid']
-                            if 'bid_volume' in l2_df.columns and 'ask_volume' in l2_df.columns:
-                                l2_df['orderbook_imbalance'] = (l2_df['bid_volume'] - l2_df['ask_volume']) / (l2_df['bid_volume'] + l2_df['ask_volume'] + 1e-9)
+                            # Standardize column names for the L2 Engine
+                            if 'best_bid' in l2_df.columns and 'bid1' not in l2_df.columns: l2_df['bid1'] = l2_df['best_bid']
+                            if 'best_ask' in l2_df.columns and 'ask1' not in l2_df.columns: l2_df['ask1'] = l2_df['best_ask']
+                            if 'bid_volume' in l2_df.columns and 'bid_vol1' not in l2_df.columns: l2_df['bid_vol1'] = l2_df['bid_volume']
+                            if 'ask_volume' in l2_df.columns and 'ask_vol1' not in l2_df.columns: l2_df['ask_vol1'] = l2_df['ask_volume']
+                            
+                            # Feature extraction from L2 using the new modular engine
+                            from app.services.ml.forex_l2_feature_engine import generate_all_l2_features
+                            selected_features = self.job.config.get('selected_forex_features', [])
+                            self._log(f"Calculating advanced L2 features... ({len([f for f in selected_features if f.startswith('l1_') or f.startswith('spread_') or f.startswith('l2_') or f.startswith('top') or f.startswith('bid_') or f.startswith('ask_')])} selected)")
+                            l2_df = generate_all_l2_features(l2_df, selected_features)
+                            
+                            # CRITICAL: Drop raw price/volume columns from L2 data to prevent data leakage and non-stationarity in the ML model.
+                            # We only want to keep the explicitly generated features that the user selected.
+                            raw_cols = [c for c in l2_df.columns if c not in selected_features and c not in ['time', 'timestamp']]
+                            l2_df.drop(columns=raw_cols, inplace=True, errors='ignore')
                             
                             # Resample to match OHLCV (1min)
                             l2_resampled = l2_df.resample('1min').mean().fillna(0)
@@ -436,6 +447,29 @@ class ForexMLTrainingEngine:
             self._log(f"Model successfully registered in ML Registry as {registry_id}")
             # --- End ML Registry Save ---
             
+            # --- Generate UI Metrics and Feature Importance Logs ---
+            metrics = {
+                "ACCURACY": float(accuracy) if 'accuracy' in locals() else 0.0,
+                "WIN_RATE": float(backtest_win_rate) if 'backtest_win_rate' in locals() else 0.0,
+                "SHARPE_RATIO": float(backtest_sharpe) if 'backtest_sharpe' in locals() else 0.0,
+                "NET_PROFIT": float(total_return) if 'total_return' in locals() else 0.0
+            }
+            self._log(f"[METRICS] {json.dumps(metrics)}")
+            
+            try:
+                # Try to extract feature importances if the model supports it
+                if hasattr(model, 'feature_importances_'):
+                    importances = model.feature_importances_
+                    feature_names = X.columns
+                    # Create dictionary of feature importance
+                    feat_imp = {feat: float(imp) for feat, imp in zip(feature_names, importances)}
+                    # Sort and take top 5
+                    top_5_features = dict(sorted(feat_imp.items(), key=lambda item: item[1], reverse=True)[:5])
+                    self._log(f"[FEATURE_IMPORTANCE] {json.dumps(top_5_features)}")
+            except Exception as e:
+                self._log(f"Could not extract feature importance: {e}")
+            # -----------------------------------------------------
+
             self.job.status = TrainingStatus.COMPLETED
             self.job.progress = 100.0
             self.job.completed_at = datetime.now(timezone.utc)

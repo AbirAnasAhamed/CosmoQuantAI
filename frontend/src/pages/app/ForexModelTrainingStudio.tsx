@@ -7,6 +7,8 @@ import { ForexAdvancedPipeline } from '@/components/features/market/ForexAdvance
 import AdvancedHyperparameters from '@/components/ml/AdvancedHyperparameters';
 import { ForexCoreParametersPanel } from '@/components/ml/forex/ForexCoreParametersPanel';
 import { AutoMlToggle } from '@/components/ml/forex/AutoMlToggle';
+import FeatureImportanceChart from '@/components/ml/FeatureImportanceChart';
+import EquityCurveChart from '@/components/ml/EquityCurveChart';
 
 interface ForexModelTrainingStudioProps {
     retrainModelId?: string | null;
@@ -735,14 +737,59 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                                     ) : (
                                         <div className="space-y-1.5 pb-8">
                                             {activeJob.logs?.map((log, i) => {
-                                                const isError = log.includes("ERROR") || log.includes("CRITICAL");
-                                                const isWarning = log.includes("WARNING");
-                                                const isSuccess = log.includes("SUCCESS") || log.includes("Model saved");
+                                                // Ignore raw timestamps for JSON extraction
+                                                const cleanLog = log.replace(/^\[\d{2}:\d{2}:\d{2}\]\s*/, '').replace(/^\[ForexEngine\]\s*/, '');
+                                                
+                                                if (cleanLog.startsWith('[METRICS]')) {
+                                                    try {
+                                                        const metrics = JSON.parse(cleanLog.replace('[METRICS]', '').trim());
+                                                        return (
+                                                            <motion.div key={i} initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="mt-4 mb-4 p-4 bg-gradient-to-br from-emerald-900/40 to-cyan-900/20 border border-emerald-500/30 rounded-xl shadow-[0_0_20px_rgba(16,185,129,0.15)]">
+                                                                <h4 className="text-emerald-400 font-bold text-xs mb-2 tracking-widest flex items-center gap-2">
+                                                                    <Activity className="w-4 h-4" /> PERFORMANCE METRICS
+                                                                </h4>
+                                                                <div className="grid grid-cols-2 gap-4">
+                                                                    {Object.entries(metrics).map(([k, v]) => (
+                                                                        <div key={k} className="bg-black/40 rounded-lg p-3 border border-emerald-500/10">
+                                                                            <div className="text-emerald-100/50 text-[10px] uppercase font-bold tracking-wider">{k}</div>
+                                                                            <div className="text-emerald-400 text-lg font-black mt-1 drop-shadow-[0_0_5px_#10b981]">{Number(v).toFixed(4)}</div>
+                                                                        </div>
+                                                                    ))}
+                                                                </div>
+                                                            </motion.div>
+                                                        );
+                                                    } catch (e) { return null; }
+                                                }
+
+                                                if (cleanLog.startsWith('[FEATURE_IMPORTANCE]')) {
+                                                    try {
+                                                        const featureData = JSON.parse(cleanLog.replace('[FEATURE_IMPORTANCE]', '').trim());
+                                                        return <FeatureImportanceChart key={i} data={featureData} />;
+                                                    } catch (e) { return null; }
+                                                }
+
+                                                let textColor = "text-gray-300";
+                                                
+                                                if (log.includes("ERROR") || log.includes("CRITICAL")) textColor = "text-red-400 drop-shadow-[0_0_5px_#ef4444]";
+                                                else if (log.includes("complete") || log.includes("successfully") || log.includes("SUCCESS") || log.includes("Model saved")) textColor = "text-emerald-400 drop-shadow-[0_0_5px_#10b981]";
+                                                else if (log.includes("Epoch") || log.includes("Loss") || log.includes("Accuracy")) textColor = "text-cyan-400 drop-shadow-[0_0_5px_#22d3ee]";
+                                                else if (log.includes("Fetching") || log.includes("Calculating")) textColor = "text-yellow-400";
+                                                else if (log.includes("WARNING")) textColor = "text-amber-400 drop-shadow-[0_0_5px_#f59e0b]";
+
                                                 return (
-                                                    <div key={i} className={`flex ${isError ? 'text-red-400 font-semibold bg-red-500/10 p-1 rounded' : isWarning ? 'text-yellow-300' : isSuccess ? 'text-green-400 font-semibold' : 'text-cyan-300 hover:text-cyan-100'}`}>
-                                                        <span className="opacity-50 mr-3 select-none">[{i.toString().padStart(4, '0')}]</span>
-                                                        <span className="break-all">{log}</span>
-                                                    </div>
+                                                    <motion.div 
+                                                        key={i}
+                                                        initial={{ opacity: 0, x: -10 }}
+                                                        animate={{ opacity: 1, x: 0 }}
+                                                        className={`flex gap-3 font-mono text-sm leading-relaxed mb-1 ${textColor}`}
+                                                    >
+                                                        <span className="opacity-50 select-none shrink-0 w-24">
+                                                            root@core:~#
+                                                        </span>
+                                                        <span className="break-words flex-1">
+                                                            {log}
+                                                        </span>
+                                                    </motion.div>
                                                 );
                                             })}
                                             {activeJob.status === 'RUNNING' && (
@@ -757,14 +804,28 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                                                     <div>{activeJob.error_message}</div>
                                                 </div>
                                             )}
-                                            {activeJob.status === 'COMPLETED' && (
-                                                <div className="mt-4 text-green-400 font-bold">
-                                                    PROCESS COMPLETED SUCCESSFULLY
-                                                </div>
-                                            )}
                                             <div ref={logsEndRef} />
                                         </div>
                                     )}
+                                </div>
+
+                                {/* Footer Status Bar */}
+                                <div className="bg-black/80 backdrop-blur-md px-6 py-3 border-t border-cyan-500/30 flex justify-between items-center shrink-0">
+                                    <div className="flex items-center gap-3">
+                                        {activeJob?.status === 'COMPLETED' ? (
+                                            <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                                        ) : activeJob?.status === 'FAILED' ? (
+                                            <XCircle className="w-5 h-5 text-red-400" />
+                                        ) : (
+                                            <Loader2 className="w-5 h-5 text-cyan-400 animate-spin" />
+                                        )}
+                                        <span className={`text-xs font-mono font-bold tracking-widest ${activeJob?.status === 'COMPLETED' ? 'text-emerald-400' : activeJob?.status === 'FAILED' ? 'text-red-400' : 'text-cyan-400'}`}>
+                                            SYSTEM_STATUS: {activeJob?.status || 'IDLE'}
+                                        </span>
+                                    </div>
+                                    <div className="text-xs font-mono text-cyan-100/50 font-bold">
+                                        {activeJob?.progress ? `${Math.floor(activeJob.progress)}%` : '0%'}
+                                    </div>
                                 </div>
                             </div>
                         </div>
