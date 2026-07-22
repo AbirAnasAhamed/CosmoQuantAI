@@ -300,5 +300,9 @@ def generate_all_l2_features(df: pd.DataFrame, selected_features: List[str]) -> 
     df = generate_l2_volatility_features(df, selected_features)
     df = generate_l2_advanced_math_features(df, selected_features)
     
+    # ── Inject Predatory & Synthetic Liquidity (PLP) Features ──
+    from app.services.ml.forex_l2_plp_engine import inject_plp_features
+    df = inject_plp_features(df, selected_features)
+    
     df = df.fillna(0)
     return df
