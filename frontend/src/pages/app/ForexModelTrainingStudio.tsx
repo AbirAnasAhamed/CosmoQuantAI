@@ -4,6 +4,8 @@ import { BrainCircuit, Play, Settings, Activity, Layers, Target, Cpu, CheckCircl
 import { forexMlTrainingService, ForexTrainingJob } from '@/services/forexMlTrainingService';
 import { mlModelsService } from '@/services/mlModelsService';
 import { ForexAdvancedPipeline } from '@/components/features/market/ForexAdvancedPipeline';
+import { ForexFeatureSelection } from '@/components/ml/forex/ForexFeatureSelection';
+import AdvancedHyperparameters from '@/components/ml/AdvancedHyperparameters';
 import { ForexCoreParametersPanel } from '@/components/ml/forex/ForexCoreParametersPanel';
 import { AutoMlToggle } from '@/components/ml/forex/AutoMlToggle';
 
@@ -58,6 +60,8 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
     // Neural Architecture
     const [algorithm, setAlgorithm] = useState('Random Forest');
     const [epochs, setEpochs] = useState(50);
+    const [learningRate, setLearningRate] = useState(0.001);
+    const [maxDepth, setMaxDepth] = useState(6);
     
     const [instruments, setInstruments] = useState<{name: string, display_name: string}[]>([]);
     
@@ -383,6 +387,8 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                 algorithm,
                 config: {
                     epochs,
+                    learning_rate: learningRate,
+                    tree_depth: maxDepth,
                     broker,
                     model_name: modelName,
                     prediction_target: predictionTarget,
@@ -499,6 +505,10 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                             setModelName={setModelName}
                             predictionTarget={predictionTarget}
                             setPredictionTarget={setPredictionTarget}
+                            learningRate={learningRate}
+                            setLearningRate={setLearningRate}
+                            maxDepth={maxDepth}
+                            setMaxDepth={setMaxDepth}
                             forecastHorizon={forecastHorizon}
                             setForecastHorizon={setForecastHorizon}
                             lookbackWindow={lookbackWindow}
@@ -589,6 +599,15 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                                             ))}
                                         </div>
                                     </div>
+                                    
+                                    <AdvancedHyperparameters
+                                        learningRate={learningRate}
+                                        setLearningRate={setLearningRate}
+                                        maxDepth={maxDepth}
+                                        setMaxDepth={setMaxDepth}
+                                        isTraining={isTraining}
+                                    />
+                                    
                                     <AutoMlToggle 
                                         useAutoMl={useAutoMl}
                                         setUseAutoMl={setUseAutoMl}

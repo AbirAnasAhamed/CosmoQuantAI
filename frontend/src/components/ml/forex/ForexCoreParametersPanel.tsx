@@ -12,6 +12,7 @@ import { TripleBarrierToggle } from './TripleBarrierToggle';
 import { MetaLabelingToggle } from './MetaLabelingToggle';
 import { FeatureSelectionDropdown } from './FeatureSelectionDropdown';
 import LiveMarketPulse from '@/components/ml/LiveMarketPulse';
+import AdvancedHyperparameters from '@/components/ml/AdvancedHyperparameters';
 
 export interface ForexCoreParametersProps {
     symbol: string;
@@ -46,6 +47,10 @@ export interface ForexCoreParametersProps {
     setLookbackWindow: (v: number) => void;
     evalMetric: string;
     setEvalMetric: (v: string) => void;
+    learningRate: number;
+    setLearningRate: (v: number) => void;
+    maxDepth: number;
+    setMaxDepth: (v: number) => void;
 
     // Preprocessing
     outlierRemoval: string;

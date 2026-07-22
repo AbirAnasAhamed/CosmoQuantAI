@@ -31,85 +31,100 @@ def get_forex_model(algorithm_name: str, config: dict = None):
     elif algorithm_name == 'Bayesian NN':
         return ForexBayesianNNModel()
 
+    # Extract core parameters from frontend config
+    n_estimators = config.get('n_estimators', config.get('epochs', 100))
+    epochs = config.get('epochs', 10)
+    tree_depth = config.get('tree_depth', None)
+    # Some algorithms don't like max_depth=0 or None, handle accordingly per algo
+    max_depth = tree_depth if tree_depth and tree_depth > 0 else None
+    
+    lr = config.get('learning_rate', 1e-3)
+    batch_size = config.get('batch_size', 32)
+    seq_len = config.get('sequence_length', 10)
+    class_weight = config.get('class_weight', None)
+    if class_weight == 'balanced':
+        cw_param = 'balanced'
+    else:
+        cw_param = None
+
     # 3. Indicator & Tabular Engines (Scikit-Learn / Boosters)
-    elif algorithm_name == 'Random Forest':
+    if algorithm_name == 'Random Forest':
         from sklearn.ensemble import RandomForestClassifier
-        return RandomForestClassifier(n_estimators=config.get('epochs', 100), random_state=42, n_jobs=1)
+        return RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, class_weight=cw_param, random_state=42, n_jobs=1)
     elif algorithm_name == 'XGBoost':
         try:
             from xgboost import XGBClassifier
-            return XGBClassifier(n_estimators=config.get('epochs', 100), random_state=42, use_label_encoder=False, eval_metric='logloss')
+            return XGBClassifier(n_estimators=n_estimators, max_depth=max_depth or 6, learning_rate=lr, random_state=42, use_label_encoder=False, eval_metric='logloss')
         except ImportError:
             from sklearn.ensemble import GradientBoostingClassifier
-            return GradientBoostingClassifier(n_estimators=config.get('epochs', 100), random_state=42)
+            return GradientBoostingClassifier(n_estimators=n_estimators, max_depth=max_depth or 3, learning_rate=lr, random_state=42)
     elif algorithm_name == 'LightGBM':
         try:
             from lightgbm import LGBMClassifier
-            return LGBMClassifier(n_estimators=config.get('epochs', 100), random_state=42)
+            return LGBMClassifier(n_estimators=n_estimators, max_depth=max_depth or -1, learning_rate=lr, class_weight=cw_param, random_state=42)
         except ImportError:
             from sklearn.ensemble import GradientBoostingClassifier
-            return GradientBoostingClassifier(n_estimators=config.get('epochs', 100), random_state=42)
+            return GradientBoostingClassifier(n_estimators=n_estimators, max_depth=max_depth or 3, learning_rate=lr, random_state=42)
     elif algorithm_name == 'CatBoost':
         try:
             from catboost import CatBoostClassifier
-            return CatBoostClassifier(iterations=config.get('epochs', 100), random_state=42, verbose=0)
+            return CatBoostClassifier(iterations=n_estimators, depth=max_depth or 6, learning_rate=lr, random_state=42, verbose=0)
         except ImportError:
             from sklearn.ensemble import GradientBoostingClassifier
-            return GradientBoostingClassifier(n_estimators=config.get('epochs', 100), random_state=42)
+            return GradientBoostingClassifier(n_estimators=n_estimators, max_depth=max_depth or 3, learning_rate=lr, random_state=42)
     elif algorithm_name == 'TabNet':
-        # Assuming pytorch-tabnet is used, else fallback
         from sklearn.ensemble import RandomForestClassifier
-        return RandomForestClassifier(n_estimators=config.get('epochs', 100), random_state=42, n_jobs=1)
+        return RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, class_weight=cw_param, random_state=42, n_jobs=1)
 
     # 4. Deep Learning Models (Native PyTorch)
     elif algorithm_name == 'LSTM':
         from app.services.ml.forex_deep_learning_models import ForexLSTM
-        return ForexLSTM(epochs=config.get('epochs', 10))
+        return ForexLSTM(epochs=epochs, seq_len=seq_len, batch_size=batch_size, lr=lr)
     elif algorithm_name == 'GRU':
         from app.services.ml.forex_deep_learning_models import ForexGRU
-        return ForexGRU(epochs=config.get('epochs', 10))
+        return ForexGRU(epochs=epochs, seq_len=seq_len, batch_size=batch_size, lr=lr)
     elif algorithm_name == 'TCN':
         from app.services.ml.forex_deep_learning_models import ForexTCN
-        return ForexTCN(epochs=config.get('epochs', 10))
+        return ForexTCN(epochs=epochs, seq_len=seq_len, batch_size=batch_size, lr=lr)
     elif algorithm_name == '1D-CNN':
         from app.services.ml.forex_deep_learning_models import ForexCNN1D
-        return ForexCNN1D(epochs=config.get('epochs', 10))
+        return ForexCNN1D(epochs=epochs, seq_len=seq_len, batch_size=batch_size, lr=lr)
     elif algorithm_name == 'DeepLOB':
         from app.services.ml.forex_deep_learning_models import ForexDeepLOB
-        return ForexDeepLOB(epochs=config.get('epochs', 10))
+        return ForexDeepLOB(epochs=epochs, seq_len=seq_len, batch_size=batch_size, lr=lr)
     elif algorithm_name == 'Transformer':
         from app.services.ml.forex_deep_learning_models import ForexTransformer
-        return ForexTransformer(epochs=config.get('epochs', 10))
+        return ForexTransformer(epochs=epochs, seq_len=seq_len, batch_size=batch_size, lr=lr)
     elif algorithm_name == 'Auto-Encoder':
         from app.services.ml.forex_deep_learning_models import ForexAutoEncoder
-        return ForexAutoEncoder(epochs=config.get('epochs', 10))
+        return ForexAutoEncoder(epochs=epochs, seq_len=seq_len, batch_size=batch_size, lr=lr)
     elif algorithm_name == 'Liquid-NN':
         from app.services.ml.forex_deep_learning_models import ForexLiquidNN
-        return ForexLiquidNN(epochs=config.get('epochs', 10))
+        return ForexLiquidNN(epochs=epochs, seq_len=seq_len, batch_size=batch_size, lr=lr)
 
     # 5. Reinforcement Learning Models (Native stable-baselines3)
     elif algorithm_name == 'PPO-RL':
         from app.services.ml.forex_rl_models import ForexPPORL
-        return ForexPPORL(epochs=config.get('epochs', 10))
+        return ForexPPORL(epochs=epochs)
     elif algorithm_name == 'SAC-RL':
         from app.services.ml.forex_rl_models import ForexSACRL
-        return ForexSACRL(epochs=config.get('epochs', 10))
+        return ForexSACRL(epochs=epochs)
     elif algorithm_name == 'A2C-RL':
         from app.services.ml.forex_rl_models import ForexA2CRL
-        return ForexA2CRL(epochs=config.get('epochs', 10))
+        return ForexA2CRL(epochs=epochs)
     elif algorithm_name == 'DDPG-RL':
         from app.services.ml.forex_rl_models import ForexDDPGRL
-        return ForexDDPGRL(epochs=config.get('epochs', 10))
+        return ForexDDPGRL(epochs=epochs)
     elif algorithm_name == 'TD3-RL':
         from app.services.ml.forex_rl_models import ForexTD3RL
-        return ForexTD3RL(epochs=config.get('epochs', 10))
+        return ForexTD3RL(epochs=epochs)
     elif algorithm_name == 'DQN-RL':
         from app.services.ml.forex_rl_models import ForexDQNRL
-        return ForexDQNRL(epochs=config.get('epochs', 10))
+        return ForexDQNRL(epochs=epochs)
     elif algorithm_name in ['QR-DQN', 'CQL', 'GAIL', 'Decision-Transformer']:
         from app.services.ml.forex_rl_models import ForexAdvancedRL
-        return ForexAdvancedRL(algo_name=algorithm_name, epochs=config.get('epochs', 10))
+        return ForexAdvancedRL(algo_name=algorithm_name, epochs=epochs)
     else:
         print(f"Algorithm '{algorithm_name}' not natively supported in Forex Engine yet. Falling back to Random Forest.")
         from sklearn.ensemble import RandomForestClassifier
-        return RandomForestClassifier(n_estimators=100, random_state=42, n_jobs=1)
+        return RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, random_state=42, n_jobs=1)
