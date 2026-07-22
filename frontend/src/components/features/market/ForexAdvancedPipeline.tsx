@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Activity, Clock, Globe, Terminal, ChevronDown, CheckSquare, Square, Database, Trash2, TrendingUp, BarChart2, Zap, Target, Layers, AlignLeft } from 'lucide-react';
+import { Activity, Clock, Globe, Terminal, ChevronDown, CheckSquare, Square, Database, Trash2, TrendingUp, BarChart2, Zap, Target, Layers, AlignLeft, Crosshair } from 'lucide-react';
 import { ForexScraperPanel } from '../../ml/forex/ForexScraperPanel';
 
 export const FOREX_MODULES = [
