@@ -467,14 +467,6 @@ const ForexModelTrainingStudio: React.FC = () => {
                             setFeatureSelectionMethod={setFeatureSelectionMethod}
                             wfoWindows={wfoWindows}
                             setWfoWindows={setWfoWindows}
-                            forexSnapshotFiles={forexSnapshotFiles}
-                            selectedForexFile={selectedForexFile}
-                            setSelectedForexFile={setSelectedForexFile}
-                            handleDeleteSnapshot={handleDeleteSnapshot}
-                            forexScrapeJob={forexScrapeJob}
-                            setForexScrapeJob={setForexScrapeJob}
-                            onStartCollector={handleStartForexCollector}
-                            onCancelCollector={handleCancelForexCollector}
                         />
 
                         {/* COLUMN 2: Neural Architecture */}
@@ -540,6 +532,17 @@ const ForexModelTrainingStudio: React.FC = () => {
                             }}
                             onSetMultipleFeatures={setSelectedForexFeatures}
                             disabled={isTraining}
+                            symbol={symbol}
+                            isTraining={isTraining}
+                            timeframe={timeframe}
+                            forexSnapshotFiles={forexSnapshotFiles}
+                            selectedForexFile={selectedForexFile}
+                            setSelectedForexFile={setSelectedForexFile}
+                            handleDeleteSnapshot={handleDeleteSnapshot}
+                            forexScrapeJob={forexScrapeJob}
+                            setForexScrapeJob={setForexScrapeJob}
+                            onStartCollector={handleStartForexCollector}
+                            onCancelCollector={handleCancelForexCollector}
                         />
 
                         </div>

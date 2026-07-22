@@ -12,8 +12,6 @@ import { TripleBarrierToggle } from './TripleBarrierToggle';
 import { MetaLabelingToggle } from './MetaLabelingToggle';
 import { FeatureSelectionDropdown } from './FeatureSelectionDropdown';
 import LiveMarketPulse from '@/components/ml/LiveMarketPulse';
-import { ForexScraperPanel } from './ForexScraperPanel';
-import { Trash2 } from 'lucide-react';
 
 export interface ForexCoreParametersProps {
     symbol: string;
@@ -99,15 +97,7 @@ export interface ForexCoreParametersProps {
     barrierTimeout: number;
     setBarrierTimeout: (v: number) => void;
     
-    // Scraper Props
-    forexSnapshotFiles: string[];
-    selectedForexFile: string;
-    setSelectedForexFile: (v: string) => void;
-    handleDeleteSnapshot: (e: React.MouseEvent) => void;
-    forexScrapeJob: any;
-    setForexScrapeJob: (job: any) => void;
-    onStartCollector: (config: any) => void;
-    onCancelCollector: () => void;
+
 }
 
 const TIMEFRAMES = ['5s', '10s', '30s', '1m', '5m', '15m', '30m', '1h', '4h', '1d'];
@@ -265,44 +255,7 @@ export const ForexCoreParametersPanel: React.FC<ForexCoreParametersProps> = (pro
                     </div>
                 </div>
                 
-                <div className="pt-2 border-t border-white/10 mt-4">
-                    <div className="mb-4">
-                        <label className="block text-sm font-bold text-slate-300 mb-2">Select Dataset Snapshot (Parquet)</label>
-                        <div className="flex items-center gap-2">
-                            <select 
-                                value={props.selectedForexFile} 
-                                onChange={e => props.setSelectedForexFile(e.target.value)}
-                                disabled={props.isTraining}
-                                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-teal-500/50 outline-none"
-                            >
-                                {props.forexSnapshotFiles.length === 0 && <option value="" className="text-slate-500">No snapshots available. Please collect data first.</option>}
-                                {props.forexSnapshotFiles.map(f => (
-                                    <option key={f} value={f} className="bg-gray-900 text-white">{f}</option>
-                                ))}
-                            </select>
-                            {props.selectedForexFile && (
-                                <button
-                                    onClick={props.handleDeleteSnapshot}
-                                    disabled={props.isTraining}
-                                    className="p-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl border border-red-500/20 transition-all flex items-center justify-center"
-                                    title="Delete selected snapshot"
-                                >
-                                    <Trash2 className="w-5 h-5" />
-                                </button>
-                            )}
-                        </div>
-                    </div>
 
-                    <ForexScraperPanel 
-                        symbol={props.symbol}
-                        isTraining={props.isTraining}
-                        forexScrapeJob={props.forexScrapeJob}
-                        setForexScrapeJob={props.setForexScrapeJob}
-                        onStartCollector={props.onStartCollector}
-                        onCancelCollector={props.onCancelCollector}
-                        timeframe={props.timeframe}
-                    />
-                </div>
 
                 {/* Lower Half: Advanced Preprocessing UI */}
                 <div className="mt-6 pt-6 border-t border-white/10">
