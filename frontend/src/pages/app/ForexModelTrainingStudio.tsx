@@ -60,6 +60,11 @@ const ForexModelTrainingStudio: React.FC = () => {
     const [isTraining, setIsTraining] = useState(false);
     const [activeJob, setActiveJob] = useState<ForexTrainingJob | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+
+    // L2 Orderbook State
+    const [l2OrderbookFiles, setL2OrderbookFiles] = useState<string[]>([]);
+    const [selectedL2File, setSelectedL2File] = useState('');
+    const [isUploadingL2, setIsUploadingL2] = useState(false);
     const [showTerminal, setShowTerminal] = useState(false);
     const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -197,6 +202,13 @@ const ForexModelTrainingStudio: React.FC = () => {
                 setSelectedForexFile(files[0]);
             }
         }).catch(err => console.error("Failed to load forex snapshots", err));
+
+        forexMlTrainingService.getL2OrderbookFiles().then((files) => {
+            setL2OrderbookFiles(files);
+            if (files.length > 0 && !selectedL2File) {
+                setSelectedL2File(files[0]);
+            }
+        }).catch(err => console.error("Failed to load L2 snapshots", err));
     }, []);
 
     // Polling logic for Training Job
@@ -297,10 +309,49 @@ const ForexModelTrainingStudio: React.FC = () => {
         }
     };
 
+    const handleUploadL2Csv = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+        const file = e.target.files[0];
+        
+        if (!file.name.endsWith('.csv')) {
+            alert('Please upload a valid CSV file');
+            return;
+        }
+
+        setIsUploadingL2(true);
+        try {
+            const res = await forexMlTrainingService.uploadL2Csv(file);
+            const newFile = res.filename;
+            setL2OrderbookFiles(prev => [...prev, newFile]);
+            setSelectedL2File(newFile);
+            alert('✅ L2 Orderbook CSV uploaded successfully!');
+        } catch (error: any) {
+            alert(`❌ Upload failed: ${error.message}`);
+        } finally {
+            setIsUploadingL2(false);
+            e.target.value = ''; // Reset input
+        }
+    };
+
+    const handleDeleteL2Snapshot = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        if (!selectedL2File) return;
+        if (!confirm(`Are you sure you want to delete ${selectedL2File}?`)) return;
+        
+        try {
+            await forexMlTrainingService.deleteL2Snapshot(selectedL2File);
+            setL2OrderbookFiles(prev => prev.filter(f => f !== selectedL2File));
+            setSelectedL2File('');
+            alert('✅ Snapshot deleted');
+        } catch (error: any) {
+            alert(`❌ Delete failed: ${error.message}`);
+        }
+    };
+
     const handleStartTraining = async () => {
         setIsTraining(true);
         try {
-            const job = await forexMlTrainingService.startTraining({
+            const configPayload = {
                 symbol,
                 timeframe,
                 algorithm,
@@ -348,9 +399,12 @@ const ForexModelTrainingStudio: React.FC = () => {
                     feature_selection_method: featureSelectionMethod,
                     wfo_windows: wfoWindows,
                     selected_forex_features: selectedForexFeatures,
-                    snapshot_file: selectedForexFile
+                    snapshot_file: selectedForexFile,
+                    l2_orderbook_file: selectedL2File || undefined
                 }
-            });
+            };
+            
+            const job = await forexMlTrainingService.startTraining(configPayload);
             setActiveJob(job);
             setShowTerminal(true);
             alert("Training job started successfully!");
@@ -543,6 +597,12 @@ const ForexModelTrainingStudio: React.FC = () => {
                             setForexScrapeJob={setForexScrapeJob}
                             onStartCollector={handleStartForexCollector}
                             onCancelCollector={handleCancelForexCollector}
+                            l2OrderbookFiles={l2OrderbookFiles}
+                            selectedL2File={selectedL2File}
+                            setSelectedL2File={setSelectedL2File}
+                            handleUploadL2Csv={handleUploadL2Csv}
+                            handleDeleteL2Snapshot={handleDeleteL2Snapshot}
+                            isUploadingL2={isUploadingL2}
                         />
 
                         </div>

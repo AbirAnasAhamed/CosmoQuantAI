@@ -1,20 +1,155 @@
 import React, { useState } from 'react';
-import { Activity, Clock, Globe, Terminal, ChevronDown, CheckSquare, Square, Database, Trash2 } from 'lucide-react';
+import { Activity, Clock, Globe, Terminal, ChevronDown, CheckSquare, Square, Database, Trash2, TrendingUp, BarChart2, Zap, Target, Layers, AlignLeft } from 'lucide-react';
 import { ForexScraperPanel } from '../../ml/forex/ForexScraperPanel';
 
 export const FOREX_MODULES = [
     {
+        id: 'basic_price_action',
+        title: 'Basic Price Action',
+        icon: AlignLeft,
+        description: 'Core candlestick morphology and spreads.',
+        source: 'ohlcv',
+        features: [
+            { id: 'log_return', name: 'Log Return (Close to Close)' },
+            { id: 'candle_body_size', name: 'Candle Body Size' },
+            { id: 'upper_shadow', name: 'Upper Shadow Size' },
+            { id: 'lower_shadow', name: 'Lower Shadow Size' },
+            { id: 'high_low_range', name: 'High-Low Range' },
+            { id: 'typical_price', name: 'Typical Price' },
+            { id: 'weighted_close', name: 'Weighted Close' },
+            { id: 'median_price', name: 'Median Price' },
+            { id: 'body_to_range_ratio', name: 'Body to Range Ratio' }
+        ]
+    },
+    {
+        id: 'trend_ma',
+        title: 'Trend & Moving Averages',
+        icon: TrendingUp,
+        description: 'Trend identification and moving averages.',
+        source: 'ohlcv',
+        features: [
+            { id: 'sma', name: 'Simple Moving Average (SMA)' },
+            { id: 'ema', name: 'Exponential Moving Average (EMA)' },
+            { id: 'wma', name: 'Weighted Moving Average (WMA)' },
+            { id: 'hma', name: 'Hull Moving Average (HMA)' },
+            { id: 'price_to_sma_ratio', name: 'Price to SMA Ratio' },
+            { id: 'ma_crossover', name: 'Moving Average Crossover' },
+            { id: 'macd_line', name: 'MACD Line' },
+            { id: 'macd_signal', name: 'MACD Signal' },
+            { id: 'macd_hist', name: 'MACD Histogram' },
+            { id: 'parabolic_sar', name: 'Parabolic SAR' },
+            { id: 'adx', name: 'ADX (Average Directional Index)' },
+            { id: 'supertrend', name: 'Supertrend' }
+        ]
+    },
+    {
+        id: 'momentum_osc',
+        title: 'Momentum Oscillators',
+        icon: Zap,
+        description: 'Overbought/Oversold and rate of change.',
+        source: 'ohlcv',
+        features: [
+            { id: 'rsi', name: 'RSI (Relative Strength Index)' },
+            { id: 'stoch_k', name: 'Stochastic %K' },
+            { id: 'stoch_d', name: 'Stochastic %D' },
+            { id: 'williams_r', name: 'Williams %R' },
+            { id: 'roc', name: 'Rate of Change (ROC)' },
+            { id: 'cci', name: 'Commodity Channel Index (CCI)' },
+            { id: 'momentum', name: 'Momentum (MOM)' },
+            { id: 'awesome_oscillator', name: 'Awesome Oscillator (AO)' },
+            { id: 'tsi', name: 'True Strength Index (TSI)' }
+        ]
+    },
+    {
+        id: 'volatility_ind',
+        title: 'Volatility Indicators',
+        icon: Target,
+        description: 'Market volatility and standard deviation bands.',
+        source: 'ohlcv',
+        features: [
+            { id: 'true_range', name: 'True Range (TR)' },
+            { id: 'atr', name: 'Average True Range (ATR)' },
+            { id: 'bb_upper', name: 'Bollinger Bands Upper' },
+            { id: 'bb_lower', name: 'Bollinger Bands Lower' },
+            { id: 'bb_width', name: 'Bollinger Bands Width' },
+            { id: 'bb_pct_b', name: 'Bollinger %B' },
+            { id: 'keltner_upper', name: 'Keltner Channel Upper' },
+            { id: 'keltner_lower', name: 'Keltner Channel Lower' },
+            { id: 'donchian_upper', name: 'Donchian Channel Upper' },
+            { id: 'donchian_lower', name: 'Donchian Channel Lower' },
+            { id: 'historical_volatility', name: 'Historical Volatility' },
+            { id: 'choppiness_index', name: 'Choppiness Index' }
+        ]
+    },
+    {
+        id: 'tick_volume_metrics',
+        title: 'Tick Volume Metrics',
+        icon: BarChart2,
+        description: 'Forex tick volume based indicators.',
+        source: 'ohlcv',
+        features: [
+            { id: 'obv', name: 'On-Balance Volume (OBV)' },
+            { id: 'volume_sma', name: 'Volume SMA' },
+            { id: 'vroc', name: 'Volume Rate of Change (VROC)' },
+            { id: 'mfi', name: 'Money Flow Index (MFI)' },
+            { id: 'force_index', name: 'Force Index' },
+            { id: 'cmf', name: 'Chaikin Money Flow (CMF)' }
+        ]
+    },
+    {
+        id: 'statistical_features',
+        title: 'Statistical & Time-Series',
+        icon: Layers,
+        description: 'Distribution tails, skewness, and variance.',
+        source: 'ohlcv',
+        features: [
+            { id: 'rolling_std', name: 'Rolling Standard Deviation' },
+            { id: 'rolling_skewness', name: 'Rolling Skewness' },
+            { id: 'rolling_kurtosis', name: 'Rolling Kurtosis' }
+        ]
+    },
+    {
         id: 'smc_order_flow',
-        title: 'SMC & Order Flow',
+        title: 'SMC & Market Structure',
         icon: Activity,
         description: 'Smart Money Concepts and Institutional footprints.',
         source: 'ohlcv',
         features: [
+            { id: 'swing_high_low', name: 'Swing Highs / Lows (Fractal)' },
+            { id: 'bos_choch', name: 'Break of Structure (BOS & CHoCH)' },
+            { id: 'fvg', name: 'Fair Value Gaps (FVG)' },
+            { id: 'order_blocks', name: 'Order Blocks (OB)' },
             { id: 'fvg_liquidity', name: 'FVG Liquidity Draw Probability' },
             { id: 'order_block_mitigation', name: 'Order Block Mitigation Speed' },
-            { id: 'bms_choch', name: 'BMS & CHoCH Volatility Multiplier' },
             { id: 'retail_sentiment', name: 'Retail Sentiment & OBI Proxy' },
-            { id: 'currency_correlation', name: 'Currency Correlation Matrix' },
+            { id: 'currency_correlation', name: 'Currency Correlation Matrix' }
+        ]
+    },
+    {
+        id: 'candlestick_patterns',
+        title: 'Candlestick Patterns',
+        icon: Layers,
+        description: 'Classic single and multi-candle patterns.',
+        source: 'ohlcv',
+        features: [
+            { id: 'cdl_doji', name: 'Doji (Reversal/Indecision)' },
+            { id: 'cdl_engulfing', name: 'Engulfing (Bullish/Bearish)' },
+            { id: 'cdl_hammer', name: 'Hammer' },
+            { id: 'cdl_shooting_star', name: 'Shooting Star' },
+            { id: 'cdl_morning_star', name: 'Morning Star' },
+            { id: 'cdl_evening_star', name: 'Evening Star' }
+        ]
+    },
+    {
+        id: 'market_psychology',
+        title: 'Market Psychology',
+        icon: Target,
+        description: 'Consecutive moves, gaps, and buying/selling pressure.',
+        source: 'ohlcv',
+        features: [
+            { id: 'consecutive_candles', name: 'Consecutive Bull/Bear Candles' },
+            { id: 'buying_selling_pressure', name: 'Buying & Selling Pressure' },
+            { id: 'gap_analysis', name: 'Session & Weekend Gap Analysis' }
         ]
     },
     {
@@ -50,7 +185,7 @@ export const FOREX_MODULES = [
         title: 'Microstructure & High Frequency',
         icon: Terminal,
         description: 'Tick-level velocity and informed trading proxies.',
-        source: 'microstructure',
+        source: 'l2_orderbook',
         features: [
             { id: 'vpin_proxy', name: 'VPIN Proxy (Probability of Informed Trading)' },
             { id: 'synthetic_cvd', name: 'Synthetic CVD (Cumulative Volume Delta)' },
@@ -77,6 +212,13 @@ interface ForexAdvancedPipelineProps {
     setForexScrapeJob: (job: any) => void;
     onStartCollector: (config: any) => void;
     onCancelCollector: () => void;
+    // L2 Upload Props
+    l2OrderbookFiles: string[];
+    selectedL2File: string;
+    setSelectedL2File: (v: string) => void;
+    handleUploadL2Csv: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    handleDeleteL2Snapshot: (e: React.MouseEvent) => void;
+    isUploadingL2: boolean;
 }
 
 export const ForexAdvancedPipeline: React.FC<ForexAdvancedPipelineProps> = (props) => {
@@ -117,23 +259,23 @@ export const ForexAdvancedPipeline: React.FC<ForexAdvancedPipelineProps> = (prop
                     <button
                         onClick={() => { setDataSource('ohlcv'); setExpandedModule('smc_order_flow'); }}
                         disabled={props.isTraining}
-                        className={`py-2 rounded-xl text-xs font-bold transition-all duration-300 ${dataSource === 'ohlcv' ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-[0_0_15px_rgba(56,189,248,0.4)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'}`}
+                        className={`py-2 rounded-xl text-[11px] font-bold transition-all duration-300 ${dataSource === 'ohlcv' ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-[0_0_15px_rgba(56,189,248,0.4)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'}`}
                     >
                         Standard OHLCV
                     </button>
                     <button
-                        onClick={() => { setDataSource('alt_data'); setExpandedModule('alt_data'); }}
+                        onClick={() => { setDataSource('l2_orderbook'); setExpandedModule('microstructure'); }}
                         disabled={props.isTraining}
-                        className={`py-2 rounded-xl text-xs font-bold transition-all duration-300 ${dataSource === 'alt_data' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'}`}
+                        className={`py-2 rounded-xl text-[11px] font-bold transition-all duration-300 ${dataSource === 'l2_orderbook' ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'}`}
                     >
-                        Alternative Data
+                        Level 2 Orderbook
                     </button>
                     <button
-                        onClick={() => { setDataSource('microstructure'); setExpandedModule('microstructure'); }}
+                        onClick={() => { setDataSource('alt_data'); setExpandedModule('alt_data'); }}
                         disabled={props.isTraining}
-                        className={`py-2 rounded-xl text-xs font-bold transition-all duration-300 ${dataSource === 'microstructure' ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'}`}
+                        className={`py-2 rounded-xl text-[11px] font-bold transition-all duration-300 ${dataSource === 'alt_data' ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'}`}
                     >
-                        Microstructure
+                        Alternative Data
                     </button>
                 </div>
             </div>
@@ -178,6 +320,62 @@ export const ForexAdvancedPipeline: React.FC<ForexAdvancedPipelineProps> = (prop
                             onCancelCollector={props.onCancelCollector}
                             timeframe={props.timeframe}
                         />
+                    </div>
+                )}
+
+                {/* LEVEL 2 CSV UPLOAD INJECTION */}
+                {dataSource === 'l2_orderbook' && (
+                    <div className="mb-4 p-5 border border-purple-500/30 rounded-xl bg-purple-500/5 shadow-[inset_0_0_20px_rgba(168,85,247,0.05)]">
+                        <div className="mb-5 text-center">
+                            <h4 className="text-sm font-bold text-purple-400 mb-1">Custom L2 Orderbook Data</h4>
+                            <p className="text-[10px] text-slate-400">Upload CSV files containing historical DOM/L2 data.</p>
+                        </div>
+                        
+                        <div className="mb-5">
+                            <label className="block text-[11px] font-bold text-slate-300 mb-2 uppercase tracking-wider">Select L2 Dataset (CSV)</label>
+                            <div className="flex items-center gap-2">
+                                <select 
+                                    value={props.selectedL2File} 
+                                    onChange={e => props.setSelectedL2File(e.target.value)}
+                                    disabled={props.isTraining || props.isUploadingL2}
+                                    className="w-full bg-black/40 border border-purple-500/20 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-purple-500/50 outline-none"
+                                >
+                                    {props.l2OrderbookFiles.length === 0 && <option value="" className="text-slate-500">No L2 datasets available. Please upload one.</option>}
+                                    {props.l2OrderbookFiles.map(f => (
+                                        <option key={f} value={f} className="bg-gray-900 text-white">{f}</option>
+                                    ))}
+                                </select>
+                                {props.selectedL2File && (
+                                    <button
+                                        onClick={props.handleDeleteL2Snapshot}
+                                        disabled={props.isTraining || props.isUploadingL2}
+                                        className="p-3 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-xl border border-red-500/20 transition-all flex items-center justify-center"
+                                        title="Delete selected L2 dataset"
+                                    >
+                                        <Trash2 className="w-5 h-5" />
+                                    </button>
+                                )}
+                            </div>
+                        </div>
+
+                        <div className="relative border-2 border-dashed border-purple-500/30 hover:border-purple-400/60 rounded-xl p-6 text-center transition-all bg-black/20 group">
+                            <input 
+                                type="file" 
+                                accept=".csv"
+                                onChange={props.handleUploadL2Csv}
+                                disabled={props.isTraining || props.isUploadingL2}
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10"
+                            />
+                            <div className="flex flex-col items-center justify-center pointer-events-none">
+                                <div className="w-10 h-10 bg-purple-500/20 rounded-full flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+                                    <Database className="w-5 h-5 text-purple-400" />
+                                </div>
+                                <span className="text-sm font-bold text-slate-300 group-hover:text-purple-300 transition-colors">
+                                    {props.isUploadingL2 ? 'Uploading...' : 'Click or Drag to Upload CSV'}
+                                </span>
+                                <span className="text-[10px] text-slate-500 mt-1">Only .csv format is supported</span>
+                            </div>
+                        </div>
                     </div>
                 )}
 

@@ -136,5 +136,26 @@ export const forexMlTrainingService = {
             onUploadProgress: onUploadProgress
         });
         return response.data;
+    },
+
+    async getL2OrderbookFiles(): Promise<string[]> {
+        const response = await apiClient.get('/forex-model-training/l2-snapshots');
+        return response.data.files || [];
+    },
+
+    async uploadL2Csv(file: File): Promise<any> {
+        const formData = new FormData();
+        formData.append('file', file);
+        const response = await apiClient.post('/forex-model-training/upload-l2-csv', formData, {
+            headers: {
+                'Content-Type': 'multipart/form-data'
+            }
+        });
+        return response.data;
+    },
+
+    async deleteL2Snapshot(filename: string): Promise<any> {
+        const response = await apiClient.delete(`/forex-model-training/l2-snapshots/${filename}`);
+        return response.data;
     }
 };

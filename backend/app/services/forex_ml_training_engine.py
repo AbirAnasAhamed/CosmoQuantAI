@@ -75,10 +75,19 @@ class ForexMLTrainingEngine:
             self.db.commit()
 
             # Step 2: Feature Engineering (Technical Indicators)
-            self._log("Calculating Technical Indicators (RSI, MACD, BBands)...")
-            df.ta.rsi(length=14, append=True)
-            df.ta.macd(fast=12, slow=26, signal=9, append=True)
-            df.ta.bbands(length=20, append=True)
+            self._log("Calculating Modular Technical Indicators...")
+            from app.services.ml.forex_feature_engine import generate_ohlcv_features
+            selected_features = self.job.config.get('selected_forex_features', [])
+            
+            if selected_features:
+                self._log(f"Generating {len(selected_features)} selected features...")
+                df = generate_ohlcv_features(df, selected_features)
+            else:
+                self._log("No specific features selected. Falling back to basic RSI, MACD, BBands...")
+                df.ta.rsi(length=14, append=True)
+                df.ta.macd(fast=12, slow=26, signal=9, append=True)
+                df.ta.bbands(length=20, append=True)
+                
             df.dropna(inplace=True)
             self.job.progress = 30.0
             self.db.commit()
@@ -110,6 +119,42 @@ class ForexMLTrainingEngine:
                 df['macro_risk_flag'] = np.random.choice([0, 1], size=len(df), p=[0.95, 0.05])
                 
             self.job.progress = 50.0
+            self.db.commit()
+
+            # Step 4.5: L2 Orderbook Data Integration
+            l2_file = self.job.config.get('l2_orderbook_file')
+            if l2_file:
+                self._log(f"Integrating L2 Orderbook Data from {l2_file}...")
+                l2_path = os.path.join(os.getcwd(), "data", "forex", "l2_data", l2_file)
+                if os.path.exists(l2_path):
+                    try:
+                        # Assuming L2 CSV has 'time', 'best_bid', 'best_ask', 'bid_volume', 'ask_volume'
+                        l2_df = pd.read_csv(l2_path)
+                        if 'time' in l2_df.columns or 'timestamp' in l2_df.columns:
+                            time_col = 'time' if 'time' in l2_df.columns else 'timestamp'
+                            l2_df[time_col] = pd.to_datetime(l2_df[time_col], utc=True).dt.tz_localize(None)
+                            l2_df.set_index(time_col, inplace=True)
+                            
+                            # Feature extraction from L2
+                            if 'best_bid' in l2_df.columns and 'best_ask' in l2_df.columns:
+                                l2_df['l2_spread'] = l2_df['best_ask'] - l2_df['best_bid']
+                            if 'bid_volume' in l2_df.columns and 'ask_volume' in l2_df.columns:
+                                l2_df['orderbook_imbalance'] = (l2_df['bid_volume'] - l2_df['ask_volume']) / (l2_df['bid_volume'] + l2_df['ask_volume'] + 1e-9)
+                            
+                            # Resample to match OHLCV (1min)
+                            l2_resampled = l2_df.resample('1min').mean().fillna(0)
+                            
+                            # Merge with main df
+                            df = df.join(l2_resampled, how='left').fillna(0)
+                            self._log(f"Successfully integrated {len(l2_resampled)} rows of L2 features.")
+                        else:
+                            self._log("L2 CSV missing 'time' column, unable to merge.")
+                    except Exception as e:
+                        self._log(f"Failed to process L2 Orderbook data: {e}")
+                else:
+                    self._log(f"L2 Orderbook file not found at {l2_path}")
+
+            self.job.progress = 60.0
             self.db.commit()
             
             # Step 5: Preparing Target Variable
@@ -269,6 +314,39 @@ class ForexMLTrainingEngine:
                 accuracy = model.score(X_test, y_test)
                 self._log(f"Training completed. Validation Accuracy: {accuracy*100:.2f}%")
                 
+            # --- Post-Training Backtest Simulation ---
+            self._log("Running Post-Training Backtest on Validation Data...")
+            try:
+                preds = model.predict(X_test)
+                # Calculate simple close-to-close returns
+                test_returns = df.loc[X_test.index, 'close'].pct_change().shift(-1).fillna(0)
+                
+                # Signal: 1 is Long, 0 is Short
+                # Return is positive if Long and price goes up, or Short and price goes down
+                strategy_returns = np.where(preds == 1, test_returns, -test_returns)
+                
+                winning_trades = np.sum(strategy_returns > 0)
+                losing_trades = np.sum(strategy_returns < 0)
+                total_trades = winning_trades + losing_trades
+                
+                win_rate = (winning_trades / total_trades * 100) if total_trades > 0 else 0.0
+                
+                mean_ret = np.mean(strategy_returns)
+                std_ret = np.std(strategy_returns)
+                # Approximate Sharpe for 1m data (252 days * 1440 mins)
+                sharpe = (mean_ret / std_ret) * np.sqrt(252 * 1440) if std_ret > 0 else 0.0 
+                
+                total_return = np.sum(strategy_returns) * 100
+                
+                self._log(f"📊 Backtest Results -> Win Rate: {win_rate:.2f}% | Sharpe Ratio: {sharpe:.2f} | Net Profit: {total_return:.2f}%")
+                
+                # Expose metrics so they can be saved in the database
+                backtest_win_rate = float(win_rate)
+                backtest_sharpe = float(sharpe)
+            except Exception as e:
+                self._log(f"Post-Training Backtest simulation failed: {e}")
+                backtest_win_rate = 0.0
+                
             self.job.progress = 90.0
             self.db.commit()
             
@@ -309,6 +387,13 @@ class ForexMLTrainingEngine:
             self.db.add(db_model)
             self.db.flush()
             
+            explainability_data = {
+                "total_return_pct": float(total_return) if 'total_return' in locals() else 0.0,
+                "win_rate": float(backtest_win_rate) if 'backtest_win_rate' in locals() else 0.0,
+                "sharpe_ratio": float(backtest_sharpe) if 'backtest_sharpe' in locals() else 0.0,
+                "trades_count": int(total_trades) if 'total_trades' in locals() else 0
+            }
+            
             version_id = f"v1.0-{int(time.time())}"
             db_version = models.ModelVersion(
                 id=version_id,
@@ -318,7 +403,8 @@ class ForexMLTrainingEngine:
                 file_path=model_filepath,
                 status=models.ModelStatus.READY,
                 accuracy=float(accuracy) if 'accuracy' in locals() else 0.0,
-                dataset_path=data_file
+                dataset_path=data_file,
+                explainability=explainability_data
             )
             self.db.add(db_version)
             self.db.flush()

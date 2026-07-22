@@ -405,3 +405,54 @@ def check_forex_data_quality(
         
     return {"status": "ok", "message": f"Data integrity check passed. Estimated ~{expected_rows:,} rows."}
 
+import os
+from fastapi import UploadFile, File
+import shutil
+
+L2_DATA_DIR = os.path.join(os.getcwd(), "data", "forex", "l2_data")
+os.makedirs(L2_DATA_DIR, exist_ok=True)
+
+@router.get("/l2-snapshots")
+def get_l2_snapshots(current_user: models.User = Depends(deps.get_current_user)):
+    """List available L2 orderbook CSV files."""
+    try:
+        files = [f for f in os.listdir(L2_DATA_DIR) if f.endswith('.csv')]
+        return {"files": sorted(files, reverse=True)}
+    except Exception as e:
+        logger.error(f"Error listing L2 snapshots: {e}")
+        return {"files": []}
+
+@router.post("/upload-l2-csv")
+async def upload_l2_csv(
+    file: UploadFile = File(...),
+    current_user: models.User = Depends(deps.get_current_user)
+):
+    """Upload a new L2 orderbook CSV file."""
+    if not file.filename.endswith('.csv'):
+        raise HTTPException(status_code=400, detail="Only CSV files are allowed.")
+    
+    file_path = os.path.join(L2_DATA_DIR, file.filename)
+    
+    try:
+        with open(file_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        return {"status": "success", "filename": file.filename}
+    except Exception as e:
+        logger.error(f"Error uploading L2 CSV: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to upload file: {e}")
+
+@router.delete("/l2-snapshots/{filename}")
+def delete_l2_snapshot(
+    filename: str,
+    current_user: models.User = Depends(deps.get_current_user)
+):
+    """Delete an L2 orderbook CSV file."""
+    file_path = os.path.join(L2_DATA_DIR, filename)
+    if os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+            return {"status": "success", "message": f"Deleted {filename}"}
+        except Exception as e:
+            logger.error(f"Error deleting L2 snapshot: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to delete file: {e}")
+    raise HTTPException(status_code=404, detail="File not found")
