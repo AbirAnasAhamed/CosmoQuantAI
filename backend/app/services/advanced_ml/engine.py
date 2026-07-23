@@ -716,7 +716,7 @@ class AdvancedMLEngine:
                             "balance": float(getattr(unwrapped_env, 'balance', 0)),
                             "action": action_val,
                             "reward": reward_val,
-                            "price": float(unwrapped_env.df.loc[unwrapped_env.current_step, 'Close']) if unwrapped_env.current_step < len(unwrapped_env.df) else 0.0,
+                            "price": float(unwrapped_env.df.loc[unwrapped_env.current_step, 'Raw_Close'] if 'Raw_Close' in unwrapped_env.df.columns else unwrapped_env.df.loc[unwrapped_env.current_step, 'Close']) if unwrapped_env.current_step < len(unwrapped_env.df) else 0.0,
                             "stats": {
                                 "buy_count": buy_count,
                                 "sell_count": sell_count,

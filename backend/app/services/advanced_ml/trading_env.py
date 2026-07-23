@@ -164,6 +164,12 @@ class AdvancedTradingEnv(gym.Env):
         if self.position != 0:
             # Closing fee based on current value
             exit_price = price * (1 - self.slippage * self.position)
+            
+            # Apply exit slippage to net_worth
+            # net_worth was calculated using 'price', but we actually exit at 'exit_price'.
+            # Slippage on exit roughly costs us `slippage` percentage of the position value.
+            self.net_worth *= (1 - self.slippage)
+            
             fee = self.net_worth * self.commission
             
             # Unrealized PnL is already in net_worth, we just deduct fee
@@ -246,12 +252,18 @@ class AdvancedTradingEnv(gym.Env):
         if ratio <= 0 or np.isnan(ratio) or np.isinf(ratio):
             ratio = 1e-6
             
+        # RL algorithms require rewards to be of reasonable magnitude to compute healthy gradients.
+        # Raw log returns on minute-level crypto data are extremely small (e.g., 0.0001).
+        # We scale them by 1000 so the neural network can actually learn.
+        scale_factor = 1000.0
+            
         if self.reward_type == 'log_returns':
-            return float(np.clip(np.log(ratio), -10.0, 10.0))
+            return float(np.clip(np.log(ratio), -10.0, 10.0)) * scale_factor
         elif self.reward_type == 'pct_returns':
-            return float(ratio - 1.0)
+            return float(ratio - 1.0) * scale_factor
         else:
-            return float(self.net_worth - prev_net_worth)
+            return (float(self.net_worth - prev_net_worth) / self.initial_balance) * scale_factor
+
 
     def render(self, mode="human"):
         if mode == "human":

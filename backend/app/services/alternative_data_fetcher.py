@@ -227,6 +227,10 @@ class AlternativeDataFetcher:
         logger.info(f"Building alternative & sentiment features for {symbol}...")
 
         # ── Normalize to tz-naive for safe arithmetic ─────────────
+        if not hasattr(df_index, 'tz'):
+            logger.warning("df_index has no tz attribute (likely a RangeIndex from auto-resume). Bypassing alternative data fetch.")
+            return pd.DataFrame(index=df_index)
+            
         original_tz = df_index.tz
         df_index_naive = df_index.tz_localize(None) if original_tz else df_index
 

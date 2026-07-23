@@ -1202,7 +1202,7 @@ def train_model_task(job_id: str, db: Session):
         
         # ── GLOBAL FEATURE CLEANER ──
         # Ensure no non-stationary or raw price columns leak into ANY dataset type (Hybrid, L2, OHLCV, etc.)
-        global_forbidden = ["Close", "Open", "High", "Low", "microprice", "timestamp", "datetime", "CVD_Proxy", "vwap", "VWAP", "Target", "Target_Direction", "Target_SL", "Target_TP"]
+        global_forbidden = ["Close", "Open", "High", "Low", "Volume", "Adj Close", "microprice", "timestamp", "datetime", "CVD_Proxy", "vwap", "VWAP", "Target", "Target_Direction", "Target_SL", "Target_TP"]
         
         if is_fine_tune and _prev_path:
             import re
