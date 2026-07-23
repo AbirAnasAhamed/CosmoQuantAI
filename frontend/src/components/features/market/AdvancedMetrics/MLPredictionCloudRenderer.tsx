@@ -70,8 +70,21 @@ export const MLPredictionCloudRenderer: React.FC<MLPredictionCloudRendererProps>
 
         if (yTP === null || ySL === null || yEntry === null) return;
 
-        // Draw cloud across the whole width
-        const xStart = 0;
+        // Draw cloud starting from the last candle
+        let xStart = 0;
+        try {
+            const data = series.data();
+            if (data && data.length > 0) {
+                const lastItem = data[data.length - 1];
+                const coord = chart.timeScale().timeToCoordinate(lastItem.time);
+                if (coord !== null) {
+                    xStart = coord;
+                }
+            }
+        } catch (e) {
+            console.error("Error getting series data:", e);
+        }
+        
         const xEnd = canvas.width;
 
         // Draw TP Cloud (Green)

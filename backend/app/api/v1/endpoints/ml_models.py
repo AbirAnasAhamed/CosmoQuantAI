@@ -204,7 +204,7 @@ def get_custom_models(
                                     if clean_meta != clean_sym:
                                         continue
                             
-                            if is_sl_tp or meta.get('training_mode') == 'advanced_setup_sl_tp' or meta.get('setup_type') == 'advanced_sl_tp':
+                            if is_sl_tp or meta.get('training_mode') == 'advanced_setup_sl_tp' or meta.get('setup_type') == 'advanced_sl_tp' or meta.get('prediction_target') == 'advanced_setup':
                                 filtered_models.append(model)
                     except Exception as e:
                         print(f"Error reading metadata for model {model.id}: {e}")

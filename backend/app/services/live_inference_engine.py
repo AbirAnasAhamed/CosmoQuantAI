@@ -199,7 +199,6 @@ class LiveInferenceEngine:
                 preds = self.model.predict(features_df)
             
             # Format output based on metadata target columns
-            # Assuming the model predicts [TP, SL] or similar
             result = {}
             
             if isinstance(preds, (list, np.ndarray)):
@@ -207,6 +206,35 @@ class LiveInferenceEngine:
                     preds = preds[0]
                     
                 target_cols = self.metadata.get("target_column", [])
+                prediction_target = self.metadata.get("prediction_target", "")
+                
+                if prediction_target == "advanced_setup" and len(preds) >= 3:
+                    direction = float(preds[0]) # 1.0 (Long) or 0.0 (Short)
+                    sl_raw = float(preds[1])
+                    tp_raw = float(preds[2])
+                    
+                    current_price = float(market_data.get("currentPrice", market_data.get("price", market_data.get("Close", market_data.get("midPrice", 0.0)))))
+                    
+                    if current_price > 0:
+                        # If values are < 1.0, they were likely MinMax scaled. Treat as percentage of a 5% move.
+                        # If values are > 1.0, they are likely absolute price distances.
+                        sl_dist = sl_raw if sl_raw > 1.0 else max(0.001, sl_raw * 0.05 * current_price)
+                        tp_dist = tp_raw if tp_raw > 1.0 else max(0.001, tp_raw * 0.05 * current_price)
+                        
+                        if direction >= 0.5: # Long
+                            target_tp = current_price + tp_dist
+                            target_sl = current_price - sl_dist
+                        else: # Short
+                            target_tp = current_price - tp_dist
+                            target_sl = current_price + sl_dist
+                            
+                        result = {
+                            "Target_TP": float(target_tp),
+                            "Target_SL": float(target_sl)
+                        }
+                        print(f"[InferenceEngine] Returning Multi-Output Result: {result}")
+                        return result
+
                 if isinstance(target_cols, list) and len(target_cols) > 0:
                     for i, col in enumerate(target_cols):
                         if i < len(preds):
@@ -214,14 +242,10 @@ class LiveInferenceEngine:
                 else:
                     # Fallback mapping if targets aren't clearly defined
                     if len(preds) >= 2:
-                        # For advanced_sl_tp, typically index 0 is TP, index 1 is SL
-                        # or sometimes index 1 is TP, index 2 is SL if index 0 is position
-                        # Let's map dynamically if length is 2 or more
                         if len(preds) == 2:
                             result["Target_TP"] = float(preds[0])
                             result["Target_SL"] = float(preds[1])
                         else:
-                            # Usually action[1] is TP, action[2] is SL in advanced_setup
                             result["Target_TP"] = float(preds[1])
                             result["Target_SL"] = float(preds[2])
                         
