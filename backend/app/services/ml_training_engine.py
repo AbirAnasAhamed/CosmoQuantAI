@@ -2680,6 +2680,9 @@ def train_model_task(job_id: str, db: Session):
             "timeframe":        job.timeframe,
             "symbol":           job.symbol,
             "prediction_target":prediction_target,
+            "target_column":    config.get("target_column", ""),
+            "setup_type":       config.get("setup_type", ""),
+            "training_mode":    config.get("training_mode", ""),
             "algorithm":        job.algorithm,
             "epochs":           config.get("epochs", 100),
             "scaler_path":      scaler_save_path,
@@ -2694,6 +2697,9 @@ def train_model_task(job_id: str, db: Session):
         }
         with open(metadata_path, "w") as f:
             json.dump(metadata_payload, f)
+            
+        db_version.metadata_path = metadata_path
+        db.flush()
 
         # ── Fix 2: Attach CV scores to explainability ─────────────────────────
         if cv_result and final_explainability is not None:

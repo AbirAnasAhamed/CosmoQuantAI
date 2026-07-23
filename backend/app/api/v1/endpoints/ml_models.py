@@ -5,9 +5,12 @@ import time
 import asyncio
 from typing import List, Any
 from datetime import datetime
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
+
+from app.core.redis import redis_manager
+from app.services.live_inference_engine import inference_engine
 
 from app import crud, models, schemas
 from app.api import deps
@@ -164,6 +167,8 @@ async def simulate_processing(version_id: str):
 
 @router.get("", response_model=List[schemas.CustomMLModelResponse])
 def get_custom_models(
+    mode: str = None,
+    symbol: str = None,
     db: Session = Depends(get_db),
     current_user: models.User = Depends(deps.get_current_user),
 ) -> Any:
@@ -171,6 +176,40 @@ def get_custom_models(
     Retrieve all custom models for the current user.
     """
     models_list = db.query(models.CustomMLModel).filter(models.CustomMLModel.user_id == current_user.id).order_by(models.CustomMLModel.created_at.desc()).all()
+    
+    if mode == 'advanced_sl_tp':
+        filtered_models = []
+        for model in models_list:
+            if model.active_version_id:
+                version = next((v for v in model.versions if v.id == model.active_version_id), None)
+                if version and version.metadata_path and os.path.exists(version.metadata_path):
+                    try:
+                        with open(version.metadata_path, 'r') as f:
+                            meta = json.load(f)
+                            target_col = meta.get('target_column', '')
+                            # Check if the target columns relate to SL/TP directly
+                            is_sl_tp = False
+                            if isinstance(target_col, list):
+                                is_sl_tp = any('SL' in t or 'TP' in t for t in target_col)
+                            elif isinstance(target_col, str):
+                                is_sl_tp = 'SL' in target_col or 'TP' in target_col
+                            
+                            # Additional symbol matching if requested
+                            if symbol:
+                                meta_symbol = meta.get('symbol') or meta.get('config', {}).get('symbol')
+                                # We remove formatting to match safely (e.g. BTC-USDT vs BTC/USDT)
+                                if meta_symbol:
+                                    clean_meta = meta_symbol.replace("/", "").replace("-", "").lower()
+                                    clean_sym = symbol.replace("/", "").replace("-", "").lower()
+                                    if clean_meta != clean_sym:
+                                        continue
+                            
+                            if is_sl_tp or meta.get('training_mode') == 'advanced_setup_sl_tp' or meta.get('setup_type') == 'advanced_sl_tp':
+                                filtered_models.append(model)
+                    except Exception as e:
+                        print(f"Error reading metadata for model {model.id}: {e}")
+        return filtered_models
+
     return models_list
 
 @router.post("", response_model=schemas.CustomMLModelResponse)
@@ -623,3 +662,70 @@ def download_model_dataset(
         filename=download_filename,
         media_type="text/csv",
     )
+
+@router.websocket("/ws/inference/{model_id}/{exchange_id}/{symbol:path}")
+async def ml_inference_stream(websocket: WebSocket, model_id: str, exchange_id: str, symbol: str):
+    await websocket.accept()
+    
+    if not inference_engine.load_model(model_id):
+        await websocket.send_json({"error": f"Failed to load model {model_id}"})
+        await websocket.close(code=1011, reason="Model load failed")
+        return
+
+    redis = redis_manager.get_redis()
+    if not redis:
+        await websocket.close(code=1011, reason="Redis connection failed")
+        return
+        
+    internal_exchange_id = exchange_id.lower()
+    if internal_exchange_id == 'kucoin' and ':' in symbol:
+        internal_exchange_id = 'kucoinfutures'
+    elif internal_exchange_id == 'kraken' and ':' in symbol:
+        internal_exchange_id = 'krakenfutures'
+        
+    channel_name = f"market_depth_stream:{internal_exchange_id}:{symbol}"
+    pubsub = redis.pubsub()
+    await pubsub.subscribe(channel_name)
+    
+    async def redis_listener():
+        try:
+            async for message in pubsub.listen():
+                if message["type"] == "message":
+                    data = message["data"]
+                    try:
+                        payload = json.loads(data)
+                        
+                        # Process market data through inference engine
+                        prediction = inference_engine.process_market_data(payload)
+                        if prediction:
+                            await websocket.send_json({
+                                "event": "AI_PREDICTION",
+                                "model_id": model_id,
+                                "symbol": symbol,
+                                "prediction": prediction,
+                                "timestamp": int(time.time() * 1000)
+                            })
+                    except Exception as e:
+                        print(f"Inference websocket error processing message: {e}")
+        except Exception:
+            pass
+
+    async def client_listener():
+        try:
+            while True:
+                await websocket.receive_text()
+        except Exception:
+            pass
+
+    redis_task = asyncio.create_task(redis_listener())
+    client_task = asyncio.create_task(client_listener())
+    
+    done, pending = await asyncio.wait(
+        [redis_task, client_task],
+        return_when=asyncio.FIRST_COMPLETED
+    )
+    
+    for task in pending:
+        task.cancel()
+    
+    await pubsub.unsubscribe(channel_name)

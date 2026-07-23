@@ -2,6 +2,7 @@ import React from 'react';
 import { Activity, Settings, AlignLeft } from 'lucide-react';
 import { VolumeFilterControl } from './VolumeFilterControl';
 import { AdvancedMetricsDropdown } from './AdvancedMetricsDropdown';
+import { MLIndicatorsDropdown } from './MLIndicatorsDropdown';
 import { AdvancedMetricsSettings } from '../../../hooks/useAdvancedMetricsSettings';
 
 interface HeatmapSubNavProps {
@@ -13,6 +14,9 @@ interface HeatmapSubNavProps {
     setVolumeMode: (mode: 'base' | 'quote') => void;
     advancedMetrics: AdvancedMetricsSettings;
     onAdvancedMetricsChange: (settings: Partial<AdvancedMetricsSettings>) => void;
+    activeMLModelId: string | null;
+    setActiveMLModelId: (id: string | null) => void;
+    symbol: string;
 }
 
 export const HeatmapSubNav: React.FC<HeatmapSubNavProps> = ({ 
@@ -23,7 +27,10 @@ export const HeatmapSubNav: React.FC<HeatmapSubNavProps> = ({
     volumeMode,
     setVolumeMode,
     advancedMetrics,
-    onAdvancedMetricsChange
+    onAdvancedMetricsChange,
+    activeMLModelId,
+    setActiveMLModelId,
+    symbol
 }) => {
     return (
         <div className="flex bg-white dark:bg-[#000000] border-b border-gray-200 dark:border-white/10 px-4 py-2 items-center gap-4">
@@ -51,6 +58,14 @@ export const HeatmapSubNav: React.FC<HeatmapSubNavProps> = ({
                 onThresholdChange={setVolumeThreshold} 
                 mode={volumeMode} 
                 onModeChange={setVolumeMode} 
+            />
+
+            <div className="w-px h-6 bg-gray-200 dark:bg-white/10"></div>
+
+            <MLIndicatorsDropdown 
+                activeModelId={activeMLModelId}
+                onSelectModel={setActiveMLModelId}
+                symbol={symbol}
             />
         </div>
     );

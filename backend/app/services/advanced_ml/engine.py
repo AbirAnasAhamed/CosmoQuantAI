@@ -516,6 +516,7 @@ class AdvancedMLEngine:
                 initial_balance=initial_balance, 
                 commission=commission,
                 slippage=slippage,
+                prediction_target=job.prediction_target if job.prediction_target else "direction",
                 is_continuous=(job.algorithm == "SAC-RL")
             )
             max_allowed_drawdown = float(config.get("max_allowed_drawdown", 0.0))

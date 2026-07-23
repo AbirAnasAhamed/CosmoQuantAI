@@ -59,6 +59,7 @@ import { VWAPSDRenderer } from '../../components/features/market/AdvancedMetrics
 import { OIBOscillatorRenderer } from '../../components/features/market/AdvancedMetrics/OIBOscillatorRenderer';
 import { TPOProfileRenderer } from '../../components/features/market/AdvancedMetrics/TPOProfileRenderer';
 import { DeltaDivergenceRenderer } from '../../components/features/market/AdvancedMetrics/DeltaDivergenceRenderer';
+import { MLPredictionCloudRenderer } from '../../components/features/market/AdvancedMetrics/MLPredictionCloudRenderer';
 import { botService } from '../../services/botService';
 import { manualTradeService } from '../../services/manualTradeService';
 import { useWallHunterStatus } from '@/hooks/useWallHunterStatus';
@@ -86,7 +87,7 @@ const parseIntervalToMs = (interval: string): number => {
 };
 
 // Chart Component
-const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: string; walls: { price: number, type: 'buy' | 'sell', size?: number }[]; currentPrice: number; showFootprint: boolean; showCVD: boolean; showVPVR: boolean; indicatorSettings: IndicatorSettings; tradeEvent: any; botStatus: any; openOrders: OpenLimitOrder[]; advancedMetrics: AdvancedMetricsSettings; advancedMetricsData: any; selectedApiKeyId: string | null; predictionResult: PredictionResult | null; onChartClickPrice?: (price: number) => void }> = ({ exchange, symbol, interval, walls, currentPrice, showFootprint, showCVD, showVPVR, indicatorSettings, tradeEvent, botStatus, openOrders, advancedMetrics, advancedMetricsData, selectedApiKeyId, predictionResult, onChartClickPrice }) => {
+const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: string; walls: { price: number, type: 'buy' | 'sell', size?: number }[]; currentPrice: number; showFootprint: boolean; showCVD: boolean; showVPVR: boolean; indicatorSettings: IndicatorSettings; tradeEvent: any; botStatus: any; openOrders: OpenLimitOrder[]; advancedMetrics: AdvancedMetricsSettings; advancedMetricsData: any; selectedApiKeyId: string | null; predictionResult: PredictionResult | null; activeMLModelId: string | null; onChartClickPrice?: (price: number) => void }> = ({ exchange, symbol, interval, walls, currentPrice, showFootprint, showCVD, showVPVR, indicatorSettings, tradeEvent, botStatus, openOrders, advancedMetrics, advancedMetricsData, selectedApiKeyId, predictionResult, activeMLModelId, onChartClickPrice }) => {
     const chartContainerRef = useRef<HTMLDivElement>(null);
     const chartRef = useRef<any>(null);
     const candlestickSeriesRef = useRef<ISeriesApi<'Candlestick'> | null>(null);
@@ -2033,6 +2034,14 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                     <DualEngineDashboard settings={indicatorSettings} candles={allCandlesRef.current} currentPrice={currentPrice} />
                     <WatchlistScanner settings={indicatorSettings} exchange={exchange} interval={interval} />
                     {/* ── Advanced Metrics ── */}
+                    <MLPredictionCloudRenderer
+                        chart={chartRef.current}
+                        series={candlestickSeriesRef.current}
+                        modelId={activeMLModelId}
+                        exchange={exchange}
+                        symbol={symbol}
+                        currentPrice={currentPrice}
+                    />
                     <DeltaProfileRenderer chart={chartRef.current} series={candlestickSeriesRef.current} visible={advancedMetrics.showDeltaProfile} data={advancedMetricsData?.deltaProfile} />
                     <FootprintImbalanceRenderer chart={chartRef.current} series={candlestickSeriesRef.current} visible={advancedMetrics.showFootprintImbalance} data={advancedMetricsData?.footprintData} />
                     <TradeBubbleChartRenderer chart={chartRef.current} series={candlestickSeriesRef.current} visible={advancedMetrics.showTradeBubbles} data={advancedMetricsData?.tradeBubbles} />
@@ -2785,6 +2794,12 @@ const OrderFlowHeatmap: React.FC = () => {
     const [isFullscreen, setIsFullscreen] = useState(false); // NEW STATE
     const [isTradingViewMode, setIsTradingViewMode] = useState(false); // TRADINGVIEW TOGGLE STATE
     const [predictionResult, setPredictionResult] = useState<PredictionResult | null>(null);
+    const [activeMLModelId, setActiveMLModelId] = useState<string | null>(null);
+
+    // Reset ML model if symbol or exchange changes
+    useEffect(() => {
+        setActiveMLModelId(null);
+    }, [symbol, exchange]);
     const [externalAIPrice, setExternalAIPrice] = useState<number | null>(null);
     const [externalAIOpenTrigger, setExternalAIOpenTrigger] = useState<number>(0);
     const [isTopTokensModalOpen, setIsTopTokensModalOpen] = useState(false);
@@ -2972,6 +2987,9 @@ const OrderFlowHeatmap: React.FC = () => {
                     setVolumeMode={setVolumeMode}
                     advancedMetrics={advancedMetrics}
                     onAdvancedMetricsChange={onAdvancedMetricsChange}
+                    activeMLModelId={activeMLModelId}
+                    setActiveMLModelId={setActiveMLModelId}
+                    symbol={symbol}
                 />
             </div>
 
@@ -3064,7 +3082,7 @@ const OrderFlowHeatmap: React.FC = () => {
                                 <TradingViewWidget symbol={symbol} interval={interval} />
                             ) : (
                                 <OrderFlowChart 
-                                    exchange={exchange} symbol={symbol} interval={interval} walls={filteredWalls} currentPrice={currentPrice} showFootprint={showFootprint} showCVD={showCVD} showVPVR={showVPVR} indicatorSettings={indicatorSettings} tradeEvent={tradeEvent} botStatus={botStatus} openOrders={openOrders} advancedMetrics={advancedMetrics} advancedMetricsData={advancedMetricsData} selectedApiKeyId={selectedApiKeyId} predictionResult={predictionResult} 
+                                    exchange={exchange} symbol={symbol} interval={interval} walls={filteredWalls} currentPrice={currentPrice} showFootprint={showFootprint} showCVD={showCVD} showVPVR={showVPVR} indicatorSettings={indicatorSettings} tradeEvent={tradeEvent} botStatus={botStatus} openOrders={openOrders} advancedMetrics={advancedMetrics} advancedMetricsData={advancedMetricsData} selectedApiKeyId={selectedApiKeyId} predictionResult={predictionResult} activeMLModelId={activeMLModelId}
                                     onChartClickPrice={(price) => {
                                         setExternalAIPrice(price);
                                         setExternalAIOpenTrigger(Date.now());
