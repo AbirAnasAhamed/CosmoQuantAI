@@ -36,14 +36,17 @@ export const ModelPredictorModal: React.FC<ModelPredictorModalProps> = ({ onPred
     const [isLoading, setIsLoading] = useState(false);
     const [result, setResult] = useState<PredictionResult | null>(null);
 
-    // Fetch models on open
+    // Fetch models and set initial price when opened
     useEffect(() => {
         if (isOpen) {
             fetchModels();
             // Only update to currentPrice if we haven't set an external price
-            if (!externalPrice) setPricePoint(currentPrice.toString());
+            if (!externalPrice) {
+                setPricePoint(currentPrice.toString());
+            }
         }
-    }, [isOpen, currentPrice]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [isOpen]); // Intentionally omitting currentPrice to avoid overwriting user input and API spam on every tick
 
     // Handle external triggers
     useEffect(() => {

@@ -56,6 +56,11 @@ def calculate_advanced_trade_features(df_raw: pd.DataFrame, requested_features: 
     feats['rolling_vol_imbalance'] = rolling_buy_vol / (rolling_buy_vol + rolling_sell_vol).clip(lower=1e-9)
     feats['trade_velocity'] = df['amount'].rolling(window=window_short, min_periods=1).count() / (tick_speed_ms.rolling(window=window_short, min_periods=1).sum() / 1000).clip(lower=1e-3)
     
+    feats['buy_volume'] = rolling_buy_vol
+    feats['sell_volume'] = rolling_sell_vol
+    feats['trade_count'] = df['amount'].rolling(window=window_short, min_periods=1).count()
+    feats['cvd'] = df['signed_volume'].cumsum()
+    
     # VWAP Deviation
     cum_vol = df['amount'].cumsum()
     cum_vol_price = (df['price'] * df['amount']).cumsum()
@@ -75,6 +80,7 @@ def calculate_advanced_trade_features(df_raw: pd.DataFrame, requested_features: 
     rolling_95th = df['amount'].rolling(window=window_long, min_periods=1).quantile(0.95).bfill()
     whale_flag = (df['amount'] > rolling_95th).astype(int)
     feats['whale_trade_freq'] = whale_flag.rolling(window=window_short, min_periods=1).sum()
+    feats['large_trade_flag'] = whale_flag
     
     # Retail proxy: size < 25th percentile
     rolling_25th = df['amount'].rolling(window=window_long, min_periods=1).quantile(0.25).bfill()

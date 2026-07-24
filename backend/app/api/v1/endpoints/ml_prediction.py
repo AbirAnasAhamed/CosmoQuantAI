@@ -53,6 +53,8 @@ def predict_signal(
             sequence_length=1
         )
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         raise HTTPException(status_code=500, detail=str(e))
         
     # Build dynamic metrics based on real inference

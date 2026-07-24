@@ -332,7 +332,7 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session, sequence
         print(f"[ml_predictor] Failed to save prediction log: {e}")
         db.rollback()
 
-    return {
+    res = {
         "signal":     signal_str,
         "confidence": round(confidence, 4),
         "price":      current_price,
@@ -342,6 +342,11 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session, sequence
         "features_used": len(available_features),
         "dataset_type":  dataset_type
     }
+    if sl_price is not None:
+        res["sl"] = sl_price
+    if tp_price is not None:
+        res["tp"] = tp_price
+    return res
 
 
 # ─── Internal Helpers ─────────────────────────────────────────────────────────
@@ -527,6 +532,8 @@ def _fetch_live_l2_data(symbol: str, db: Session, sequence_length: Optional[int]
                         "obi": obi,
                         "spread": spread,
                         "microprice": microprice,
+                        "bids": s.bids,
+                        "asks": s.asks,
                     })
                 if data:
                     df_db = pd.DataFrame(data)
@@ -551,6 +558,8 @@ def _fetch_live_l2_data(symbol: str, db: Session, sequence_length: Optional[int]
                 "obi": obi,
                 "spread": spread,
                 "microprice": microprice,
+                "bids": ob.get('bids', []),
+                "asks": ob.get('asks', []),
             }])
             df.set_index("timestamp", inplace=True)
             try:
@@ -562,7 +571,10 @@ def _fetch_live_l2_data(symbol: str, db: Session, sequence_length: Optional[int]
                         df[col] = df_feats[col]
             except Exception:
                 pass
+            
+            df.drop(columns=['bids', 'asks'], inplace=True, errors='ignore')
             if df_db is not None and not df_db.empty:
+                df_db.drop(columns=['bids', 'asks'], inplace=True, errors='ignore')
                 df = pd.concat([df_db, df]).drop_duplicates()
                 df.sort_index(inplace=True)
             return df
@@ -624,6 +636,8 @@ def _fetch_live_l2_data(symbol: str, db: Session, sequence_length: Optional[int]
                 "obi":        obi,
                 "spread":     spread,
                 "microprice": microprice,
+                "bids":       s.bids,
+                "asks":       s.asks,
             })
 
         if not data:
@@ -648,6 +662,8 @@ def _fetch_live_l2_data(symbol: str, db: Session, sequence_length: Optional[int]
                     df[col] = df_feats[col]
         except Exception:
             pass
+            
+        df.drop(columns=['bids', 'asks'], inplace=True, errors='ignore')
 
         return df
     except Exception as e:
