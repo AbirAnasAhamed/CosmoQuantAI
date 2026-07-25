@@ -48,6 +48,7 @@ import { AetherFlowRenderer } from '../../components/features/market/AetherFlowR
 import { useAetherFlowData } from '../../hooks/useAetherFlowData';
 import { AIModelDeploymentModal } from '../../components/features/market/AIModelDeploymentModal';
 import { ModelPredictorModal, PredictionResult } from '../../components/features/market/ModelPredictorModal';
+import { MLPredictionRenderer } from '../../components/features/market/MLPredictionRenderer';
 import { DualEngineDashboard } from '../../components/features/market/DualEngineDashboard';
 import { WatchlistScanner } from '../../components/features/market/WatchlistScanner';
 import { DeltaProfileRenderer } from '../../components/features/market/AdvancedMetrics/DeltaProfileRenderer';
@@ -100,6 +101,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
     const volumeSeriesRef = useRef<ISeriesApi<'Histogram'> | null>(null);
     const utBotSeriesRef = useRef<ISeriesApi<'Line'> | null>(null);
     const utBotMarkersRef = useRef<any[]>([]);
+    const mlPredictionMarkersRef = useRef<any[]>([]);
     const quantumAiMarkersRef = useRef<any[]>([]);
     const botTradeMarkersRef = useRef<any[]>([]);
     const patternMarkersRef = useRef<any[]>([]);
@@ -642,52 +644,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
 
     }, [indicatorSettings]);
 
-    // Draw Prediction Lines Effect
-    useEffect(() => {
-        if (!candlestickSeriesRef.current || !predictionResult) return;
-        
-        // Entry Line
-        if (!mlEntryLineRef.current) {
-            mlEntryLineRef.current = candlestickSeriesRef.current.createPriceLine({
-                price: predictionResult.entry_price,
-                color: '#6366f1',
-                lineWidth: 2,
-                lineStyle: LineStyle.Solid,
-                axisLabelVisible: true,
-                title: 'PRED ENTRY',
-            });
-        } else {
-            mlEntryLineRef.current.applyOptions({ price: predictionResult.entry_price });
-        }
-
-        // SL Line
-        if (!mlSlLineRef.current) {
-            mlSlLineRef.current = candlestickSeriesRef.current.createPriceLine({
-                price: predictionResult.sl,
-                color: '#ef4444',
-                lineWidth: 2,
-                lineStyle: LineStyle.Dashed,
-                axisLabelVisible: true,
-                title: 'PRED SL',
-            });
-        } else {
-            mlSlLineRef.current.applyOptions({ price: predictionResult.sl });
-        }
-
-        // TP Line
-        if (!mlTpLineRef.current) {
-            mlTpLineRef.current = candlestickSeriesRef.current.createPriceLine({
-                price: predictionResult.tp,
-                color: '#10b981',
-                lineWidth: 2,
-                lineStyle: LineStyle.Dashed,
-                axisLabelVisible: true,
-                title: 'PRED TP',
-            });
-        } else {
-            mlTpLineRef.current.applyOptions({ price: predictionResult.tp });
-        }
-    }, [predictionResult]);
+    // ML Prediction Lines handled by MLPredictionRenderer component in JSX
 
     // Reference live order flow data to avoid React dependency array thrashing
     const smcDataRef = useRef({ walls, cvdData, footprintData, currentPrice });
@@ -1046,6 +1003,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             ...quantumAiMarkersRef.current,
             ...patternMarkersRef.current,
             ...aetherMarkersRef.current,
+            ...mlPredictionMarkersRef.current,
         ];
 
         const grouped = allMarkers.reduce((acc, curr) => {
@@ -1336,8 +1294,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                             }));
                             utBotMarkersRef.current = newMarkers;
 
-                            const allMarkers = [...botTradeMarkersRef.current, ...utBotMarkersRef.current].sort((a, b) => a.time - b.time);
-                            markersPluginRef.current?.setMarkers(allMarkers);
+                            safeSetMarkers();
                         }
                     }
 
@@ -1951,8 +1908,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             if (botTradeMarkersRef.current.length > 100) {
                 botTradeMarkersRef.current = botTradeMarkersRef.current.slice(-100);
             }
-            const allMarkers = [...botTradeMarkersRef.current, ...utBotMarkersRef.current].sort((a, b) => a.time - b.time);
-            markersPluginRef.current?.setMarkers(allMarkers);
+            safeSetMarkers();
         }
 
         prevPositionRef.current = isPositionOpen;
@@ -2397,6 +2353,15 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                     <CVDChart mainChart={chartRef.current} data={cvdData} />
                 </div>
             )}
+            <MLPredictionRenderer 
+                series={candlestickSeriesRef.current} 
+                predictionResult={predictionResult} 
+                currentCandleTime={lastCandleRef.current?.time}
+                onSetMarker={(marker) => {
+                    mlPredictionMarkersRef.current = marker ? [marker] : [];
+                    safeSetMarkers();
+                }}
+            />
         </div>
     );
 };

@@ -86,12 +86,15 @@ export interface TrainingConfig {
         use_automl?: boolean;
         automl_trials?: number;
         is_ensemble?: boolean;
-        ensemble_method?: 'voting' | 'stacking';
+        ensemble_method?: 'voting' | 'stacking' | 'rl_moe';
         base_models?: string[];
         meta_model?: string;
         voting_strategy?: 'hard' | 'soft';
         auto_optimize_weights?: boolean;
         feature_subspacing?: boolean;
+        rlAlgorithm?: 'PPO' | 'SAC' | 'A2C' | 'DDPG' | 'TD3' | 'DQN';
+        moeRewardTarget?: 'PnL' | 'Sharpe' | 'Sortino';
+        moeMode?: 'preset' | 'custom';
     };
 }
 

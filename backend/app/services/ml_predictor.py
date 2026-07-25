@@ -42,7 +42,7 @@ SKLEARN_ALGOS       = {"Random Forest", "XGBoost", "LightGBM", "CatBoost", "Cust
 
 # ─── Public Entry Point ───────────────────────────────────────────────────────
 
-def predict(model_id: str, symbol_override: Optional[str], db: Session, sequence_length: Optional[int] = None) -> dict:
+def predict(model_id: str, symbol_override: Optional[str], db: Session, sequence_length: Optional[int] = None, price_point: Optional[float] = None) -> dict:
     """
     Generate a live prediction signal for the given model.
     
@@ -247,7 +247,13 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session, sequence
     df[available_features] = df[available_features].ffill().fillna(0)
 
     current_price = float(df['Close'].iloc[-1]) if 'Close' in df.columns else float(df['close'].iloc[-1])
-
+    if price_point is not None:
+        current_price = float(price_point)
+        # Override the most recent candle's close so model uses this hypothetical price
+        if 'Close' in df.columns:
+            df.iloc[-1, df.columns.get_loc('Close')] = float(price_point)
+        elif 'close' in df.columns:
+            df.iloc[-1, df.columns.get_loc('close')] = float(price_point)
     seq_len = sequence_length if sequence_length and sequence_length > 1 else 1
     # Extract last `seq_len` rows
     sequence_data = df[available_features].tail(seq_len).values.astype(float)
@@ -281,6 +287,7 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session, sequence
             anomaly_threshold = version.explainability.get("anomaly_threshold")
 
         inference_result = _run_inference(model_path, algorithm, X, prediction_target, features, anomaly_threshold, current_price)
+        print(f"[ml_predictor DEBUG] _run_inference returned: {inference_result}")
         sl_price, tp_price = None, None
         if len(inference_result) == 4:
             signal_str, confidence, sl_price, tp_price = inference_result
@@ -731,7 +738,7 @@ def _run_inference(model_path: str, algorithm: str, X: np.ndarray, prediction_ta
     elif algorithm in SKLEARN_ALGOS:
         return _infer_sklearn(model_path, X, prediction_target, features, current_price)
     elif algorithm in ["PPO-RL", "SAC-RL", "A2C-RL", "DDPG-RL", "DQN-RL", "TD3-RL", "QR-DQN", "CQL", "GAIL", "Decision-Transformer", "Liquid-NN"]:
-        return _infer_rl(model_path, algorithm, X, features=features, current_price=current_price)
+        return _infer_rl(model_path, algorithm, X, prediction_target=prediction_target, features=features, current_price=current_price)
     else:
         # Unknown — try sklearn first, then torch, then RL
         try:
@@ -744,7 +751,7 @@ def _run_inference(model_path: str, algorithm: str, X: np.ndarray, prediction_ta
                 return _infer_rl(model_path, algorithm, X, features=features, current_price=current_price)
 
 
-def _infer_rl(model_path: str, algorithm: str, X: np.ndarray, features: list = None, current_price: float = 0.0):
+def _infer_rl(model_path: str, algorithm: str, X: np.ndarray, prediction_target: str = "", features: list = None, current_price: float = 0.0):
     """Inference for Stable-Baselines3 Reinforcement Learning agents."""
     try:
         from stable_baselines3 import PPO, SAC, A2C, DDPG, DQN, TD3
@@ -773,7 +780,30 @@ def _infer_rl(model_path: str, algorithm: str, X: np.ndarray, features: list = N
         action, _ = model.predict(obs, deterministic=True)
         
         # Action is usually a 1D array or scalar
+        
+        # ── Handle Advanced Setup (Continuous Box Action Space with 3 outputs: [direction, sl, tp]) ──
+        if prediction_target == "advanced_setup" and isinstance(action[0], (np.ndarray, list)) and len(action[0]) >= 3:
+            print(f"[ml_predictor DEBUG] _infer_rl advanced_setup triggered! action[0] = {action[0]}")
+            direction = float(action[0][0])
+            # Map from [-1, 1] to positive distances (up to 10% price movement) as in AdvancedTradingEnv
+            sl_dist = max(0.001, (float(action[0][1]) + 1.0) / 2.0 * 0.1 * current_price)
+            tp_dist = max(0.001, (float(action[0][2]) + 1.0) / 2.0 * 0.1 * current_price)
+            
+            signal_str = "BUY" if direction > 0 else "SELL"
+            confidence = 0.95
+            
+            if signal_str == "BUY":
+                sl_price = current_price - sl_dist
+                tp_price = current_price + tp_dist
+            else:
+                sl_price = current_price + sl_dist
+                tp_price = current_price - tp_dist
+                
+            print(f"[ml_predictor DEBUG] Returning: {signal_str}, {confidence}, {sl_price}, {tp_price}")
+            return signal_str, confidence, sl_price, tp_price
+            
         action_val = action[0] if isinstance(action, (np.ndarray, list)) and len(action) > 0 else action
+        print(f"[ml_predictor DEBUG] _infer_rl fallback triggered. action_val={action_val}, is_continuous={algorithm in ['SAC-RL', 'DDPG-RL', 'TD3-RL']}")
 
         # Map to Signal
         is_continuous = algorithm in ["SAC-RL", "DDPG-RL", "TD3-RL"]

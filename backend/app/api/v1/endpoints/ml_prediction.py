@@ -40,17 +40,16 @@ def predict_signal(
         raise HTTPException(status_code=404, detail="Model not found")
 
     # Call the real predictive engine
-    from app.services.ml_predictor import predict
-    
-    # We pass the symbol from the UI if we want to override, otherwise None
     symbol_override = payload.get("symbol")
     
     try:
+        from app.services.ml_predictor import predict
         result = predict(
             model_id=model_id,
             symbol_override=symbol_override,
             db=db,
-            sequence_length=1
+            sequence_length=1,
+            price_point=price_point
         )
     except Exception as e:
         import traceback

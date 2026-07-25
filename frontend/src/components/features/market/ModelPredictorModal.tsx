@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, BrainCircuit, Target, ShieldAlert, TrendingUp } from 'lucide-react';
+import { X, BrainCircuit, Target, ShieldAlert, TrendingUp, Crosshair } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import apiClient from '../../../services/client';
 
@@ -60,7 +60,7 @@ export const ModelPredictorModal: React.FC<ModelPredictorModalProps> = ({ onPred
 
     const fetchModels = async () => {
         try {
-            const res = await apiClient.get('/ml-models');
+            const res = await apiClient.get('/ml-models?mode=advanced_sl_tp');
             if (res.status === 200) {
                 setModels(res.data);
                 if (res.data.length > 0) setSelectedModel(res.data[0].id);
@@ -79,9 +79,14 @@ export const ModelPredictorModal: React.FC<ModelPredictorModalProps> = ({ onPred
             });
 
             if (res.status === 200) {
-                setResult(res.data);
-                onPrediction(res.data);
-                toast.success(`AI Analysis Complete: ${res.data.signal}`);
+                const data = res.data;
+                // Ensure entry_price is set, since backend returns price
+                if (data.price_point && !data.entry_price) {
+                    data.entry_price = data.price_point;
+                }
+                setResult(data);
+                onPrediction(data);
+                toast.success(`AI Analysis Complete: ${data.signal}`);
             } else {
                 toast.error("Prediction failed.");
             }
@@ -199,24 +204,27 @@ export const ModelPredictorModal: React.FC<ModelPredictorModalProps> = ({ onPred
                                                     </span>
                                                 </div>
 
-                                                {(result.tp !== undefined || result.sl !== undefined) && (
-                                                    <div className="grid grid-cols-2 gap-3">
+                                                {(result.entry_price !== undefined || result.tp !== undefined || result.sl !== undefined) && (
+                                                    <div className="grid grid-cols-3 gap-2">
+                                                        {result.entry_price !== undefined && (
+                                                            <div className="bg-black/40 rounded-lg p-2 border border-white/5 flex flex-col items-center justify-center gap-1 text-center">
+                                                                <Crosshair className="w-4 h-4 text-indigo-400" />
+                                                                <div className="text-[9px] text-slate-500 uppercase tracking-wider">Entry</div>
+                                                                <div className="text-indigo-400 font-medium text-xs">{result.entry_price.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 6})}</div>
+                                                            </div>
+                                                        )}
                                                         {result.tp !== undefined && (
-                                                            <div className="bg-black/40 rounded-lg p-3 border border-white/5 flex items-center gap-3">
-                                                                <Target className="w-5 h-5 text-emerald-400" />
-                                                                <div>
-                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-wider">Take Profit</div>
-                                                                    <div className="text-emerald-400 font-medium">{result.tp.toLocaleString()}</div>
-                                                                </div>
+                                                            <div className="bg-black/40 rounded-lg p-2 border border-white/5 flex flex-col items-center justify-center gap-1 text-center">
+                                                                <Target className="w-4 h-4 text-emerald-400" />
+                                                                <div className="text-[9px] text-slate-500 uppercase tracking-wider">Take Profit</div>
+                                                                <div className="text-emerald-400 font-medium text-xs">{result.tp.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 6})}</div>
                                                             </div>
                                                         )}
                                                         {result.sl !== undefined && (
-                                                            <div className="bg-black/40 rounded-lg p-3 border border-white/5 flex items-center gap-3">
-                                                                <ShieldAlert className="w-5 h-5 text-rose-400" />
-                                                                <div>
-                                                                    <div className="text-[10px] text-slate-500 uppercase tracking-wider">Stop Loss</div>
-                                                                    <div className="text-rose-400 font-medium">{result.sl.toLocaleString()}</div>
-                                                                </div>
+                                                            <div className="bg-black/40 rounded-lg p-2 border border-white/5 flex flex-col items-center justify-center gap-1 text-center">
+                                                                <ShieldAlert className="w-4 h-4 text-rose-400" />
+                                                                <div className="text-[9px] text-slate-500 uppercase tracking-wider">Stop Loss</div>
+                                                                <div className="text-rose-400 font-medium text-xs">{result.sl.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 6})}</div>
                                                             </div>
                                                         )}
                                                     </div>

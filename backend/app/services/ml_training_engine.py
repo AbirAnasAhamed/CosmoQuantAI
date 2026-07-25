@@ -1474,33 +1474,12 @@ def train_model_task(job_id: str, db: Session):
             
             estimators = []
             
-            # Helper to get base estimator
-            def get_estimator(name, is_clf):
-                if name == "Random Forest":
-                    from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-                    return RandomForestClassifier(n_estimators=epochs, max_depth=max_depth, random_state=42, class_weight='balanced') if is_clf else RandomForestRegressor(n_estimators=epochs, max_depth=max_depth, random_state=42)
-                elif name == "XGBoost":
-                    from xgboost import XGBClassifier, XGBRegressor
-                    num_pos = max(y_train.sum(), 1.0)
-                    num_neg = max(len(y_train) - num_pos, 0.0)
-                    spw = num_neg / num_pos
-                    return XGBClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, scale_pos_weight=spw) if is_clf else XGBRegressor(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
-                elif name == "LightGBM":
-                    import lightgbm as lgb
-                    return lgb.LGBMClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, verbose=-1, class_weight='balanced') if is_clf else lgb.LGBMRegressor(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, verbose=-1)
-                elif name == "CatBoost":
-                    from catboost import CatBoostClassifier, CatBoostRegressor
-                    cb_depth = min(max_depth, 16)
-                    return CatBoostClassifier(iterations=epochs, learning_rate=learning_rate, depth=cb_depth, random_state=42, verbose=False, auto_class_weights='Balanced') if is_clf else CatBoostRegressor(iterations=epochs, learning_rate=learning_rate, depth=cb_depth, random_state=42, verbose=False)
-                elif name in ["LSTM", "Transformer", "Neural Network (MLP)"]:
-                    add_log(f"Mapping {name} to Scikit-Learn MLP for Ensemble compatibility.")
-                    from sklearn.neural_network import MLPClassifier, MLPRegressor
-                    return MLPClassifier(hidden_layer_sizes=(64, 32), max_iter=epochs, random_state=42) if is_clf else MLPRegressor(hidden_layer_sizes=(64, 32), max_iter=epochs, random_state=42)
-                else:
-                    # fallback
-                    from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
-                    return RandomForestClassifier(n_estimators=epochs, random_state=42, class_weight='balanced') if is_clf else RandomForestRegressor(n_estimators=epochs, random_state=42)
+            # Use the genuine model mapper for 40+ native algorithms
+            from app.services.advanced_ml.moe_model_mapper import get_genuine_base_estimator
             
+            def get_estimator(name, is_clf):
+                return get_genuine_base_estimator(name, config, is_clf)
+                
             is_classification_target = (prediction_target == "classification")
             
             import random
@@ -1533,6 +1512,38 @@ def train_model_task(job_id: str, db: Session):
                 else:
                     from sklearn.ensemble import VotingRegressor
                     model = VotingRegressor(estimators=estimators)
+            elif ensemble_method == "rl_moe":
+                add_log("🚀 Initiating RL-Based Mixture of Experts (MoE) Engine...")
+                from app.services.advanced_ml.moe_engine import RLMoEEngine
+                rl_algo = config.get("rlAlgorithm", "PPO")
+                reward_tgt = config.get("moeRewardTarget", "Sharpe")
+                
+                moe_engine = RLMoEEngine(rl_algorithm=rl_algo, reward_target=reward_tgt)
+                
+                preds_list = []
+                fitted_estimators = []
+                add_log(f"Training {len(estimators)} Base Experts for MoE...")
+                for name, est in estimators:
+                    est.fit(X_train_df, y_train if is_multi_output else y_train.ravel())
+                    fitted_estimators.append(est)
+                    preds = est.predict(X_train_df)
+                    if len(preds.shape) > 1 and preds.shape[1] > 1:
+                        preds = preds[:, 0]
+                    preds_list.append(preds)
+                
+                moe_engine.base_estimators = fitted_estimators
+                base_predictions_train = np.column_stack(preds_list)
+                
+                add_log(f"Training {rl_algo} Master Agent to optimize weights...")
+                moe_engine.train_master_agent(
+                    base_predictions=base_predictions_train,
+                    market_states=X_train_df.values,
+                    actual_returns=y_train.ravel() if not is_multi_output else y_train[:, 0],
+                    total_timesteps=5000,
+                    model_save_path=model_path + "_rl_agent.zip"
+                )
+                
+                model = moe_engine
             else: # stacking
                 # Setup meta model
                 if is_classification_target:

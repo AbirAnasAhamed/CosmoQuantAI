@@ -112,12 +112,15 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
 
     // Ensemble States
     const [isEnsemble, setIsEnsemble] = useState(false);
-    const [ensembleMethod, setEnsembleMethod] = useState<'voting' | 'stacking'>('voting');
+    const [ensembleMethod, setEnsembleMethod] = useState<'voting' | 'stacking' | 'rl_moe'>('voting');
     const [baseModels, setBaseModels] = useState<string[]>(['Random Forest', 'XGBoost']);
     const [metaModel, setMetaModel] = useState<string>('Logistic Regression');
     const [votingStrategy, setVotingStrategy] = useState<'hard' | 'soft'>('soft');
     const [autoOptimizeWeights, setAutoOptimizeWeights] = useState(false);
     const [featureSubspacing, setFeatureSubspacing] = useState(false);
+    const [rlAlgorithm, setRlAlgorithm] = useState<'PPO' | 'SAC' | 'A2C' | 'DDPG' | 'TD3' | 'DQN'>('PPO');
+    const [moeRewardTarget, setMoeRewardTarget] = useState<'PnL' | 'Sharpe' | 'Sortino'>('Sharpe');
+    const [moeMode, setMoeMode] = useState<'preset' | 'custom'>('preset');
     
     const [isTraining, setIsTraining] = useState(false);
     const [isClearing, setIsClearing] = useState(false);
@@ -694,6 +697,9 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                     voting_strategy: isEnsemble && ensembleMethod === 'voting' ? votingStrategy : undefined,
                     auto_optimize_weights: isEnsemble && ensembleMethod === 'voting' && votingStrategy === 'soft' ? autoOptimizeWeights : undefined,
                     feature_subspacing: isEnsemble ? featureSubspacing : undefined,
+                    rlAlgorithm: isEnsemble && ensembleMethod === 'rl_moe' ? rlAlgorithm : undefined,
+                    moeRewardTarget: isEnsemble && ensembleMethod === 'rl_moe' ? moeRewardTarget : undefined,
+                    moeMode: isEnsemble && ensembleMethod === 'rl_moe' ? moeMode : undefined,
                 }
             });
             setCurrentJob(job);
@@ -1127,6 +1133,12 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                                 featureSubspacing={featureSubspacing}
                                 setFeatureSubspacing={setFeatureSubspacing}
                                 disabled={isTraining}
+                                rlAlgorithm={rlAlgorithm}
+                                setRlAlgorithm={setRlAlgorithm}
+                                moeRewardTarget={moeRewardTarget}
+                                setMoeRewardTarget={setMoeRewardTarget}
+                                moeMode={moeMode}
+                                setMoeMode={setMoeMode}
                             />
 
                             <AnimatePresence>
