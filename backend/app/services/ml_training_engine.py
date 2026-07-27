@@ -983,7 +983,7 @@ def train_model_task(job_id: str, db: Session):
                         add_log(f"⚠️ Failed to apply custom indicator '{ind.get('name')}': {e}")
                 
             prediction_target = config.get("prediction_target", "classification")
-            if prediction_target == "asmc_mtf_strategy":
+            if prediction_target == "smc_dynamic_mtf":
                 from app.services.asmc_strategy.target_labeler import label_asmc_targets
                 df = label_asmc_targets(df, config.get("asmc_htf", "4h"), config.get("asmc_ltf", "15m"))
             elif prediction_target == "advanced_setup":
@@ -1151,7 +1151,7 @@ def train_model_task(job_id: str, db: Session):
                 
             horizon = int(config.get("forecast_horizon", config.get("prediction_horizon", 5)))
             prediction_target = config.get("prediction_target", "classification")
-            if prediction_target == "asmc_mtf_strategy":
+            if prediction_target == "smc_dynamic_mtf":
                 from app.services.asmc_strategy.target_labeler import label_asmc_targets
                 df = label_asmc_targets(df, config.get("asmc_htf", "4h"), config.get("asmc_ltf", "15m"))
             elif prediction_target == "advanced_setup":

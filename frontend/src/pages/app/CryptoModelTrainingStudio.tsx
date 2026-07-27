@@ -142,8 +142,8 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
     // Custom Indicators State
     const [customIndicators, setCustomIndicators] = useState<CustomIndicator[]>([
         {
-            id: 'aether_smc_flow',
-            name: 'Aether SMC Flow',
+            id: 'smc_feature_engine',
+            name: 'SMC Feature Engine',
             description: 'Advanced institutional order flow and market structure features extracted via Aether Analyzer.',
             code: 'from app.services.aether_ml_features import add_aether_smc_features\nadd_aether_smc_features(df)',
             dataSource: 'ohlcv',
@@ -151,8 +151,17 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
             isPreset: true
         },
         {
-            id: 'asmc_mtf_strategy',
-            name: 'ASMC MTF Strategy',
+            id: 'smc_feature_engine_hybrid',
+            name: 'SMC Feature Engine',
+            description: 'Advanced institutional order flow and market structure features extracted via Aether Analyzer.',
+            code: 'from app.services.aether_ml_features import add_aether_smc_features\nadd_aether_smc_features(df)',
+            dataSource: 'hybrid_deep',
+            isActive: true,
+            isPreset: true
+        },
+        {
+            id: 'smc_dynamic_mtf',
+            name: 'SMC Dynamic MTF',
             description: 'Algorithmic Smart Money Convergence logic mapping HTF Liquidity Sweeps to LTF execution.',
             code: "from app.services.asmc_strategy.asmc_main import apply_asmc_mtf_logic\ndf = apply_asmc_mtf_logic(df, config.get('asmc_htf', '4h'), config.get('asmc_ltf', '15m'))",
             dataSource: 'hybrid_deep',
@@ -2618,7 +2627,7 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                                     <option value="classification">Classification (Up/Down Return)</option>
                                     <option value="regression">Regression (Exact Future Price)</option>
                                     <option value="advanced_setup">Advanced SMC Setups (Aether)</option>
-                                    <option value="asmc_mtf_strategy">ASMC Strategy Target (MTF)</option>
+                                    <option value="smc_dynamic_mtf">SMC Dynamic MTF Target (1:2 R:R)</option>
                                 </select>
                             </div>
                             
