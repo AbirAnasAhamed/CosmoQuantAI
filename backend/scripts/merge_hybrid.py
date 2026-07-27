@@ -85,50 +85,25 @@ def merge_hybrid_dataset(job_id: str, symbol: str, ohlcv_file: str, tick_file: s
             df_tick['time'] = df_tick['time'].dt.tz_localize(None)
             
         # --- Calculate Universal Tick Features for the ML Engine ---
-        # The frontend UI allows selecting specific tick features. We must calculate them here and merge them.
         _log("Calculating Universal Tick Features (Order Flow & Volatility)...")
-        df_tick.set_index('time', inplace=True)
-        
-        has_vol = 'bid_volume' in df_tick.columns and 'ask_volume' in df_tick.columns
-        if has_vol:
-            df_tick['buy_sell_ratio'] = df_tick['bid_volume'] / (df_tick['ask_volume'] + 1e-8)
-            df_tick['vol_imbalance'] = (df_tick['bid_volume'] - df_tick['ask_volume']) / (df_tick['bid_volume'] + df_tick['ask_volume'] + 1e-8)
-        else:
-            df_tick['buy_sell_ratio'] = 1.0
-            df_tick['vol_imbalance'] = 0.0
-            
-        df_tick['trade_sign'] = np.sign(df_tick['Mid'].diff().fillna(0))
-        df_tick['returns'] = df_tick['Mid'].pct_change().fillna(0)
-        df_tick['price_accel'] = df_tick['returns'].diff().fillna(0)
-        
-        # Micro RSI
-        up = df_tick['returns'].clip(lower=0)
-        down = -1 * df_tick['returns'].clip(upper=0)
-        roll_up = up.rolling(14).mean()
-        roll_down = down.rolling(14).mean()
-        rs = roll_up / (roll_down + 1e-8)
-        df_tick['micro_rsi'] = 100.0 - (100.0 / (1.0 + rs))
-        
-        # VPIN proxy (Order Flow Toxicity)
-        if has_vol:
-            df_tick['toxicity'] = abs(df_tick['bid_volume'] - df_tick['ask_volume']) / (df_tick['bid_volume'] + df_tick['ask_volume'] + 1e-8)
-        else:
-            df_tick['toxicity'] = 0.0
-            
-        # Jump Intensity
-        std_ret = df_tick['returns'].std()
-        df_tick['is_jump'] = (df_tick['returns'].abs() > (std_ret * 3)).astype(int)
+        from hybrid_tick_calculator import calculate_tick_micro_features
+        df_tick = calculate_tick_micro_features(df_tick)
         
         # Resample all these universal features to 5s so they can be merged to OHLCV regardless of the chosen core binning strategy
+        df_tick.set_index('time', inplace=True)
         universal_agg = df_tick.resample('5s').agg({
             'buy_sell_ratio': 'mean',
             'vol_imbalance': 'mean',
             'trade_sign': 'sum',
-            'toxicity': 'mean',
-            'returns': 'std', # Realized vol
+            'order_flow_toxicity': 'mean',
+            'realized_vol': 'sum',
             'price_accel': 'mean',
             'micro_rsi': 'mean',
-            'is_jump': 'sum'
+            'jump_intensity': 'sum',
+            'path_variation': 'sum',
+            'bid_ask_bounce': 'mean',
+            'net_tick_volume': 'sum',
+            'Mid': 'count'
         })
         universal_agg.columns = [
             'tick_buy_sell_ratio',
@@ -138,7 +113,11 @@ def merge_hybrid_dataset(job_id: str, symbol: str, ohlcv_file: str, tick_file: s
             'tick_realized_vol',
             'tick_price_acceleration',
             'tick_micro_rsi',
-            'tick_jump_intensity'
+            'tick_jump_intensity',
+            'tick_path_variation',
+            'tick_bid_ask_bounce',
+            'tick_net_volume',
+            'tick_count'
         ]
         universal_agg = universal_agg.reset_index()
         
@@ -157,9 +136,9 @@ def merge_hybrid_dataset(job_id: str, symbol: str, ohlcv_file: str, tick_file: s
             tick_agg = df_tick.resample('5s').agg(agg_funcs)
             # Flatten columns
             if 'ofi' in agg_funcs:
-                tick_agg.columns = ['tick_count', 'tick_volatility', 'tick_spread', 'tick_ofi_sum']
+                tick_agg.columns = ['strategy_tick_count', 'tick_volatility', 'tick_spread', 'tick_ofi_sum']
             else:
-                tick_agg.columns = ['tick_count', 'tick_volatility', 'tick_spread']
+                tick_agg.columns = ['strategy_tick_count', 'tick_volatility', 'tick_spread']
             
             tick_agg = tick_agg.reset_index()
             _log("Merging Time-based features with OHLCV...")

@@ -83,6 +83,11 @@ class ForexMLTrainingEngine:
             if selected_features:
                 self._log(f"Generating {len(selected_features)} selected features...")
                 df = generate_ohlcv_features(df, selected_features)
+                
+                # Check for hybrid feature generation
+                from app.services.ml.hybrid_feature_engine import generate_hybrid_features
+                df = generate_hybrid_features(df, selected_features)
+
             else:
                 self._log("No specific features selected. Falling back to basic RSI, MACD, BBands...")
                 df.ta.rsi(length=14, append=True)

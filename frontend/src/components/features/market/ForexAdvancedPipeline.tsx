@@ -384,7 +384,10 @@ export const FOREX_MODULES = [
             { id: 'tick_buy_sell_ratio', name: 'Tick Buy/Sell Ratio' },
             { id: 'tick_volume_imbalance', name: 'Tick Volume Imbalance' },
             { id: 'tick_trade_sign', name: 'Tick Trade Sign Proxy' },
-            { id: 'tick_order_flow_toxicity', name: 'Tick Order Flow Toxicity' }
+            { id: 'tick_order_flow_toxicity', name: 'Tick Order Flow Toxicity' },
+            { id: 'tick_net_volume', name: 'Net Tick Volume' },
+            { id: 'tick_path_variation', name: 'Tick Path Variation' },
+            { id: 'tick_bid_ask_bounce', name: 'Bid-Ask Bounce' }
         ]
     },
     {
@@ -398,6 +401,67 @@ export const FOREX_MODULES = [
             { id: 'tick_price_acceleration', name: 'Tick Price Acceleration' },
             { id: 'tick_micro_rsi', name: 'Micro-RSI (Tick)' },
             { id: 'tick_jump_intensity', name: 'Tick Jump Intensity' }
+        ]
+    },
+    {
+        id: 'tick_time_speed',
+        title: 'Tick Time & Speed',
+        icon: Clock,
+        description: 'Tick velocity and session density.',
+        source: 'hybrid_ohlcv_tick',
+        features: [
+            { id: 'tick_velocity', name: 'Tick Velocity' },
+            { id: 'volume_velocity', name: 'Volume Velocity' }
+        ]
+    },
+    {
+        id: 'hybrid_price_action',
+        title: 'Hybrid Price Action (VSA)',
+        icon: Layers,
+        description: 'Volume Spread Analysis using ticks.',
+        source: 'hybrid_ohlcv_tick',
+        features: [
+            { id: 'hybrid_vwap', name: 'Tick-VWAP' },
+            { id: 'hybrid_effective_spread', name: 'Effective Spread' },
+            { id: 'hybrid_candle_body_ratio', name: 'Effort vs Result (Body/Tick)' },
+            { id: 'hybrid_fractal_dimension', name: 'Hybrid Fractal Dimension' }
+        ]
+    },
+    {
+        id: 'hybrid_liquidity',
+        title: 'Hybrid Liquidity & Risk',
+        icon: Database,
+        description: 'Amihud Illiquidity and risk metrics.',
+        source: 'hybrid_ohlcv_tick',
+        features: [
+            { id: 'amihud_illiquidity', name: 'Amihud Illiquidity Measure' },
+            { id: 'tick_volume_to_range', name: 'Tick Volume to Range Ratio' }
+        ]
+    },
+    {
+        id: 'hybrid_ofi_momentum',
+        title: 'OFI Momentum & Divergence',
+        icon: Activity,
+        description: 'Trend of Order Flow Imbalance.',
+        source: 'hybrid_ohlcv_tick',
+        features: [
+            { id: 'ofi_sma', name: 'OFI SMA' },
+            { id: 'ofi_ema', name: 'OFI EMA' },
+            { id: 'ofi_rsi', name: 'OFI RSI' },
+            { id: 'ofi_zscore', name: 'OFI Z-Score' },
+            { id: 'cumulative_ofi', name: 'Cumulative OFI' },
+            { id: 'ofi_acceleration', name: 'OFI Acceleration' },
+            { id: 'ofi_divergence', name: 'Price vs OFI Divergence' }
+        ]
+    },
+    {
+        id: 'hybrid_ml_specific',
+        title: 'ML & Stat Arb Features',
+        icon: Terminal,
+        description: 'Entropy and advanced ML features.',
+        source: 'hybrid_ohlcv_tick',
+        features: [
+            { id: 'tick_entropy', name: 'Tick Entropy' }
         ]
     }
 ];
