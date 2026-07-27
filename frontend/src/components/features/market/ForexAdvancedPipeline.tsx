@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Activity, Clock, Globe, Terminal, ChevronDown, CheckSquare, Square, Database, Trash2, TrendingUp, BarChart2, Zap, Target, Layers, AlignLeft, Crosshair, Cpu } from 'lucide-react';
 import { ForexScraperPanel } from '../../ml/forex/ForexScraperPanel';
 import { CustomIndicatorBuilder, CustomIndicator } from './CustomIndicatorBuilder';
+import { HybridOhlcvTickPanel } from './HybridOhlcvTickPanel';
 
 export const FOREX_MODULES = [
     {
@@ -372,6 +373,32 @@ export const FOREX_MODULES = [
             { id: 'retail_panic_sweep_proxy', name: 'Retail Panic Sweep Proxy 🚀' },
             { id: 'algo_hunt_intensity_proxy', name: 'Algo Hunt Intensity 🚀' }
         ]
+    },
+    {
+        id: 'tick_imbalance',
+        title: 'Tick Order Flow Imbalance',
+        icon: BarChart2,
+        description: 'Microstructure imbalance from tick data.',
+        source: 'hybrid_ohlcv_tick',
+        features: [
+            { id: 'tick_buy_sell_ratio', name: 'Tick Buy/Sell Ratio' },
+            { id: 'tick_volume_imbalance', name: 'Tick Volume Imbalance' },
+            { id: 'tick_trade_sign', name: 'Tick Trade Sign Proxy' },
+            { id: 'tick_order_flow_toxicity', name: 'Tick Order Flow Toxicity' }
+        ]
+    },
+    {
+        id: 'tick_volatility',
+        title: 'High-Freq Tick Volatility',
+        icon: Target,
+        description: 'Volatility measured at the tick level.',
+        source: 'hybrid_ohlcv_tick',
+        features: [
+            { id: 'tick_realized_vol', name: 'Tick Realized Volatility' },
+            { id: 'tick_price_acceleration', name: 'Tick Price Acceleration' },
+            { id: 'tick_micro_rsi', name: 'Micro-RSI (Tick)' },
+            { id: 'tick_jump_intensity', name: 'Tick Jump Intensity' }
+        ]
     }
 ];
 
@@ -380,6 +407,8 @@ interface ForexAdvancedPipelineProps {
     onToggleFeature: (featureId: string) => void;
     onSetMultipleFeatures: (featureIds: string[]) => void;
     disabled?: boolean;
+    dataSource: string;
+    setDataSource: (val: string) => void;
     // Scraper Props
     symbol: string;
     isTraining: boolean;
@@ -399,12 +428,28 @@ interface ForexAdvancedPipelineProps {
     handleUploadL2Csv: (e: React.ChangeEvent<HTMLInputElement>) => void;
     handleDeleteL2Snapshot: (e: React.MouseEvent) => void;
     isUploadingL2: boolean;
+    
+    tickDataFiles: string[];
+    selectedTickFile: string;
+    setSelectedTickFile: (val: string) => void;
+    handleUploadTickCsv: (e: React.ChangeEvent<HTMLInputElement>) => void;
+    handleDeleteTickSnapshot: (e: React.MouseEvent) => void;
+    isUploadingTick: boolean;
+    tickBinningStrategy: string;
+    setTickBinningStrategy: (val: string) => void;
+
     customIndicators: CustomIndicator[];
     setCustomIndicators: React.Dispatch<React.SetStateAction<CustomIndicator[]>>;
+    
+    onStartMerge?: () => void;
+    hybridMergedFiles?: string[];
+    selectedHybridFile?: string;
+    setSelectedHybridFile?: (val: string) => void;
+    isMerging?: boolean;
 }
 
 export const ForexAdvancedPipeline: React.FC<ForexAdvancedPipelineProps> = (props) => {
-    const [dataSource, setDataSource] = useState<string>('ohlcv');
+    const { dataSource, setDataSource } = props;
     const [expandedModule, setExpandedModule] = useState<string | null>('smc_order_flow');
 
     const handleSelectAll = (moduleId: string, features: {id: string}[], isAllSelected: boolean) => {
@@ -453,26 +498,13 @@ export const ForexAdvancedPipeline: React.FC<ForexAdvancedPipelineProps> = (prop
                         Level 2 Orderbook
                     </button>
                     <button
-                        onClick={() => { setDataSource('hybrid_ohlcv_l2'); setExpandedModule(null); }}
+                        onClick={() => { setDataSource('hybrid_ohlcv_tick'); setExpandedModule(null); }}
                         disabled={props.isTraining}
-                        className={`py-2 rounded-xl text-[11px] font-bold transition-all duration-300 ${dataSource === 'hybrid_ohlcv_l2' ? 'bg-gradient-to-r from-indigo-600 to-cyan-600 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'}`}
+                        className={`py-2 rounded-xl text-[11px] font-bold transition-all duration-300 ${dataSource === 'hybrid_ohlcv_tick' ? 'bg-gradient-to-r from-indigo-600 to-cyan-600 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'}`}
                     >
-                        Hybrid OHLCV + L2
+                        Hybrid Standard OHLCV + Historical Ticks
                     </button>
-                    <button
-                        onClick={() => { setDataSource('historical_trades'); setExpandedModule(null); }}
-                        disabled={props.isTraining}
-                        className={`py-2 rounded-xl text-[11px] font-bold transition-all duration-300 ${dataSource === 'historical_trades' ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-[0_0_15px_rgba(249,115,22,0.4)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'}`}
-                    >
-                        Historical Trades CSV
-                    </button>
-                    <button
-                        onClick={() => { setDataSource('hybrid_deep_l2'); setExpandedModule(null); }}
-                        disabled={props.isTraining}
-                        className={`py-2 rounded-xl text-[11px] font-bold transition-all duration-300 ${dataSource === 'hybrid_deep_l2' ? 'bg-gradient-to-r from-pink-600 to-rose-600 text-white shadow-[0_0_15px_rgba(225,29,72,0.4)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'}`}
-                    >
-                        Deep L2 + Live Trader
-                    </button>
+
                     <button
                         onClick={() => { setDataSource('alt_data'); setExpandedModule('alt_data'); }}
                         disabled={props.isTraining}
@@ -580,6 +612,31 @@ export const ForexAdvancedPipeline: React.FC<ForexAdvancedPipelineProps> = (prop
                             </div>
                         </div>
                     </div>
+                )}
+
+                {/* HYBRID OHLCV + TICK INJECTION */}
+                {dataSource === 'hybrid_ohlcv_tick' && (
+                    <HybridOhlcvTickPanel 
+                        symbol={props.symbol}
+                        isTraining={props.isTraining}
+                        forexSnapshotFiles={props.forexSnapshotFiles}
+                        selectedForexFile={props.selectedForexFile}
+                        setSelectedForexFile={props.setSelectedForexFile}
+                        handleDeleteSnapshot={props.handleDeleteSnapshot}
+                        tickDataFiles={props.tickDataFiles}
+                        selectedTickFile={props.selectedTickFile}
+                        setSelectedTickFile={props.setSelectedTickFile}
+                        handleUploadTickCsv={props.handleUploadTickCsv}
+                        handleDeleteTickSnapshot={props.handleDeleteTickSnapshot}
+                        isUploadingTick={props.isUploadingTick}
+                        tickBinningStrategy={props.tickBinningStrategy}
+                        setTickBinningStrategy={props.setTickBinningStrategy}
+                        onStartMerge={props.onStartMerge}
+                        hybridMergedFiles={props.hybridMergedFiles}
+                        selectedHybridFile={props.selectedHybridFile}
+                        setSelectedHybridFile={props.setSelectedHybridFile}
+                        isMerging={props.isMerging}
+                    />
                 )}
 
                 {/* CUSTOM INDICATOR BUILDER */}

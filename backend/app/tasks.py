@@ -1385,3 +1385,30 @@ def parse_tickstory_csv_task(self, symbol: str, input_csv_path: str, job_id: str
         import traceback
         traceback.print_exc()
         return {"status": "error", "job_id": job_id, "error": str(e)}
+
+@celery_app.task(bind=True, name="merge_hybrid_dataset_task")
+def merge_hybrid_dataset_task(self, job_id: str, symbol: str, ohlcv_file: str, tick_file: str, strategy: str):
+    import sys
+    import os
+    scripts_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'scripts'))
+    if scripts_dir not in sys.path:
+        sys.path.append(scripts_dir)
+        
+    try:
+        from merge_hybrid import merge_hybrid_dataset
+    except ImportError:
+        sys.path.insert(0, os.getcwd())
+        from scripts.merge_hybrid import merge_hybrid_dataset
+        
+    logger = get_task_logger("forex_worker", "merge_hybrid.log")
+    logger.info(f"🚀 Celery picked up Hybrid Dataset Merge for: {symbol}")
+    
+    try:
+        merge_hybrid_dataset(job_id, symbol, ohlcv_file, tick_file, strategy)
+        logger.info(f"✅ Celery Hybrid Merge completed: {job_id}")
+        return {"status": "success", "job_id": job_id}
+    except Exception as e:
+        logger.error(f"❌ Celery Hybrid Merge Failed {job_id}: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return {"status": "error", "job_id": job_id, "error": str(e)}

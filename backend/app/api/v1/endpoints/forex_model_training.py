@@ -262,6 +262,8 @@ def list_forex_snapshots(
         
     pattern = os.path.join(data_dir, "*.parquet")
     files = glob.glob(pattern)
+    # Exclude TICKSTORY files from regular snapshots
+    files = [f for f in files if "_TICKSTORY_" not in f]
     files.sort(key=os.path.getmtime, reverse=True)
     return [os.path.basename(f) for f in files]
 
@@ -456,3 +458,108 @@ def delete_l2_snapshot(
             logger.error(f"Error deleting L2 snapshot: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to delete file: {e}")
     raise HTTPException(status_code=404, detail="File not found")
+
+@router.get("/tick-snapshots", response_model=List[str])
+def list_tick_snapshots(
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """
+    List all downloaded tick data .parquet files.
+    """
+    import os
+    import glob
+    
+    data_dir = os.path.join(os.getcwd(), "data", "raw", "forex_snapshots")
+    if not os.path.exists(data_dir):
+        return []
+        
+    pattern = os.path.join(data_dir, "*_TICKSTORY_*.parquet")
+    files = glob.glob(pattern)
+    files.sort(key=os.path.getmtime, reverse=True)
+    return [os.path.basename(f) for f in files]
+
+@router.delete("/tick-snapshots/{filename}")
+def delete_tick_snapshot(
+    filename: str,
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    """
+    Delete a downloaded tick data .parquet file.
+    """
+    import os
+    
+    if ".." in filename or "/" in filename or "\\" in filename:
+        raise HTTPException(status_code=400, detail="Invalid filename")
+        
+    file_path = os.path.join(os.getcwd(), "data", "raw", "forex_snapshots", filename)
+    if os.path.exists(file_path):
+        try:
+            os.remove(file_path)
+            return {"status": "success", "message": f"Deleted {filename}"}
+        except Exception as e:
+            logger.error(f"Error deleting tick snapshot: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to delete file: {e}")
+    raise HTTPException(status_code=404, detail="File not found")
+
+from pydantic import BaseModel
+class MergeHybridRequest(BaseModel):
+    symbol: str
+    ohlcv_file: str
+    tick_file: str
+    strategy: str
+
+@router.post("/merge-hybrid", response_model=schemas.TrainingJobResponse)
+def merge_hybrid_dataset(
+    request: MergeHybridRequest,
+    db: Session = Depends(get_db),
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    import uuid
+    from datetime import datetime
+    
+    job_id = f"forex_job_{uuid.uuid4().hex[:8]}"
+    new_job = models.ModelTrainingJob(
+        id=job_id,
+        user_id=current_user.id,
+        symbol=request.symbol.upper(),
+        timeframe="Hybrid",
+        algorithm="Hybrid Dataset Builder",
+        status=models.TrainingStatus.RUNNING,
+        market_type="forex",
+        progress=0.0,
+        config={"dataset_type": "hybrid_merge", "strategy": request.strategy},
+        logs=[f"[{datetime.utcnow().strftime('%H:%M:%S')}] Starting Hybrid Data Merge..."]
+    )
+    db.add(new_job)
+    db.commit()
+    db.refresh(new_job)
+    
+    from app.tasks import merge_hybrid_dataset_task
+    merge_hybrid_dataset_task.apply_async(
+        kwargs={
+            "job_id": job_id,
+            "symbol": request.symbol.upper(),
+            "ohlcv_file": request.ohlcv_file,
+            "tick_file": request.tick_file,
+            "strategy": request.strategy
+        },
+        queue="heavy"
+    )
+    
+    return new_job
+
+@router.get("/hybrid-snapshots", response_model=List[str])
+def list_hybrid_snapshots(
+    current_user: models.User = Depends(deps.get_current_user),
+):
+    import os
+    import glob
+    
+    data_dir = os.path.join(os.getcwd(), "data", "raw", "forex_snapshots")
+    if not os.path.exists(data_dir):
+        return []
+        
+    pattern = os.path.join(data_dir, "HYBRID_*.parquet")
+    files = glob.glob(pattern)
+    files.sort(key=os.path.getmtime, reverse=True)
+    return [os.path.basename(f) for f in files]

@@ -75,6 +75,12 @@ export interface ForexTrainingConfig {
         enable_central_bank_nlp?: boolean;
         selected_forex_features?: string[];
         custom_indicators?: any[];
+        
+        // Data Sources
+        data_source_type?: string;
+        l2_orderbook_file?: string;
+        tick_data_file?: string;
+        tick_binning_strategy?: string;
     };
 }
 
@@ -138,6 +144,16 @@ export const forexMlTrainingService = {
         return response.data;
     },
 
+    getTickSnapshots: async (): Promise<string[]> => {
+        const response = await apiClient.get('/forex-model-training/tick-snapshots');
+        return response.data || [];
+    },
+
+    deleteTickSnapshot: async (filename: string): Promise<any> => {
+        const response = await apiClient.delete(`/forex-model-training/tick-snapshots/${filename}`);
+        return response.data;
+    },
+
     async getL2OrderbookFiles(): Promise<string[]> {
         const response = await apiClient.get('/forex-model-training/l2-snapshots');
         return response.data.files || [];
@@ -157,5 +173,15 @@ export const forexMlTrainingService = {
     async deleteL2Snapshot(filename: string): Promise<any> {
         const response = await apiClient.delete(`/forex-model-training/l2-snapshots/${filename}`);
         return response.data;
+    },
+
+    mergeHybridDataset: async (config: {symbol: string, ohlcv_file: string, tick_file: string, strategy: string}): Promise<ForexTrainingJob> => {
+        const response = await apiClient.post('/forex-model-training/merge-hybrid', config);
+        return response.data;
+    },
+
+    getHybridSnapshots: async (): Promise<string[]> => {
+        const response = await apiClient.get('/forex-model-training/hybrid-snapshots');
+        return response.data || [];
     }
 };

@@ -116,6 +116,20 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
     const [l2OrderbookFiles, setL2OrderbookFiles] = useState<string[]>([]);
     const [selectedL2File, setSelectedL2File] = useState('');
     const [isUploadingL2, setIsUploadingL2] = useState(false);
+
+    // Historical Ticks State
+    const [tickDataFiles, setTickDataFiles] = useState<string[]>([]);
+    const [selectedTickFile, setSelectedTickFile] = useState('');
+    const [isUploadingTick, setIsUploadingTick] = useState(false);
+    const [tickBinningStrategy, setTickBinningStrategy] = useState('time_based_5s');
+
+    // Hybrid Merged State
+    const [hybridMergedFiles, setHybridMergedFiles] = useState<string[]>([]);
+    const [selectedHybridFile, setSelectedHybridFile] = useState('');
+    const [isMerging, setIsMerging] = useState(false);
+    // Data Source State
+    const [dataSource, setDataSource] = useState<string>('ohlcv');
+
     const [showTerminal, setShowTerminal] = useState(false);
     const logsEndRef = useRef<HTMLDivElement>(null);
 
@@ -249,24 +263,47 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
             }
         }).catch(err => console.error("Failed to load forex snapshots", err));
 
+        // Load Tick Snapshots
+        forexMlTrainingService.getTickSnapshots().then((files) => {
+            setTickDataFiles(files);
+            if (files.length > 0 && !selectedTickFile) {
+                setSelectedTickFile(files[0]);
+            }
+        }).catch(err => console.error("Failed to load tick snapshots", err));
+
         forexMlTrainingService.getL2OrderbookFiles().then((files) => {
             setL2OrderbookFiles(files);
             if (files.length > 0 && !selectedL2File) {
                 setSelectedL2File(files[0]);
             }
         }).catch(err => console.error("Failed to load L2 snapshots", err));
+
+        forexMlTrainingService.getHybridSnapshots().then((files) => {
+            setHybridMergedFiles(files);
+            if (files.length > 0 && !selectedHybridFile) {
+                setSelectedHybridFile(files[0]);
+            }
+        }).catch(err => console.error("Failed to load hybrid snapshots", err));
     }, []);
 
-    // Polling logic for Training Job
+    // Polling logic for Training and Merging Jobs
     useEffect(() => {
         let interval: NodeJS.Timeout;
-        if (isTraining && activeJob && ['PENDING', 'RUNNING'].includes(activeJob.status)) {
+        if ((isTraining || isMerging) && activeJob && ['PENDING', 'RUNNING'].includes(activeJob.status)) {
             interval = setInterval(async () => {
                 try {
                     const latestJob = await forexMlTrainingService.getJobStatus(activeJob.id);
                     setActiveJob(latestJob);
                     if (['COMPLETED', 'FAILED'].includes(latestJob.status)) {
-                        setIsTraining(false);
+                        if (isTraining) setIsTraining(false);
+                        if (isMerging) {
+                            setIsMerging(false);
+                            if (latestJob.status === 'COMPLETED') {
+                                const files = await forexMlTrainingService.getHybridSnapshots();
+                                setHybridMergedFiles(files);
+                                if (files.length > 0) setSelectedHybridFile(files[0]);
+                            }
+                        }
                         clearInterval(interval);
                     }
                 } catch (error) {
@@ -275,7 +312,30 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
             }, 1000);
         }
         return () => clearInterval(interval);
-    }, [isTraining, activeJob?.id, activeJob?.status]);
+    }, [isTraining, isMerging, activeJob?.id, activeJob?.status]);
+
+    const handleStartMerge = async () => {
+        if (!selectedForexFile || !selectedTickFile) {
+            alert('Please select both OHLCV and Tick data files.');
+            return;
+        }
+        setIsMerging(true);
+        setShowTerminal(true);
+        
+        try {
+            const job = await forexMlTrainingService.mergeHybridDataset({
+                symbol,
+                ohlcv_file: selectedForexFile,
+                tick_file: selectedTickFile,
+                strategy: tickBinningStrategy
+            });
+            setActiveJob(job);
+        } catch (error) {
+            console.error(error);
+            setIsMerging(false);
+            alert('Failed to start merge process.');
+        }
+    };
 
     // Polling logic for Scraper Job
     useEffect(() => {
@@ -394,6 +454,46 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
         }
     };
 
+    const handleUploadTickCsv = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        if (!e.target.files || e.target.files.length === 0) return;
+        const file = e.target.files[0];
+        
+        if (!file.name.endsWith('.csv')) {
+            alert('Please upload a valid CSV file');
+            return;
+        }
+
+        setIsUploadingTick(true);
+        try {
+            const res = await forexMlTrainingService.uploadTickstoryCsv(symbol, file);
+            // Assuming res returns some info or filename. We might need to refresh list.
+            const files = await forexMlTrainingService.getTickSnapshots();
+            setTickDataFiles(files);
+            if (files.length > 0) setSelectedTickFile(files[files.length - 1]);
+            alert('✅ Tickstory CSV uploaded successfully!');
+        } catch (error: any) {
+            alert(`❌ Upload failed: ${error.message}`);
+        } finally {
+            setIsUploadingTick(false);
+            e.target.value = ''; // Reset input
+        }
+    };
+
+    const handleDeleteTickSnapshot = async (e: React.MouseEvent) => {
+        e.preventDefault();
+        if (!selectedTickFile) return;
+        if (!confirm(`Are you sure you want to delete ${selectedTickFile}?`)) return;
+        
+        try {
+            await forexMlTrainingService.deleteTickSnapshot(selectedTickFile);
+            setTickDataFiles(prev => prev.filter(f => f !== selectedTickFile));
+            setSelectedTickFile('');
+            alert('✅ Snapshot deleted');
+        } catch (error: any) {
+            alert(`❌ Delete failed: ${error.message}`);
+        }
+    };
+
     const handleStartTraining = async () => {
         setIsTraining(true);
         try {
@@ -447,8 +547,11 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                     feature_selection_method: featureSelectionMethod,
                     wfo_windows: wfoWindows,
                     selected_forex_features: selectedForexFeatures,
-                    snapshot_file: selectedForexFile,
-                    l2_orderbook_file: selectedL2File || undefined,
+                    snapshot_file: dataSource === 'hybrid_ohlcv_tick' ? selectedHybridFile : selectedForexFile,
+                    l2_orderbook_file: dataSource === 'l2_orderbook' || dataSource === 'hybrid_ohlcv_l2' ? selectedL2File : undefined,
+                    tick_data_file: undefined, // Tick data is already merged into snapshot_file
+                    tick_binning_strategy: dataSource === 'hybrid_ohlcv_tick' ? tickBinningStrategy : undefined,
+                    data_source_type: dataSource,
                     is_ensemble: isEnsemble,
                     ensemble_method: ensembleMethod,
                     base_models: baseModels,
@@ -750,6 +853,8 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                             }}
                             onSetMultipleFeatures={setSelectedForexFeatures}
                             disabled={isTraining}
+                            dataSource={dataSource}
+                            setDataSource={setDataSource}
                             symbol={symbol}
                             isTraining={isTraining}
                             timeframe={timeframe}
@@ -767,8 +872,21 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                             handleUploadL2Csv={handleUploadL2Csv}
                             handleDeleteL2Snapshot={handleDeleteL2Snapshot}
                             isUploadingL2={isUploadingL2}
+                            tickDataFiles={tickDataFiles}
+                            selectedTickFile={selectedTickFile}
+                            setSelectedTickFile={setSelectedTickFile}
+                            handleUploadTickCsv={handleUploadTickCsv}
+                            handleDeleteTickSnapshot={handleDeleteTickSnapshot}
+                            isUploadingTick={isUploadingTick}
+                            tickBinningStrategy={tickBinningStrategy}
+                            setTickBinningStrategy={setTickBinningStrategy}
                             customIndicators={customIndicators}
                             setCustomIndicators={setCustomIndicators}
+                            onStartMerge={handleStartMerge}
+                            hybridMergedFiles={hybridMergedFiles}
+                            selectedHybridFile={selectedHybridFile}
+                            setSelectedHybridFile={setSelectedHybridFile}
+                            isMerging={isMerging}
                         />
 
                         </div>
