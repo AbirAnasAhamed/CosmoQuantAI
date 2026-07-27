@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Activity, Clock, Globe, Terminal, ChevronDown, CheckSquare, Square, Database, Trash2, TrendingUp, BarChart2, Zap, Target, Layers, AlignLeft, Crosshair } from 'lucide-react';
+import { Activity, Clock, Globe, Terminal, ChevronDown, CheckSquare, Square, Database, Trash2, TrendingUp, BarChart2, Zap, Target, Layers, AlignLeft, Crosshair, Cpu } from 'lucide-react';
 import { ForexScraperPanel } from '../../ml/forex/ForexScraperPanel';
+import { CustomIndicatorBuilder, CustomIndicator } from './CustomIndicatorBuilder';
 
 export const FOREX_MODULES = [
     {
@@ -398,6 +399,8 @@ interface ForexAdvancedPipelineProps {
     handleUploadL2Csv: (e: React.ChangeEvent<HTMLInputElement>) => void;
     handleDeleteL2Snapshot: (e: React.MouseEvent) => void;
     isUploadingL2: boolean;
+    customIndicators: CustomIndicator[];
+    setCustomIndicators: React.Dispatch<React.SetStateAction<CustomIndicator[]>>;
 }
 
 export const ForexAdvancedPipeline: React.FC<ForexAdvancedPipelineProps> = (props) => {
@@ -434,7 +437,7 @@ export const ForexAdvancedPipeline: React.FC<ForexAdvancedPipelineProps> = (prop
                     </label>
                 </div>
                 
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 lg:grid-cols-3 gap-2">
                     <button
                         onClick={() => { setDataSource('ohlcv'); setExpandedModule('smc_order_flow'); }}
                         disabled={props.isTraining}
@@ -448,6 +451,27 @@ export const ForexAdvancedPipeline: React.FC<ForexAdvancedPipelineProps> = (prop
                         className={`py-2 rounded-xl text-[11px] font-bold transition-all duration-300 ${dataSource === 'l2_orderbook' ? 'bg-gradient-to-r from-purple-600 to-pink-600 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'}`}
                     >
                         Level 2 Orderbook
+                    </button>
+                    <button
+                        onClick={() => { setDataSource('hybrid_ohlcv_l2'); setExpandedModule(null); }}
+                        disabled={props.isTraining}
+                        className={`py-2 rounded-xl text-[11px] font-bold transition-all duration-300 ${dataSource === 'hybrid_ohlcv_l2' ? 'bg-gradient-to-r from-indigo-600 to-cyan-600 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'}`}
+                    >
+                        Hybrid OHLCV + L2
+                    </button>
+                    <button
+                        onClick={() => { setDataSource('historical_trades'); setExpandedModule(null); }}
+                        disabled={props.isTraining}
+                        className={`py-2 rounded-xl text-[11px] font-bold transition-all duration-300 ${dataSource === 'historical_trades' ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-[0_0_15px_rgba(249,115,22,0.4)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'}`}
+                    >
+                        Historical Trades CSV
+                    </button>
+                    <button
+                        onClick={() => { setDataSource('hybrid_deep_l2'); setExpandedModule(null); }}
+                        disabled={props.isTraining}
+                        className={`py-2 rounded-xl text-[11px] font-bold transition-all duration-300 ${dataSource === 'hybrid_deep_l2' ? 'bg-gradient-to-r from-pink-600 to-rose-600 text-white shadow-[0_0_15px_rgba(225,29,72,0.4)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'}`}
+                    >
+                        Deep L2 + Live Trader
                     </button>
                     <button
                         onClick={() => { setDataSource('alt_data'); setExpandedModule('alt_data'); }}
@@ -557,6 +581,14 @@ export const ForexAdvancedPipeline: React.FC<ForexAdvancedPipelineProps> = (prop
                         </div>
                     </div>
                 )}
+
+                {/* CUSTOM INDICATOR BUILDER */}
+                <CustomIndicatorBuilder 
+                    dataSource={dataSource}
+                    customIndicators={props.customIndicators}
+                    setCustomIndicators={props.setCustomIndicators}
+                    disabled={props.isTraining}
+                />
 
                 {/* ACCORDION MODULES */}
                 {FOREX_MODULES.filter(m => m.source === dataSource).map((module) => {

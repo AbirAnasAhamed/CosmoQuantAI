@@ -22,6 +22,7 @@ import { DatasetVisualizerModal } from '@/components/DatasetVisualizerModal';
 import PredatoryLiquidityPipeline, { GET_DEFAULT_MANDATORY_PLP_FEATURES } from '@/components/ml/PredatoryLiquidityPipeline';
 import { AdvancedExecutionSettings } from '@/components/app/AdvancedExecutionSettings'; // ✅ New
 import { AlternativeDataSettings } from '@/components/app/AlternativeDataSettings'; // ✅ New
+import { CustomIndicatorBuilder, CustomIndicator } from '@/components/features/market/CustomIndicatorBuilder';
 import EnsembleBuilder from '@/components/ml/EnsembleBuilder';
 import RLTrainingVisualizer from '@/components/ml/RLTrainingVisualizer';
 
@@ -137,6 +138,32 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
     const [showCorrelationModal, setShowCorrelationModal] = useState(false);
     const [showFeatureBuilder, setShowFeatureBuilder] = useState(false);
     const [customFeatures, setCustomFeatures] = useState<{name: string, formula: string}[]>([]);
+    
+    // Custom Indicators State
+    const [customIndicators, setCustomIndicators] = useState<CustomIndicator[]>([
+        {
+            id: 'aether_smc_flow',
+            name: 'Aether SMC Flow',
+            description: 'Advanced institutional order flow and market structure features extracted via Aether Analyzer.',
+            code: 'from app.services.aether_ml_features import add_aether_smc_features\nadd_aether_smc_features(df)',
+            dataSource: 'ohlcv',
+            isActive: true,
+            isPreset: true
+        },
+        {
+            id: 'asmc_mtf_strategy',
+            name: 'ASMC MTF Strategy',
+            description: 'Algorithmic Smart Money Convergence logic mapping HTF Liquidity Sweeps to LTF execution.',
+            code: "from app.services.asmc_strategy.asmc_main import apply_asmc_mtf_logic\ndf = apply_asmc_mtf_logic(df, config.get('asmc_htf', '4h'), config.get('asmc_ltf', '15m'))",
+            dataSource: 'hybrid_deep',
+            isActive: false,
+            isPreset: true
+        }
+    ]);
+
+    // ASMC Settings State
+    const [asmcHtf, setAsmcHtf] = useState('4h');
+    const [asmcLtf, setAsmcLtf] = useState('15m');
 
     const handleAddCustomFeature = (name: string, formula: string) => {
         setCustomFeatures(prev => [...prev, { name, formula }]);
@@ -312,20 +339,20 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
     };
 
     const INDICATOR_CATEGORIES = [
-        { name: 'Institutional & Price Action', indicators: ['Aether SMC Flow', 'SMC FVG', 'ICT Killzones', 'Order Blocks', 'Market Structure', 'Wick Rejection', 'VWAP_SD'] },
+        { name: 'Volume & Order Flow', indicators: ['OBV', 'VWAP', 'CMF', 'ADOSC', 'Volume Profile', 'CVD'] },
+        { name: 'Institutional & Price Action', indicators: ['SMC FVG', 'ICT Killzones', 'Order Blocks', 'Market Structure', 'Wick Rejection', 'VWAP_SD'] },
         { name: 'Momentum', indicators: ['RSI', 'Stoch', 'ROC', 'CCI', 'WillR', 'MFI'] },
         { name: 'Trend', indicators: ['MACD', 'EMA', 'SMA', 'ADX', 'Supertrend', 'Parabolic SAR'] },
         { name: 'Volatility', indicators: ['BBANDS', 'ATR', 'Keltner Channel', 'Donchian Channel'] },
-        { name: 'Volume', indicators: ['OBV', 'VWAP', 'CMF', 'ADOSC'] },
-        { name: 'Multi-Parameter (Dynamic)', indicators: ['RSI Multi', 'Stoch Multi', 'ROC Multi', 'CCI Multi', 'WillR Multi', 'MFI Multi', 'MACD Multi', 'EMA Multi', 'SMA Multi', 'ADX Multi', 'Supertrend Multi', 'Parabolic SAR Multi', 'BBANDS Multi', 'ATR Multi', 'Keltner Channel Multi', 'Donchian Channel Multi', 'CMF Multi'] }
+        { name: 'Multi-Parameter (Dynamic)', indicators: ['RSI Multi', 'MACD Multi', 'EMA Multi', 'SMA Multi', 'Stoch Multi', 'ROC Multi', 'CCI Multi', 'WillR Multi', 'MFI Multi', 'ADX Multi', 'Supertrend Multi', 'Parabolic SAR Multi', 'BBANDS Multi', 'ATR Multi', 'Keltner Channel Multi', 'Donchian Channel Multi', 'CMF Multi'] }
     ];
 
     const PRESET_PACKS = [
         { name: 'Institutional', icon: '🏦', list: ['SMC FVG', 'ICT Killzones', 'Order Blocks', 'Market Structure', 'Wick Rejection', 'VWAP_SD'] },
         { name: 'Momentum', icon: '🚀', list: ['RSI', 'ROC', 'Stoch', 'MFI', 'WillR'] },
-        { name: 'Trend', icon: '📈', list: ['MACD', 'EMA', 'SMA', 'ADX', 'Supertrend'] },
+        { name: 'Trend Focused', icon: '📈', list: ['MACD', 'EMA', 'SMA', 'ADX', 'Supertrend', 'Parabolic SAR'] },
         { name: 'Dynamic (Multi)', icon: '🧠', list: ['RSI Multi', 'MACD Multi', 'EMA Multi', 'ATR Multi'] },
-        { name: 'Kitchen Sink', icon: '🏆', list: ['Aether SMC Flow', 'SMC FVG', 'ICT Killzones', 'Order Blocks', 'Market Structure', 'Wick Rejection', 'VWAP_SD', 'RSI', 'Stoch', 'ROC', 'CCI', 'WillR', 'MFI', 'MACD', 'EMA', 'SMA', 'ADX', 'Supertrend', 'Parabolic SAR', 'BBANDS', 'ATR', 'Keltner Channel', 'Donchian Channel', 'OBV', 'VWAP', 'CMF', 'ADOSC'] }
+        { name: 'Kitchen Sink', icon: '🏆', list: ['SMC FVG', 'ICT Killzones', 'Order Blocks', 'Market Structure', 'Wick Rejection', 'VWAP_SD', 'RSI', 'Stoch', 'ROC', 'CCI', 'WillR', 'MFI', 'MACD', 'EMA', 'SMA', 'ADX', 'Supertrend', 'Parabolic SAR', 'BBANDS', 'ATR', 'Keltner Channel', 'Donchian Channel', 'OBV', 'VWAP', 'CMF', 'ADOSC'] }
     ];
     const ALGORITHM_CATEGORIES = [
         { 
@@ -688,6 +715,9 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                     twap_duration_minutes: executionStrategy === 'twap' ? twapDuration : undefined,
                     // Alternative Data params
                     alt_features: selectedAltFeatures,
+                    custom_indicators: customIndicators.filter(ind => ind.isActive),
+                    asmc_htf: asmcHtf,
+                    asmc_ltf: asmcLtf,
                     use_automl: useAutoML,
                     automl_trials: automlTrials,
                     is_ensemble: isEnsemble,
@@ -2511,6 +2541,18 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                             </div>
                         )}
 
+                        {/* Custom Indicators Builder */}
+                        <CustomIndicatorBuilder 
+                            dataSource={dataSource}
+                            customIndicators={customIndicators}
+                            setCustomIndicators={setCustomIndicators}
+                            asmcHtf={asmcHtf}
+                            setAsmcHtf={setAsmcHtf}
+                            asmcLtf={asmcLtf}
+                            setAsmcLtf={setAsmcLtf}
+                            disabled={isTraining}
+                        />
+
                         {/* Alternative Data (Google Trends, Fear & Greed, GitHub) */}
                         <AlternativeDataSettings 
                             isTraining={isTraining}
@@ -2564,6 +2606,21 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                                     </select>
                                 </div>
                             )}
+
+                            <div className="mt-4 pt-4 border-t border-white/5">
+                                <label className="block text-xs font-semibold text-slate-300 mb-2">Prediction Target</label>
+                                <select 
+                                    value={predictionTarget}
+                                    onChange={(e) => setPredictionTarget(e.target.value)}
+                                    disabled={isTraining}
+                                    className="w-full bg-black/50 backdrop-blur-md border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400 outline-none transition-all shadow-inner"
+                                >
+                                    <option value="classification">Classification (Up/Down Return)</option>
+                                    <option value="regression">Regression (Exact Future Price)</option>
+                                    <option value="advanced_setup">Advanced SMC Setups (Aether)</option>
+                                    <option value="asmc_mtf_strategy">ASMC Strategy Target (MTF)</option>
+                                </select>
+                            </div>
                             
                             {isAutoRetrain && (
                                 <div className="mt-4">

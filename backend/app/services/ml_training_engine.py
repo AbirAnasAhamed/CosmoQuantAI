@@ -968,9 +968,25 @@ def train_model_task(job_id: str, db: Session):
                     add_log(f"⚠️ Unknown indicator requested: '{ind}'")
                     
             add_log(f"Successfully calculated {len(successful_indicators)} features.")
+            
+            # --- CUSTOM INDICATORS ---
+            custom_indicators = config.get("custom_indicators", [])
+            for ind in custom_indicators:
+                code_snippet = ind.get("code")
+                if code_snippet:
+                    try:
+                        exec_locals = {"df": df, "pd": pd, "np": np, "config": config}
+                        exec(code_snippet, globals(), exec_locals)
+                        df = exec_locals.get("df", df)
+                        add_log(f"Successfully applied custom indicator: {ind.get('name')}")
+                    except Exception as e:
+                        add_log(f"⚠️ Failed to apply custom indicator '{ind.get('name')}': {e}")
                 
             prediction_target = config.get("prediction_target", "classification")
-            if prediction_target == "advanced_setup":
+            if prediction_target == "asmc_mtf_strategy":
+                from app.services.asmc_strategy.target_labeler import label_asmc_targets
+                df = label_asmc_targets(df, config.get("asmc_htf", "4h"), config.get("asmc_ltf", "15m"))
+            elif prediction_target == "advanced_setup":
                 df = generate_advanced_setup_targets(df, 5)
                 df['Target'] = df['Target_Direction']
             elif prediction_target == "classification":
@@ -1119,10 +1135,26 @@ def train_model_task(job_id: str, db: Session):
                     add_log(f"⚠️ Unknown indicator requested: '{ind}'")
                     
             add_log(f"Successfully calculated {len(successful_indicators)} features.")
+            
+            # --- CUSTOM INDICATORS ---
+            custom_indicators = config.get("custom_indicators", [])
+            for ind in custom_indicators:
+                code_snippet = ind.get("code")
+                if code_snippet:
+                    try:
+                        exec_locals = {"df": df, "pd": pd, "np": np, "config": config}
+                        exec(code_snippet, globals(), exec_locals)
+                        df = exec_locals.get("df", df)
+                        add_log(f"Successfully applied custom indicator: {ind.get('name')}")
+                    except Exception as e:
+                        add_log(f"⚠️ Failed to apply custom indicator '{ind.get('name')}': {e}")
                 
             horizon = int(config.get("forecast_horizon", config.get("prediction_horizon", 5)))
             prediction_target = config.get("prediction_target", "classification")
-            if prediction_target == "advanced_setup":
+            if prediction_target == "asmc_mtf_strategy":
+                from app.services.asmc_strategy.target_labeler import label_asmc_targets
+                df = label_asmc_targets(df, config.get("asmc_htf", "4h"), config.get("asmc_ltf", "15m"))
+            elif prediction_target == "advanced_setup":
                 df = generate_advanced_setup_targets(df, horizon)
                 df['Target'] = df['Target_Direction'] # Dummy for dropna
             elif prediction_target == "classification":

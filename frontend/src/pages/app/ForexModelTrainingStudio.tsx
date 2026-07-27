@@ -10,6 +10,7 @@ import { ForexCoreParametersPanel } from '@/components/ml/forex/ForexCoreParamet
 import { AutoMlToggle } from '@/components/ml/forex/AutoMlToggle';
 import FeatureImportanceChart from '@/components/ml/FeatureImportanceChart';
 import EquityCurveChart from '@/components/ml/EquityCurveChart';
+import { CustomIndicator } from '@/components/features/market/CustomIndicatorBuilder';
 
 interface ForexModelTrainingStudioProps {
     retrainModelId?: string | null;
@@ -122,6 +123,9 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
     const [forexScrapeJob, setForexScrapeJob] = useState<ForexTrainingJob | null>(null);
     const [forexSnapshotFiles, setForexSnapshotFiles] = useState<string[]>([]);
     const [selectedForexFile, setSelectedForexFile] = useState('');
+
+    // Custom Indicators State
+    const [customIndicators, setCustomIndicators] = useState<CustomIndicator[]>([]);
 
     const ALGORITHM_CATEGORIES = [
         { 
@@ -458,7 +462,8 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                     initial_balance: initialBalance,
                     commission: tradingFees,
                     slippage: slippage,
-                    max_allowed_drawdown: maxAllowedDrawdown
+                    max_allowed_drawdown: maxAllowedDrawdown,
+                    custom_indicators: customIndicators.filter(ind => ind.isActive)
                 }
             };
             
@@ -762,6 +767,8 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                             handleUploadL2Csv={handleUploadL2Csv}
                             handleDeleteL2Snapshot={handleDeleteL2Snapshot}
                             isUploadingL2={isUploadingL2}
+                            customIndicators={customIndicators}
+                            setCustomIndicators={setCustomIndicators}
                         />
 
                         </div>

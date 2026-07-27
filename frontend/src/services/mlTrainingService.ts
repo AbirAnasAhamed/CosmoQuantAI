@@ -95,6 +95,9 @@ export interface TrainingConfig {
         rlAlgorithm?: 'PPO' | 'SAC' | 'A2C' | 'DDPG' | 'TD3' | 'DQN';
         moeRewardTarget?: 'PnL' | 'Sharpe' | 'Sortino';
         moeMode?: 'preset' | 'custom';
+        custom_indicators?: any[];
+        asmc_htf?: string;
+        asmc_ltf?: string;
     };
 }
 

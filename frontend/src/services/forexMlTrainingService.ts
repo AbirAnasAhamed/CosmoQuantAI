@@ -73,8 +73,8 @@ export interface ForexTrainingConfig {
         enable_stop_hunt_models?: boolean;
         enable_tick_microstructure?: boolean;
         enable_central_bank_nlp?: boolean;
-        
         selected_forex_features?: string[];
+        custom_indicators?: any[];
     };
 }
 
