@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Activity, Clock, Globe, Terminal, ChevronDown, CheckSquare, Square, Database, Trash2, TrendingUp, BarChart2, Zap, Target, Layers, AlignLeft, Crosshair, Cpu } from 'lucide-react';
+import { Activity, Clock, Globe, Terminal, ChevronDown, CheckSquare, Square, Database, Trash2, TrendingUp, BarChart2, Zap, Target, Layers, AlignLeft, Crosshair, Cpu, Waves, FunctionSquare, Network } from 'lucide-react';
 import { ForexScraperPanel } from '../../ml/forex/ForexScraperPanel';
 import { CustomIndicatorBuilder, CustomIndicator } from './CustomIndicatorBuilder';
 import { HybridOhlcvTickPanel } from './HybridOhlcvTickPanel';
@@ -375,93 +375,288 @@ export const FOREX_MODULES = [
         ]
     },
     {
-        id: 'tick_imbalance',
-        title: 'Tick Order Flow Imbalance',
-        icon: BarChart2,
-        description: 'Microstructure imbalance from tick data.',
-        source: 'hybrid_ohlcv_tick',
-        features: [
-            { id: 'tick_buy_sell_ratio', name: 'Tick Buy/Sell Ratio' },
-            { id: 'tick_volume_imbalance', name: 'Tick Volume Imbalance' },
-            { id: 'tick_trade_sign', name: 'Tick Trade Sign Proxy' },
-            { id: 'tick_order_flow_toxicity', name: 'Tick Order Flow Toxicity' },
-            { id: 'tick_net_volume', name: 'Net Tick Volume' },
-            { id: 'tick_path_variation', name: 'Tick Path Variation' },
-            { id: 'tick_bid_ask_bounce', name: 'Bid-Ask Bounce' }
-        ]
-    },
-    {
-        id: 'tick_volatility',
-        title: 'High-Freq Tick Volatility',
-        icon: Target,
-        description: 'Volatility measured at the tick level.',
-        source: 'hybrid_ohlcv_tick',
-        features: [
-            { id: 'tick_realized_vol', name: 'Tick Realized Volatility' },
-            { id: 'tick_price_acceleration', name: 'Tick Price Acceleration' },
-            { id: 'tick_micro_rsi', name: 'Micro-RSI (Tick)' },
-            { id: 'tick_jump_intensity', name: 'Tick Jump Intensity' }
-        ]
-    },
-    {
-        id: 'tick_time_speed',
-        title: 'Tick Time & Speed',
-        icon: Clock,
-        description: 'Tick velocity and session density.',
-        source: 'hybrid_ohlcv_tick',
-        features: [
-            { id: 'tick_velocity', name: 'Tick Velocity' },
-            { id: 'volume_velocity', name: 'Volume Velocity' }
-        ]
-    },
-    {
-        id: 'hybrid_price_action',
-        title: 'Hybrid Price Action (VSA)',
-        icon: Layers,
-        description: 'Volume Spread Analysis using ticks.',
-        source: 'hybrid_ohlcv_tick',
-        features: [
-            { id: 'hybrid_vwap', name: 'Tick-VWAP' },
-            { id: 'hybrid_effective_spread', name: 'Effective Spread' },
-            { id: 'hybrid_candle_body_ratio', name: 'Effort vs Result (Body/Tick)' },
-            { id: 'hybrid_fractal_dimension', name: 'Hybrid Fractal Dimension' }
-        ]
-    },
-    {
-        id: 'hybrid_liquidity',
-        title: 'Hybrid Liquidity & Risk',
-        icon: Database,
-        description: 'Amihud Illiquidity and risk metrics.',
-        source: 'hybrid_ohlcv_tick',
-        features: [
-            { id: 'amihud_illiquidity', name: 'Amihud Illiquidity Measure' },
-            { id: 'tick_volume_to_range', name: 'Tick Volume to Range Ratio' }
-        ]
-    },
-    {
-        id: 'hybrid_ofi_momentum',
-        title: 'OFI Momentum & Divergence',
+        id: 'hybrid_smc_ict',
+        title: 'SMC & ICT (Tick-Verified)',
         icon: Activity,
-        description: 'Trend of Order Flow Imbalance.',
+        description: 'Smart money concepts verified by high-frequency tick volume.',
         source: 'hybrid_ohlcv_tick',
         features: [
-            { id: 'ofi_sma', name: 'OFI SMA' },
-            { id: 'ofi_ema', name: 'OFI EMA' },
-            { id: 'ofi_rsi', name: 'OFI RSI' },
-            { id: 'ofi_zscore', name: 'OFI Z-Score' },
-            { id: 'cumulative_ofi', name: 'Cumulative OFI' },
-            { id: 'ofi_acceleration', name: 'OFI Acceleration' },
-            { id: 'ofi_divergence', name: 'Price vs OFI Divergence' }
+            { id: 'tick_verified_fvg', name: 'Tick-Verified FVG' },
+            { id: 'ob_tick_density', name: 'Order Block Tick Density' },
+            { id: 'liquidity_sweep_velocity', name: 'Liquidity Sweep Velocity' },
+            { id: 'mitigation_block_reaction', name: 'Mitigation Block Reaction Speed' },
+            { id: 'judas_swing_imbalance', name: 'Judas Swing Tick Imbalance' },
+            { id: 'breaker_block_absorption', name: 'Breaker Block Absorption Ratio' },
+            { id: 'choch_momentum', name: 'CHoCH Momentum' },
+            { id: 'bos_effort_result', name: 'BOS Effort vs Result' },
+            { id: 'inducement_sweep_volume', name: 'Inducement Sweep Volume' },
+            { id: 'ict_killzone_volatility', name: 'ICT Killzone Volatility' }
         ]
     },
     {
-        id: 'hybrid_ml_specific',
-        title: 'ML & Stat Arb Features',
-        icon: Terminal,
-        description: 'Entropy and advanced ML features.',
+        id: 'hybrid_candlestick_psychology',
+        title: 'Candlestick Psychology',
+        icon: Target,
+        description: 'Micro-anatomy of candlesticks using tick data.',
         source: 'hybrid_ohlcv_tick',
         features: [
-            { id: 'tick_entropy', name: 'Tick Entropy' }
+            { id: 'wick_rejection_intensity', name: 'Wick Rejection Intensity' },
+            { id: 'body_effort_result', name: 'Body Effort vs Result (Wyckoff)' },
+            { id: 'doji_indecision_entropy', name: 'Doji Indecision Entropy' },
+            { id: 'engulfing_imbalance_ratio', name: 'Engulfing Imbalance Ratio' },
+            { id: 'pin_bar_trapping_volume', name: 'Pin Bar Trapping Volume' },
+            { id: 'hammer_tick_acceleration', name: 'Hammer Tick Acceleration' },
+            { id: 'star_validation_shift', name: 'Star Pattern Volume Shift' },
+            { id: 'consecutive_pressure', name: 'Consecutive Pressure' },
+            { id: 'gap_fill_velocity', name: 'Gap Fill Tick Velocity' },
+            { id: 'candle_close_surge', name: 'Candle Close Tick Surge' }
+        ]
+    },
+    {
+        id: 'hybrid_price_action_swing',
+        title: 'Advanced Price Action & Swing',
+        icon: AlignLeft,
+        description: 'Multi-timeframe fractal swings and VSA.',
+        source: 'hybrid_ohlcv_tick',
+        features: [
+            { id: 'fractal_swing_confirmation_time', name: 'Fractal Swing Confirmation Time' },
+            { id: 'mtf_trend_alignment', name: 'Multi-Timeframe Trend Alignment' },
+            { id: 'trendline_touch_reaction', name: 'Trendline Touch Reaction' },
+            { id: 'sr_penetration_depth', name: 'S/R Penetration Depth' },
+            { id: 'wyckoff_spring_validation', name: 'Wyckoff Spring Validation' },
+            { id: 'wyckoff_sos_pulse', name: 'Wyckoff Sign of Strength (SOS)' },
+            { id: 'vsa_climax', name: 'VSA Climax Bar' },
+            { id: 'vsa_no_demand_supply', name: 'VSA No Demand / No Supply' },
+            { id: 'three_drives_symmetry', name: 'Three Drives Pattern Symmetry' },
+            { id: 'harmonic_prz_reaction', name: 'Harmonic PRZ Tick Reaction' }
+        ]
+    },
+    {
+        id: 'hybrid_information_theory',
+        title: 'Information Theory & Entropy',
+        icon: Cpu,
+        description: 'Shannon, Tsallis, and Kolmogorov complexity.',
+        source: 'hybrid_ohlcv_tick',
+        features: [
+            { id: 'shannon_entropy_returns', name: 'Shannon Entropy of Tick Returns' },
+            { id: 'tsallis_entropy', name: 'Tsallis Entropy' },
+            { id: 'transfer_entropy_proxy', name: 'Transfer Entropy (Lead-Lag)' },
+            { id: 'kolmogorov_complexity_proxy', name: 'Kolmogorov Complexity Proxy' },
+            { id: 'approximate_entropy_proxy', name: 'Approximate Entropy (ApEn)' },
+            { id: 'sample_entropy_proxy', name: 'Sample Entropy (SampEn)' },
+            { id: 'multiscale_entropy', name: 'Multiscale Entropy' },
+            { id: 'permutation_entropy', name: 'Permutation Entropy' },
+            { id: 'kl_divergence', name: 'Kullback-Leibler (KL) Divergence' },
+            { id: 'jensen_shannon_divergence', name: 'Jensen-Shannon Divergence' }
+        ]
+    },
+    {
+        id: 'hybrid_chaos_theory',
+        title: 'Chaos Theory & Dynamics',
+        icon: Waves,
+        description: 'Lyapunov exponents, fractals and DFA.',
+        source: 'hybrid_ohlcv_tick',
+        features: [
+            { id: 'mle_proxy', name: 'Maximum Lyapunov Exponent (MLE)' },
+            { id: 'correlation_dimension_proxy', name: 'Correlation Dimension' },
+            { id: 'hurst_exponent', name: 'Hurst Exponent (Local)' },
+            { id: 'multifractal_spectrum_width', name: 'Multifractal Spectrum Width' },
+            { id: 'dfa_proxy', name: 'Detrended Fluctuation Analysis (DFA)' },
+            { id: 'rqa_proxy', name: 'Recurrence Quantification (RQA)' },
+            { id: 'rqa_determinism', name: 'Determinism (DET) in RQA' },
+            { id: 'rqa_laminarity', name: 'Laminarity (LAM) in RQA' },
+            { id: 'trapping_time', name: 'Trapping Time (TT)' },
+            { id: 'phase_space_embedding', name: 'Phase Space Embedding Dimension' }
+        ]
+    },
+    {
+        id: 'hybrid_spectral_analysis',
+        title: 'Spectral & Frequency Domain',
+        icon: Activity,
+        description: 'Fourier, Wavelet, and Hilbert-Huang transforms.',
+        source: 'hybrid_ohlcv_tick',
+        features: [
+            { id: 'fft_dominant_frequency', name: 'FFT Dominant Frequency' },
+            { id: 'cwt_coefficients', name: 'CWT Coefficients' },
+            { id: 'dwt_coefficients', name: 'DWT Detail Coefficients' },
+            { id: 'hht_instantaneous_phase', name: 'HHT Instantaneous Phase' },
+            { id: 'emd_imf_1', name: 'EMD IMF 1 (High Freq)' },
+            { id: 'emd_imf_3', name: 'EMD IMF 3 (Medium Freq)' },
+            { id: 'emd_residual', name: 'EMD Residual (Trend)' },
+            { id: 'spectral_power_density', name: 'Spectral Power Density' },
+            { id: 'cepstral_coefficients', name: 'Cepstral Coefficients' },
+            { id: 'spectrogram_energy_spread', name: 'Spectrogram Energy Spread' }
+        ]
+    },
+    {
+        id: 'hybrid_fractional_calculus',
+        title: 'Fractional Calculus & Memory',
+        icon: Layers,
+        description: 'ARFIMA, fBm drift and fractional differentiation.',
+        source: 'hybrid_ohlcv_tick',
+        features: [
+            { id: 'frac_diff_01', name: 'Fractional Differencing (d=0.1)' },
+            { id: 'frac_diff_03', name: 'Fractional Differencing (d=0.3)' },
+            { id: 'frac_diff_05', name: 'Fractional Differencing (d=0.5)' },
+            { id: 'arfima_residuals', name: 'ARFIMA Residuals' },
+            { id: 'fbm_drift', name: 'Fractional Brownian Motion (fBm) Drift' },
+            { id: 'frac_ou_reversion', name: 'Fractional O-U Reversion Speed' },
+            { id: 'lrd_parameter', name: 'Long-Range Dependence (LRD)' },
+            { id: 'frac_integral_tick_vol', name: 'Fractional Integration of Volume' },
+            { id: 'mittag_leffler_relaxation', name: 'Mittag-Leffler Relaxation Time' },
+            { id: 'frac_volatility_memory', name: 'Fractional Volatility Memory' }
+        ]
+    },
+    {
+        id: 'hybrid_topological_data_tda',
+        title: 'Topological Data (TDA)',
+        icon: Network,
+        description: 'Betti numbers, persistence landscapes and simplices.',
+        source: 'hybrid_ohlcv_tick',
+        features: [
+            { id: 'betti_number_0', name: 'Betti Number 0 (Connected Components)' },
+            { id: 'betti_number_1', name: 'Betti Number 1 (Holes/Cycles)' },
+            { id: 'persistence_landscape_area', name: 'Persistence Landscape Area' },
+            { id: 'persistence_bottleneck_distance', name: 'Persistence Bottleneck Distance' },
+            { id: 'simplicial_complex_density', name: 'Simplicial Complex Density' },
+            { id: 'mapper_graph_modularity', name: 'Mapper Algorithm Graph Modularity' },
+            { id: 'euler_characteristic_curve', name: 'Euler Characteristic Curve of Price' },
+            { id: 'wasserstein_distance_proxy', name: 'Wasserstein Distance of Persistence' },
+            { id: 'topological_entropy', name: 'Topological Entropy' },
+            { id: 'vietoris_rips_radius', name: 'Vietoris-Rips Complex Radius' }
+        ]
+    },
+    {
+        id: 'hybrid_microstructure',
+        title: 'Microstructure & Point Process',
+        icon: Target,
+        description: 'Hawkes processes and informed trading (PIN).',
+        source: 'hybrid_ohlcv_tick',
+        features: [
+            { id: 'hawkes_baseline_intensity', name: 'Hawkes Baseline Intensity' },
+            { id: 'hawkes_excitation', name: 'Hawkes Excitation Parameter' },
+            { id: 'hawkes_decay', name: 'Hawkes Decay Rate' },
+            { id: 'pin_proxy', name: 'Probability of Informed Trading (PIN)' },
+            { id: 'vpin_proxy', name: 'Volume-Synchronized PIN (VPIN)' },
+            { id: 'glosten_milgrom_spread', name: 'Glosten-Milgrom Spread Component' },
+            { id: 'roll_effective_spread', name: 'Roll Model Effective Spread' },
+            { id: 'kyles_lambda', name: "Kyle's Lambda (Market Impact)" },
+            { id: 'hasbrouck_info_share', name: "Hasbrouck's Info Share" },
+            { id: 'order_imbalance_duration', name: 'Order Imbalance Duration' }
+        ]
+    },
+    {
+        id: 'hybrid_stochastic_jump',
+        title: 'Stochastic Calculus & Jump',
+        icon: Cpu,
+        description: 'Merton Jump-Diffusion, Heston, and GBM parameters.',
+        source: 'hybrid_ohlcv_tick',
+        features: [
+            { id: 'merton_jump_intensity', name: 'Merton Jump-Diffusion Intensity' },
+            { id: 'merton_jump_mean', name: 'Merton Jump Mean' },
+            { id: 'merton_jump_variance', name: 'Merton Jump Variance' },
+            { id: 'heston_stochastic_variance', name: 'Heston Model Stochastic Variance' },
+            { id: 'heston_spot_vol_correlation', name: 'Heston Correlation (Spot-Vol)' },
+            { id: 'ou_mean_reversion_level', name: 'Ornstein-Uhlenbeck Mean Reversion Level' },
+            { id: 'ou_mean_reversion_speed', name: 'OU Mean Reversion Speed' },
+            { id: 'cir_volatility_drift', name: 'Cox-Ingersoll-Ross (CIR) Vol Drift' },
+            { id: 'gbm_drift_parameter', name: 'Geometric Brownian Motion (GBM) Drift' },
+            { id: 'local_volatility_surface', name: 'Local Volatility Surface Proxy' }
+        ]
+    },
+    {
+        id: 'hybrid_graph_networks',
+        title: 'Graph Theory & Networks',
+        icon: Network,
+        description: 'Asset interaction networks and MSTs.',
+        source: 'hybrid_ohlcv_tick',
+        features: [
+            { id: 'eigenvector_centrality_usd', name: 'Eigenvector Centrality USD' },
+            { id: 'network_clustering_coef', name: 'Network Clustering Coefficient' },
+            { id: 'mst_length', name: 'Minimum Spanning Tree (MST) Length' },
+            { id: 'pagerank_currency_flows', name: 'PageRank of Currency Flows' },
+            { id: 'granger_causality_proxy', name: 'Granger Causality (Proxy)' },
+            { id: 'dcc_garch_proxy', name: 'Dynamic Conditional Correlation (DCC-GARCH)' },
+            { id: 'cross_correlation_asymmetry', name: 'Cross-Correlation Asymmetry' },
+            { id: 'network_density', name: 'Network Density' },
+            { id: 'assortativity_coefficient', name: 'Assortativity Coefficient' },
+            { id: 'modularity_class', name: 'Modularity Class' }
+        ]
+    },
+    {
+        id: 'hybrid_lob_liquidity',
+        title: 'Limit Order Book (L2) & Liquidity',
+        icon: Database,
+        description: 'Order flow imbalance, liquidity voids, and spread.',
+        source: 'hybrid_ohlcv_tick',
+        features: [
+            { id: 'order_book_center_of_mass', name: 'Order Book Center of Mass' },
+            { id: 'micro_price_deviation', name: 'Micro-Price Deviation' },
+            { id: 'ofi_z_score', name: 'Order Flow Imbalance (OFI) Z-Score' },
+            { id: 'quote_stuffing_ratio', name: 'Quote Stuffing Ratio' },
+            { id: 'liquidity_replenishment_rate', name: 'Liquidity Replenishment Rate' },
+            { id: 'bid_ask_volume_divergence', name: 'Bid-Ask Volume Divergence' },
+            { id: 'iceberg_order_proxy', name: 'Iceberg Order Detection Proxy' },
+            { id: 'order_book_skewness', name: 'Order Book Shape (Skewness)' },
+            { id: 'order_cancellation_ratio', name: 'Order Cancellation Ratio' },
+            { id: 'market_to_limit_ratio', name: 'Market-to-Limit Order Arrival Ratio' }
+        ]
+    },
+    {
+        id: 'hybrid_stat_arb',
+        title: 'Stat Arb & Mean Reversion',
+        icon: TrendingUp,
+        description: 'Cointegration, Kalman filters and Copulas.',
+        source: 'hybrid_ohlcv_tick',
+        features: [
+            { id: 'cointegration_z_score', name: 'Cointegration Z-Score' },
+            { id: 'half_life_mean_reversion', name: 'Half-Life of Mean Reversion' },
+            { id: 'bb_bandwidth_2nd_deriv', name: 'Bollinger Bandwidth 2nd Derivative' },
+            { id: 'kalman_filter_residual', name: 'Kalman Filter Residual' },
+            { id: 'kalman_covariance_trace', name: 'Kalman Filter Covariance Trace' },
+            { id: 'pairs_spread_velocity', name: 'Pairs Trading Spread Velocity' },
+            { id: 'stat_arb_mispricing_index', name: 'Stat Arb Mispricing Index' },
+            { id: 'johansen_eigenvalue', name: 'Johansen Test Eigenvalue' },
+            { id: 'copula_tail_dependence', name: 'Copula Dependence (Tail)' },
+            { id: 'student_t_degrees_of_freedom', name: 'Student-t Copula Degrees of Freedom' }
+        ]
+    },
+    {
+        id: 'hybrid_regime_sentiment',
+        title: 'Regime Detection & Sentiment',
+        icon: Clock,
+        description: 'GMM Regimes, Panic Index, and FOMO Momentum.',
+        source: 'hybrid_ohlcv_tick',
+        features: [
+            { id: 'gmm_log_likelihood', name: 'GMM Log-Likelihood' },
+            { id: 'volatility_regime_indicator', name: 'Volatility Regime Indicator' },
+            { id: 'systemic_risk_indicator', name: 'Systemic Risk Indicator' },
+            { id: 'cusum_change_point', name: 'Change-Point Detection (CUSUM)' },
+            { id: 'prospect_theory_value', name: 'Prospect Theory Value Function' },
+            { id: 'herd_behavior_index', name: 'Herd Behavior Index (CSSD)' },
+            { id: 'retail_panic_index', name: 'Retail Panic Index' },
+            { id: 'fomo_momentum', name: 'FOMO Momentum' },
+            { id: 'stop_hunt_vulnerability', name: 'Stop-Hunt Vulnerability Score' },
+            { id: 'anchoring_bias_indicator', name: 'Anchoring Bias Indicator' }
+        ]
+    },
+    {
+        id: 'hybrid_ml_meta_features',
+        title: 'Machine Learning Meta-Features',
+        icon: Layers,
+        description: 'Autoencoders, UMAP, and Ensemble Agreement.',
+        source: 'hybrid_ohlcv_tick',
+        features: [
+            { id: 'autoencoder_reconstruction_error', name: 'Autoencoder Reconstruction Error' },
+            { id: 'pca_1st_component', name: 'PCA 1st Principal Component' },
+            { id: 'umap_component_1', name: 'UMAP Component 1' },
+            { id: 'transformer_attention_score', name: 'Transformer Attention Score (Self)' },
+            { id: 'hmm_state_0_prob', name: 'HMM State 0 (Ranging) Prob' },
+            { id: 'xgboost_base_output', name: 'XGBoost Base Model Output' },
+            { id: 'drl_q_value_proxy', name: 'DRL Q-Value Proxy' },
+            { id: 'epistemic_uncertainty', name: 'Epistemic Uncertainty' },
+            { id: 'aleatoric_uncertainty', name: 'Aleatoric Uncertainty' },
+            { id: 'ensemble_agreement_ratio', name: 'Ensemble Agreement Ratio' }
         ]
     }
 ];
