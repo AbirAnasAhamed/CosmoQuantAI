@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import EnsembleBuilder from '@/components/ml/EnsembleBuilder';
 import { BrainCircuit, Play, Settings, Activity, Layers, Target, Cpu, CheckCircle2, XCircle, Loader2, Globe, Terminal, Database } from 'lucide-react';
 import { forexMlTrainingService, ForexTrainingJob } from '@/services/forexMlTrainingService';
 import { mlModelsService } from '@/services/mlModelsService';
@@ -63,6 +64,24 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
     const [epochs, setEpochs] = useState(50);
     const [learningRate, setLearningRate] = useState(0.001);
     const [maxDepth, setMaxDepth] = useState(6);
+    
+    // Ensemble & MoE States
+    const [isEnsemble, setIsEnsemble] = useState(false);
+    const [ensembleMethod, setEnsembleMethod] = useState<'voting' | 'stacking' | 'rl_moe'>('voting');
+    const [baseModels, setBaseModels] = useState<string[]>(['Random Forest', 'XGBoost']);
+    const [metaModel, setMetaModel] = useState<string>('Logistic Regression');
+    const [votingStrategy, setVotingStrategy] = useState<'hard' | 'soft'>('soft');
+    const [autoOptimizeWeights, setAutoOptimizeWeights] = useState(false);
+    const [featureSubspacing, setFeatureSubspacing] = useState(false);
+    const [rlAlgorithm, setRlAlgorithm] = useState<'PPO' | 'SAC' | 'A2C' | 'DDPG' | 'TD3'>('PPO');
+    const [moeRewardTarget, setMoeRewardTarget] = useState<'PnL' | 'Sharpe' | 'Sortino'>('Sharpe');
+    const [moeMode, setMoeMode] = useState<'preset' | 'custom'>('preset');
+    
+    // Trading Fee & Risk States
+    const [initialBalance, setInitialBalance] = useState(10000);
+    const [tradingFees, setTradingFees] = useState(0.0001); // Standard for Forex
+    const [slippage, setSlippage] = useState(0.0001);
+    const [maxAllowedDrawdown, setMaxAllowedDrawdown] = useState(0);
     
     const [instruments, setInstruments] = useState<{name: string, display_name: string}[]>([]);
     
@@ -162,15 +181,7 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                 { id: 'SAC-RL', type: 'Reinforcement Learning', desc: 'Soft Actor-Critic for continuous action' },
                 { id: 'A2C-RL', type: 'Reinforcement Learning', desc: 'Advantage Actor-Critic (Fast Baseline)' },
                 { id: 'DDPG-RL', type: 'Reinforcement Learning', desc: 'Deep Deterministic Policy Gradient' },
-                { id: 'TD3-RL', type: 'Reinforcement Learning', desc: 'Twin Delayed DDPG (Stable Continuous)' },
-                { id: 'DQN-RL', type: 'Reinforcement Learning', desc: 'Dueling Double DQN (Discrete actions)' }
-            ] 
-        },
-        { 
-            name: "RL: Risk-Aware (Distributional)", 
-            desc: "Models that learn the distribution of returns to minimize risk", 
-            algos: [
-                { id: 'QR-DQN', type: 'Distributional RL', desc: 'Quantile Regression DQN (Risk-Aware)' }
+                { id: 'TD3-RL', type: 'Reinforcement Learning', desc: 'Twin Delayed DDPG (Stable Continuous)' }
             ] 
         },
         { 
@@ -433,7 +444,21 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                     wfo_windows: wfoWindows,
                     selected_forex_features: selectedForexFeatures,
                     snapshot_file: selectedForexFile,
-                    l2_orderbook_file: selectedL2File || undefined
+                    l2_orderbook_file: selectedL2File || undefined,
+                    is_ensemble: isEnsemble,
+                    ensemble_method: ensembleMethod,
+                    base_models: baseModels,
+                    meta_model: metaModel,
+                    voting_strategy: votingStrategy,
+                    auto_optimize_weights: autoOptimizeWeights,
+                    feature_subspacing: featureSubspacing,
+                    rlAlgorithm: rlAlgorithm,
+                    moeRewardTarget: moeRewardTarget,
+                    moeMode: moeMode,
+                    initial_balance: initialBalance,
+                    commission: tradingFees,
+                    slippage: slippage,
+                    max_allowed_drawdown: maxAllowedDrawdown
                 }
             };
             
@@ -569,36 +594,68 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                                 <div className="space-y-4">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-300 mb-2">Algorithm Selection</label>
-                                        <div className="space-y-4">
-                                            {ALGORITHM_CATEGORIES.map(category => (
-                                                <div key={category.name} className="space-y-2">
-                                                    <div>
-                                                        <h4 className="text-[10px] font-black text-teal-400 uppercase tracking-widest">{category.name}</h4>
-                                                        <p className="text-[10px] text-slate-500 font-medium">{category.desc}</p>
-                                                    </div>
-                                                    <div className="grid grid-cols-1 gap-2">
-                                                        {category.algos.map(algo => (
-                                                            <div 
-                                                                key={algo.id} 
-                                                                onClick={() => !isTraining && setAlgorithm(algo.id)}
-                                                                className={`flex items-start p-3 rounded-xl border cursor-pointer transition-all duration-300 relative overflow-hidden ${algorithm === algo.id ? 'border-teal-400 bg-teal-500/20 shadow-[0_0_15px_rgba(20,184,166,0.2)]' : 'border-white/10 bg-white/5 hover:bg-white/10'} ${isTraining ? 'opacity-50 cursor-not-allowed' : ''}`}
-                                                            >
-                                                                <div className={`mt-1 w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 ${algorithm === algo.id ? 'border-teal-400' : 'border-white/30'}`}>
-                                                                    {algorithm === algo.id && <div className="w-1.5 h-1.5 bg-teal-400 rounded-full" />}
-                                                                </div>
-                                                                <div className="ml-3 flex-1 min-w-0">
-                                                                    <div className="flex justify-between items-start mb-1">
-                                                                        <span className={`text-xs font-bold ${algorithm === algo.id ? 'text-teal-300' : 'text-slate-300'}`}>{algo.id}</span>
-                                                                        <span className="text-[9px] font-bold tracking-wider uppercase text-slate-500 bg-black/40 px-1.5 py-0.5 rounded border border-white/5">{algo.type}</span>
-                                                                    </div>
-                                                                    <p className="text-[10px] text-slate-400 leading-snug">{algo.desc}</p>
-                                                                </div>
+                                        <EnsembleBuilder
+                                            isEnsemble={isEnsemble}
+                                            setIsEnsemble={setIsEnsemble}
+                                            ensembleMethod={ensembleMethod}
+                                            setEnsembleMethod={setEnsembleMethod}
+                                            baseModels={baseModels}
+                                            setBaseModels={setBaseModels}
+                                            metaModel={metaModel}
+                                            setMetaModel={setMetaModel}
+                                            votingStrategy={votingStrategy}
+                                            setVotingStrategy={setVotingStrategy}
+                                            autoOptimizeWeights={autoOptimizeWeights}
+                                            setAutoOptimizeWeights={setAutoOptimizeWeights}
+                                            featureSubspacing={featureSubspacing}
+                                            setFeatureSubspacing={setFeatureSubspacing}
+                                            disabled={isTraining}
+                                            rlAlgorithm={rlAlgorithm}
+                                            setRlAlgorithm={setRlAlgorithm}
+                                            moeRewardTarget={moeRewardTarget}
+                                            setMoeRewardTarget={setMoeRewardTarget}
+                                            moeMode={moeMode}
+                                            setMoeMode={setMoeMode}
+                                        />
+                                        <AnimatePresence>
+                                            {!isEnsemble && (
+                                                <motion.div 
+                                                    initial={{ opacity: 0, height: 0 }}
+                                                    animate={{ opacity: 1, height: 'auto' }}
+                                                    exit={{ opacity: 0, height: 0 }}
+                                                    className="space-y-4 mt-4"
+                                                >
+                                                    {ALGORITHM_CATEGORIES.map(category => (
+                                                        <div key={category.name} className="space-y-2">
+                                                            <div>
+                                                                <h4 className="text-[10px] font-black text-teal-400 uppercase tracking-widest">{category.name}</h4>
+                                                                <p className="text-[10px] text-slate-500 font-medium">{category.desc}</p>
                                                             </div>
-                                                        ))}
-                                                    </div>
-                                                </div>
-                                            ))}
-                                        </div>
+                                                            <div className="grid grid-cols-1 gap-2">
+                                                                {category.algos.map(algo => (
+                                                                    <div 
+                                                                        key={algo.id} 
+                                                                        onClick={() => !isTraining && setAlgorithm(algo.id)}
+                                                                        className={`flex items-start p-3 rounded-xl border cursor-pointer transition-all duration-300 relative overflow-hidden ${algorithm === algo.id ? 'border-teal-400 bg-teal-500/20 shadow-[0_0_15px_rgba(20,184,166,0.2)]' : 'border-white/10 bg-white/5 hover:bg-white/10'} ${isTraining ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                                    >
+                                                                        <div className={`mt-1 w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 ${algorithm === algo.id ? 'border-teal-400' : 'border-white/30'}`}>
+                                                                            {algorithm === algo.id && <div className="w-1.5 h-1.5 bg-teal-400 rounded-full" />}
+                                                                        </div>
+                                                                        <div className="ml-3 flex-1 min-w-0">
+                                                                            <div className="flex justify-between items-start mb-1">
+                                                                                <span className={`text-xs font-bold ${algorithm === algo.id ? 'text-teal-300' : 'text-slate-300'}`}>{algo.id}</span>
+                                                                                <span className="text-[9px] font-bold tracking-wider uppercase text-slate-500 bg-black/40 px-1.5 py-0.5 rounded border border-white/5">{algo.type}</span>
+                                                                            </div>
+                                                                            <p className="text-[10px] text-slate-400 leading-snug">{algo.desc}</p>
+                                                                        </div>
+                                                                    </div>
+                                                                ))}
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </motion.div>
+                                            )}
+                                        </AnimatePresence>
                                     </div>
                                     
                                     <AdvancedHyperparameters
@@ -618,6 +675,62 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                                         setEpochs={setEpochs}
                                         isTraining={isTraining}
                                     />
+
+                                    {/* ✅ Advanced RL & Risk Settings */}
+                                    {(algorithm.includes('-RL') || ['QR-DQN', 'CQL', 'GAIL', 'Transformer'].includes(algorithm) || (isEnsemble && ensembleMethod === 'rl_moe')) && (
+                                        <motion.div 
+                                            initial={{ opacity: 0 }} 
+                                            animate={{ opacity: 1 }}
+                                            className="mt-4 p-4 bg-teal-500/5 border border-teal-500/20 rounded-2xl space-y-4"
+                                        >
+                                            <h4 className="text-xs font-black text-teal-400 uppercase tracking-widest flex items-center gap-2">
+                                                <Target className="w-3.5 h-3.5" /> Engine Specific Settings
+                                            </h4>
+                                            
+                                            <div className="grid grid-cols-2 gap-3">
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Initial Balance ($)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        value={initialBalance} 
+                                                        onChange={e => setInitialBalance(parseInt(e.target.value))}
+                                                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-teal-400"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Trading Fees / Spread</label>
+                                                    <input 
+                                                        type="number" 
+                                                        step="0.0001"
+                                                        value={tradingFees} 
+                                                        onChange={e => setTradingFees(parseFloat(e.target.value))}
+                                                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-teal-400"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase">Slippage</label>
+                                                    <input 
+                                                        type="number" 
+                                                        step="0.0001"
+                                                        value={slippage} 
+                                                        onChange={e => setSlippage(parseFloat(e.target.value))}
+                                                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-teal-400"
+                                                    />
+                                                </div>
+                                                <div>
+                                                    <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase" title="0 = Disabled">Max Drawdown (%)</label>
+                                                    <input 
+                                                        type="number" 
+                                                        step="0.1"
+                                                        value={maxAllowedDrawdown} 
+                                                        onChange={e => setMaxAllowedDrawdown(parseFloat(e.target.value) || 0)}
+                                                        className="w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-sm text-white outline-none focus:border-teal-400"
+                                                        placeholder="0 = Disabled"
+                                                    />
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
                                 </div>
                             </div>
                         </div>

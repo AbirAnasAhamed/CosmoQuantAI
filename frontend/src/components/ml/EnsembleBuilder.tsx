@@ -18,8 +18,8 @@ interface EnsembleBuilderProps {
     featureSubspacing?: boolean;
     setFeatureSubspacing?: (val: boolean) => void;
     disabled: boolean;
-    rlAlgorithm?: 'PPO' | 'SAC' | 'A2C' | 'DDPG' | 'TD3' | 'DQN';
-    setRlAlgorithm?: (val: 'PPO' | 'SAC' | 'A2C' | 'DDPG' | 'TD3' | 'DQN') => void;
+    rlAlgorithm?: 'PPO' | 'SAC' | 'A2C' | 'DDPG' | 'TD3';
+    setRlAlgorithm?: (val: 'PPO' | 'SAC' | 'A2C' | 'DDPG' | 'TD3') => void;
     moeRewardTarget?: 'PnL' | 'Sharpe' | 'Sortino';
     setMoeRewardTarget?: (val: 'PnL' | 'Sharpe' | 'Sortino') => void;
     moeMode?: 'preset' | 'custom';
@@ -247,7 +247,7 @@ const EnsembleBuilder: React.FC<EnsembleBuilderProps> = ({
                                             <label className="text-[10px] text-slate-400">Algorithm</label>
                                             <select 
                                                 value={rlAlgorithm}
-                                                onChange={(e) => !disabled && setRlAlgorithm(e.target.value as 'PPO' | 'SAC' | 'A2C' | 'DDPG' | 'TD3' | 'DQN')}
+                                                onChange={(e) => !disabled && setRlAlgorithm(e.target.value as 'PPO' | 'SAC' | 'A2C' | 'DDPG' | 'TD3')}
                                                 disabled={disabled}
                                                 className="w-full bg-[#0A0A0A] border border-emerald-500/30 rounded-lg p-2 text-xs text-emerald-100"
                                             >
@@ -256,7 +256,6 @@ const EnsembleBuilder: React.FC<EnsembleBuilderProps> = ({
                                                 <option value="A2C">A2C (Advantage Actor-Critic)</option>
                                                 <option value="DDPG">DDPG (Deterministic Policy)</option>
                                                 <option value="TD3">TD3 (Twin Delayed DDPG)</option>
-                                                <option value="DQN">DQN (Discrete Agent)</option>
                                             </select>
                                         </div>
                                         <div className="space-y-1">

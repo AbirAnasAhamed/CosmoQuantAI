@@ -285,7 +285,118 @@ class ForexMLTrainingEngine:
             use_automl = self.job.config.get('use_automl', False)
             split_method = self.job.config.get('split_method', 'chronological')
             
-            if split_method == 'walk_forward':
+            is_ensemble = self.job.config.get('is_ensemble', False)
+            ensemble_method = self.job.config.get('ensemble_method', 'voting')
+            if is_ensemble:
+                use_automl = False
+                
+            def get_model_instance(alg, cfg):
+                if is_ensemble and ensemble_method in ['voting', 'stacking']:
+                    from app.services.ml.forex_model_factory import get_forex_model
+                    base_models_names = cfg.get("base_models", ["Random Forest", "XGBoost"])
+                    estimators = []
+                    for name in base_models_names:
+                        estimators.append((name, get_forex_model(name, cfg)))
+                        
+                    if ensemble_method == "voting":
+                        from sklearn.ensemble import VotingClassifier
+                        return VotingClassifier(estimators=estimators, voting=cfg.get("voting_strategy", "soft"))
+                    elif ensemble_method == "stacking":
+                        from sklearn.ensemble import StackingClassifier
+                        meta_model_name = cfg.get("meta_model", "Logistic Regression")
+                        meta_est = get_forex_model(meta_model_name, cfg)
+                        return StackingClassifier(estimators=estimators, final_estimator=meta_est)
+                else:
+                    from app.services.ml.forex_model_factory import get_forex_model
+                    return get_forex_model(alg, cfg)
+            
+            if is_ensemble and ensemble_method == 'rl_moe':
+                self._log("🚀 Initiating RL-Based Mixture of Experts (MoE) Engine for Forex...")
+                from app.services.advanced_ml.moe_engine import RLMoEEngine
+                from app.services.ml.forex_model_factory import get_forex_model
+                
+                rl_algo = self.job.config.get("rlAlgorithm", "PPO")
+                reward_tgt = self.job.config.get("moeRewardTarget", "Sharpe")
+                commission = self.job.config.get("commission", 0.0001) # Forex typically has lower fees
+                slippage = self.job.config.get("slippage", 0.0001)
+                
+                moe_engine = RLMoEEngine(
+                    rl_algorithm=rl_algo, 
+                    reward_target=reward_tgt,
+                    commission=commission,
+                    slippage=slippage
+                )
+                
+                base_models_names = self.job.config.get("base_models", ["Random Forest", "XGBoost"])
+                fitted_estimators = []
+                preds_list = []
+                
+                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+                
+                self._log(f"Training {len(base_models_names)} Base Experts for MoE...")
+                for m_name in base_models_names:
+                    est = get_forex_model(m_name, self.job.config)
+                    est.fit(X_train, y_train)
+                    fitted_estimators.append(est)
+                    preds = est.predict(X_train)
+                    if len(preds.shape) > 1 and preds.shape[1] > 1:
+                        preds = preds[:, 0]
+                    preds_list.append(preds)
+                    
+                moe_engine.base_estimators = fitted_estimators
+                base_predictions_train = np.column_stack(preds_list)
+                
+                self._log(f"Training {rl_algo} Master Agent to optimize weights...")
+                
+                class MoEForexWrapper:
+                    def __init__(self, moe_engine, base_estimators):
+                        self.moe_engine = moe_engine
+                        self.base_estimators = base_estimators
+                        
+                    def predict(self, X_infer):
+                        preds = []
+                        for est in self.base_estimators:
+                            p = est.predict(X_infer)
+                            if len(p.shape) > 1 and p.shape[1] > 1: p = p[:, 0]
+                            preds.append(p)
+                        base_preds = np.column_stack(preds)
+                        
+                        weights_list = []
+                        for i in range(len(X_infer)):
+                            obs = np.concatenate([base_preds[i], X_infer.iloc[i].values])
+                            if hasattr(self.moe_engine.vec_env, 'normalize_obs'):
+                                obs = self.moe_engine.vec_env.normalize_obs(obs)
+                            action, _ = self.moe_engine.model.predict(obs, deterministic=True)
+                            
+                            exp_action = np.exp(action - np.max(action))
+                            w = exp_action / exp_action.sum()
+                            weights_list.append(w)
+                            
+                        weights = np.array(weights_list)
+                        ensemble_pred = np.sum(weights * base_preds, axis=1)
+                        
+                        has_negative = np.any(base_preds < 0)
+                        if has_negative:
+                            return np.where(ensemble_pred > 0.1, 1, np.where(ensemble_pred < -0.1, -1, 0))
+                        else:
+                            return np.where(ensemble_pred > 0.55, 1, np.where(ensemble_pred < 0.45, -1, 0))
+                            
+                    def score(self, X_eval, y_eval):
+                        from sklearn.metrics import accuracy_score
+                        return accuracy_score(y_eval, self.predict(X_eval))
+
+                moe_engine.train_master_agent(
+                    base_predictions=base_predictions_train,
+                    market_states=X_train.values,
+                    actual_returns=y_train.values,
+                    total_timesteps=3000
+                )
+                
+                model = MoEForexWrapper(moe_engine, fitted_estimators)
+                accuracy = model.score(X_test, y_test)
+                self._log(f"MoE Training completed. Validation Accuracy: {accuracy*100:.2f}%")
+                
+            elif split_method == 'walk_forward':
                 self._log("Starting Walk-Forward Optimization (WFO)...")
                 from app.services.ml.wfo_validator import walk_forward_split
                 wfo_windows = self.job.config.get('wfo_windows', 5)
@@ -297,11 +408,12 @@ class ForexMLTrainingEngine:
                         from app.services.ml.optuna_optimizer import run_optuna_study
                         trials = self.job.config.get('automl_trials', 10)
                         best_params = run_optuna_study(X_train, y_train, algorithm, trials)
-                        model = get_forex_model(algorithm, {**self.job.config, **best_params})
+                        model = get_model_instance(algorithm, {**self.job.config, **best_params})
                     else:
-                        model = get_forex_model(algorithm, self.job.config)
+                        model = get_model_instance(algorithm, self.job.config)
                         
-                    if algorithm.endswith('-RL'):
+                    is_rl = not is_ensemble and algorithm and algorithm.endswith('-RL')
+                    if is_rl:
                         model.fit(X_train, y_train, callback=callback)
                     else:
                         model.fit(X_train, y_train)
@@ -318,11 +430,12 @@ class ForexMLTrainingEngine:
                     from app.services.ml.optuna_optimizer import run_optuna_study
                     trials = self.job.config.get('automl_trials', 30)
                     best_params = run_optuna_study(X_train, y_train, algorithm, trials)
-                    model = get_forex_model(algorithm, {**self.job.config, **best_params})
+                    model = get_model_instance(algorithm, {**self.job.config, **best_params})
                 else:
-                    model = get_forex_model(algorithm, self.job.config)
+                    model = get_model_instance(algorithm, self.job.config)
                     
-                if algorithm.endswith('-RL'):
+                is_rl = not is_ensemble and algorithm and algorithm.endswith('-RL')
+                if is_rl:
                     model.fit(X_train, y_train, callback=callback)
                 else:
                     model.fit(X_train, y_train)

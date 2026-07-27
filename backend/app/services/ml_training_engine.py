@@ -1517,8 +1517,15 @@ def train_model_task(job_id: str, db: Session):
                 from app.services.advanced_ml.moe_engine import RLMoEEngine
                 rl_algo = config.get("rlAlgorithm", "PPO")
                 reward_tgt = config.get("moeRewardTarget", "Sharpe")
+                commission = config.get("commission", 0.001)
+                slippage = config.get("slippage", 0.001)
                 
-                moe_engine = RLMoEEngine(rl_algorithm=rl_algo, reward_target=reward_tgt)
+                moe_engine = RLMoEEngine(
+                    rl_algorithm=rl_algo, 
+                    reward_target=reward_tgt,
+                    commission=commission,
+                    slippage=slippage
+                )
                 
                 preds_list = []
                 fitted_estimators = []

@@ -15,13 +15,17 @@ class MoETradingEnv(gym.Env):
     """
     metadata = {'render_modes': ['human']}
 
-    def __init__(self, base_predictions, market_states, actual_returns, reward_target='Sharpe'):
+    def __init__(self, base_predictions, market_states, actual_returns, reward_target='Sharpe', commission=0.001, slippage=0.001):
         super(MoETradingEnv, self).__init__()
         
         # Data
         self.base_predictions = np.array(base_predictions) # Shape: (timesteps, num_models)
         self.market_states = np.array(market_states)       # Shape: (timesteps, num_features)
         self.actual_returns = np.array(actual_returns)     # Shape: (timesteps,)
+        
+        # Trading Params
+        self.commission = commission
+        self.slippage = slippage
         
         self.num_models = self.base_predictions.shape[1]
         self.num_features = self.market_states.shape[1]
@@ -38,6 +42,7 @@ class MoETradingEnv(gym.Env):
         
         self.current_step = 0
         self.history_returns = []
+        self.prev_position = 0
 
     def _get_obs(self):
         preds = self.base_predictions[self.current_step]
@@ -48,6 +53,7 @@ class MoETradingEnv(gym.Env):
         super().reset(seed=seed)
         self.current_step = 0
         self.history_returns = []
+        self.prev_position = 0
         return self._get_obs(), {}
 
     def step(self, action):
@@ -59,12 +65,26 @@ class MoETradingEnv(gym.Env):
         preds = self.base_predictions[self.current_step]
         ensemble_pred = np.sum(weights * preds)
         
-        # Determine threshold (if predictions are 0/1, threshold is 0.5)
+        # Determine threshold logic
         has_negative_preds = np.any(self.base_predictions < 0)
-        threshold = 0.0 if has_negative_preds else 0.5
         
-        # Simple simulated trading logic based on prediction
-        position = 1 if ensemble_pred > threshold else -1
+        # Advanced simulated trading logic with Hold (0) position
+        if has_negative_preds:
+            # -1 to 1 range (Regression/Continuous)
+            if ensemble_pred > 0.1:
+                position = 1
+            elif ensemble_pred < -0.1:
+                position = -1
+            else:
+                position = 0
+        else:
+            # 0 to 1 range (Classification/Probability)
+            if ensemble_pred > 0.55:
+                position = 1
+            elif ensemble_pred < 0.45:
+                position = -1
+            else:
+                position = 0
         
         # Calculate step return
         actual = self.actual_returns[self.current_step]
@@ -75,6 +95,16 @@ class MoETradingEnv(gym.Env):
             step_return = position * actual_dir
         else:
             step_return = position * actual
+            
+        # Apply Transaction Costs
+        transaction_cost = 0.0
+        if position != 0 and position != self.prev_position:
+            # Deduct commission and slippage only when entering or flipping
+            # (If moving to hold, we technically exit. Let's charge half fee for exit to keep it simple, or full for full turnover)
+            transaction_cost = self.commission + self.slippage
+            
+        self.prev_position = position
+        step_return -= transaction_cost
             
         self.history_returns.append(step_return)
         

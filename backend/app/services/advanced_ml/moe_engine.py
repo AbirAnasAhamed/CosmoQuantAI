@@ -3,8 +3,8 @@ import numpy as np
 import pandas as pd
 from typing import List, Dict, Any, Tuple
 import logging
-from stable_baselines3 import PPO, SAC, A2C, DDPG, TD3, DQN
-from stable_baselines3.common.vec_env import DummyVecEnv
+from stable_baselines3 import PPO, SAC, A2C, DDPG, TD3
+from stable_baselines3.common.vec_env import DummyVecEnv, VecNormalize
 
 from app.services.advanced_ml.moe_trading_env import MoETradingEnv
 
@@ -15,10 +15,13 @@ class RLMoEEngine:
     Reinforcement Learning Master Agent for Mixture of Experts.
     Responsible for training PPO/SAC to dynamically weight base models.
     """
-    def __init__(self, rl_algorithm: str = 'PPO', reward_target: str = 'Sharpe'):
+    def __init__(self, rl_algorithm: str = 'PPO', reward_target: str = 'Sharpe', commission: float = 0.001, slippage: float = 0.001):
         self.rl_algorithm = rl_algorithm.upper()
         self.reward_target = reward_target
+        self.commission = commission
+        self.slippage = slippage
         self.model = None
+        self.vec_env = None
         self.base_estimators = []
         
     def prepare_environment(
@@ -35,10 +38,15 @@ class RLMoEEngine:
                 base_predictions=base_predictions,
                 market_states=market_states,
                 actual_returns=actual_returns,
-                reward_target=self.reward_target
+                reward_target=self.reward_target,
+                commission=self.commission,
+                slippage=self.slippage
             )
         
-        return DummyVecEnv([make_env])
+        env = DummyVecEnv([make_env])
+        # Normalize observation space automatically
+        env = VecNormalize(env, norm_obs=True, norm_reward=False, clip_obs=10.0)
+        return env
 
     def train_master_agent(
         self, 
@@ -66,10 +74,6 @@ class RLMoEEngine:
             self.model = DDPG("MlpPolicy", env, verbose=1, learning_rate=0.001)
         elif self.rl_algorithm == 'TD3':
             self.model = TD3("MlpPolicy", env, verbose=1, learning_rate=0.001)
-        elif self.rl_algorithm == 'DQN':
-            # Note: DQN requires discrete actions, MoETradingEnv might need a discrete wrapper if DQN is used.
-            # Adding standard config here, but requires env adaptation if strict discrete is enforced.
-            self.model = DQN("MlpPolicy", env, verbose=1, learning_rate=0.0001)
         else:
             raise ValueError(f"Unsupported RL Algorithm for MoE: {self.rl_algorithm}")
             

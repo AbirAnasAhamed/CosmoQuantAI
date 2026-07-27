@@ -118,7 +118,7 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
     const [votingStrategy, setVotingStrategy] = useState<'hard' | 'soft'>('soft');
     const [autoOptimizeWeights, setAutoOptimizeWeights] = useState(false);
     const [featureSubspacing, setFeatureSubspacing] = useState(false);
-    const [rlAlgorithm, setRlAlgorithm] = useState<'PPO' | 'SAC' | 'A2C' | 'DDPG' | 'TD3' | 'DQN'>('PPO');
+    const [rlAlgorithm, setRlAlgorithm] = useState<'PPO' | 'SAC' | 'A2C' | 'DDPG' | 'TD3'>('PPO');
     const [moeRewardTarget, setMoeRewardTarget] = useState<'PnL' | 'Sharpe' | 'Sortino'>('Sharpe');
     const [moeMode, setMoeMode] = useState<'preset' | 'custom'>('preset');
     
