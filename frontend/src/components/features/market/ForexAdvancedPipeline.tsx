@@ -700,6 +700,11 @@ interface ForexAdvancedPipelineProps {
     customIndicators: CustomIndicator[];
     setCustomIndicators: React.Dispatch<React.SetStateAction<CustomIndicator[]>>;
     
+    asmcHtf?: string;
+    setAsmcHtf?: (value: string) => void;
+    asmcLtf?: string;
+    setAsmcLtf?: (value: string) => void;
+
     onStartMerge?: () => void;
     hybridMergedFiles?: string[];
     selectedHybridFile?: string;
@@ -903,6 +908,10 @@ export const ForexAdvancedPipeline: React.FC<ForexAdvancedPipelineProps> = (prop
                     dataSource={dataSource}
                     customIndicators={props.customIndicators}
                     setCustomIndicators={props.setCustomIndicators}
+                    asmcHtf={props.asmcHtf}
+                    setAsmcHtf={props.setAsmcHtf}
+                    asmcLtf={props.asmcLtf}
+                    setAsmcLtf={props.setAsmcLtf}
                     disabled={props.isTraining}
                 />
 

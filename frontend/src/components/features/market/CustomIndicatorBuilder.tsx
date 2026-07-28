@@ -182,7 +182,7 @@ export const CustomIndicatorBuilder: React.FC<CustomIndicatorBuilderProps> = ({
                             )}
                         </div>
                     </div>
-                    {ind.id === 'smc_dynamic_mtf' && ind.isActive && asmcHtf && setAsmcHtf && asmcLtf && setAsmcLtf && (
+                    {(ind.id === 'smc_dynamic_mtf' || ind.id === 'forex_smc_dynamic_mtf') && ind.isActive && asmcHtf && setAsmcHtf && asmcLtf && setAsmcLtf && (
                         <ASMCStrategySettings 
                             htf={asmcHtf}
                             setHtf={setAsmcHtf}

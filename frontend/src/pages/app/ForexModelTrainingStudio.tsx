@@ -139,7 +139,30 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
     const [selectedForexFile, setSelectedForexFile] = useState('');
 
     // Custom Indicators State
-    const [customIndicators, setCustomIndicators] = useState<CustomIndicator[]>([]);
+    const [customIndicators, setCustomIndicators] = useState<CustomIndicator[]>([
+        {
+            id: 'forex_smc_feature_engine',
+            name: 'Forex SMC Feature Engine',
+            description: 'Advanced institutional order flow and market structure features extracted via Aether Analyzer (Forex Optimized).',
+            code: 'from app.services.forex_aether_ml_features import add_forex_aether_smc_features\nadd_forex_aether_smc_features(df)',
+            dataSource: 'ohlcv',
+            isActive: true,
+            isPreset: true
+        },
+        {
+            id: 'forex_smc_dynamic_mtf',
+            name: 'Forex SMC Dynamic MTF',
+            description: 'Tick-Enhanced Institutional Smart Money logic mapping HTF Liquidity Sweeps to LTF execution.',
+            code: "from app.services.asmc_strategy.forex_asmc_main import apply_forex_asmc_mtf_logic\ndf = apply_forex_asmc_mtf_logic(df, config.get('asmc_htf', '4h'), config.get('asmc_ltf', '15m'))",
+            dataSource: 'hybrid_ohlcv_tick',
+            isActive: true,
+            isPreset: true
+        }
+    ]);
+
+    // ASMC Settings State
+    const [asmcHtf, setAsmcHtf] = useState('4h');
+    const [asmcLtf, setAsmcLtf] = useState('15m');
 
     const ALGORITHM_CATEGORIES = [
         { 
@@ -566,7 +589,9 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                     commission: tradingFees,
                     slippage: slippage,
                     max_allowed_drawdown: maxAllowedDrawdown,
-                    custom_indicators: customIndicators.filter(ind => ind.isActive)
+                    custom_indicators: customIndicators.filter(ind => ind.isActive),
+                    asmc_htf: asmcHtf,
+                    asmc_ltf: asmcLtf
                 }
             };
             
@@ -852,6 +877,12 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                                 );
                             }}
                             onSetMultipleFeatures={setSelectedForexFeatures}
+                            customIndicators={customIndicators}
+                            setCustomIndicators={setCustomIndicators}
+                            asmcHtf={asmcHtf}
+                            setAsmcHtf={setAsmcHtf}
+                            asmcLtf={asmcLtf}
+                            setAsmcLtf={setAsmcLtf}
                             disabled={isTraining}
                             dataSource={dataSource}
                             setDataSource={setDataSource}
@@ -880,8 +911,6 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                             isUploadingTick={isUploadingTick}
                             tickBinningStrategy={tickBinningStrategy}
                             setTickBinningStrategy={setTickBinningStrategy}
-                            customIndicators={customIndicators}
-                            setCustomIndicators={setCustomIndicators}
                             onStartMerge={handleStartMerge}
                             hybridMergedFiles={hybridMergedFiles}
                             selectedHybridFile={selectedHybridFile}
