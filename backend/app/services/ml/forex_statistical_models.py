@@ -134,18 +134,28 @@ class ForexNeuralProphetModel:
         if pd.api.types.is_datetime64_any_dtype(X.index):
             ds = X.index
         else:
-            ds = pd.date_range(start='2020-01-01', periods=len(X), freq='H')
-            
-        df = pd.DataFrame({'ds': ds, 'y': np.zeros(len(X))})
+            ds = pd.date_range(start='2020-01-01', periods=max(2, len(X)), freq='h')
+
+        df = pd.DataFrame({'ds': ds, 'y': np.zeros(max(2, len(X)))})
         import multiprocessing
         current_proc = multiprocessing.current_process()
         is_daemon = current_proc.daemon
         current_proc.daemon = False
         try:
             forecast = self.model.predict(df)
+        except Exception as e:
+            print(f"⚠️ Warning: Statistical model prediction failed: {e}")
+            preds = np.zeros(len(X), dtype=int)
+            if len(X) == 1 and len(preds) > 1:
+                return preds[-1:]
+            return preds
         finally:
             current_proc.daemon = is_daemon
-        return (forecast['yhat1'] > 0.5).astype(int).values
+        
+        preds = (forecast['yhat1'] > 0.5).astype(int).values
+        if len(X) == 1 and len(preds) > 1:
+            return preds[-1:]
+        return preds
 
     def score(self, X: pd.DataFrame, y: pd.Series):
         preds = self.predict(X)

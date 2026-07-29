@@ -37,7 +37,8 @@ from sqlalchemy.orm import Session
 # ─── Constants ───────────────────────────────────────────────────────────────
 
 DEEP_LEARNING_ALGOS = {"LSTM", "GRU", "1D-CNN", "DeepLOB", "Transformer", "TCN", "TabNet", "Auto-Encoder"}
-SKLEARN_ALGOS       = {"Random Forest", "XGBoost", "LightGBM", "CatBoost", "Custom Ensemble"}
+SKLEARN_ALGOS       = {"Random Forest", "XGBoost", "LightGBM", "CatBoost", "Custom Ensemble", "Ensemble"}
+
 
 
 # ─── Public Entry Point ───────────────────────────────────────────────────────
@@ -869,14 +870,20 @@ def _infer_sklearn(model_path: str, X: np.ndarray, prediction_target: str, featu
             tp_price = current_price - tp_dist
             
         return signal_str, confidence, sl_price, tp_price
-    elif prediction_target == "classification":
-        if hasattr(model, 'predict_proba'):
-            proba = model.predict_proba(X_input)[0]
-            label = int(np.argmax(proba))
-            confidence = float(proba[label])
-        else:
-            label = int(model.predict(X_input)[0])
-            confidence = 0.6
+    if prediction_target == "classification":
+        try:
+            if hasattr(model, 'predict_proba'):
+                proba = model.predict_proba(X_input)[0]
+                label = int(np.argmax(proba))
+                confidence = float(proba[label])
+            else:
+                label = int(model.predict(X_input)[0])
+                confidence = 0.6
+        except Exception as e:
+            print(f"[ml_predictor DEBUG] sklearn prediction failed: {e}")
+            import traceback
+            traceback.print_exc()
+            raise e
 
         # Check if it's a 3-class Triple Barrier model
         if hasattr(model, 'classes_') and len(model.classes_) == 3:
