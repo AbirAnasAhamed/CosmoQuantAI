@@ -4,19 +4,21 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-class ForexHMMModel:
+class MarketHMMModel:
     """Wrapper for hmmlearn Hidden Markov Model"""
     def __init__(self, n_components=2, **kwargs):
         # n_components corresponds to hidden states e.g. trending vs ranging
         self.n_components = n_components
         self.model = None
-        # We need a classifier on top of the HMM states to map to the target y
+        # We need a classifier or regressor on top of the HMM states to map to the target y
         self.classifier = None
+        self.is_regression = False
         
     def fit(self, X: pd.DataFrame, y: pd.Series):
         try:
             from hmmlearn.hmm import GaussianHMM
-            from sklearn.linear_model import LogisticRegression
+            from sklearn.linear_model import LogisticRegression, Ridge
+            from sklearn.utils.multiclass import type_of_target
             
             self.model = GaussianHMM(n_components=self.n_components, covariance_type="diag", n_iter=100)
             self.model.fit(X.values)
@@ -26,8 +28,17 @@ class ForexHMMModel:
             
             # Use hidden states as a feature along with X to predict y
             X_enhanced = np.column_stack((X.values, hidden_states))
-            self.classifier = LogisticRegression(max_iter=1000)
-            self.classifier.fit(X_enhanced, y.values)
+            
+            target_type = type_of_target(y.values)
+            if target_type == 'continuous':
+                self.is_regression = True
+                self.classifier = Ridge()
+                self.classifier.fit(X_enhanced, y.values)
+            else:
+                self.is_regression = False
+                self.classifier = LogisticRegression(max_iter=1000)
+                # Ensure targets are integers for LogisticRegression
+                self.classifier.fit(X_enhanced, y.astype(int).values)
             
         except ImportError:
             print("Warning: hmmlearn or sklearn not installed. Using dummy HMM.")
@@ -37,6 +48,8 @@ class ForexHMMModel:
 
     def predict(self, X: pd.DataFrame):
         if self.model == "dummy":
+            if getattr(self, 'is_regression', False):
+                return np.random.randn(len(X))
             return np.random.choice([0, 1], size=len(X))
             
         hidden_states = self.model.predict(X.values)
@@ -45,10 +58,13 @@ class ForexHMMModel:
 
     def score(self, X: pd.DataFrame, y: pd.Series):
         preds = self.predict(X)
+        if getattr(self, 'is_regression', False):
+            from sklearn.metrics import r2_score
+            return r2_score(y.values, preds)
         return np.mean(preds == y.values)
 
 
-class ForexMarkovSwitchingModel:
+class MarketMarkovSwitchingModel:
     """Wrapper for statsmodels Markov Regression"""
     def __init__(self, k_regimes=2, **kwargs):
         self.k_regimes = k_regimes
@@ -60,6 +76,13 @@ class ForexMarkovSwitchingModel:
             # y as endogenous, X as exogenous
             model = MarkovRegression(endog=y.values, k_regimes=self.k_regimes, exog=X.values, switching_variance=True)
             self.model_fit = model.fit(disp=False)
+            
+            # Statsmodels MarkovRegression doesn't support out-of-sample prediction natively with new exog data.
+            # We train a lightweight surrogate model to map X to the expected predictions!
+            in_sample_preds = self.model_fit.predict()
+            from sklearn.ensemble import RandomForestRegressor
+            self.surrogate = RandomForestRegressor(n_estimators=20, max_depth=5, random_state=42)
+            self.surrogate.fit(X.values, in_sample_preds)
         except Exception as e:
             print(f"Warning: MarkovSwitching fit failed (likely SVD convergence on random data). Using dummy. {e}")
             self.model_fit = "dummy"
@@ -68,12 +91,20 @@ class ForexMarkovSwitchingModel:
 
     def predict(self, X: pd.DataFrame):
         if self.model_fit == "dummy":
+            if getattr(self, 'is_regression', False):
+                return np.random.randn(len(X))
             return np.random.choice([0, 1], size=len(X))
             
-        # Statsmodels predict method for Markov models returns expected values
-        preds = self.model_fit.predict(exog=X.values)
+        # Use the surrogate model to predict out-of-sample
+        preds = self.surrogate.predict(X.values)
+        
+        if getattr(self, 'is_regression', False):
+            return preds
         return (preds > 0.5).astype(int)
 
     def score(self, X: pd.DataFrame, y: pd.Series):
         preds = self.predict(X)
+        if getattr(self, 'is_regression', False):
+            from sklearn.metrics import r2_score
+            return r2_score(y.values, preds)
         return np.mean(preds == y.values)
