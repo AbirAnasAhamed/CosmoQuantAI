@@ -107,9 +107,20 @@ class ForexNeuralProphetModel:
             from neuralprophet import NeuralProphet
             self.model = NeuralProphet(epochs=10, batch_size=32)
             # NeuralProphet expects a dataframe with 'ds' (datetime) and 'y' (target)
-            # Assuming X index is datetime
-            df = pd.DataFrame({'ds': X.index, 'y': y.values})
-            self.model.fit(df, freq="H")
+            if pd.api.types.is_datetime64_any_dtype(X.index):
+                ds = X.index
+            else:
+                ds = pd.date_range(start='2020-01-01', periods=len(X), freq='H')
+                
+            df = pd.DataFrame({'ds': ds, 'y': y.values if hasattr(y, 'values') else y})
+            import multiprocessing
+            current_proc = multiprocessing.current_process()
+            is_daemon = current_proc.daemon
+            current_proc.daemon = False
+            try:
+                self.model.fit(df, freq="H")
+            finally:
+                current_proc.daemon = is_daemon
         except ImportError:
             print("Warning: neuralprophet not installed. Using dummy NeuralProphet.")
             self.model = "dummy"
@@ -120,8 +131,20 @@ class ForexNeuralProphetModel:
         if self.model == "dummy":
             return np.random.choice([0, 1], size=len(X))
             
-        df = pd.DataFrame({'ds': X.index, 'y': np.zeros(len(X))})
-        forecast = self.model.predict(df)
+        if pd.api.types.is_datetime64_any_dtype(X.index):
+            ds = X.index
+        else:
+            ds = pd.date_range(start='2020-01-01', periods=len(X), freq='H')
+            
+        df = pd.DataFrame({'ds': ds, 'y': np.zeros(len(X))})
+        import multiprocessing
+        current_proc = multiprocessing.current_process()
+        is_daemon = current_proc.daemon
+        current_proc.daemon = False
+        try:
+            forecast = self.model.predict(df)
+        finally:
+            current_proc.daemon = is_daemon
         return (forecast['yhat1'] > 0.5).astype(int).values
 
     def score(self, X: pd.DataFrame, y: pd.Series):

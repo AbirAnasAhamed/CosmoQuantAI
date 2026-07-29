@@ -14,13 +14,15 @@ def get_weights(d, size):
     w = np.array(w[::-1]).reshape(-1, 1) 
     return w
 
-def frac_diff(series, d, thres=1e-5):
+def frac_diff(series, d, thres=1e-4):
     """
     Fractionally differentiate a pandas series.
     series: pd.Series
     d: float, differencing value (e.g. 0.5)
     thres: float, drops weights below this threshold to save computation.
     """
+    if len(series) == 0:
+        return series
     if d == 0.0:
         return series
     elif d == 1.0:

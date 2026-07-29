@@ -459,6 +459,10 @@ def train_model_task(job_id: str, db: Session):
         job.logs = logs
         db.commit()
 
+    def set_progress(pct: float):
+        job.progress = pct
+        db.commit()
+
     import uuid
     import redis
     from app.core.config import settings
@@ -1170,19 +1174,22 @@ def train_model_task(job_id: str, db: Session):
             from app.services.ml_utils import apply_data_cleaning
             df = apply_data_cleaning(df, config, add_log)
             
+            if len(df) < 10:
+                raise Exception(f"Not enough market data to train a model. Found {len(df)} rows. Please increase the dataset period or lookback time.")
+            
             if config.get("fractional_diff", False):
                 d_val = config.get("fractional_d_value", 0.5)
                 add_log(f"Applying Fractional Differentiation (d={d_val}) to preserve memory...")
                 from app.services.ml_fractional_diff import apply_fractional_differentiation
                 df = apply_fractional_differentiation(df, d_value=d_val, exclude_cols=['Target', 'timestamp', 'datetime'])
                 add_log(f"Fractional Differentiation complete. Shape: {df.shape}")
+                
+                if len(df) < 10:
+                    raise Exception(f"After Fractional Differentiation, only {len(df)} rows remain. This process requires a large historical dataset. Please fetch more data or disable Fractional Differentiation.")
             
             features = [col for col in df.columns if col not in ['Target', 'Open', 'High', 'Low', 'Close', 'Volume', 'Adj Close']]
             if not features:
                 features = ['Close']
-                
-            if len(df) < 10:
-                raise Exception(f"Not enough market data to train a model. Found {len(df)} rows. Please increase the dataset period or lookback time.")
         
         # ── Append Alternative Data ──
         alt_features = config.get("alt_features", [])
@@ -1221,10 +1228,12 @@ def train_model_task(job_id: str, db: Session):
             job.progress = 0.0
             db.commit()
             add_log("Data download complete. Main training starting from 0%...")
+            set_progress(10.0)
         else:
             add_log("Resuming from checkpoint, bypassing progress reset...")
             
         add_log("Preparing and scaling data...")
+        set_progress(30.0)
         from sklearn.preprocessing import MinMaxScaler, StandardScaler, RobustScaler
         
 
@@ -1417,6 +1426,7 @@ def train_model_task(job_id: str, db: Session):
             else:
                 y_train = _aug_df['Target'].values.reshape(-1, 1)
             add_log(f"Data Augmentation complete. New train size: {len(X_train)} rows.")
+            set_progress(40.0)
         
         # FIX: Wrap X in DataFrame to preserve feature names.
         # This eliminates the SHAP / sklearn "X does not have valid feature names" warning spam.
@@ -1497,6 +1507,22 @@ def train_model_task(job_id: str, db: Session):
         
         if is_ensemble:
             add_log(f"Building Custom Ensemble ({config.get('ensemble_method', 'voting')})...")
+            set_progress(50.0)
+            
+            import logging
+            class DBLogHandler(logging.Handler):
+                def emit(self, record):
+                    msg = self.format(record)
+                    if "[PROGRESS]" in msg:
+                        # Dynamically adjust model names based on market type to avoid confusing the user
+                        if job.market_type == 'crypto' and "Forex" in msg:
+                            msg = msg.replace("Forex", "Crypto")
+                        add_log(msg)
+            
+            db_handler = DBLogHandler()
+            mapper_logger = logging.getLogger('app.services.advanced_ml.moe_model_mapper')
+            mapper_logger.addHandler(db_handler)
+            mapper_logger.setLevel(logging.INFO)
             ensemble_method = config.get("ensemble_method", "voting")
             base_model_names = config.get("base_models", ["Random Forest", "XGBoost"])
             meta_model_name = config.get("meta_model", "Logistic Regression")
@@ -1605,6 +1631,7 @@ def train_model_task(job_id: str, db: Session):
                     model = MultiOutputRegressor(model)
 
             add_log(f"Training {ensemble_method.capitalize()} Ensemble with {len(estimators)} base models...")
+            set_progress(60.0)
             start_time = time.time()
             model.fit(X_train_df, y_train if is_multi_output else y_train.ravel())
             
@@ -1686,6 +1713,10 @@ def train_model_task(job_id: str, db: Session):
                     pass
             
             add_log(f"Ensemble training complete.")
+            set_progress(70.0)
+            
+            if 'db_handler' in locals() and 'mapper_logger' in locals():
+                mapper_logger.removeHandler(db_handler)
             
         elif job.algorithm in ['ARIMA', 'VAR', 'GARCH', 'EGARCH', 'NeuralProphet', 'HMM', 'Markov-Switching', 'Bayesian NN']:
             add_log(f"Training Econometric/Macro Model: {job.algorithm}...")
@@ -2514,6 +2545,7 @@ def train_model_task(job_id: str, db: Session):
         try:
             if job.algorithm in ["Random Forest", "XGBoost", "LightGBM", "CatBoost"]:
                 add_log("Generating Real Explainability Metrics (SHAP, Feature Importance, etc.)...")
+                set_progress(80.0)
                 is_cls = (prediction_target == "classification")
                 final_explainability = generate_real_explainability(model, X_test, y_test if is_multi_output else y_test.ravel(), y_pred, features, is_classification=is_cls)
                 if is_ensemble and ensemble_fi_list is not None:
@@ -2779,6 +2811,7 @@ def train_model_task(job_id: str, db: Session):
                 bt_stop_loss       = float(config.get("backtest_stop_loss", 2.0))
                 bt_take_profit     = float(config.get("backtest_take_profit", 4.0))
 
+                set_progress(90.0)
                 backtest_result = run_post_training_backtest(
                     model=model,
                     algorithm=job.algorithm,
@@ -2819,6 +2852,7 @@ def train_model_task(job_id: str, db: Session):
         job.status = models.TrainingStatus.COMPLETED
         job.completed_at = func.now()
         add_log("Training job completed successfully! Model is now in Registry.")
+        set_progress(100.0)
         
         db.commit()
 

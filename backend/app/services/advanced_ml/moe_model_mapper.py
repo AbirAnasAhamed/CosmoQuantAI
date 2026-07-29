@@ -1,7 +1,72 @@
 import logging
 from app.services.ml.forex_model_factory import get_forex_model
+import pandas as pd
+import numpy as np
+from sklearn.base import BaseEstimator, ClassifierMixin, RegressorMixin
 
 logger = logging.getLogger(__name__)
+
+class PandasDataWrapperClassifier(BaseEstimator, ClassifierMixin):
+    def __init__(self, base_model=None):
+        self.base_model = base_model
+    
+    def fit(self, X, y=None):
+        if not isinstance(X, pd.DataFrame):
+            X = pd.DataFrame(X)
+        if y is not None and not isinstance(y, (pd.Series, pd.DataFrame)):
+            y_np = np.array(y)
+            if y_np.ndim == 1:
+                y = pd.Series(y_np)
+            else:
+                y = pd.DataFrame(y_np)
+        logger.info(f"[PROGRESS] Training base model: {self.base_model.__class__.__name__}...")
+        self.base_model.fit(X, y)
+        return self
+    
+    def predict(self, X):
+        if not isinstance(X, pd.DataFrame):
+            X = pd.DataFrame(X)
+        return self.base_model.predict(X)
+        
+    def predict_proba(self, X):
+        if not isinstance(X, pd.DataFrame):
+            X = pd.DataFrame(X)
+        if hasattr(self.base_model, 'predict_proba'):
+            return self.base_model.predict_proba(X)
+        # Fallback if base model doesn't support probability
+        preds = self.predict(X)
+        probs = np.zeros((len(preds), 2))
+        for i, p in enumerate(preds):
+            probs[i, int(p)] = 1.0
+        return probs
+        
+    @property
+    def classes_(self):
+        if hasattr(self.base_model, 'classes_'):
+            return self.base_model.classes_
+        return np.array([0, 1])
+
+class PandasDataWrapperRegressor(BaseEstimator, RegressorMixin):
+    def __init__(self, base_model=None):
+        self.base_model = base_model
+    
+    def fit(self, X, y=None):
+        if not isinstance(X, pd.DataFrame):
+            X = pd.DataFrame(X)
+        if y is not None and not isinstance(y, (pd.Series, pd.DataFrame)):
+            y_np = np.array(y)
+            if y_np.ndim == 1:
+                y = pd.Series(y_np)
+            else:
+                y = pd.DataFrame(y_np)
+        logger.info(f"[PROGRESS] Training base model: {self.base_model.__class__.__name__}...")
+        self.base_model.fit(X, y)
+        return self
+    
+    def predict(self, X):
+        if not isinstance(X, pd.DataFrame):
+            X = pd.DataFrame(X)
+        return self.base_model.predict(X)
 
 def get_genuine_base_estimator(name: str, config: dict, is_classification: bool):
     """
@@ -57,41 +122,7 @@ def get_genuine_base_estimator(name: str, config: dict, is_classification: bool)
             # Pandas DataFrames/Series (they call .values internally).
             # ml_training_engine.py passes numpy arrays for `y` (via y_train.ravel()).
             # This wrapper intercepts those calls and guarantees they receive Pandas formats.
-            class PandasDataWrapper:
-                def __init__(self, base_model):
-                    self.base_model = base_model
-                
-                def fit(self, X, y=None):
-                    import pandas as pd
-                    import numpy as np
-                    
-                    if not isinstance(X, pd.DataFrame):
-                        X = pd.DataFrame(X)
-                    
-                    if y is not None and not isinstance(y, (pd.Series, pd.DataFrame)):
-                        # If y is 1D, convert to Series, else DataFrame
-                        y_np = np.array(y)
-                        if y_np.ndim == 1:
-                            y = pd.Series(y_np)
-                        else:
-                            y = pd.DataFrame(y_np)
-                            
-                    self.base_model.fit(X, y)
-                    return self
-                
-                def predict(self, X):
-                    import pandas as pd
-                    if not isinstance(X, pd.DataFrame):
-                        X = pd.DataFrame(X)
-                    return self.base_model.predict(X)
-                    
-                def predict_proba(self, X):
-                    import pandas as pd
-                    if not isinstance(X, pd.DataFrame):
-                        X = pd.DataFrame(X)
-                    return self.base_model.predict_proba(X)
-                    
-            return PandasDataWrapper(model)
+            return PandasDataWrapperClassifier(model) if is_classification else PandasDataWrapperRegressor(model)
             
         except Exception as e:
             logger.error(f"Failed to instantiate {name}. Falling back to RF. Error: {str(e)}")
