@@ -833,7 +833,21 @@ def _infer_rl(model_path: str, algorithm: str, X: np.ndarray, prediction_target:
 
 def _infer_sklearn(model_path: str, X: np.ndarray, prediction_target: str, features: list = None, current_price: float = 0.0):
     """Inference for sklearn-compatible models."""
-    model = joblib.load(model_path)
+    import os
+    # Limit OpenBLAS/MKL threads to avoid thread bombs during inference
+    os.environ["OMP_NUM_THREADS"] = "1"
+    os.environ["MKL_NUM_THREADS"] = "1"
+    os.environ["OPENBLAS_NUM_THREADS"] = "1"
+
+    # Use memory mapping (copy-on-write) for large models to avoid OOM and read-only errors
+    model = joblib.load(model_path, mmap_mode='c')
+
+    if hasattr(model, 'n_jobs'):
+        model.n_jobs = 1
+    if hasattr(model, 'estimators_'):
+        for est in model.estimators_:
+            if hasattr(est, 'n_jobs'):
+                est.n_jobs = 1
 
     # ── Wrap X in DataFrame with feature names to suppress sklearn warning ─────
     # sklearn warns when model was fitted with feature names but gets a numpy array
@@ -849,58 +863,60 @@ def _infer_sklearn(model_path: str, X: np.ndarray, prediction_target: str, featu
     # because standard sklearn doesn't support 3D sequences.
     X_input = X_input[-1:] if isinstance(X_input, (np.ndarray, pd.DataFrame)) else X_input
 
-    if prediction_target == "advanced_setup":
-        pred = model.predict(X_input)[0]
-        # pred is [Target_Direction, Target_SL, Target_TP]
-        direction = pred[0]
-        sl_dist = pred[1]
-        tp_dist = pred[2]
-        signal_str = "BUY" if direction > 0.5 else "SELL"
-        confidence = 0.95 # Advanced setup implies high confidence in the exact bounds
-        
-        # We need current_price to convert distances to absolute prices
-        # _infer_sklearn doesn't get current_price currently, we will pass it!
-        # But wait, python scope trick: kwargs? We will modify _infer_sklearn signature below.
-        # So we just assume we have current_price.
-        if signal_str == "BUY":
-            sl_price = current_price - sl_dist
-            tp_price = current_price + tp_dist
-        else:
-            sl_price = current_price + sl_dist
-            tp_price = current_price - tp_dist
+    with joblib.parallel_backend('threading', n_jobs=1):
+        if prediction_target == "advanced_setup":
+            pred = model.predict(X_input)[0]
+            # pred is [Target_Direction, Target_SL, Target_TP]
+            direction = pred[0]
+            sl_dist = pred[1]
+            tp_dist = pred[2]
+            signal_str = "BUY" if direction > 0.5 else "SELL"
+            confidence = 0.95 # Advanced setup implies high confidence in the exact bounds
             
-        return signal_str, confidence, sl_price, tp_price
-    if prediction_target == "classification":
-        try:
-            if hasattr(model, 'predict_proba'):
-                proba = model.predict_proba(X_input)[0]
-                label = int(np.argmax(proba))
-                confidence = float(proba[label])
+            # We need current_price to convert distances to absolute prices
+            # _infer_sklearn doesn't get current_price currently, we will pass it!
+            # But wait, python scope trick: kwargs? We will modify _infer_sklearn signature below.
+            # So we just assume we have current_price.
+            if signal_str == "BUY":
+                sl_price = current_price - sl_dist
+                tp_price = current_price + tp_dist
             else:
-                label = int(model.predict(X_input)[0])
-                confidence = 0.6
-        except Exception as e:
-            print(f"[ml_predictor DEBUG] sklearn prediction failed: {e}")
-            import traceback
-            traceback.print_exc()
-            raise e
+                sl_price = current_price + sl_dist
+                tp_price = current_price - tp_dist
+                
+            return signal_str, confidence, sl_price, tp_price
+        
+        elif prediction_target == "classification":
+            try:
+                if hasattr(model, 'predict_proba'):
+                    proba = model.predict_proba(X_input)[0]
+                    label = int(np.argmax(proba))
+                    confidence = float(proba[label])
+                else:
+                    label = int(model.predict(X_input)[0])
+                    confidence = 0.6
+            except Exception as e:
+                print(f"[ml_predictor DEBUG] sklearn prediction failed: {e}")
+                import traceback
+                traceback.print_exc()
+                raise e
 
-        # Check if it's a 3-class Triple Barrier model
-        if hasattr(model, 'classes_') and len(model.classes_) == 3:
-            if label == 2:
-                signal_str = "BUY"
-            elif label == 0:
-                signal_str = "SELL"
+            # Check if it's a 3-class Triple Barrier model
+            if hasattr(model, 'classes_') and len(model.classes_) == 3:
+                if label == 2:
+                    signal_str = "BUY"
+                elif label == 0:
+                    signal_str = "SELL"
+                else:
+                    signal_str = "HOLD"
             else:
-                signal_str = "HOLD"
+                signal_str = "BUY" if label == 1 else "SELL"
         else:
-            signal_str = "BUY" if label == 1 else "SELL"
-    else:
-        pred = float(model.predict(X_input)[0])
-        signal_str = "BUY" if pred > 0 else "SELL"
-        confidence = min(0.95, abs(pred))
+            pred = float(model.predict(X_input)[0])
+            signal_str = "BUY" if pred > 0 else "SELL"
+            confidence = min(0.95, abs(pred))
 
-    return signal_str, confidence
+        return signal_str, confidence
 
 
 def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_target: str, anomaly_threshold: float = None, current_price: float = 0.0):
