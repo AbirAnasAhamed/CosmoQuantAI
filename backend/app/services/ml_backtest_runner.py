@@ -58,7 +58,7 @@ def run_post_training_backtest(
         add_log(f"[Post-Backtest] Generating ML signals on test set ({len(X_test)} rows)...")
 
         # ── Step 1: Generate signals ───────────────────────────────────────
-        signals = _generate_signals(model, algorithm, X_test, prediction_target, add_log)
+        signals = _generate_signals(model, algorithm, X_test, prediction_target, add_log, features)
 
         if signals is None or len(signals) == 0:
             add_log("[Post-Backtest] ⚠️ Could not generate signals. Backtest skipped.")
@@ -88,7 +88,7 @@ def run_post_training_backtest(
 
 # ─── Internal Helpers ────────────────────────────────────────────────────────
 
-def _generate_signals(model, algorithm: str, X_test: np.ndarray, prediction_target: str, add_log: Callable):
+def _generate_signals(model, algorithm: str, X_test: np.ndarray, prediction_target: str, add_log: Callable, features: list = None):
     """Generate binary signals (0/1) from the trained model."""
     DEEP_LEARNING_ALGOS = {"LSTM", "GRU", "1D-CNN", "DeepLOB", "Transformer", "TCN", "TabNet", "Auto-Encoder"}
 
@@ -135,7 +135,12 @@ def _generate_signals(model, algorithm: str, X_test: np.ndarray, prediction_targ
             # sklearn-compatible: RF, XGBoost, LightGBM, CatBoost
             # ✅ Wrap in DataFrame to preserve feature names (avoids sklearn UserWarning)
             X_pred = X_test
-            if hasattr(model, 'feature_names_in_') and model.feature_names_in_ is not None:
+            if features is not None and len(features) == X_test.shape[1]:
+                try:
+                    X_pred = pd.DataFrame(X_test, columns=features)
+                except Exception:
+                    pass
+            elif hasattr(model, 'feature_names_in_') and model.feature_names_in_ is not None:
                 try:
                     X_pred = pd.DataFrame(X_test, columns=model.feature_names_in_)
                 except Exception:

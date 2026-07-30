@@ -1176,6 +1176,9 @@ def train_model_task(job_id: str, db: Session):
             
             if len(df) < 10:
                 raise Exception(f"Not enough market data to train a model. Found {len(df)} rows. Please increase the dataset period or lookback time.")
+                
+            # Save raw prices before fractional differencing to prevent distorted profit calculation
+            raw_prices_backup = df.copy()
             
             if config.get("fractional_diff", False):
                 d_val = config.get("fractional_d_value", 0.5)
@@ -1506,7 +1509,30 @@ def train_model_task(job_id: str, db: Session):
         ensemble_fi_list = None
         
         if is_ensemble:
-            add_log(f"Building Custom Ensemble ({config.get('ensemble_method', 'voting')})...")
+            ensemble_method = config.get('ensemble_method', 'voting')
+            add_log(f"Building Custom Ensemble ({ensemble_method})...")
+            if ensemble_method == "rl_moe":
+                moe_preset = config.get("moeRewardTarget", "None")
+                rl_algo = config.get("rlAlgorithm", "PPO")
+                
+                base_models = config.get("base_models", [])
+                preset_name = "Custom Selection"
+                base_set = set(base_models)
+                if base_set == {"ARIMA", "Random Forest", "GARCH"}:
+                    preset_name = "The Quant Macro Master"
+                elif base_set == {"1D-CNN", "Transformer", "LightGBM"}:
+                    preset_name = "The HFT Scalper"
+                elif base_set == {"PPO-RL", "LSTM", "QR-DQN"}:
+                    preset_name = "The RL Alpha Seeker"
+                elif base_set == {"HMM", "GRU", "CatBoost"}:
+                    preset_name = "The Regime & Trend Follower"
+                elif base_set == {"Auto-Encoder", "QR-DQN", "XGBoost"}:
+                    preset_name = "The Anomaly & Risk Protector"
+                elif base_set == {"Liquid-NN", "Decision-Transformer", "DeepLOB"}:
+                    preset_name = "The Ultimate Deep Quant"
+                
+                add_log(f"🎯 Genuine MoE Preset Selected: {preset_name}")
+                add_log(f"   ↳ Reward Target: {moe_preset} | RL Agent: {rl_algo}")
             set_progress(50.0)
             
             import logging
@@ -1680,6 +1706,9 @@ def train_model_task(job_id: str, db: Session):
             
             y_pred = model.predict(X_test_df)
             if is_classification_target:
+                # Ensure y_pred is discrete for classification metrics (Fixes mix of binary and continuous targets error)
+                if np.issubdtype(y_pred.dtype, np.floating) or y_pred.dtype == float:
+                    y_pred = (y_pred >= 0.5).astype(int)
                 process_metrics(calculate_classification_metrics(y_test if is_multi_output else y_test.ravel(), y_pred), True)
             else:
                 process_metrics(calculate_regression_metrics(y_test if is_multi_output else y_test.ravel(), y_pred), False)
@@ -2647,12 +2676,26 @@ def train_model_task(job_id: str, db: Session):
         is_cross_algo = config.get("is_cross_algorithm_transfer", False)
         source_algo = config.get("source_algorithm")
         
+        # Smart algorithm naming
+        smart_algorithm = job.algorithm
+        if is_ensemble:
+            if ensemble_method == "rl_moe":
+                rl_algo = config.get("rlAlgorithm", "PPO")
+                smart_algorithm = f"RL-Based MoE ({rl_algo})"
+            elif ensemble_method == "voting":
+                smart_algorithm = "Voting Ensemble"
+            elif ensemble_method == "stacking":
+                meta = config.get("metaModel", "Logistic Regression")
+                smart_algorithm = f"Stacking Ensemble ({meta})"
+            else:
+                smart_algorithm = "Ensemble"
+        
         if is_cross_algo and source_algo:
-            final_model_type = f"{source_algo} --> {job.algorithm}"
+            final_model_type = f"{source_algo} --> {smart_algorithm}"
         else:
-            final_model_type = "Ensemble" if is_ensemble else job.algorithm
+            final_model_type = smart_algorithm
             
-        final_auto_name = f"{job.symbol} Ensemble Auto" if is_ensemble else f"{job.symbol} {job.algorithm} Auto"
+        final_auto_name = f"{job.symbol} {smart_algorithm} Auto"
 
         if target_model_id:
             # We are auto-retraining an existing model
@@ -2669,7 +2712,7 @@ def train_model_task(job_id: str, db: Session):
                 id=version_id,
                 model_id=target_model_id,
                 version=new_v_num,
-                description=f"Auto-retrained using {job.algorithm} on {job.symbol}",
+                description=f"Auto-retrained using {smart_algorithm} on {job.symbol}",
                 file_path=model_path,
                 status=models.ModelStatus.READY,
                 accuracy=final_accuracy,
@@ -2720,7 +2763,7 @@ def train_model_task(job_id: str, db: Session):
                 id=version_id,
                 model_id=registry_id,
                 version=1.0,
-                description=f"Auto-trained using {job.algorithm} on {job.symbol} {job.timeframe}",
+                description=f"Auto-trained using {smart_algorithm} on {job.symbol} {job.timeframe}",
                 file_path=model_path,
                 status=models.ModelStatus.READY,
                 accuracy=final_accuracy,
@@ -2765,7 +2808,7 @@ def train_model_task(job_id: str, db: Session):
             "target_column":    config.get("target_column", ""),
             "setup_type":       config.get("setup_type", ""),
             "training_mode":    config.get("training_mode", ""),
-            "algorithm":        job.algorithm,
+            "algorithm":        smart_algorithm,
             "epochs":           config.get("epochs", 100),
             "scaler_path":      scaler_save_path,
             "cv_result":        cv_result,
@@ -2812,11 +2855,15 @@ def train_model_task(job_id: str, db: Session):
                 bt_take_profit     = float(config.get("backtest_take_profit", 4.0))
 
                 set_progress(90.0)
+                
+                # Restore original un-differenced prices for accurate backtest profit calculation
+                backtest_df = raw_prices_backup.loc[df.index].copy() if 'raw_prices_backup' in locals() else df.copy()
+                
                 backtest_result = run_post_training_backtest(
                     model=model,
                     algorithm=job.algorithm,
                     X_test=X_test,
-                    df=df,
+                    df=backtest_df,
                     features=features,
                     prediction_target=prediction_target,
                     initial_balance=bt_initial_balance,

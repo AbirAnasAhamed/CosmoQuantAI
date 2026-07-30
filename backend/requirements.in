@@ -109,3 +109,4 @@ cloudscraper
 neuralprophet
 holidays==0.24.0
 zopfli>=0.4.3
+arch
