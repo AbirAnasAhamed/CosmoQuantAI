@@ -108,7 +108,10 @@ class RLMoEEngine:
         # Get base predictions
         preds_list = []
         for est in self.base_estimators:
-            preds_list.append(est.predict(X))
+            preds = est.predict(X)
+            if len(preds.shape) > 1 and preds.shape[1] > 1:
+                preds = preds[:, 0]
+            preds_list.append(preds)
         base_preds = np.column_stack(preds_list)
         market_states = X.values
         

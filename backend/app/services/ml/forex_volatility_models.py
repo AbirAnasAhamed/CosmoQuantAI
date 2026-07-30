@@ -34,7 +34,7 @@ class ForexVolatilityModel:
             return np.random.choice([0, 1], size=len(X))
             
         # Forecast volatility
-        forecasts = self.model_fit.forecast(horizon=len(X), reindex=False)
+        forecasts = self.model_fit.forecast(horizon=len(X), reindex=False, method='simulation')
         vol_pred = np.sqrt(forecasts.variance.values[-1, :])
         
         # This is a hack for classification: if volatility increases, output 1 (long volatility)

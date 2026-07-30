@@ -1648,7 +1648,7 @@ def train_model_task(job_id: str, db: Session):
                     meta_reg = get_estimator(meta_model_name, False) if meta_model_name != "Logistic Regression" else LinearRegression()
                     model = StackingRegressor(estimators=estimators, final_estimator=meta_reg, cv=3)
 
-            if is_multi_output:
+            if is_multi_output and ensemble_method != "rl_moe":
                 if is_classification_target:
                     from sklearn.multioutput import MultiOutputClassifier
                     model = MultiOutputClassifier(model)
@@ -1705,6 +1705,13 @@ def train_model_task(job_id: str, db: Session):
             final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
             
             y_pred = model.predict(X_test_df)
+            
+            # Pad y_pred if it's 1D but y_test is multi-output (e.g. rl_moe bypasses MultiOutputClassifier)
+            if is_multi_output and len(y_pred.shape) == 1:
+                y_pred_padded = np.zeros_like(y_test)
+                y_pred_padded[:, 0] = y_pred
+                y_pred = y_pred_padded
+                
             if is_classification_target:
                 # Ensure y_pred is discrete for classification metrics (Fixes mix of binary and continuous targets error)
                 if np.issubdtype(y_pred.dtype, np.floating) or y_pred.dtype == float:

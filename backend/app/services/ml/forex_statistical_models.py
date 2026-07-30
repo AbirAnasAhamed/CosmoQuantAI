@@ -17,6 +17,12 @@ class ForexARIMAModel:
         self.model_fit = None
         
     def fit(self, X: pd.DataFrame, y: pd.Series):
+        # Handle multi-output y (e.g. advanced_setup) by taking the first column (Direction)
+        if isinstance(y, np.ndarray) and len(y.shape) > 1 and y.shape[1] > 1:
+            y = y[:, 0]
+        elif isinstance(y, pd.DataFrame) and len(y.columns) > 1:
+            y = y.iloc[:, 0]
+            
         try:
             from statsmodels.tsa.arima.model import ARIMA
             # ARIMA is univariate, we fit on the target directly
@@ -53,10 +59,16 @@ class ForexVARModel:
         self.model_fit = None
         
     def fit(self, X: pd.DataFrame, y: pd.Series):
+        # Handle multi-output y (e.g. advanced_setup) by taking the first column (Direction)
+        if isinstance(y, np.ndarray) and len(y.shape) > 1 and y.shape[1] > 1:
+            y = y[:, 0]
+        elif isinstance(y, pd.DataFrame) and len(y.columns) > 1:
+            y = y.iloc[:, 0]
+            
         try:
             from statsmodels.tsa.vector_ar.var_model import VAR
             # Combine X and y for VAR since it's multivariate
-            df = X.copy()
+            df = X.copy() if hasattr(X, 'copy') else pd.DataFrame(X)
             df['target_y'] = y
             model = VAR(df)
             self.model_fit = model.fit(self.lags)
@@ -87,6 +99,12 @@ class ForexNeuralProphetModel:
         self.model = None
         
     def fit(self, X: pd.DataFrame, y: pd.Series):
+        # Handle multi-output y (e.g. advanced_setup) by taking the first column (Direction)
+        if isinstance(y, np.ndarray) and len(y.shape) > 1 and y.shape[1] > 1:
+            y = y[:, 0]
+        elif isinstance(y, pd.DataFrame) and len(y.columns) > 1:
+            y = y.iloc[:, 0]
+            
         try:
             import torch
             # PyTorch 2.6+ defaults weights_only=True, which breaks NeuralProphet/PTL checkpoint loading
@@ -107,7 +125,7 @@ class ForexNeuralProphetModel:
             from neuralprophet import NeuralProphet
             self.model = NeuralProphet(epochs=10, batch_size=32)
             # NeuralProphet expects a dataframe with 'ds' (datetime) and 'y' (target)
-            if pd.api.types.is_datetime64_any_dtype(X.index):
+            if hasattr(X, 'index') and pd.api.types.is_datetime64_any_dtype(X.index):
                 ds = X.index
             else:
                 ds = pd.date_range(start='2020-01-01', periods=len(X), freq='H')
