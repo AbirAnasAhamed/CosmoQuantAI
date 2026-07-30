@@ -1772,6 +1772,13 @@ def train_model_task(job_id: str, db: Session):
             end_time = time.time()
             final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
             
+            # If the model wrapper returned a 1D array but the target is multi-output (e.g. ARIMA),
+            # pad the predictions so metric calculations and backtesting don't crash.
+            if is_multi_output and (y_pred.ndim == 1 or y_pred.shape[1] == 1):
+                padded = np.zeros((len(y_pred), y_test.shape[1]))
+                padded[:, 0] = y_pred.ravel()
+                y_pred = padded
+            
             # Process Metrics
             if prediction_target == "classification":
                 process_metrics(calculate_classification_metrics(y_test if is_multi_output else y_test.ravel(), y_pred), True)
@@ -1889,6 +1896,8 @@ def train_model_task(job_id: str, db: Session):
                     add_log(f"✅ Fine-Tuning XGBoost: continuing from previous booster")
                 except Exception as _ft_e:
                     add_log(f"⚠️ XGBoost fine-tune load failed ({_ft_e}), training fresh.")
+            y_tr_fit = y_train[:, 0] if is_multi_output else y_train.ravel()
+            y_te_fit = y_test[:, 0] if is_multi_output else y_test.ravel()
             if prediction_target == "classification":
                 from xgboost import XGBClassifier
                 num_pos = max(y_train.sum(), 1.0)
@@ -1896,35 +1905,39 @@ def train_model_task(job_id: str, db: Session):
                 spw = num_neg / num_pos
                 model = XGBClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, scale_pos_weight=spw)
                 try:
-                    model.fit(X_train_df, y_train if is_multi_output else y_train.ravel(), eval_set=[(X_test_df, y_test if is_multi_output else y_test.ravel())], verbose=False, xgb_model=_xgb_init)
+                    model.fit(X_train_df, y_tr_fit, eval_set=[(X_test_df, y_te_fit)], verbose=False, xgb_model=_xgb_init)
                 except ValueError as e:
                     if is_fine_tune and "feature" in str(e).lower():
                         add_log(f"⚠️ XGBoost fine-tune fit failed: {e}. Falling back to fresh training.")
                         model = XGBClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, scale_pos_weight=spw)
-                        model.fit(X_train_df, y_train if is_multi_output else y_train.ravel(), eval_set=[(X_test_df, y_test if is_multi_output else y_test.ravel())], verbose=False)
+                        model.fit(X_train_df, y_tr_fit, eval_set=[(X_test_df, y_te_fit)], verbose=False)
                     else:
                         raise e
                 start_time = time.time()
                 y_pred = model.predict(X_test_df)
                 end_time = time.time()
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
+                if is_multi_output and (y_pred.ndim == 1 or y_pred.shape[1] == 1):
+                    padded = np.zeros((len(y_pred), y_test.shape[1])); padded[:, 0] = y_pred.ravel(); y_pred = padded
                 process_metrics(calculate_classification_metrics(y_test if is_multi_output else y_test.ravel(), y_pred), True)
             else:
                 from xgboost import XGBRegressor
                 model = XGBRegressor(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
                 try:
-                    model.fit(X_train_df, y_train if is_multi_output else y_train.ravel(), eval_set=[(X_test_df, y_test if is_multi_output else y_test.ravel())], verbose=False, xgb_model=_xgb_init)
+                    model.fit(X_train_df, y_tr_fit, eval_set=[(X_test_df, y_te_fit)], verbose=False, xgb_model=_xgb_init)
                 except ValueError as e:
                     if is_fine_tune and "feature" in str(e).lower():
                         add_log(f"⚠️ XGBoost fine-tune fit failed: {e}. Falling back to fresh training.")
                         model = XGBRegressor(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42)
-                        model.fit(X_train_df, y_train if is_multi_output else y_train.ravel(), eval_set=[(X_test_df, y_test if is_multi_output else y_test.ravel())], verbose=False)
+                        model.fit(X_train_df, y_tr_fit, eval_set=[(X_test_df, y_te_fit)], verbose=False)
                     else:
                         raise e
                 start_time = time.time()
                 y_pred = model.predict(X_test_df)
                 end_time = time.time()
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
+                if is_multi_output and (y_pred.ndim == 1 or y_pred.shape[1] == 1):
+                    padded = np.zeros((len(y_pred), y_test.shape[1])); padded[:, 0] = y_pred.ravel(); y_pred = padded
                 process_metrics(calculate_regression_metrics(y_test if is_multi_output else y_test.ravel(), y_pred), False)
                 
             job.progress = 80.0
@@ -2007,7 +2020,7 @@ def train_model_task(job_id: str, db: Session):
                     add_log("Initializing EWC (Continual Learning) to preserve prior knowledge...")
                     from app.services.ml_continual_learning import EWC, attach_ewc_to_loss
                     from torch.utils.data import TensorDataset, DataLoader
-                    _ds = TensorDataset(X_train_t, y_train_t.view(-1, 1))
+                    _ds = TensorDataset(X_train_t, y_train_t.reshape(-1, out_size))
                     _dl = DataLoader(_ds, batch_size=32, shuffle=True)
                     ewc_instance = EWC(model, _dl, device="cpu", ew_weight=ewc_lambda)
                 except Exception as e_ewc:
@@ -2024,8 +2037,8 @@ def train_model_task(job_id: str, db: Session):
                 # 1. Standard Forward Pass
                 outputs = model(X_train_t)
                 optimizer.zero_grad()
-                # FIX: ensure y and outputs have matching shapes (N,1) for BCEWithLogitsLoss
-                loss = criterion(outputs, y_train_t.view(-1, 1))
+                # FIX: ensure y and outputs have matching shapes
+                loss = criterion(outputs, y_train_t.reshape(-1, out_size))
                 if ewc_instance:
                     from app.services.ml_continual_learning import attach_ewc_to_loss
                     loss = attach_ewc_to_loss(loss, model, ewc_instance)
@@ -2036,10 +2049,10 @@ def train_model_task(job_id: str, db: Session):
                 # 2. Adversarial Pass (FGSM)
                 if enable_adversarial:
                     from app.services.ml_adversarial import generate_fgsm_attack
-                    X_adv = generate_fgsm_attack(model, criterion, X_train_t, y_train_t.view(-1, 1), epsilon=adv_epsilon)
+                    X_adv = generate_fgsm_attack(model, criterion, X_train_t, y_train_t.reshape(-1, out_size), epsilon=adv_epsilon)
                     outputs_adv = model(X_adv)
                     optimizer.zero_grad()
-                    loss_adv = criterion(outputs_adv, y_train_t.view(-1, 1))
+                    loss_adv = criterion(outputs_adv, y_train_t.reshape(-1, out_size))
                     loss_adv.backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                     optimizer.step()
@@ -2081,22 +2094,28 @@ def train_model_task(job_id: str, db: Session):
                     add_log(f"✅ Fine-Tuning LightGBM: continuing from previous model")
                 except Exception as _ft_e:
                     add_log(f"⚠️ LightGBM fine-tune load failed ({_ft_e}), training fresh.")
+            y_tr_fit = y_train[:, 0] if is_multi_output else y_train.ravel()
+            y_te_fit = y_test[:, 0] if is_multi_output else y_test.ravel()
             if prediction_target == "classification":
                 model = lgb.LGBMClassifier(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, verbose=-1, class_weight='balanced')
                 # FIX: Use DataFrame (X_train_df) so feature names are preserved -> eliminates warning spam
-                model.fit(X_train_df, y_train if is_multi_output else y_train.ravel(), eval_set=[(X_test_df, y_test if is_multi_output else y_test.ravel())], init_model=_lgb_init)
+                model.fit(X_train_df, y_tr_fit, eval_set=[(X_test_df, y_te_fit)], init_model=_lgb_init)
                 start_time = time.time()
                 y_pred = model.predict(X_test_df)
                 end_time = time.time()
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
+                if is_multi_output and (y_pred.ndim == 1 or y_pred.shape[1] == 1):
+                    padded = np.zeros((len(y_pred), y_test.shape[1])); padded[:, 0] = y_pred.ravel(); y_pred = padded
                 process_metrics(calculate_classification_metrics(y_test if is_multi_output else y_test.ravel(), y_pred), True)
             else:
                 model = lgb.LGBMRegressor(n_estimators=epochs, learning_rate=learning_rate, max_depth=max_depth, random_state=42, verbose=-1)
-                model.fit(X_train_df, y_train if is_multi_output else y_train.ravel(), eval_set=[(X_test_df, y_test if is_multi_output else y_test.ravel())], init_model=_lgb_init)
+                model.fit(X_train_df, y_tr_fit, eval_set=[(X_test_df, y_te_fit)], init_model=_lgb_init)
                 start_time = time.time()
                 y_pred = model.predict(X_test_df)
                 end_time = time.time()
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
+                if is_multi_output and (y_pred.ndim == 1 or y_pred.shape[1] == 1):
+                    padded = np.zeros((len(y_pred), y_test.shape[1])); padded[:, 0] = y_pred.ravel(); y_pred = padded
                 process_metrics(calculate_regression_metrics(y_test if is_multi_output else y_test.ravel(), y_pred), False)
                 
             job.progress = 80.0
@@ -2129,21 +2148,27 @@ def train_model_task(job_id: str, db: Session):
                 except Exception as _ft_e:
                     add_log(f"⚠️ CatBoost fine-tune load failed ({_ft_e}), training fresh.")
             cb_depth = min(max_depth, 16)
+            y_tr_fit = y_train[:, 0] if is_multi_output else y_train.ravel()
+            y_te_fit = y_test[:, 0] if is_multi_output else y_test.ravel()
             if prediction_target == "classification":
                 model = cb.CatBoostClassifier(iterations=epochs, learning_rate=learning_rate, depth=cb_depth, random_seed=42, verbose=False, auto_class_weights='Balanced')
-                model.fit(X_train_df, y_train if is_multi_output else y_train.ravel(), eval_set=(X_test_df, y_test if is_multi_output else y_test.ravel()), init_model=_cb_init)
+                model.fit(X_train_df, y_tr_fit, eval_set=(X_test_df, y_te_fit), init_model=_cb_init)
                 start_time = time.time()
                 y_pred = model.predict(X_test_df)
                 end_time = time.time()
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
+                if is_multi_output and (y_pred.ndim == 1 or y_pred.shape[1] == 1):
+                    padded = np.zeros((len(y_pred), y_test.shape[1])); padded[:, 0] = y_pred.ravel(); y_pred = padded
                 process_metrics(calculate_classification_metrics(y_test if is_multi_output else y_test.ravel(), y_pred), True)
             else:
                 model = cb.CatBoostRegressor(iterations=epochs, learning_rate=learning_rate, depth=cb_depth, random_seed=42, verbose=False)
-                model.fit(X_train_df, y_train if is_multi_output else y_train.ravel(), eval_set=(X_test_df, y_test if is_multi_output else y_test.ravel()), init_model=_cb_init)
+                model.fit(X_train_df, y_tr_fit, eval_set=(X_test_df, y_te_fit), init_model=_cb_init)
                 start_time = time.time()
                 y_pred = model.predict(X_test_df)
                 end_time = time.time()
                 final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
+                if is_multi_output and (y_pred.ndim == 1 or y_pred.shape[1] == 1):
+                    padded = np.zeros((len(y_pred), y_test.shape[1])); padded[:, 0] = y_pred.ravel(); y_pred = padded
                 process_metrics(calculate_regression_metrics(y_test if is_multi_output else y_test.ravel(), y_pred), False)
                 
             job.progress = 80.0

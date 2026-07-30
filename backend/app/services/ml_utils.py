@@ -82,14 +82,17 @@ def generate_real_explainability(model, X_test, y_test, y_pred, feature_names, i
 
     # 3. Time Series Data (Actual vs Predicted)
     try:
+        y_test_1d = y_test[:, 0] if (hasattr(y_test, 'ndim') and y_test.ndim > 1 and y_test.shape[1] > 1) else np.ravel(y_test)
+        y_pred_1d = y_pred[:, 0] if (hasattr(y_pred, 'ndim') and y_pred.ndim > 1 and y_pred.shape[1] > 1) else np.ravel(y_pred)
+        
         # Take the last 50 points to avoid huge payloads
-        subset_len = min(50, len(y_test))
+        subset_len = min(50, len(y_test_1d))
         ts_data = []
         for i in range(subset_len):
             ts_data.append({
                 "time": f"T-{subset_len-i}",
-                "actual": float(y_test[len(y_test) - subset_len + i]),
-                "predicted": float(y_pred[len(y_pred) - subset_len + i])
+                "actual": float(y_test_1d[len(y_test_1d) - subset_len + i]),
+                "predicted": float(y_pred_1d[len(y_pred_1d) - subset_len + i])
             })
         result["timeSeriesData"] = ts_data
     except Exception as e:

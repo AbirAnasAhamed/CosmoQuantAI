@@ -41,11 +41,29 @@ def clustered_mda(model, X_val_df, y_val, clusters, is_classification=True, n_re
     Instead of shuffling one feature, it shuffles an entire cluster of correlated features.
     """
     # Baseline score
-    baseline_pred = model.predict(X_val_df)
+    try:
+        baseline_pred = model.predict(X_val_df)
+    except Exception as e:
+        return {}, f"Failed to predict for clustered MDA: {e}"
+        
+    # Handle dimension mismatch securely
+    if hasattr(y_val, 'ndim') and hasattr(baseline_pred, 'ndim'):
+        if y_val.ndim == 2 and baseline_pred.ndim == 1:
+            y_val = y_val[:, 0]
+        elif y_val.ndim == 1 and baseline_pred.ndim == 2:
+            baseline_pred = baseline_pred[:, 0]
+        elif y_val.ndim == 2 and baseline_pred.ndim == 2 and y_val.shape[1] != baseline_pred.shape[1]:
+            # If both are 2D but different cols, align to min cols (usually 1)
+            min_cols = min(y_val.shape[1], baseline_pred.shape[1])
+            y_val = y_val[:, :min_cols]
+            baseline_pred = baseline_pred[:, :min_cols]
+            
     if is_classification:
         # Handle probability vs class outputs
         if len(baseline_pred.shape) > 1 and baseline_pred.shape[1] > 1:
             baseline_pred = np.argmax(baseline_pred, axis=1)
+            if len(y_val.shape) > 1 and y_val.shape[1] > 1:
+                y_val = np.argmax(y_val, axis=1)
         elif not np.issubdtype(baseline_pred.dtype, np.integer):
             baseline_pred = (baseline_pred > 0.5).astype(int)
         baseline_score = accuracy_score(y_val, baseline_pred)
