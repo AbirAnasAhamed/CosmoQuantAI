@@ -2245,8 +2245,8 @@ def train_model_task(job_id: str, db: Session):
             for epoch in range(epochs):
                 outputs = model(X_train_t)
                 optimizer.zero_grad()
-                # FIX: ensure y and outputs have matching shapes (N,1) for BCEWithLogitsLoss
-                loss = criterion(outputs.squeeze(-1), y_train_t.view(-1))
+                # FIX: ensure y and outputs have matching shapes
+                loss = criterion(outputs, y_train_t.reshape(-1, out_size))
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                 optimizer.step()
@@ -2329,7 +2329,7 @@ def train_model_task(job_id: str, db: Session):
             for epoch in range(epochs):
                 outputs = model(X_train_t)
                 optimizer.zero_grad()
-                loss = criterion(outputs.squeeze(-1), y_train_t.view(-1))
+                loss = criterion(outputs, y_train_t.reshape(-1, out_size))
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                 optimizer.step()
@@ -2413,7 +2413,7 @@ def train_model_task(job_id: str, db: Session):
                     add_log("Initializing EWC (Continual Learning) to preserve prior knowledge...")
                     from app.services.ml_continual_learning import EWC, attach_ewc_to_loss
                     from torch.utils.data import TensorDataset, DataLoader
-                    _ds = TensorDataset(X_train_t, y_train_t.view(-1))
+                    _ds = TensorDataset(X_train_t, y_train_t.reshape(-1, out_size))
                     _dl = DataLoader(_ds, batch_size=32, shuffle=True)
                     ewc_instance = EWC(model, _dl, device="cpu", ew_weight=ewc_lambda)
                 except Exception as e_ewc:
@@ -2429,8 +2429,8 @@ def train_model_task(job_id: str, db: Session):
                 # 1. Standard Forward Pass
                 outputs = model(X_train_t)
                 optimizer.zero_grad()
-                # FIX: ensure y and outputs have matching shapes (N,1) for BCEWithLogitsLoss
-                loss = criterion(outputs.squeeze(-1), y_train_t.view(-1))
+                # FIX: ensure y and outputs have matching shapes
+                loss = criterion(outputs, y_train_t.reshape(-1, out_size))
                 if ewc_instance:
                     from app.services.ml_continual_learning import attach_ewc_to_loss
                     loss = attach_ewc_to_loss(loss, model, ewc_instance)
@@ -2441,10 +2441,10 @@ def train_model_task(job_id: str, db: Session):
                 # 2. Adversarial Pass (FGSM)
                 if enable_adversarial:
                     from app.services.ml_adversarial import generate_fgsm_attack
-                    X_adv = generate_fgsm_attack(model, criterion, X_train_t, y_train_t.view(-1), epsilon=adv_epsilon)
+                    X_adv = generate_fgsm_attack(model, criterion, X_train_t, y_train_t.reshape(-1, out_size), epsilon=adv_epsilon)
                     outputs_adv = model(X_adv)
                     optimizer.zero_grad()
-                    loss_adv = criterion(outputs_adv.squeeze(-1), y_train_t.view(-1))
+                    loss_adv = criterion(outputs_adv, y_train_t.reshape(-1, out_size))
                     loss_adv.backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                     optimizer.step()
