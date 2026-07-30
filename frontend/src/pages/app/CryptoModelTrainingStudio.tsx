@@ -348,7 +348,7 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
     };
 
     const INDICATOR_CATEGORIES = [
-        { name: 'Volume & Order Flow', indicators: ['OBV', 'VWAP', 'CMF', 'ADOSC', 'Volume Profile', 'CVD'] },
+        { name: 'Volume & Order Flow', indicators: ['OBV', 'VWAP', 'CMF', 'ADOSC'] },
         { name: 'Institutional & Price Action', indicators: ['SMC FVG', 'ICT Killzones', 'Order Blocks', 'Market Structure', 'Wick Rejection', 'VWAP_SD'] },
         { name: 'Momentum', indicators: ['RSI', 'Stoch', 'ROC', 'CCI', 'WillR', 'MFI'] },
         { name: 'Trend', indicators: ['MACD', 'EMA', 'SMA', 'ADX', 'Supertrend', 'Parabolic SAR'] },
