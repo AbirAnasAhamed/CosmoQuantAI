@@ -309,6 +309,18 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
         }).catch(err => console.error("Failed to load hybrid snapshots", err));
     }, []);
 
+    // Advanced Setup Fallback
+    useEffect(() => {
+        const ADVANCED_SETUP_SUPPORTED_ALGOS = [
+            'LSTM', 'GRU', 'TCN', '1D-CNN', 'DeepLOB', 'Transformer', 
+            'PPO-RL', 'SAC-RL', 'DDPG-RL', 'TD3-RL'
+        ];
+        
+        if (predictionTarget === 'advanced_setup' && !ADVANCED_SETUP_SUPPORTED_ALGOS.includes(algorithm)) {
+            setPredictionTarget('classification');
+        }
+    }, [algorithm, predictionTarget]);
+
     // Polling logic for Training and Merging Jobs
     useEffect(() => {
         let interval: NodeJS.Timeout;
@@ -650,6 +662,7 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                             isTraining={isTraining}
                             isDeleting={isDeleting}
                             handleDeleteDataset={handleDeleteDataset}
+                            algorithm={algorithm}
                             timeframe={timeframe}
                             setTimeframe={setTimeframe}
                             targetRows={targetRows}

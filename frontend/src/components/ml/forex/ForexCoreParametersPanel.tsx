@@ -23,6 +23,7 @@ export interface ForexCoreParametersProps {
     isTraining: boolean;
     isDeleting: boolean;
     handleDeleteDataset: () => void;
+    algorithm: string;
     
     // Timeframe & Rows & Dates
     timeframe: string;
@@ -219,6 +220,7 @@ export const ForexCoreParametersPanel: React.FC<ForexCoreParametersProps> = (pro
                     predictionTarget={props.predictionTarget}
                     setPredictionTarget={props.setPredictionTarget}
                     isTraining={props.isTraining}
+                    selectedAlgorithm={props.algorithm}
                 />
 
                 <TripleBarrierToggle 

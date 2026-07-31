@@ -5,9 +5,19 @@ interface TargetSelectionProps {
     predictionTarget: string;
     setPredictionTarget: (target: string) => void;
     isTraining: boolean;
+    selectedAlgorithm?: string;
 }
 
-const TargetSelection: React.FC<TargetSelectionProps> = ({ predictionTarget, setPredictionTarget, isTraining }) => {
+const ADVANCED_SETUP_SUPPORTED_ALGOS = [
+    'LSTM', 'GRU', 'TCN', '1D-CNN', 'DeepLOB', 'Transformer', 
+    'PPO-RL', 'SAC-RL', 'DDPG-RL', 'TD3-RL'
+];
+
+const TargetSelection: React.FC<TargetSelectionProps> = ({ predictionTarget, setPredictionTarget, isTraining, selectedAlgorithm }) => {
+    
+    // Check if the currently selected algorithm supports advanced setup
+    const isAdvancedSupported = !selectedAlgorithm || ADVANCED_SETUP_SUPPORTED_ALGOS.includes(selectedAlgorithm);
+
     return (
         <div>
             <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
@@ -40,11 +50,14 @@ const TargetSelection: React.FC<TargetSelectionProps> = ({ predictionTarget, set
                 </button>
                 <button
                     onClick={() => setPredictionTarget('advanced_setup')}
-                    disabled={isTraining}
+                    disabled={isTraining || !isAdvancedSupported}
+                    title={!isAdvancedSupported ? `Not supported by ${selectedAlgorithm || 'this algorithm'}` : ''}
                     className={`py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
-                        predictionTarget === 'advanced_setup' 
-                            ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-[0_0_15px_rgba(8,145,178,0.4)] border border-cyan-400/50' 
-                            : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'
+                        !isAdvancedSupported 
+                            ? 'bg-white/5 text-slate-500 border border-white/5 opacity-50 cursor-not-allowed grayscale'
+                            : predictionTarget === 'advanced_setup' 
+                                ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-[0_0_15px_rgba(8,145,178,0.4)] border border-cyan-400/50' 
+                                : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'
                     }`}
                 >
                     <span className="block">Advanced Setup (SL/TP)</span>

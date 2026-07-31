@@ -283,6 +283,18 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
     }, [retrainModelId]);
 
     useEffect(() => {
+        const ADVANCED_SETUP_SUPPORTED_ALGOS = [
+            'LSTM', 'GRU', 'TCN', '1D-CNN', 'DeepLOB', 'Transformer', 
+            'PPO-RL', 'SAC-RL', 'DDPG-RL', 'TD3-RL'
+        ];
+        
+        if (predictionTarget === 'advanced_setup' && !ADVANCED_SETUP_SUPPORTED_ALGOS.includes(algorithm)) {
+            setPredictionTarget('classification');
+        }
+    }, [algorithm, predictionTarget]);
+
+
+    useEffect(() => {
         if (dataSource === 'historical_trades') {
             apiClient.get('/backtest/trade-files').then((res) => {
                 setTradeFiles(res.data);
@@ -936,6 +948,7 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                             predictionTarget={predictionTarget}
                             setPredictionTarget={setPredictionTarget}
                             isTraining={isTraining}
+                            selectedAlgorithm={algorithm}
                         />
 
                         <ForecastConfigurator
