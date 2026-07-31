@@ -115,7 +115,7 @@ def _generate_signals(model, algorithm: str, X_test: np.ndarray, prediction_targ
                 import torch
                 model.eval()
                 with torch.no_grad():
-                    if algorithm in ["LSTM", "GRU", "TCN"]:
+                    if algorithm in ["LSTM", "GRU", "TCN", "Transformer"]:
                         X_t = torch.FloatTensor(X_test).unsqueeze(1)
                     else:
                         X_t = torch.FloatTensor(X_test)
