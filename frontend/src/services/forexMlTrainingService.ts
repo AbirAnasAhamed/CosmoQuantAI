@@ -34,6 +34,7 @@ export interface ForexTrainingConfig {
         fractional_d_value?: number;
         augmentation_strategy?: string;
         augmentation_factor?: number;
+        augmentation_samples?: number;
         use_clustered_importance?: boolean;
         enable_adversarial?: boolean;
         adversarial_epsilon?: number;

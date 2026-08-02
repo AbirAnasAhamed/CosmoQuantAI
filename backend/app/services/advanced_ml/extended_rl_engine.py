@@ -87,6 +87,16 @@ class ExtendedRLEngine:
         epochs = int(config.get("epochs", 10))
         lr = float(config.get("learning_rate", 0.0003))
         
+        # Apply TimeGAN Data Augmentation if requested
+        aug_strategy = config.get("augmentation_strategy", "none")
+        if aug_strategy == "timegan":
+            from app.services.ml_augmentation import apply_data_augmentation
+            aug_factor = int(config.get("augmentation_factor", 2))
+            aug_samples = int(config.get("augmentation_samples", 0))
+            add_log(f"Applying Data Augmentation ({aug_strategy}) to Extended RL Environment...")
+            df = apply_data_augmentation(df, strategy=aug_strategy, factor=aug_factor, samples=aug_samples, is_rl=True)
+            add_log(f"Data Augmentation complete. RL env train size: {len(df)} rows.")
+        
         # QR-DQN (Using sb3-contrib)
         if algo == "QR-DQN":
             if not SB3_CONTRIB_AVAILABLE:
@@ -423,6 +433,16 @@ class ExtendedRLEngine:
         initial_balance = float(config.get("initial_balance", 10000))
         commission = float(config.get("commission", 0.02)) / 100.0
         slippage = float(config.get("slippage", 0.01)) / 100.0
+        
+        # Apply TimeGAN Data Augmentation if requested
+        aug_strategy = config.get("augmentation_strategy", "none")
+        if aug_strategy == "timegan":
+            from app.services.ml_augmentation import apply_data_augmentation
+            aug_factor = int(config.get("augmentation_factor", 2))
+            aug_samples = int(config.get("augmentation_samples", 0))
+            add_log(f"Applying Data Augmentation ({aug_strategy}) to SB3 RL Environment...")
+            df = apply_data_augmentation(df, strategy=aug_strategy, factor=aug_factor, samples=aug_samples, is_rl=True)
+            add_log(f"Data Augmentation complete. RL env train size: {len(df)} rows.")
         
         model_dir = os.path.join("uploads", "models", f"job_{job.id}")
         scaler_path = os.path.join(model_dir, "scaler.pkl")

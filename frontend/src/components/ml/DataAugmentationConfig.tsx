@@ -6,13 +6,17 @@ export interface DataAugmentationConfigProps {
     setAugmentationStrategy: (val: string) => void;
     augmentationFactor: number;
     setAugmentationFactor: (val: number) => void;
+    augmentationSamples?: number;
+    setAugmentationSamples?: (val: number) => void;
 }
 
 const DataAugmentationConfig: React.FC<DataAugmentationConfigProps> = ({
     augmentationStrategy,
     setAugmentationStrategy,
     augmentationFactor,
-    setAugmentationFactor
+    setAugmentationFactor,
+    augmentationSamples = 100000,
+    setAugmentationSamples
 }) => {
     return (
         <div className="bg-slate-800/40 border border-slate-700/50 rounded-xl p-4 mb-4 transition-all duration-300 hover:border-slate-600/50">
@@ -41,7 +45,7 @@ const DataAugmentationConfig: React.FC<DataAugmentationConfigProps> = ({
                 </div>
             </div>
 
-            {augmentationStrategy !== 'none' && (
+            {augmentationStrategy !== 'none' && augmentationStrategy !== 'timegan' && (
                 <div className="bg-black/20 p-3 rounded-lg border border-white/5">
                     <div className="flex justify-between items-center mb-1">
                         <label className="text-xs font-semibold text-slate-300">Augmentation Factor</label>
@@ -63,6 +67,27 @@ const DataAugmentationConfig: React.FC<DataAugmentationConfigProps> = ({
                     <p className="text-[10px] text-slate-400 mt-2 leading-relaxed">
                         Multiply the training dataset size by generating synthetic samples. Helps prevent overfitting in deep learning models.
                     </p>
+                </div>
+            )}
+
+            {augmentationStrategy === 'timegan' && (
+                <div className="bg-teal-900/20 p-3 rounded-lg border border-teal-500/30">
+                    <div className="mb-2">
+                        <label className="text-xs font-semibold text-teal-300 block mb-1">Target Synthetic Samples</label>
+                        <input 
+                            type="number" 
+                            min="1000"
+                            step="1000"
+                            value={augmentationSamples}
+                            onChange={(e) => setAugmentationSamples && setAugmentationSamples(parseInt(e.target.value) || 0)}
+                            className="w-full bg-black/40 border border-teal-500/30 rounded-md px-2 py-1.5 text-xs text-white focus:outline-none focus:border-teal-400"
+                        />
+                    </div>
+                    <div className="bg-amber-900/30 border border-amber-700/50 rounded p-2 mt-2">
+                        <p className="text-[10px] text-amber-200/90 leading-relaxed font-medium">
+                            ⚠️ Note: Generating TimeGAN data live on CPU for {augmentationSamples.toLocaleString()} samples may take several minutes before actual model training starts.
+                        </p>
+                    </div>
                 </div>
             )}
         </div>

@@ -68,6 +68,8 @@ export interface ForexCoreParametersProps {
     setAugmentationStrategy: (v: string) => void;
     augmentationFactor: number;
     setAugmentationFactor: (v: number) => void;
+    augmentationSamples?: number;
+    setAugmentationSamples?: (v: number) => void;
     useClusteredImportance: boolean;
     setUseClusteredImportance: (v: boolean) => void;
     enableAdversarial: boolean;
@@ -332,6 +334,8 @@ export const ForexCoreParametersPanel: React.FC<ForexCoreParametersProps> = (pro
                             setAugmentationStrategy={props.setAugmentationStrategy}
                             augmentationFactor={props.augmentationFactor}
                             setAugmentationFactor={props.setAugmentationFactor}
+                            augmentationSamples={props.augmentationSamples}
+                            setAugmentationSamples={props.setAugmentationSamples}
                         />
                         
                         <ClusterImportanceToggle 

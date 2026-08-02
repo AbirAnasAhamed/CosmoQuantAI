@@ -37,6 +37,7 @@ export interface TrainingConfig {
         fractional_d_value?: number;
         augmentation_strategy?: string;
         augmentation_factor?: number;
+        augmentation_samples?: number;
         use_clustered_importance?: boolean;
         enable_ewc?: boolean;
         ewc_lambda?: number;
@@ -143,7 +144,7 @@ export const mlTrainingService = {
         if (file) {
             formData.append('file', file);
         }
-        
+
         const response = await apiClient.post('/model-training/dataset/merge', formData, {
             headers: {
                 'Content-Type': 'multipart/form-data',

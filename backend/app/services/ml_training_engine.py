@@ -1421,7 +1421,8 @@ def train_model_task(job_id: str, db: Session):
             else:
                 _train_df['Target'] = y_train.ravel()
             
-            _aug_df = apply_data_augmentation(_train_df, strategy=aug_strategy, factor=aug_factor)
+            aug_samples = int(config.get("augmentation_samples", 0))
+            _aug_df = apply_data_augmentation(_train_df, strategy=aug_strategy, factor=aug_factor, samples=aug_samples)
             X_train = _aug_df[features].values
             
             if is_multi_output:

@@ -502,6 +502,17 @@ class AdvancedMLEngine:
         
         model_dir = os.path.join("uploads", "models", f"job_{job.id}")
         scaler_path = os.path.join(model_dir, "scaler.pkl")
+        
+        # Apply TimeGAN Data Augmentation if requested
+        aug_strategy = config.get("augmentation_strategy", "none")
+        if aug_strategy == "timegan":
+            from app.services.ml_augmentation import apply_data_augmentation
+            aug_factor = int(config.get("augmentation_factor", 2))
+            aug_samples = int(config.get("augmentation_samples", 0))
+            add_log(f"Applying Data Augmentation ({aug_strategy}) to RL Environment...")
+            df = apply_data_augmentation(df, strategy=aug_strategy, factor=aug_factor, samples=aug_samples, is_rl=True)
+            add_log(f"Data Augmentation complete. RL env train size: {len(df)} rows.")
+
         env_df = AdvancedDataHandler.prepare_rl_data(df, features, scaler_path=scaler_path)
         
         if len(env_df) < 100:

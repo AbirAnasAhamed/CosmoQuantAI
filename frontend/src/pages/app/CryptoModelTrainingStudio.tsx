@@ -103,6 +103,7 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
     const [fractionalDValue, setFractionalDValue] = useState(0.5);
     const [augmentationStrategy, setAugmentationStrategy] = useState('none');
     const [augmentationFactor, setAugmentationFactor] = useState(2);
+    const [augmentationSamples, setAugmentationSamples] = useState(100000);
     const [useClusteredImportance, setUseClusteredImportance] = useState(false);
     const [enableAdversarial, setEnableAdversarial] = useState(false);
     const [adversarialEpsilon, setAdversarialEpsilon] = useState(0.01);
@@ -686,6 +687,7 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                     fractional_d_value: fractionalDValue,
                     augmentation_strategy: augmentationStrategy,
                     augmentation_factor: augmentationFactor,
+                    augmentation_samples: augmentationSamples,
                     use_clustered_importance: useClusteredImportance,
                     enable_adversarial: enableAdversarial,
                     adversarial_epsilon: adversarialEpsilon,
@@ -1089,6 +1091,8 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                                     setAugmentationStrategy={setAugmentationStrategy}
                                     augmentationFactor={augmentationFactor}
                                     setAugmentationFactor={setAugmentationFactor}
+                                    augmentationSamples={augmentationSamples}
+                                    setAugmentationSamples={setAugmentationSamples}
                                 />
                                 
                                 <ClusterImportanceToggle 
