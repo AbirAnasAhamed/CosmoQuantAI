@@ -201,17 +201,6 @@ class ForexMLTrainingEngine:
             
             df.dropna(inplace=True)
             
-            # Apply Time-Series Data Augmentation
-            aug_strategy = self.job.config.get("augmentation_strategy", "none")
-            aug_factor = int(self.job.config.get("augmentation_factor", 2))
-            if aug_strategy != "none" and aug_factor > 1:
-                self._log(f"Applying Data Augmentation ({aug_strategy}) factor {aug_factor}x to Forex dataset...")
-                from app.services.ml_augmentation import apply_data_augmentation
-                aug_samples = int(self.job.config.get("augmentation_samples", 0))
-                is_rl_algo = self.job.algorithm.endswith('-RL')
-                df = apply_data_augmentation(df, strategy=aug_strategy, factor=aug_factor, samples=aug_samples, is_rl=is_rl_algo)
-                self._log(f"Data Augmentation complete. New dataset size: {len(df)} rows.")
-            
             features = [col for col in df.columns if col not in ['target', 'open', 'high', 'low', 'close']]
             X = df[features]
             y = df['target']
@@ -362,6 +351,20 @@ class ForexMLTrainingEngine:
                 
                 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
                 
+                # Apply Time-Series Data Augmentation to Training Set Only
+                aug_strategy = self.job.config.get("augmentation_strategy", "none")
+                aug_factor = int(self.job.config.get("augmentation_factor", 2))
+                if aug_strategy != "none" and aug_factor > 1:
+                    self._log(f"Applying Data Augmentation ({aug_strategy}) factor {aug_factor}x to MoE training set...")
+                    from app.services.ml_augmentation import apply_data_augmentation
+                    _train_df = pd.DataFrame(X_train, columns=features)
+                    _train_df['target'] = y_train.values
+                    aug_samples = int(self.job.config.get("augmentation_samples", 0))
+                    _aug_df = apply_data_augmentation(_train_df, strategy=aug_strategy, factor=aug_factor, samples=aug_samples, is_rl=True)
+                    X_train = _aug_df[features]
+                    y_train = _aug_df['target']
+                    self._log(f"MoE Data Augmentation complete. New train size: {len(X_train)} rows.")
+                
                 self._log(f"Training {len(base_models_names)} Base Experts for MoE...")
                 for m_name in base_models_names:
                     est = get_forex_model(m_name, self.job.config)
@@ -432,6 +435,21 @@ class ForexMLTrainingEngine:
                 
                 accuracies = []
                 for i, (X_train, X_test, y_train, y_test) in enumerate(walk_forward_split(X, y, n_splits=wfo_windows)):
+                    # Apply Time-Series Data Augmentation to Training Set Only
+                    aug_strategy = self.job.config.get("augmentation_strategy", "none")
+                    aug_factor = int(self.job.config.get("augmentation_factor", 2))
+                    if aug_strategy != "none" and aug_factor > 1:
+                        self._log(f"Applying Data Augmentation ({aug_strategy}) factor {aug_factor}x to Fold {i+1} training set...")
+                        from app.services.ml_augmentation import apply_data_augmentation
+                        _train_df = pd.DataFrame(X_train, columns=features)
+                        _train_df['target'] = y_train.values
+                        aug_samples = int(self.job.config.get("augmentation_samples", 0))
+                        is_rl_algo = not is_ensemble and algorithm and algorithm.endswith('-RL')
+                        _aug_df = apply_data_augmentation(_train_df, strategy=aug_strategy, factor=aug_factor, samples=aug_samples, is_rl=is_rl_algo)
+                        X_train = _aug_df[features]
+                        y_train = _aug_df['target']
+                        self._log(f"Fold {i+1} Data Augmentation complete. New train size: {len(X_train)} rows.")
+                        
                     if use_automl and i == wfo_windows - 1:
                         self._log(f"Running AutoML Optuna on Fold {i+1}...")
                         from app.services.ml.optuna_optimizer import run_optuna_study
@@ -454,6 +472,22 @@ class ForexMLTrainingEngine:
                 self._log(f"Walk-Forward Average Accuracy: {accuracy*100:.2f}%")
             else:
                 X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+                
+                # Apply Time-Series Data Augmentation to Training Set Only
+                aug_strategy = self.job.config.get("augmentation_strategy", "none")
+                aug_factor = int(self.job.config.get("augmentation_factor", 2))
+                if aug_strategy != "none" and aug_factor > 1:
+                    self._log(f"Applying Data Augmentation ({aug_strategy}) factor {aug_factor}x to training set...")
+                    from app.services.ml_augmentation import apply_data_augmentation
+                    _train_df = pd.DataFrame(X_train, columns=features)
+                    _train_df['target'] = y_train.values
+                    aug_samples = int(self.job.config.get("augmentation_samples", 0))
+                    is_rl_algo = not is_ensemble and algorithm and algorithm.endswith('-RL')
+                    _aug_df = apply_data_augmentation(_train_df, strategy=aug_strategy, factor=aug_factor, samples=aug_samples, is_rl=is_rl_algo)
+                    X_train = _aug_df[features]
+                    y_train = _aug_df['target']
+                    self._log(f"Data Augmentation complete. New train size: {len(X_train)} rows.")
+                    
                 if use_automl:
                     self._log("Running AutoML Optuna...")
                     from app.services.ml.optuna_optimizer import run_optuna_study
