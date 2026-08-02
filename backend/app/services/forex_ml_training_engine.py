@@ -201,6 +201,17 @@ class ForexMLTrainingEngine:
             
             df.dropna(inplace=True)
             
+            # Apply Time-Series Data Augmentation
+            aug_strategy = self.job.config.get("augmentation_strategy", "none")
+            aug_factor = int(self.job.config.get("augmentation_factor", 2))
+            if aug_strategy != "none" and aug_factor > 1:
+                self._log(f"Applying Data Augmentation ({aug_strategy}) factor {aug_factor}x to Forex dataset...")
+                from app.services.ml_augmentation import apply_data_augmentation
+                aug_samples = int(self.job.config.get("augmentation_samples", 0))
+                is_rl_algo = self.job.algorithm.endswith('-RL')
+                df = apply_data_augmentation(df, strategy=aug_strategy, factor=aug_factor, samples=aug_samples, is_rl=is_rl_algo)
+                self._log(f"Data Augmentation complete. New dataset size: {len(df)} rows.")
+            
             features = [col for col in df.columns if col not in ['target', 'open', 'high', 'low', 'close']]
             X = df[features]
             y = df['target']

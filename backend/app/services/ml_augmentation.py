@@ -82,7 +82,7 @@ def apply_data_augmentation(df, strategy='none', factor=2, samples=None, is_rl=F
             
             # Post-process target columns since GAN generates continuous values
             if not is_rl:
-                target_cols = [col for col in df.columns if 'Target' in col]
+                target_cols = [col for col in df.columns if 'target' in col.lower()]
                 for col in target_cols:
                     if col in synthetic_df.columns:
                         # Round and clip to ensure valid class labels (e.g., 0, 1, 2)
