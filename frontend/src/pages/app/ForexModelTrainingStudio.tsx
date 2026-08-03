@@ -11,6 +11,7 @@ import { AutoMlToggle } from '@/components/ml/forex/AutoMlToggle';
 import FeatureImportanceChart from '@/components/ml/FeatureImportanceChart';
 import EquityCurveChart from '@/components/ml/EquityCurveChart';
 import { CustomIndicator } from '@/components/features/market/CustomIndicatorBuilder';
+import FractionalDiffConfig from '@/components/ml/FractionalDiffConfig';
 
 interface ForexModelTrainingStudioProps {
     retrainModelId?: string | null;
@@ -45,6 +46,7 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
     const [valRatio, setValRatio] = useState(15);
     const [testRatio, setTestRatio] = useState(15);
     const [imbalanceStrategy, setImbalanceStrategy] = useState('none');
+    const [feeThreshold, setFeeThreshold] = useState(0.0001); // 0.01% for Forex
     const [purgeLength, setPurgeLength] = useState(0);
     
     // Advanced Quant States
@@ -562,6 +564,7 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                     val_ratio: valRatio,
                     test_ratio: testRatio,
                     imbalance_strategy: imbalanceStrategy,
+                    fee_threshold: feeThreshold,
                     purge_length: purgeLength,
                     
                     market_session_features: selectedForexFeatures.includes('session_features'),
@@ -697,6 +700,10 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                             setFractionalDiff={setFractionalDiff}
                             fractionalDValue={fractionalDValue}
                             setFractionalDValue={setFractionalDValue}
+                            imbalanceStrategy={imbalanceStrategy}
+                            setImbalanceStrategy={setImbalanceStrategy}
+                            feeThreshold={feeThreshold}
+                            setFeeThreshold={setFeeThreshold}
                             augmentationStrategy={augmentationStrategy}
                             setAugmentationStrategy={setAugmentationStrategy}
                             augmentationFactor={augmentationFactor}
@@ -717,8 +724,6 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                             setValRatio={setValRatio}
                             testRatio={testRatio}
                             setTestRatio={setTestRatio}
-                            imbalanceStrategy={imbalanceStrategy}
-                            setImbalanceStrategy={setImbalanceStrategy}
                             purgeLength={purgeLength}
                             setPurgeLength={setPurgeLength}
                             useTripleBarrier={useTripleBarrier}
@@ -826,7 +831,58 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                                         isTraining={isTraining}
                                     />
 
-                                    {/* ✅ Advanced RL & Risk Settings */}
+                                    {/* --- Supervised ML Pipeline Settings (Hedge Fund Grade) --- */}
+                                    {['Random Forest', 'XGBoost', 'LightGBM', 'CatBoost', 'Logistic Regression', 'SVM', 'MoE'].includes(algorithm) && (
+                                        <motion.div 
+                                            initial={{ opacity: 0, y: -10 }} 
+                                            animate={{ opacity: 1, y: 0 }}
+                                            className="mt-4 p-5 rounded-2xl bg-teal-900/10 border border-teal-500/30 shadow-[0_0_15px_rgba(20,184,166,0.1)]"
+                                        >
+                                            <div className="flex items-center gap-2 mb-4 text-teal-400">
+                                                <Activity className="w-5 h-5" />
+                                                <h3 className="font-bold">Supervised ML Pipeline Settings</h3>
+                                            </div>
+                                            <div className="space-y-4">
+                                                <div className="bg-black/30 border border-teal-500/20 rounded-xl p-4">
+                                                    <div className="flex justify-between items-center mb-2">
+                                                        <label className="text-xs font-bold text-white flex items-center gap-2">
+                                                            Profit Barrier (Fee Threshold)
+                                                        </label>
+                                                        <span className="text-xs font-mono text-teal-400 bg-teal-500/10 px-2 py-0.5 rounded">
+                                                            {(feeThreshold * 100).toFixed(4)}%
+                                                        </span>
+                                                    </div>
+                                                    <p className="text-[10px] text-slate-400 mb-3">
+                                                        Filters out trades whose potential profit is less than the broker fee/spread. 
+                                                        If set to 0.01%, the ML model will only learn from moves strictly {'>'} 0.01%.
+                                                    </p>
+                                                    <input 
+                                                        type="range" 
+                                                        min="0" 
+                                                        max="0.01" 
+                                                        step="0.0001" 
+                                                        value={feeThreshold} 
+                                                        onChange={(e) => setFeeThreshold(parseFloat(e.target.value))}
+                                                        className="w-full accent-teal-500 h-1 bg-white/10 rounded-lg appearance-none cursor-pointer"
+                                                    />
+                                                    <div className="flex justify-between text-[9px] text-slate-500 mt-1 font-mono">
+                                                        <span>0.00%</span>
+                                                        <span>0.50%</span>
+                                                        <span>1.00%</span>
+                                                    </div>
+                                                </div>
+
+                                                <FractionalDiffConfig 
+                                                    fractionalDiff={fractionalDiff}
+                                                    setFractionalDiff={setFractionalDiff}
+                                                    fractionalDValue={fractionalDValue}
+                                                    setFractionalDValue={setFractionalDValue}
+                                                />
+                                            </div>
+                                        </motion.div>
+                                    )}
+
+                                    {/* 🚀 Advanced RL & Risk Settings */}
                                     {(algorithm.includes('-RL') || ['QR-DQN', 'CQL', 'GAIL', 'Transformer'].includes(algorithm) || (isEnsemble && ensembleMethod === 'rl_moe')) && (
                                         <motion.div 
                                             initial={{ opacity: 0 }} 

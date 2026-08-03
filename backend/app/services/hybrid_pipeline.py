@@ -237,19 +237,22 @@ def build_hybrid_dataset(job, db: Session, config: dict, add_log) -> tuple[pd.Da
     # Ensure we use high-frequency price for target to avoid step-function 0s
     target_price_col = 'microprice' if 'microprice' in df.columns else 'Close'
 
+    fee_threshold = config.get("fee_threshold", 0.001)
+
     if prediction_target == "advanced_setup":
         from app.services.helpers.ml_advanced_setup_target import generate_advanced_setup_targets
         horizon = config.get("prediction_horizon", 5)
         if not config.get("resample_l2", True):
             horizon = max(horizon, 100)
-        df = generate_advanced_setup_targets(df, horizon)
+        df = generate_advanced_setup_targets(df, horizon, fee_threshold=fee_threshold)
         df['Target'] = df['Target_Direction'] # Dummy for dropna
     elif prediction_target == "classification":
         horizon = config.get("prediction_horizon", 5)
         if not config.get("resample_l2", True):
             horizon = max(horizon, 100) # Minimum 100 ticks for raw L2
         future_return = df[target_price_col].shift(-horizon) - df[target_price_col]
-        df['Target'] = (future_return > 0).astype(int)
+        pct_return = future_return / df[target_price_col]
+        df['Target'] = (pct_return > fee_threshold).astype(int)
         df.loc[future_return.isna(), 'Target'] = np.nan
     else:
         horizon = config.get("prediction_horizon", 5)

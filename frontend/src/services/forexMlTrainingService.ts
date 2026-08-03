@@ -43,6 +43,7 @@ export interface ForexTrainingConfig {
         val_ratio?: number;
         test_ratio?: number;
         imbalance_strategy?: string;
+        fee_threshold?: number;
         purge_length?: number;
         market_session_features?: boolean;
         ignore_weekend_gaps?: boolean;

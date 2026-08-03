@@ -1,5 +1,6 @@
 import pandas as pd
 import numpy as np
+import gc
 
 def get_weights(d, size):
     """
@@ -36,10 +37,12 @@ def frac_diff(series, d, thres=1e-4):
             break
         w.append(w_)
     
-    w = np.array(w[::-1])
+    w_array = np.array(w[::-1], dtype=np.float64)
     
     # Apply weights using convolution
-    res = np.convolve(series, w, mode='valid')
+    # Ensure float64 precision for maximum accuracy in financial time series
+    series_array = series.astype(np.float64).values
+    res = np.convolve(series_array, w_array, mode='valid')
     
     # Pad the beginning with NaNs to match original length
     pad_len = len(series) - len(res)
@@ -66,4 +69,8 @@ def apply_fractional_differentiation(df, d_value=0.5, exclude_cols=None):
             
     # Drop rows with NaNs introduced by the windowing
     df_diff.dropna(inplace=True)
+    
+    # RAM Management
+    gc.collect()
+    
     return df_diff

@@ -84,6 +84,7 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
     const [modelName, setModelName] = useState('');
     const [initialBalance, setInitialBalance] = useState(10000); // ✅ New
     const [tradingFees, setTradingFees] = useState(0.02); // ✅ New
+    const [feeThreshold, setFeeThreshold] = useState(0.001); // 0.1% Threshold for Profit Barrier
     const [slippage, setSlippage] = useState(0.01); // ✅ New
     const [sequenceLength, setSequenceLength] = useState(30); // ✅ New
     const [maxAllowedDrawdown, setMaxAllowedDrawdown] = useState(0); // ✅ Risk Layer
@@ -685,6 +686,7 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                     scaling_method: scalingMethod,
                     fractional_diff: fractionalDiff,
                     fractional_d_value: fractionalDValue,
+                    fee_threshold: feeThreshold,
                     augmentation_strategy: augmentationStrategy,
                     augmentation_factor: augmentationFactor,
                     augmentation_samples: augmentationSamples,
@@ -1270,6 +1272,79 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                                     setMaxDepth={setMaxDepth}
                                     isTraining={isTraining}
                                 />
+                            )}
+
+                            {/* 🚀 Hedge-Fund Supervised ML Pipeline Settings */}
+                            {['Random Forest', 'XGBoost', 'LightGBM', 'CatBoost'].includes(algorithm) && (
+                                <motion.div 
+                                    initial={{ opacity: 0, y: -10 }} 
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="mt-4 p-5 rounded-2xl bg-cyan-900/10 border border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.1)]"
+                                >
+                                    <div className="flex items-center gap-2 mb-4 text-cyan-400">
+                                        <Layers className="w-5 h-5" />
+                                        <h3 className="font-bold">Supervised ML Pipeline Settings</h3>
+                                    </div>
+                                    <div className="space-y-4">
+                                        {/* Fee Threshold */}
+                                        <div>
+                                            <div className="flex justify-between text-sm text-gray-400 mb-1">
+                                                <span>Profit Barrier (Fee & Slippage Threshold %)</span>
+                                                <span className="text-cyan-400 font-bold">{(feeThreshold * 100).toFixed(2)}%</span>
+                                            </div>
+                                            <input 
+                                                type="range" min="0" max="1" step="0.01"
+                                                value={feeThreshold * 100} 
+                                                onChange={(e) => setFeeThreshold(parseFloat(e.target.value) / 100)}
+                                                className="w-full accent-cyan-500 bg-gray-700 h-2 rounded-lg appearance-none cursor-pointer"
+                                            />
+                                            <p className="text-xs text-gray-500 mt-1">Targets below this return will be classified as 0 (No Trade) to avoid getting eaten by fees.</p>
+                                        </div>
+
+                                        {/* Fractional Differencing */}
+                                        <div className="flex items-center justify-between p-3 bg-white/5 rounded-xl border border-white/10 hover:border-cyan-500/50 transition-colors">
+                                            <div>
+                                                <h4 className="text-sm font-semibold text-gray-200">Apply Fractional Differencing</h4>
+                                                <p className="text-xs text-gray-500">Makes data stationary while preserving long-term memory (Hedge-fund standard).</p>
+                                            </div>
+                                            <div className="flex items-center gap-3">
+                                                {fractionalDiff && (
+                                                    <div className="flex items-center gap-2">
+                                                        <span className="text-xs text-gray-400">d = </span>
+                                                        <input 
+                                                            type="number" min="0" max="1" step="0.1" 
+                                                            value={fractionalDValue}
+                                                            onChange={(e) => setFractionalDValue(parseFloat(e.target.value))}
+                                                            className="w-16 bg-gray-900 border border-gray-600 rounded p-1 text-sm text-center text-white focus:border-cyan-500 focus:outline-none"
+                                                        />
+                                                    </div>
+                                                )}
+                                                <button
+                                                    onClick={(e) => { e.preventDefault(); setFractionalDiff(!fractionalDiff); }}
+                                                    className={`w-12 h-6 rounded-full transition-colors relative ${fractionalDiff ? 'bg-cyan-500' : 'bg-gray-600'}`}
+                                                >
+                                                    <div className={`w-4 h-4 bg-white rounded-full absolute top-1 transition-transform ${fractionalDiff ? 'translate-x-7' : 'translate-x-1'}`} />
+                                                </button>
+                                            </div>
+                                        </div>
+
+                                        {/* Imbalance Strategy */}
+                                        <div>
+                                            <label className="block text-sm text-gray-400 mb-2">Class Imbalance Strategy</label>
+                                            <select
+                                                value={imbalanceStrategy}
+                                                onChange={(e) => setImbalanceStrategy(e.target.value)}
+                                                className="w-full bg-gray-800/50 border border-gray-700 text-white text-sm rounded-xl focus:ring-cyan-500 focus:border-cyan-500 block p-2.5 transition-all outline-none"
+                                            >
+                                                <option value="none">None (Raw Data)</option>
+                                                <option value="undersampling">Undersampling (Drop Majority Class)</option>
+                                                <option value="class_weights">Class Weights (Algorithmic Penalty)</option>
+                                                {/* Purposely omitted SMOTE per hedge fund standards to avoid fake candle generation */}
+                                            </select>
+                                            <p className="text-xs text-gray-500 mt-1">SMOTE is disabled by default to preserve the true integrity of financial tick distributions.</p>
+                                        </div>
+                                    </div>
+                                </motion.div>
                             )}
 
                             {/* ✅ AutoML Optuna Integration */}

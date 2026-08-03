@@ -35,6 +35,7 @@ export interface TrainingConfig {
         scaling_method?: string;
         fractional_diff?: boolean;
         fractional_d_value?: number;
+        fee_threshold?: number;
         augmentation_strategy?: string;
         augmentation_factor?: number;
         augmentation_samples?: number;

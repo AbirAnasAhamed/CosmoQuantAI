@@ -738,14 +738,16 @@ def train_model_task(job_id: str, db: Session):
                 horizon = max(horizon, 100) # Minimum 100 ticks for raw L2
                 
             prediction_target = config.get("prediction_target", "classification")
+            fee_threshold = float(config.get("fee_threshold", 0.001))
             if prediction_target == "advanced_setup":
-                df = generate_advanced_setup_targets(df, horizon)
+                df = generate_advanced_setup_targets(df, horizon, fee_threshold=fee_threshold)
                 df['Target'] = df['Target_Direction'] # Dummy for dropna
             elif prediction_target == "classification":
                 # Calculate future return 'horizon' steps ahead
                 future_return = df['Close'].shift(-horizon) - df['Close']
-                # Target is 1 if positive return, 0 if negative or zero
-                df['Target'] = (future_return > 0).astype(float)
+                pct_return = future_return / df['Close']
+                # Target is 1 if return > fee_threshold, 0 otherwise
+                df['Target'] = (pct_return > fee_threshold).astype(float)
                 # Mask NaNs so they get dropped during cleaning
                 df.loc[future_return.isna(), 'Target'] = np.nan
             else:
@@ -987,17 +989,19 @@ def train_model_task(job_id: str, db: Session):
                         add_log(f"⚠️ Failed to apply custom indicator '{ind.get('name')}': {e}")
                 
             prediction_target = config.get("prediction_target", "classification")
+            fee_threshold = float(config.get("fee_threshold", 0.001))
             if prediction_target == "smc_dynamic_mtf":
                 from app.services.asmc_strategy.target_labeler import label_asmc_targets
                 df = label_asmc_targets(df, config.get("asmc_htf", "4h"), config.get("asmc_ltf", "15m"))
             elif prediction_target == "advanced_setup":
-                df = generate_advanced_setup_targets(df, 5)
+                df = generate_advanced_setup_targets(df, 5, fee_threshold=fee_threshold)
                 df['Target'] = df['Target_Direction']
             elif prediction_target == "classification":
                 # Calculate future return 5 steps ahead
                 future_return = df['Close'].shift(-5) - df['Close']
-                # Target is 1 if positive return, 0 if negative or zero
-                df['Target'] = (future_return > 0).astype(float)
+                pct_return = future_return / df['Close']
+                # Target is 1 if positive return > fee, 0 otherwise
+                df['Target'] = (pct_return > fee_threshold).astype(float)
                 # Mask NaNs so they get dropped during cleaning
                 df.loc[future_return.isna(), 'Target'] = np.nan
             else:
@@ -1155,17 +1159,19 @@ def train_model_task(job_id: str, db: Session):
                 
             horizon = int(config.get("forecast_horizon", config.get("prediction_horizon", 5)))
             prediction_target = config.get("prediction_target", "classification")
+            fee_threshold = float(config.get("fee_threshold", 0.001))
             if prediction_target == "smc_dynamic_mtf":
                 from app.services.asmc_strategy.target_labeler import label_asmc_targets
                 df = label_asmc_targets(df, config.get("asmc_htf", "4h"), config.get("asmc_ltf", "15m"))
             elif prediction_target == "advanced_setup":
-                df = generate_advanced_setup_targets(df, horizon)
+                df = generate_advanced_setup_targets(df, horizon, fee_threshold=fee_threshold)
                 df['Target'] = df['Target_Direction'] # Dummy for dropna
             elif prediction_target == "classification":
                 # Calculate future return 'horizon' steps ahead
                 future_return = df['Close'].shift(-horizon) - df['Close']
-                # Target is 1 if positive return, 0 if negative or zero
-                df['Target'] = (future_return > 0).astype(float)
+                pct_return = future_return / df['Close']
+                # Target is 1 if positive return > fee, 0 otherwise
+                df['Target'] = (pct_return > fee_threshold).astype(float)
                 # Mask NaNs so they get dropped during cleaning
                 df.loc[future_return.isna(), 'Target'] = np.nan
             else:
@@ -1177,18 +1183,8 @@ def train_model_task(job_id: str, db: Session):
             if len(df) < 10:
                 raise Exception(f"Not enough market data to train a model. Found {len(df)} rows. Please increase the dataset period or lookback time.")
                 
-            # Save raw prices before fractional differencing to prevent distorted profit calculation
+            # Save raw prices before global processing to prevent distorted profit calculation
             raw_prices_backup = df.copy()
-            
-            if config.get("fractional_diff", False):
-                d_val = config.get("fractional_d_value", 0.5)
-                add_log(f"Applying Fractional Differentiation (d={d_val}) to preserve memory...")
-                from app.services.ml_fractional_diff import apply_fractional_differentiation
-                df = apply_fractional_differentiation(df, d_value=d_val, exclude_cols=['Target', 'timestamp', 'datetime'])
-                add_log(f"Fractional Differentiation complete. Shape: {df.shape}")
-                
-                if len(df) < 10:
-                    raise Exception(f"After Fractional Differentiation, only {len(df)} rows remain. This process requires a large historical dataset. Please fetch more data or disable Fractional Differentiation.")
             
             features = [col for col in df.columns if col not in ['Target', 'Open', 'High', 'Low', 'Close', 'Volume', 'Adj Close']]
             if not features:
@@ -1243,6 +1239,18 @@ def train_model_task(job_id: str, db: Session):
         # FIX: Ensure no NaNs or Infs exist from alternative data
         df.replace([np.inf, -np.inf], np.nan, inplace=True)
         df.dropna(inplace=True)
+        
+        # ── GLOBAL FRACTIONAL DIFFERENCING ──
+        if config.get("fractional_diff", False):
+            d_val = config.get("fractional_d_value", 0.5)
+            add_log(f"Applying Fractional Differentiation (d={d_val}) globally...")
+            from app.services.ml_fractional_diff import apply_fractional_differentiation
+            exclude = ['Target', 'Target_Direction', 'Target_SL', 'Target_TP', 'timestamp', 'datetime', 'Open', 'High', 'Low', 'Close', 'Volume', 'Adj Close']
+            df = apply_fractional_differentiation(df, d_value=d_val, exclude_cols=exclude)
+            add_log(f"Fractional Differentiation complete. Shape: {df.shape}")
+            
+            if len(df) < 10:
+                raise Exception(f"After Fractional Differentiation, only {len(df)} rows remain. Please fetch more data or disable Fractional Differentiation.")
         
         # ── GLOBAL FEATURE CLEANER ──
         # Ensure no non-stationary or raw price columns leak into ANY dataset type (Hybrid, L2, OHLCV, etc.)
@@ -1406,6 +1414,10 @@ def train_model_task(job_id: str, db: Session):
                 
             # Apply modular imbalance strategy (SMOTE/Undersampling/Class Weights)
             X_train, y_train = apply_imbalance_strategy(X_train, y_train, config, add_log, is_classification=True)
+            
+            # RAM Management: Clean up after data prep is finished
+            import gc
+            gc.collect()
             
         # Apply Time-Series Data Augmentation to Training Set Only
         aug_strategy = config.get("augmentation_strategy", "none")

@@ -131,21 +131,22 @@ class TradingEnv(gym.Env):
                 discrete_action = action
                 
             self.position = discrete_action
+            current_y = self.y[self.current_step][0] if isinstance(self.y[self.current_step], np.ndarray) and self.y[self.current_step].size > 1 else self.y[self.current_step]
             
-            if discrete_action == 1 and self.y[self.current_step] > 0:
+            if discrete_action == 1 and current_y > 0:
                 reward = 1
                 self.net_worth += 10.0 # Dummy profit
                 self.trade_history.append({"type": "open_long", "pnl": 10.0})
-            elif discrete_action == 1 and self.y[self.current_step] <= 0:
+            elif discrete_action == 1 and current_y <= 0:
                 reward = -1
                 self.net_worth -= 10.0 # Dummy loss
                 self.trade_history.append({"type": "close", "pnl": -10.0})
             else:
                 # Hold/Sell logic (neutral)
-                if discrete_action == 0 and self.y[self.current_step] <= 0:
+                if discrete_action == 0 and current_y <= 0:
                     self.trade_history.append({"type": "open_short", "pnl": 5.0})
                     self.net_worth += 5.0
-                elif discrete_action == 0 and self.y[self.current_step] > 0:
+                elif discrete_action == 0 and current_y > 0:
                     self.trade_history.append({"type": "close", "pnl": -5.0})
                     self.net_worth -= 5.0
                     

@@ -189,16 +189,40 @@ class ForexMLTrainingEngine:
             
             # Step 5: Preparing Target Variable
             use_triple_barrier = self.job.config.get('use_triple_barrier', False)
+            prediction_target = self.job.config.get("prediction_target", "classification")
+            fee_threshold = self.job.config.get("fee_threshold", 0.0001)
+            horizon = int(self.job.config.get("forecast_horizon", 1))
+
             if use_triple_barrier:
                 self._log("Applying Triple Barrier Method...")
                 from app.services.ml.triple_barrier import apply_triple_barrier
                 pt_sl = self.job.config.get('pt_sl_ratio', 1.5)
                 timeout = self.job.config.get('barrier_timeout', 24)
                 df['target'] = apply_triple_barrier(df, pt_sl, timeout)
+            elif prediction_target == "advanced_setup":
+                self._log("Preparing target variables for Advanced Setup (Direction, TP, SL)...")
+                from app.services.helpers.ml_advanced_setup_target import generate_advanced_setup_targets
+                df = generate_advanced_setup_targets(df, horizon, fee_threshold=fee_threshold)
+                df['target'] = df['Target_Direction'] # Dummy for dropna and compatibility
             else:
                 self._log("Preparing target variables for classification...")
-                df['target'] = (df['close'].shift(-1) > df['close']).astype(int)
+                future_return = df['close'].shift(-horizon) - df['close']
+                pct_return = future_return / df['close']
+                df['target'] = (pct_return > fee_threshold).astype(int)
+                df.loc[future_return.isna(), 'target'] = np.nan
             
+            # --- Global Fractional Differencing (Hedge Fund Standard) ---
+            if self.job.config.get("fractional_diff", False):
+                d_val = float(self.job.config.get("fractional_d_value", 0.5))
+                self._log(f"Applying Fractional Differentiation (d={d_val}) globally...")
+                from app.services.ml_fractional_diff import apply_fractional_differentiation
+                import gc
+                # Ensure we don't difference target, OHLC, or categorical features
+                exclude = ['target', 'open', 'high', 'low', 'close', 'tick_volume', 'is_asian', 'is_london', 'is_ny', 'macro_risk_flag', 'timestamp', 'time']
+                df = apply_fractional_differentiation(df, d_value=d_val, exclude_cols=exclude)
+                self._log(f"Fractional Differentiation complete. Shape: {df.shape}")
+                gc.collect()
+
             df.dropna(inplace=True)
             
             features = [col for col in df.columns if col not in ['target', 'open', 'high', 'low', 'close']]
@@ -349,7 +373,15 @@ class ForexMLTrainingEngine:
                 fitted_estimators = []
                 preds_list = []
                 
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+                from app.services.ml_data_prep import apply_data_split
+                X_train, X_test, y_train, y_test = apply_data_split(X, y, self.job.config, self._log)
+                
+                # --- Class Imbalance Control ---
+                is_rl_algo = algorithm and algorithm.endswith('-RL')
+                imbalance_strat = self.job.config.get("imbalance_strategy", "none")
+                if imbalance_strat != "none" and not is_rl_algo:
+                    from app.services.ml_imbalance import apply_imbalance_strategy
+                    X_train, y_train = apply_imbalance_strategy(X_train, y_train, strategy=imbalance_strat, log_func=self._log)
                 
                 # Apply Time-Series Data Augmentation to Training Set Only
                 aug_strategy = self.job.config.get("augmentation_strategy", "none")
@@ -435,6 +467,13 @@ class ForexMLTrainingEngine:
                 
                 accuracies = []
                 for i, (X_train, X_test, y_train, y_test) in enumerate(walk_forward_split(X, y, n_splits=wfo_windows)):
+                    # --- Class Imbalance Control ---
+                    is_rl_algo = not is_ensemble and algorithm and algorithm.endswith('-RL')
+                    imbalance_strat = self.job.config.get("imbalance_strategy", "none")
+                    if imbalance_strat != "none" and not is_rl_algo:
+                        from app.services.ml_imbalance import apply_imbalance_strategy
+                        X_train, y_train = apply_imbalance_strategy(X_train, y_train, strategy=imbalance_strat, log_func=self._log)
+                        
                     # Apply Time-Series Data Augmentation to Training Set Only
                     aug_strategy = self.job.config.get("augmentation_strategy", "none")
                     aug_factor = int(self.job.config.get("augmentation_factor", 2))
@@ -471,8 +510,16 @@ class ForexMLTrainingEngine:
                 accuracy = np.mean(accuracies)
                 self._log(f"Walk-Forward Average Accuracy: {accuracy*100:.2f}%")
             else:
-                X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, shuffle=False)
+                from app.services.ml_data_prep import apply_data_split
+                X_train, X_test, y_train, y_test = apply_data_split(X, y, self.job.config, self._log)
                 
+                # --- Class Imbalance Control ---
+                is_rl_algo = not is_ensemble and algorithm and algorithm.endswith('-RL')
+                imbalance_strat = self.job.config.get("imbalance_strategy", "none")
+                if imbalance_strat != "none" and not is_rl_algo:
+                    from app.services.ml_imbalance import apply_imbalance_strategy
+                    X_train, y_train = apply_imbalance_strategy(X_train, y_train, strategy=imbalance_strat, log_func=self._log)
+                    
                 # Apply Time-Series Data Augmentation to Training Set Only
                 aug_strategy = self.job.config.get("augmentation_strategy", "none")
                 aug_factor = int(self.job.config.get("augmentation_factor", 2))

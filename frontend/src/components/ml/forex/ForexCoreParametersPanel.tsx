@@ -3,7 +3,6 @@ import { Settings, Activity, Loader2, XCircle } from 'lucide-react';
 import TargetSelection from '@/components/ml/TargetSelection';
 import ForecastConfigurator from '@/components/ml/ForecastConfigurator';
 import EvaluationMetricSelector from '@/components/ml/EvaluationMetricSelector';
-import FractionalDiffConfig from '@/components/ml/FractionalDiffConfig';
 import DataAugmentationConfig from '@/components/ml/DataAugmentationConfig';
 import ClusterImportanceToggle from '@/components/ml/ClusterImportanceToggle';
 import AdversarialTrainingConfig from '@/components/ml/AdversarialTrainingConfig';
@@ -92,6 +91,8 @@ export interface ForexCoreParametersProps {
     setTestRatio: (v: number) => void;
     imbalanceStrategy: string;
     setImbalanceStrategy: (v: string) => void;
+    feeThreshold: number;
+    setFeeThreshold: (v: number) => void;
     purgeLength: number;
     setPurgeLength: (v: number) => void;
     wfoWindows: number;
@@ -320,13 +321,6 @@ export const ForexCoreParametersPanel: React.FC<ForexCoreParametersProps> = (pro
                             featureSelectionMethod={props.featureSelectionMethod}
                             setFeatureSelectionMethod={props.setFeatureSelectionMethod}
                             isTraining={props.isTraining}
-                        />
-                        
-                        <FractionalDiffConfig 
-                            fractionalDiff={props.fractionalDiff}
-                            setFractionalDiff={props.setFractionalDiff}
-                            fractionalDValue={props.fractionalDValue}
-                            setFractionalDValue={props.setFractionalDValue}
                         />
                         
                         <DataAugmentationConfig
