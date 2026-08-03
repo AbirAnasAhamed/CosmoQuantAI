@@ -1330,61 +1330,86 @@ def train_model_task(job_id: str, db: Session):
             df.iloc[0, df.columns.get_loc('Target')] = opposite_label
             df.iloc[-1, df.columns.get_loc('Target')] = opposite_label
 
+        # Extract base arrays for initial split
+        X_base = df[features].values
+        prediction_target = config.get("prediction_target", "classification")
+        if prediction_target == "advanced_setup":
+            y_base = df[['Target_Direction', 'Target_SL', 'Target_TP']].values
+        else:
+            y_base = df['Target'].values
+
+        # ── INITIAL DATA SPLIT (To prevent data leakage) ──
+        X_train_raw, X_test_raw, y_train_raw, y_test_raw = apply_data_split(X_base, y_base, config, add_log)
+        
+        # Convert back to DataFrame for advanced processing
+        df_train = pd.DataFrame(X_train_raw, columns=features, index=df.index[:len(X_train_raw)])
+        df_test = pd.DataFrame(X_test_raw, columns=features, index=df.index[-len(X_test_raw):])
+        
+        if prediction_target == "advanced_setup":
+            df_train['Target_Direction'] = y_train_raw[:, 0]
+            df_train['Target_SL'] = y_train_raw[:, 1]
+            df_train['Target_TP'] = y_train_raw[:, 2]
+            df_test['Target_Direction'] = y_test_raw[:, 0]
+            df_test['Target_SL'] = y_test_raw[:, 1]
+            df_test['Target_TP'] = y_test_raw[:, 2]
+        else:
+            df_train['Target'] = y_train_raw.ravel()
+            df_test['Target'] = y_test_raw.ravel()
+
+        pca_model_data = None
+
         # ── ADVANCED FEATURE ENGINEERING (PCA & SHAP) ──
         # Apply PCA Orthogonalization to handle collinearity without data loss
         if config.get("apply_pca_collinearity", True) and not (is_fine_tune or is_auto_resume):
             from app.services.ml_utils import apply_pca_orthogonalization
-            df_pca_temp = df[features + ['Target']].copy()
-            df_pca_temp = apply_pca_orthogonalization(df_pca_temp, target_col='Target', add_log=add_log)
-            
-            # Reconstruct the feature list and update main dataframe
-            new_features = [c for c in df_pca_temp.columns if c != 'Target']
-            for c in new_features:
-                if c not in df.columns:
-                    df[c] = df_pca_temp[c]
-            features = new_features
-            del df_pca_temp
-            import gc
-            gc.collect()
+            df_train, df_test, pca_model_data = apply_pca_orthogonalization(
+                df_train, df_test, target_col='Target', add_log=add_log
+            )
+            # Reconstruct the feature list
+            features = [c for c in df_train.columns if c not in ['Target', 'Target_Direction', 'Target_SL', 'Target_TP']]
 
         # Apply SHAP-based smart feature selection to filter out noise
         if config.get("apply_shap_selection", True) and not (is_fine_tune or is_auto_resume):
             from app.services.ml_utils import apply_shap_feature_selection
-            df_shap_temp = df[features + ['Target']].copy()
             is_clf = (prediction_target == "classification" or prediction_target == "advanced_setup")
-            target_col = 'Target'
             shap_variance = float(config.get("shap_variance_threshold", 0.95))
             
-            df_shap_temp, selected_features = apply_shap_feature_selection(
-                df_shap_temp, 
-                target_col=target_col, 
+            target_col_shap = 'Target' if prediction_target != "advanced_setup" else 'Target_Direction'
+            cols_to_keep = features + [target_col_shap]
+            df_train_shap = df_train[cols_to_keep].copy()
+            
+            df_train_shap, selected_features = apply_shap_feature_selection(
+                df_train_shap, 
+                target_col=target_col_shap, 
                 cumulative_importance=shap_variance,
                 is_classification=is_clf, 
                 add_log=add_log
             )
             features = selected_features
-            del df_shap_temp
             import gc
+            del df_train_shap
             gc.collect()
 
         # Apply Auto Feature Selection (Phase 4 Hybrid RF+MI Ranking)
         if config.get("auto_feature_selection", True) and not (is_fine_tune or is_auto_resume):
             from app.services.ml_utils import apply_auto_feature_selection
-            df_auto_temp = df[features + ['Target']].copy()
             is_clf = (prediction_target == "classification" or prediction_target == "advanced_setup")
-            target_col = 'Target'
             top_n_features = int(config.get("auto_feature_count", 50))
+            target_col_auto = 'Target' if prediction_target != "advanced_setup" else 'Target_Direction'
             
-            df_auto_temp, selected_features = apply_auto_feature_selection(
-                df_auto_temp,
-                target_col=target_col,
+            cols_to_keep = features + [target_col_auto]
+            df_train_auto = df_train[cols_to_keep].copy()
+            
+            df_train_auto, selected_features = apply_auto_feature_selection(
+                df_train_auto,
+                target_col=target_col_auto,
                 top_n=top_n_features,
                 is_classification=is_clf,
                 add_log=add_log
             )
             features = selected_features
-            del df_auto_temp
             import gc
+            del df_train_auto
             gc.collect()
 
         # Ensure features are saved to config again after advanced filtering
@@ -1394,11 +1419,15 @@ def train_model_task(job_id: str, db: Session):
             job.config = current_config
             db.commit()
             
-        X = df[features].values
+        X_train_final = df_train[features].values
+        X_test_final = df_test[features].values
+        
         if prediction_target == "advanced_setup":
-            y = df[['Target_Direction', 'Target_SL', 'Target_TP']].values
+            y_train_final = df_train[['Target_Direction', 'Target_SL', 'Target_TP']].values
+            y_test_final = df_test[['Target_Direction', 'Target_SL', 'Target_TP']].values
         else:
-            y = df['Target'].values
+            y_train_final = df_train['Target'].values
+            y_test_final = df_test['Target'].values
         
         is_multi_output = (prediction_target == "advanced_setup")
         scaling_method = config.get("scaling_method", "none")
@@ -1418,38 +1447,39 @@ def train_model_task(job_id: str, db: Session):
         scaler_y = MinMaxScaler() if scaling_method != "none" else None
         
         if scaler_x is not None:
-            X_scaled = scaler_x.fit_transform(X)
+            X_train = scaler_x.fit_transform(X_train_final)
+            X_test = scaler_x.transform(X_test_final)
         else:
-            X_scaled = X
+            X_train = X_train_final
+            X_test = X_test_final
         
         prediction_target_early = config.get("prediction_target", "classification")
         if prediction_target_early == "classification":
-            # FIX: Classification labels must NOT be scaled.
-            y_scaled = y.reshape(-1, 1).astype(int)
-            scaler_y = None  # no y scaler needed for classification
+            y_train = y_train_final.reshape(-1, 1).astype(int)
+            y_test = y_test_final.reshape(-1, 1).astype(int)
+            scaler_y = None
         elif is_multi_output:
             if scaler_y is not None:
-                y_scaled = scaler_y.fit_transform(y)
+                y_train = scaler_y.fit_transform(y_train_final)
+                y_test = scaler_y.transform(y_test_final)
             else:
-                y_scaled = y
+                y_train = y_train_final
+                y_test = y_test_final
         else:
             if scaler_y is not None:
-                y_scaled = scaler_y.fit_transform(y.reshape(-1, 1))
+                y_train = scaler_y.fit_transform(y_train_final.reshape(-1, 1))
+                y_test = scaler_y.transform(y_test_final.reshape(-1, 1))
             else:
-                y_scaled = y.reshape(-1, 1)
+                y_train = y_train_final.reshape(-1, 1)
+                y_test = y_test_final.reshape(-1, 1)
         
-        # FIX: Create a scaled DataFrame for Advanced ML Engine
-        df_scaled = df.copy()
-        df_scaled[features] = X_scaled
-        
+        # We need df_scaled for saving the DVC snapshot
+        df_scaled = pd.concat([df_train, df_test])
+        df_scaled[features] = np.vstack((X_train, X_test))
         if is_multi_output:
-            df_scaled['Target_Direction'] = y_scaled[:, 0]
-            df_scaled['Target_SL'] = y_scaled[:, 1]
-            df_scaled['Target_TP'] = y_scaled[:, 2]
+            df_scaled[['Target_Direction', 'Target_SL', 'Target_TP']] = np.vstack((y_train, y_test))
         else:
-            df_scaled['Target'] = y_scaled.ravel()
-        
-        X_train, X_test, y_train, y_test = apply_data_split(X_scaled, y_scaled, config, add_log)
+            df_scaled['Target'] = np.vstack((y_train, y_test)).ravel()
         
         # ── Walk-Forward Cross-Validation (ALL model types) ──────────────────
         # Runs BEFORE SMOTE to prevent data leakage. Results stored in cv_result for later save.
@@ -2869,7 +2899,7 @@ def train_model_task(job_id: str, db: Session):
             db.flush()
             
             # Add version pointing to model
-            # ── Fix 1: Save Scaler ────────────────────────────────────────────────
+            # ── Fix 1: Save Scaler & PCA ────────────────────────────────────────────────
             scaler_save_path = os.path.join(model_dir, f"scaler_{job.id}.pkl")
             try:
                 if scaler_x is not None:
@@ -2879,8 +2909,13 @@ def train_model_task(job_id: str, db: Session):
                     # Save a placeholder string to indicate 'none' scaling
                     joblib.dump("none", scaler_save_path)
                     add_log(f"✅ Scaler config saved (none) to: {scaler_save_path}")
+                
+                if pca_model_data is not None:
+                    pca_save_path = os.path.join(model_dir, f"pca_{job.id}.pkl")
+                    joblib.dump(pca_model_data, pca_save_path)
+                    add_log(f"✅ PCA model saved to: {pca_save_path}")
             except Exception as _sc_ex:
-                add_log(f"⚠️ Scaler save failed (non-critical): {_sc_ex}")
+                add_log(f"⚠️ Scaler/PCA save failed (non-critical): {_sc_ex}")
             db_version = models.ModelVersion(
                 id=version_id,
                 model_id=registry_id,
@@ -2902,13 +2937,18 @@ def train_model_task(job_id: str, db: Session):
             
         job.output_model_id = registry_id
 
-        # ── Fix 1: Save Scaler ────────────────────────────────────────────────
+        # ── Fix 1: Save Scaler & PCA ────────────────────────────────────────────────
         try:
             scaler_save_path = model_path.replace('.pkl', '.scaler').replace('.pt', '.scaler').replace('.zip', '.scaler')
             joblib.dump(scaler_x, scaler_save_path)
             add_log(f"✅ Scaler saved to: {scaler_save_path}")
+            
+            if pca_model_data is not None:
+                pca_save_path = model_path.replace('.pkl', '.pca').replace('.pt', '.pca').replace('.zip', '.pca')
+                joblib.dump(pca_model_data, pca_save_path)
+                add_log(f"✅ PCA model saved to: {pca_save_path}")
         except Exception as _sc_ex:
-            add_log(f"⚠️ Scaler save failed (non-critical): {_sc_ex}")
+            add_log(f"⚠️ Scaler/PCA save failed (non-critical): {_sc_ex}")
             scaler_save_path = None
 
         # ── Fix 1 + 2: Save enriched metadata ────────────────────────────────

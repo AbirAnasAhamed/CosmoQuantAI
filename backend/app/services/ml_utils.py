@@ -493,11 +493,12 @@ def apply_data_cleaning(df, config, add_log):
         
     return df
 
-def apply_pca_orthogonalization(df, target_col='target', correlation_threshold=0.95, variance_threshold=0.95, add_log=print):
+def apply_pca_orthogonalization(df_train, df_test=None, target_col='Target', correlation_threshold=0.95, variance_threshold=0.95, add_log=print):
     """
-    Tier-1 Hedge Fund Collinearity Handling: 
+    Tier-1 Hedge Fund Collinearity Handling (Data Leakage Free): 
     Instead of dropping highly correlated features, this function uses PCA to compress them 
     into orthogonal (uncorrelated) components, preserving hidden signals.
+    Fits on train data, transforms on train and test.
     """
     import numpy as np
     import pandas as pd
@@ -507,13 +508,13 @@ def apply_pca_orthogonalization(df, target_col='target', correlation_threshold=0
     add_log(f"Scanning for collinear features (Threshold: {correlation_threshold})...")
     
     # Isolate feature columns (exclude target)
-    feature_cols = [c for c in df.columns if c != target_col]
+    feature_cols = [c for c in df_train.columns if c != target_col]
     
     if not feature_cols:
-        return df
+        return df_train, df_test, None
         
-    # Calculate correlation matrix
-    corr_matrix = df[feature_cols].corr().abs()
+    # Calculate correlation matrix on training data only
+    corr_matrix = df_train[feature_cols].corr().abs()
     
     # Find features that are highly correlated
     upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
@@ -531,37 +532,49 @@ def apply_pca_orthogonalization(df, target_col='target', correlation_threshold=0
     
     if not to_compress:
         add_log("No highly collinear features found. Skipping PCA compression.")
-        return df
+        return df_train, df_test, None
         
     add_log(f"Found {len(to_compress)} highly collinear features. Applying PCA Compression (Target Variance: {variance_threshold*100}%)...")
     
-    # Extract data to compress
-    X_compress = df[to_compress].fillna(0)
-    
-    # Standardize before PCA
+    # Fit and transform on train
+    X_compress_train = df_train[to_compress].fillna(0)
     scaler = StandardScaler()
-    X_scaled = scaler.fit_transform(X_compress)
+    X_scaled_train = scaler.fit_transform(X_compress_train)
     
-    # Apply PCA
     pca = PCA(n_components=variance_threshold)
-    X_pca = pca.fit_transform(X_scaled)
+    X_pca_train = pca.fit_transform(X_scaled_train)
     
-    n_components = X_pca.shape[1]
+    n_components = X_pca_train.shape[1]
     add_log(f"Compressed {len(to_compress)} features into {n_components} orthogonal principal components.")
     
-    # Create DataFrame with new components
     pca_cols = [f"PCA_Comp_{i+1}" for i in range(n_components)]
-    df_pca = pd.DataFrame(X_pca, columns=pca_cols, index=df.index)
+    df_pca_train = pd.DataFrame(X_pca_train, columns=pca_cols, index=df_train.index)
+    df_train_reduced = df_train.drop(columns=to_compress)
+    df_train_final = pd.concat([df_train_reduced, df_pca_train], axis=1)
     
-    # Drop original correlated features and concat new PCA components
-    df_reduced = df.drop(columns=to_compress)
-    df_final = pd.concat([df_reduced, df_pca], axis=1)
+    # Transform on test
+    df_test_final = None
+    if df_test is not None:
+        X_compress_test = df_test[to_compress].fillna(0)
+        X_scaled_test = scaler.transform(X_compress_test)
+        X_pca_test = pca.transform(X_scaled_test)
+        
+        df_pca_test = pd.DataFrame(X_pca_test, columns=pca_cols, index=df_test.index)
+        df_test_reduced = df_test.drop(columns=to_compress)
+        df_test_final = pd.concat([df_test_reduced, df_pca_test], axis=1)
+        
+    pca_model_data = {
+        'scaler': scaler,
+        'pca': pca,
+        'to_compress': to_compress,
+        'pca_cols': pca_cols
+    }
     
     import gc
-    del X_compress, X_scaled, corr_matrix, upper
+    del X_compress_train, X_scaled_train, corr_matrix, upper
     gc.collect()
     
-    return df_final
+    return df_train_final, df_test_final, pca_model_data
 
 def apply_shap_feature_selection(df, target_col='Target', top_k=None, cumulative_importance=0.95, is_classification=True, add_log=print):
     """

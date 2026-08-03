@@ -245,7 +245,9 @@ class ForexMLTrainingEngine:
                 from app.services.ml_utils import apply_pca_orthogonalization
                 target_col_temp = 'Target_Direction' if is_multi_output else 'target'
                 df_pca_temp = df[features + [target_col_temp]].copy()
-                df_pca_temp = apply_pca_orthogonalization(df_pca_temp, target_col=target_col_temp, add_log=self._log)
+                df_pca_temp, _, _ = apply_pca_orthogonalization(
+                    df_pca_temp, None, target_col=target_col_temp, add_log=self._log
+                )
                 
                 new_features = [c for c in df_pca_temp.columns if c != target_col_temp]
                 for c in new_features:
