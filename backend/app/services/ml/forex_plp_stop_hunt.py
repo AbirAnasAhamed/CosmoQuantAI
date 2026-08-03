@@ -48,10 +48,10 @@ def generate_plp_stop_hunt_features(df: pd.DataFrame, selected_features: List[st
         df['retail_trap_indicator_proxy'] = (spread > spread.rolling(20).mean()).astype(int) * (df['bid_vol1'] < df['bid_vol2']).astype(int)
 
     if 'high_frequency_hunt_ratio_proxy' in selected_features and mid is not None:
-        df['high_frequency_hunt_ratio_proxy'] = mid.rolling(10).apply(lambda x: sum(np.diff(np.sign(np.diff(x))) != 0)).fillna(0)
+        df['high_frequency_hunt_ratio_proxy'] = mid.rolling(10).apply(lambda x: sum(np.diff(np.sign(np.diff(x))) != 0)).ffill().fillna(0)
 
     if 'sweep_efficiency_score_proxy' in selected_features and mid is not None:
-        df['sweep_efficiency_score_proxy'] = (abs(mid.diff()) / total_vol.diff().abs().replace(0, 1e-9)).fillna(0)
+        df['sweep_efficiency_score_proxy'] = (abs(mid.diff()) / total_vol.diff().abs().replace(0, 1e-9)).ffill().fillna(0)
 
     if 'low_latency_sweep_detection_proxy' in selected_features and 'bid_vol3' in df.columns:
         df['low_latency_sweep_detection_proxy'] = ((df['bid_vol1'] == 0) & (df['bid_vol2'] == 0)).astype(int)
@@ -60,18 +60,18 @@ def generate_plp_stop_hunt_features(df: pd.DataFrame, selected_features: List[st
         df['wash_trade_sweep_detection_proxy'] = ((df['bid_vol1'].diff() > 0) & (mid.diff() == 0)).astype(int)
 
     if 'institutional_footprint_masking_proxy' in selected_features and 'bid_vol1' in df.columns:
-        df['institutional_footprint_masking_proxy'] = df['bid_vol1'].rolling(10).var().fillna(0) / (total_vol.rolling(10).var() + 1e-9)
+        df['institutional_footprint_masking_proxy'] = df['bid_vol1'].rolling(10).var().ffill().fillna(0) / (total_vol.rolling(10).var() + 1e-9)
 
     if 'fakeout_velocity_acceleration_proxy' in selected_features and mid is not None:
-        df['fakeout_velocity_acceleration_proxy'] = mid.diff().diff().abs().fillna(0)
+        df['fakeout_velocity_acceleration_proxy'] = mid.diff().diff().abs().ffill().fillna(0)
 
     if 'stop_hunt_asymmetry_proxy' in selected_features and 'bid_vol1' in df.columns:
-        df['stop_hunt_asymmetry_proxy'] = (df['bid_vol1'].diff().abs() - df['ask_vol1'].diff().abs()).fillna(0)
+        df['stop_hunt_asymmetry_proxy'] = (df['bid_vol1'].diff().abs() - df['ask_vol1'].diff().abs()).ffill().fillna(0)
 
     if 'retail_panic_sweep_proxy' in selected_features and 'bid1' in df.columns:
         df['retail_panic_sweep_proxy'] = ((spread > spread.rolling(20).mean() * 2) & (total_vol < total_vol.rolling(20).mean() * 0.5)).astype(int)
 
     if 'algo_hunt_intensity_proxy' in selected_features and 'bid_vol1' in df.columns:
-        df['algo_hunt_intensity_proxy'] = (df['bid_vol1'].diff().abs() + df['ask_vol1'].diff().abs()).rolling(5).mean().fillna(0)
+        df['algo_hunt_intensity_proxy'] = (df['bid_vol1'].diff().abs() + df['ask_vol1'].diff().abs()).rolling(5).mean().ffill().fillna(0)
 
     return df

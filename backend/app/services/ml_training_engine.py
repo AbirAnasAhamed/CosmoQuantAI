@@ -1235,11 +1235,24 @@ def train_model_task(job_id: str, db: Session):
         set_progress(30.0)
         from sklearn.preprocessing import MinMaxScaler, StandardScaler, RobustScaler
         
-
-        # FIX: Ensure no NaNs or Infs exist from alternative data
+        # FIX: Ensure no Infs exist
         df.replace([np.inf, -np.inf], np.nan, inplace=True)
-        df.dropna(inplace=True)
         
+        # ── MISSING DATA THRESHOLD FILTER ──
+        missing_threshold = config.get("missing_data_threshold")
+        if missing_threshold is not None and not (is_fine_tune or is_auto_resume):
+            from app.services.ml_utils import apply_missing_data_threshold
+            naturally_zero = ['liquidation_volume', 'spread', 'volume', 'buy_volume', 'sell_volume', 'trade_count', 'obi']
+            df, features = apply_missing_data_threshold(
+                df=df, 
+                threshold=float(missing_threshold), 
+                naturally_zero_features=naturally_zero, 
+                add_log=add_log
+            )
+
+        # Drop any remaining rows with NaNs after dropping bad columns
+        df.dropna(inplace=True)
+
         # ── GLOBAL FRACTIONAL DIFFERENCING ──
         if config.get("fractional_diff", False):
             d_val = config.get("fractional_d_value", 0.5)
@@ -1316,7 +1329,71 @@ def train_model_task(job_id: str, db: Session):
             opposite_label = 1 if df['Target'].iloc[0] == 0 else 0
             df.iloc[0, df.columns.get_loc('Target')] = opposite_label
             df.iloc[-1, df.columns.get_loc('Target')] = opposite_label
-        
+
+        # ── ADVANCED FEATURE ENGINEERING (PCA & SHAP) ──
+        # Apply PCA Orthogonalization to handle collinearity without data loss
+        if config.get("apply_pca_collinearity", True) and not (is_fine_tune or is_auto_resume):
+            from app.services.ml_utils import apply_pca_orthogonalization
+            df_pca_temp = df[features + ['Target']].copy()
+            df_pca_temp = apply_pca_orthogonalization(df_pca_temp, target_col='Target', add_log=add_log)
+            
+            # Reconstruct the feature list and update main dataframe
+            new_features = [c for c in df_pca_temp.columns if c != 'Target']
+            for c in new_features:
+                if c not in df.columns:
+                    df[c] = df_pca_temp[c]
+            features = new_features
+            del df_pca_temp
+            import gc
+            gc.collect()
+
+        # Apply SHAP-based smart feature selection to filter out noise
+        if config.get("apply_shap_selection", True) and not (is_fine_tune or is_auto_resume):
+            from app.services.ml_utils import apply_shap_feature_selection
+            df_shap_temp = df[features + ['Target']].copy()
+            is_clf = (prediction_target == "classification" or prediction_target == "advanced_setup")
+            target_col = 'Target'
+            shap_variance = float(config.get("shap_variance_threshold", 0.95))
+            
+            df_shap_temp, selected_features = apply_shap_feature_selection(
+                df_shap_temp, 
+                target_col=target_col, 
+                cumulative_importance=shap_variance,
+                is_classification=is_clf, 
+                add_log=add_log
+            )
+            features = selected_features
+            del df_shap_temp
+            import gc
+            gc.collect()
+
+        # Apply Auto Feature Selection (Phase 4 Hybrid RF+MI Ranking)
+        if config.get("auto_feature_selection", True) and not (is_fine_tune or is_auto_resume):
+            from app.services.ml_utils import apply_auto_feature_selection
+            df_auto_temp = df[features + ['Target']].copy()
+            is_clf = (prediction_target == "classification" or prediction_target == "advanced_setup")
+            target_col = 'Target'
+            top_n_features = int(config.get("auto_feature_count", 50))
+            
+            df_auto_temp, selected_features = apply_auto_feature_selection(
+                df_auto_temp,
+                target_col=target_col,
+                top_n=top_n_features,
+                is_classification=is_clf,
+                add_log=add_log
+            )
+            features = selected_features
+            del df_auto_temp
+            import gc
+            gc.collect()
+
+        # Ensure features are saved to config again after advanced filtering
+        current_config = dict(job.config) if job.config else {}
+        if current_config.get("features") != features:
+            current_config["features"] = features
+            job.config = current_config
+            db.commit()
+            
         X = df[features].values
         if prediction_target == "advanced_setup":
             y = df[['Target_Direction', 'Target_SL', 'Target_TP']].values

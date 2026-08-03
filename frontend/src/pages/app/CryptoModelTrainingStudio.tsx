@@ -108,6 +108,12 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
     const [useClusteredImportance, setUseClusteredImportance] = useState(false);
     const [enableAdversarial, setEnableAdversarial] = useState(false);
     const [adversarialEpsilon, setAdversarialEpsilon] = useState(0.01);
+    const [applyPcaCollinearity, setApplyPcaCollinearity] = useState(true);
+    const [applyShapSelection, setApplyShapSelection] = useState(true);
+    const [shapVarianceThreshold, setShapVarianceThreshold] = useState(0.95);
+    const [missingDataThreshold, setMissingDataThreshold] = useState(0.20);
+    const [autoFeatureSelection, setAutoFeatureSelection] = useState(true);
+    const [autoFeatureCount, setAutoFeatureCount] = useState(50);
     
     // AutoML States
     const [useAutoML, setUseAutoML] = useState(false);
@@ -682,8 +688,14 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                     resample_l2: dataSource === 'hybrid_deep' ? isResampleL2 : (dataSource === 'l2_orderbook' ? (l2ProcessingMode === 'bars') : (dataSource === 'hybrid' ? true : undefined)),
                     prediction_target: predictionTarget,
                     missing_data_strategy: missingDataStrategy,
+                    missing_data_threshold: missingDataThreshold,
+                    auto_feature_selection: autoFeatureSelection,
+                    auto_feature_count: autoFeatureCount,
                     outlier_removal: outlierRemoval,
                     scaling_method: scalingMethod,
+                    apply_pca_collinearity: applyPcaCollinearity,
+                    apply_shap_selection: applyShapSelection,
+                    shap_variance_threshold: shapVarianceThreshold,
                     fractional_diff: fractionalDiff,
                     fractional_d_value: fractionalDValue,
                     fee_threshold: feeThreshold,
@@ -1079,6 +1091,106 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                                     <p className="text-[10px] text-slate-500 mt-1.5 font-medium leading-tight">
                                         💡 Note: Deep Learning models use MinMax automatically if none is selected.
                                     </p>
+                                </div>
+                                
+                                {/* 🚀 Smart Feature Selection (Phase 3) */}
+                                <div className="p-3 bg-purple-500/5 border border-purple-500/20 rounded-xl space-y-3">
+                                    <h4 className="text-xs font-bold text-purple-400 flex items-center justify-between">
+                                        <span className="flex items-center gap-2"><Target className="w-4 h-4" /> Smart Feature Selection</span>
+                                        <button
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                setApplyPcaCollinearity(true);
+                                                setApplyShapSelection(true);
+                                                setShapVarianceThreshold(0.95);
+                                            }}
+                                            className="text-[10px] px-2 py-1 bg-purple-500 hover:bg-purple-400 text-white rounded font-bold shadow-lg shadow-purple-500/30 transition-all"
+                                        >
+                                            Auto-Optimize
+                                        </button>
+                                    </h4>
+                                    
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <span className="text-[11px] font-bold text-slate-300 block">Collinearity Filter (PCA)</span>
+                                            <span className="text-[9px] text-slate-500">Drops features with &gt;95% correlation to reduce noise.</span>
+                                        </div>
+                                        <button
+                                            onClick={(e) => { e.preventDefault(); setApplyPcaCollinearity(!applyPcaCollinearity); }}
+                                            className={`w-10 h-5 rounded-full transition-colors relative ${applyPcaCollinearity ? 'bg-purple-500' : 'bg-slate-700'}`}
+                                        >
+                                            <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-0.5 transition-transform ${applyPcaCollinearity ? 'translate-x-5.5 left-0.5' : 'translate-x-0.5'}`} style={{ transform: applyPcaCollinearity ? 'translateX(22px)' : 'translateX(2px)' }} />
+                                        </button>
+                                    </div>
+                                    
+                                    <div className="flex items-center justify-between">
+                                        <div>
+                                            <span className="text-[11px] font-bold text-slate-300 block">SHAP Value Extraction</span>
+                                            <span className="text-[9px] text-slate-500">Trains lightweight XGBoost to pick features with predictive power.</span>
+                                        </div>
+                                        <button
+                                            onClick={(e) => { e.preventDefault(); setApplyShapSelection(!applyShapSelection); }}
+                                            className={`w-10 h-5 rounded-full transition-colors relative ${applyShapSelection ? 'bg-purple-500' : 'bg-slate-700'}`}
+                                        >
+                                            <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-0.5 transition-transform ${applyShapSelection ? 'translate-x-5.5 left-0.5' : 'translate-x-0.5'}`} style={{ transform: applyShapSelection ? 'translateX(22px)' : 'translateX(2px)' }} />
+                                        </button>
+                                    </div>
+
+                                    {applyShapSelection && (
+                                        <div className="pt-2 border-t border-purple-500/10">
+                                            <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+                                                <span>Variance Explained Threshold</span>
+                                                <span className="text-purple-400 font-bold">{(shapVarianceThreshold * 100).toFixed(0)}%</span>
+                                            </div>
+                                            <input 
+                                                type="range" min="0.50" max="0.99" step="0.01"
+                                                value={shapVarianceThreshold} 
+                                                onChange={(e) => setShapVarianceThreshold(parseFloat(e.target.value))}
+                                                className="w-full accent-purple-500 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+                                            />
+                                        </div>
+                                    )}
+
+                                    <div className="pt-2 border-t border-purple-500/10">
+                                        <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+                                            <span>Missing Data Dropout Threshold</span>
+                                            <span className="text-purple-400 font-bold">{(missingDataThreshold * 100).toFixed(0)}%</span>
+                                        </div>
+                                        <input 
+                                            type="range" min="0.05" max="0.50" step="0.01"
+                                            value={missingDataThreshold} 
+                                            onChange={(e) => setMissingDataThreshold(parseFloat(e.target.value))}
+                                            className="w-full accent-purple-500 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+                                        />
+                                        <p className="text-[9px] text-slate-500 mt-1">Drops features with &gt;{(missingDataThreshold * 100).toFixed(0)}% missing data (protects sparse features like volume).</p>
+                                    </div>
+                                    <div className="pt-2 border-t border-purple-500/10 flex items-center justify-between">
+                                        <div>
+                                            <span className="text-[10px] text-slate-400 block mb-0.5">Auto Feature Selection</span>
+                                            <span className="text-[9px] text-slate-500 block">RF+MI Hybrid Rank (Prevents Overfitting)</span>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            onClick={() => setAutoFeatureSelection(!autoFeatureSelection)}
+                                            className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors focus:outline-none ${autoFeatureSelection ? 'bg-purple-500' : 'bg-slate-700'}`}
+                                        >
+                                            <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${autoFeatureSelection ? 'translate-x-4' : 'translate-x-1'}`} />
+                                        </button>
+                                    </div>
+                                    {autoFeatureSelection && (
+                                        <div className="pt-1">
+                                            <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+                                                <span>Target Feature Count</span>
+                                                <span className="text-purple-400 font-bold">{autoFeatureCount}</span>
+                                            </div>
+                                            <input 
+                                                type="range" min="10" max="150" step="10"
+                                                value={autoFeatureCount} 
+                                                onChange={(e) => setAutoFeatureCount(parseInt(e.target.value))}
+                                                className="w-full accent-purple-500 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+                                            />
+                                        </div>
+                                    )}
                                 </div>
                                 
                                 <FractionalDiffConfig 

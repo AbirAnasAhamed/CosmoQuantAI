@@ -2356,7 +2356,7 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
             <MLPredictionRenderer 
                 series={candlestickSeriesRef.current} 
                 predictionResult={predictionResult} 
-                currentCandleTime={lastCandleRef.current?.time}
+                currentCandleTime={lastCandleRef.current?.time as any}
                 onSetMarker={(marker) => {
                     mlPredictionMarkersRef.current = marker ? [marker] : [];
                     safeSetMarkers();

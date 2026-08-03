@@ -79,6 +79,18 @@ export interface ForexCoreParametersProps {
     setEnableMetaLabeling: (v: boolean) => void;
     featureSelectionMethod: string;
     setFeatureSelectionMethod: (v: string) => void;
+    applyPcaCollinearity: boolean;
+    setApplyPcaCollinearity: (v: boolean) => void;
+    applyShapSelection: boolean;
+    setApplyShapSelection: (v: boolean) => void;
+    shapVarianceThreshold: number;
+    setShapVarianceThreshold: (v: number) => void;
+    missingDataThreshold: number;
+    setMissingDataThreshold: (v: number) => void;
+    autoFeatureSelection: boolean;
+    setAutoFeatureSelection: (v: boolean) => void;
+    autoFeatureCount: number;
+    setAutoFeatureCount: (v: number) => void;
 
     // Dataset Split
     splitMethod: string;
@@ -322,6 +334,106 @@ export const ForexCoreParametersPanel: React.FC<ForexCoreParametersProps> = (pro
                             setFeatureSelectionMethod={props.setFeatureSelectionMethod}
                             isTraining={props.isTraining}
                         />
+
+                        {/* 🚀 Smart Feature Selection (Phase 3) */}
+                        <div className="p-3 bg-teal-500/5 border border-teal-500/20 rounded-xl space-y-3 mt-4">
+                            <h4 className="text-xs font-bold text-teal-400 flex items-center justify-between">
+                                <span className="flex items-center gap-2">Smart Feature Selection</span>
+                                <button
+                                    onClick={(e) => {
+                                        e.preventDefault();
+                                        props.setApplyPcaCollinearity(true);
+                                        props.setApplyShapSelection(true);
+                                        props.setShapVarianceThreshold(0.95);
+                                    }}
+                                    className="text-[10px] px-2 py-1 bg-teal-500 hover:bg-teal-400 text-white rounded font-bold shadow-lg shadow-teal-500/30 transition-all"
+                                >
+                                    Auto-Optimize
+                                </button>
+                            </h4>
+                            
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <span className="text-[11px] font-bold text-slate-300 block">Collinearity Filter (PCA)</span>
+                                    <span className="text-[9px] text-slate-500">Drops features with &gt;95% correlation to reduce noise.</span>
+                                </div>
+                                <button
+                                    onClick={(e) => { e.preventDefault(); props.setApplyPcaCollinearity(!props.applyPcaCollinearity); }}
+                                    className={`w-10 h-5 rounded-full transition-colors relative ${props.applyPcaCollinearity ? 'bg-teal-500' : 'bg-slate-700'}`}
+                                >
+                                    <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-0.5 transition-transform ${props.applyPcaCollinearity ? 'translate-x-5.5 left-0.5' : 'translate-x-0.5'}`} style={{ transform: props.applyPcaCollinearity ? 'translateX(22px)' : 'translateX(2px)' }} />
+                                </button>
+                            </div>
+                            
+                            <div className="flex items-center justify-between">
+                                <div>
+                                    <span className="text-[11px] font-bold text-slate-300 block">SHAP Value Extraction</span>
+                                    <span className="text-[9px] text-slate-500">Trains lightweight XGBoost to pick features with predictive power.</span>
+                                </div>
+                                <button
+                                    onClick={(e) => { e.preventDefault(); props.setApplyShapSelection(!props.applyShapSelection); }}
+                                    className={`w-10 h-5 rounded-full transition-colors relative ${props.applyShapSelection ? 'bg-teal-500' : 'bg-slate-700'}`}
+                                >
+                                    <div className={`w-3.5 h-3.5 bg-white rounded-full absolute top-0.5 transition-transform ${props.applyShapSelection ? 'translate-x-5.5 left-0.5' : 'translate-x-0.5'}`} style={{ transform: props.applyShapSelection ? 'translateX(22px)' : 'translateX(2px)' }} />
+                                </button>
+                            </div>
+
+                            {props.applyShapSelection && (
+                                <div className="pt-2 border-t border-teal-500/10">
+                                    <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+                                        <span>Variance Explained Threshold</span>
+                                        <span className="text-teal-400 font-bold">{(props.shapVarianceThreshold * 100).toFixed(0)}%</span>
+                                    </div>
+                                    <input 
+                                        type="range" min="0.50" max="0.99" step="0.01"
+                                        value={props.shapVarianceThreshold} 
+                                        onChange={(e) => props.setShapVarianceThreshold(parseFloat(e.target.value))}
+                                        className="w-full accent-teal-500 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+                                    />
+                                </div>
+                            )}
+
+                            <div className="pt-2 border-t border-teal-500/10">
+                                <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+                                    <span>Missing Data Dropout Threshold</span>
+                                    <span className="text-teal-400 font-bold">{(props.missingDataThreshold * 100).toFixed(0)}%</span>
+                                </div>
+                                <input 
+                                    type="range" min="0.05" max="0.50" step="0.01"
+                                    value={props.missingDataThreshold} 
+                                    onChange={(e) => props.setMissingDataThreshold(parseFloat(e.target.value))}
+                                    className="w-full accent-teal-500 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+                                />
+                                <p className="text-[9px] text-slate-500 mt-1">Drops features with &gt;{(props.missingDataThreshold * 100).toFixed(0)}% missing data (protects sparse features like volume).</p>
+                            </div>
+                            <div className="pt-2 border-t border-teal-500/10 flex items-center justify-between">
+                                <div>
+                                    <span className="text-[10px] text-slate-400 block mb-0.5">Auto Feature Selection</span>
+                                    <span className="text-[9px] text-slate-500 block">RF+MI Hybrid Rank (Prevents Overfitting)</span>
+                                </div>
+                                <button
+                                    type="button"
+                                    onClick={() => props.setAutoFeatureSelection(!props.autoFeatureSelection)}
+                                    className={`relative inline-flex h-4 w-8 items-center rounded-full transition-colors focus:outline-none ${props.autoFeatureSelection ? 'bg-teal-500' : 'bg-slate-700'}`}
+                                >
+                                    <span className={`inline-block h-3 w-3 transform rounded-full bg-white transition-transform ${props.autoFeatureSelection ? 'translate-x-4' : 'translate-x-1'}`} />
+                                </button>
+                            </div>
+                            {props.autoFeatureSelection && (
+                                <div className="pt-1">
+                                    <div className="flex justify-between text-[10px] text-slate-400 mb-1">
+                                        <span>Target Feature Count</span>
+                                        <span className="text-teal-400 font-bold">{props.autoFeatureCount}</span>
+                                    </div>
+                                    <input 
+                                        type="range" min="10" max="150" step="10"
+                                        value={props.autoFeatureCount} 
+                                        onChange={(e) => props.setAutoFeatureCount(parseInt(e.target.value))}
+                                        className="w-full accent-teal-500 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+                                    />
+                                </div>
+                            )}
+                        </div>
                         
                         <DataAugmentationConfig
                             augmentationStrategy={props.augmentationStrategy}

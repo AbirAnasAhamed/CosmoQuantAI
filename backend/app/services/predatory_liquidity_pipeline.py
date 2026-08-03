@@ -48,17 +48,17 @@ def calculate_plp_features(df: pd.DataFrame, selected_features: list) -> pd.Data
     obi = df['obi'] if 'obi' in df.columns else pd.Series(0.0, index=df.index)
     
     # Rolling Volume averages for spikes
-    vol_mean_20 = qty.rolling(window=20, min_periods=1).mean()
-    vol_std_20 = qty.rolling(window=20, min_periods=1).std().fillna(1e-9)
+    vol_mean_20 = qty.rolling(window=20, min_periods=1).mean().ffill()
+    vol_std_20 = qty.rolling(window=20, min_periods=1).std().ffill().fillna(1e-9)
     
     # Rolling Price metrics
-    price_mean_20 = close.rolling(window=20, min_periods=1).mean()
-    price_std_20 = close.rolling(window=20, min_periods=1).std().fillna(1e-9)
+    price_mean_20 = close.rolling(window=20, min_periods=1).mean().ffill()
+    price_std_20 = close.rolling(window=20, min_periods=1).std().ffill().fillna(1e-9)
     returns = close.pct_change().fillna(0)
     
     # Rolling Spread metrics
-    spread_mean = spread.rolling(20, min_periods=1).mean()
-    spread_std = spread.rolling(20, min_periods=1).std().fillna(1e-9)
+    spread_mean = spread.rolling(20, min_periods=1).mean().ffill()
+    spread_std = spread.rolling(20, min_periods=1).std().ffill().fillna(1e-9)
     
     # ─────────────────────────────────────────────────────────────────────────
     # MODULE 1: Liquidity Cluster & Density Module
@@ -332,6 +332,11 @@ def calculate_plp_features(df: pd.DataFrame, selected_features: list) -> pd.Data
 
     # Clean up NaNs
     existing_cols = [c for c in selected_features if c in df.columns]
-    plp_df = df[existing_cols].replace([np.inf, -np.inf], np.nan).fillna(0)
+    plp_df = df[existing_cols].replace([np.inf, -np.inf], np.nan).ffill().fillna(0)
+    
+    # RAM Management
+    del df
+    import gc
+    gc.collect()
     
     return plp_df

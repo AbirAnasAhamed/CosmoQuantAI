@@ -20,12 +20,12 @@ def generate_plp_liquidity_cluster_features(df: pd.DataFrame, selected_features:
         
     if 'liquidation_density_z_score_proxy' in selected_features:
         z = (total_vol - total_vol.rolling(20).mean()) / total_vol.rolling(20).std().replace(0, np.nan)
-        df['liquidation_density_z_score_proxy'] = z.fillna(0)
+        df['liquidation_density_z_score_proxy'] = z.ffill().fillna(0)
         
     if 'leverage_washout_z_score_proxy' in selected_features and 'bid_vol1' in df.columns:
         washout = abs(df['bid_vol1'].diff().clip(upper=0)) + abs(df['ask_vol1'].diff().clip(upper=0))
         z_wash = (washout - washout.rolling(20).mean()) / washout.rolling(20).std().replace(0, np.nan)
-        df['leverage_washout_z_score_proxy'] = z_wash.fillna(0)
+        df['leverage_washout_z_score_proxy'] = z_wash.ffill().fillna(0)
 
     if 'high_leverage_cluster_proximity_proxy' in selected_features and 'bid1' in df.columns and 'bid5' in df.columns:
         df['high_leverage_cluster_proximity_proxy'] = (df['bid1'] - df['bid5']) / df['bid1']
@@ -45,25 +45,25 @@ def generate_plp_liquidity_cluster_features(df: pd.DataFrame, selected_features:
 
     if 'hidden_liquidity_absorption_proxy' in selected_features and 'bid1' in df.columns:
         price_var = ((df['bid1'] + df['ask1']) / 2).rolling(10).var().replace(0, 1e-9)
-        df['hidden_liquidity_absorption_proxy'] = (total_vol.rolling(10).mean() / price_var).fillna(0)
+        df['hidden_liquidity_absorption_proxy'] = (total_vol.rolling(10).mean() / price_var).ffill().fillna(0)
 
     if 'stale_liquidity_decay_proxy' in selected_features and deep_bids:
         decay = (df[deep_bids[0]].diff().clip(upper=0) + df[deep_asks[0]].diff().clip(upper=0)).abs()
-        df['stale_liquidity_decay_proxy'] = decay.rolling(5).mean().fillna(0)
+        df['stale_liquidity_decay_proxy'] = decay.rolling(5).mean().ffill().fillna(0)
 
     if 'cross_margin_cascade_risk_proxy' in selected_features and 'bid1' in df.columns:
         spread = df['ask1'] - df['bid1']
-        df['cross_margin_cascade_risk_proxy'] = spread.rolling(5).std().fillna(0) * total_vol
+        df['cross_margin_cascade_risk_proxy'] = spread.rolling(5).std().ffill().fillna(0) * total_vol
 
     if 'stealth_liquidation_proxies_proxy' in selected_features and 'bid_vol1' in df.columns:
         df['stealth_liquidation_proxies_proxy'] = df['bid_vol1'].diff().abs().rolling(3).sum() * (df['bid1'].diff() == 0).astype(int)
 
     if 'gamma_exposure_imbalance_proxy' in selected_features and 'bid_vol1' in df.columns:
-        df['gamma_exposure_imbalance_proxy'] = (df['bid_vol1'].diff().diff() - df['ask_vol1'].diff().diff()).fillna(0)
+        df['gamma_exposure_imbalance_proxy'] = (df['bid_vol1'].diff().diff() - df['ask_vol1'].diff().diff()).ffill().fillna(0)
 
     if 'zero_dte_options_proxy_pull' in selected_features and 'bid1' in df.columns:
         mid = (df['bid1'] + df['ask1']) / 2
-        mom = mid.diff(3).fillna(0)
+        mom = mid.diff(3).ffill().fillna(0)
         df['zero_dte_options_proxy_pull'] = mom * total_vol
 
     if 'retail_pain_threshold_proxy' in selected_features and 'bid1' in df.columns:
@@ -82,5 +82,8 @@ def generate_plp_liquidity_cluster_features(df: pd.DataFrame, selected_features:
 
     if 'leveraged_retail_skew_proxy' in selected_features and 'bid_vol1' in df.columns:
         df['leveraged_retail_skew_proxy'] = (df['bid_vol1'] - df['ask_vol1']) / (df['bid_vol1'] + df['ask_vol1'] + 1e-9)
+
+    import gc
+    gc.collect()
 
     return df

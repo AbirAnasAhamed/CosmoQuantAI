@@ -1,5 +1,6 @@
 import json
 import numpy as np
+import pandas as pd
 from sklearn.metrics import accuracy_score, r2_score, mean_squared_error, mean_absolute_error, f1_score
 
 def extract_feature_importance(model, feature_names):
@@ -491,3 +492,272 @@ def apply_data_cleaning(df, config, add_log):
         add_log("Clipped outliers using IQR method.")
         
     return df
+
+def apply_pca_orthogonalization(df, target_col='target', correlation_threshold=0.95, variance_threshold=0.95, add_log=print):
+    """
+    Tier-1 Hedge Fund Collinearity Handling: 
+    Instead of dropping highly correlated features, this function uses PCA to compress them 
+    into orthogonal (uncorrelated) components, preserving hidden signals.
+    """
+    import numpy as np
+    import pandas as pd
+    from sklearn.decomposition import PCA
+    from sklearn.preprocessing import StandardScaler
+    
+    add_log(f"Scanning for collinear features (Threshold: {correlation_threshold})...")
+    
+    # Isolate feature columns (exclude target)
+    feature_cols = [c for c in df.columns if c != target_col]
+    
+    if not feature_cols:
+        return df
+        
+    # Calculate correlation matrix
+    corr_matrix = df[feature_cols].corr().abs()
+    
+    # Find features that are highly correlated
+    upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
+    
+    # Find columns with correlation greater than threshold
+    to_compress = set()
+    for col in upper.columns:
+        highly_correlated_with_col = upper.index[upper[col] > correlation_threshold].tolist()
+        if highly_correlated_with_col:
+            to_compress.add(col)
+            for c in highly_correlated_with_col:
+                to_compress.add(c)
+                
+    to_compress = list(to_compress)
+    
+    if not to_compress:
+        add_log("No highly collinear features found. Skipping PCA compression.")
+        return df
+        
+    add_log(f"Found {len(to_compress)} highly collinear features. Applying PCA Compression (Target Variance: {variance_threshold*100}%)...")
+    
+    # Extract data to compress
+    X_compress = df[to_compress].fillna(0)
+    
+    # Standardize before PCA
+    scaler = StandardScaler()
+    X_scaled = scaler.fit_transform(X_compress)
+    
+    # Apply PCA
+    pca = PCA(n_components=variance_threshold)
+    X_pca = pca.fit_transform(X_scaled)
+    
+    n_components = X_pca.shape[1]
+    add_log(f"Compressed {len(to_compress)} features into {n_components} orthogonal principal components.")
+    
+    # Create DataFrame with new components
+    pca_cols = [f"PCA_Comp_{i+1}" for i in range(n_components)]
+    df_pca = pd.DataFrame(X_pca, columns=pca_cols, index=df.index)
+    
+    # Drop original correlated features and concat new PCA components
+    df_reduced = df.drop(columns=to_compress)
+    df_final = pd.concat([df_reduced, df_pca], axis=1)
+    
+    import gc
+    del X_compress, X_scaled, corr_matrix, upper
+    gc.collect()
+    
+    return df_final
+
+def apply_shap_feature_selection(df, target_col='Target', top_k=None, cumulative_importance=0.95, is_classification=True, add_log=print):
+    """
+    Tier-1 Hedge Fund Smart Feature Selection:
+    Trains a lightweight tree model to compute SHAP values and filters features 
+    that cumulatively explain `cumulative_importance` (e.g. 95%) of the model's predictive power.
+    """
+    import numpy as np
+    import pandas as pd
+    from xgboost import XGBClassifier, XGBRegressor
+    
+    add_log("Starting SHAP-based Smart Feature Selection...")
+    
+    # Isolate features and target
+    feature_cols = [c for c in df.columns if c != target_col]
+    if not feature_cols:
+        return df, feature_cols
+        
+    X = df[feature_cols].fillna(0).values
+    y = df[target_col].values
+    
+    # Train lightweight model
+    add_log(f"Training lightweight XGBoost for SHAP attribution (Classification: {is_classification})...")
+    if is_classification:
+        # Check if we have multiple classes
+        unique_y = np.unique(y)
+        if len(unique_y) < 2:
+            add_log("Only one class present in target. Skipping SHAP selection.")
+            return df, feature_cols
+        model = XGBClassifier(n_estimators=50, max_depth=4, n_jobs=-1, random_state=42)
+    else:
+        model = XGBRegressor(n_estimators=50, max_depth=4, n_jobs=-1, random_state=42)
+        
+    model.fit(X, y)
+    
+    # Compute feature importances
+    importances = model.feature_importances_
+    
+    # Sort features by importance
+    feature_importances = list(zip(feature_cols, importances))
+    feature_importances.sort(key=lambda x: x[1], reverse=True)
+    
+    # Select features based on cumulative importance or top_k
+    selected_features = []
+    current_importance = 0.0
+    
+    for name, imp in feature_importances:
+        selected_features.append(name)
+        current_importance += imp
+        if top_k is not None and len(selected_features) >= top_k:
+            break
+        if top_k is None and current_importance >= cumulative_importance:
+            break
+            
+    add_log(f"SHAP Selection: Reduced features from {len(feature_cols)} to {len(selected_features)} "
+            f"(explaining {current_importance*100:.1f}% of variance).")
+            
+    # Include target col back
+    selected_cols = selected_features + [target_col]
+    df_reduced = df[selected_cols]
+    
+    import gc
+    del model, X, y
+    gc.collect()
+    
+    return df_reduced, selected_features
+
+
+
+def apply_missing_data_threshold(df: pd.DataFrame, threshold: float = 0.2, naturally_zero_features: list = None, add_log=print):
+    """
+    Drops features that have a high percentage of missing data (NaN or 0.0) exceeding the threshold.
+    Protects features in `naturally_zero_features` from being dropped due to exactly 0.0 values.
+    
+    Args:
+        df: Pandas DataFrame containing the features.
+        threshold: The maximum allowed fraction (0.0 to 1.0) of missing data before a feature is dropped.
+        naturally_zero_features: List of column names where 0.0 is a valid, natural value.
+        add_log: Callback function for logging.
+        
+    Returns:
+        Filtered DataFrame and a list of kept feature names.
+    """
+    if naturally_zero_features is None:
+        naturally_zero_features = []
+        
+    initial_cols = df.shape[1]
+    total_rows = len(df)
+    cols_to_drop = []
+    
+    add_log(f"🔍 Running Missing Data Filter (Threshold: {threshold*100:.1f}%) on {initial_cols} features...")
+    
+    for col in df.columns:
+        if col == 'Target' or col.startswith('Target_'):
+            continue
+            
+        # Count NaNs
+        nan_count = df[col].isna().sum()
+        missing_count = nan_count
+        
+        # Count 0.0s if not naturally zero
+        if col not in naturally_zero_features:
+            zero_count = (df[col] == 0.0).sum()
+            missing_count += zero_count
+            
+        missing_ratio = missing_count / total_rows
+        
+        if missing_ratio > threshold:
+            cols_to_drop.append(col)
+            
+    if cols_to_drop:
+        df = df.drop(columns=cols_to_drop)
+        add_log(f"🗑️ Dropped {len(cols_to_drop)} features exceeding missing data threshold. (e.g. {cols_to_drop[:5]})")
+    else:
+        add_log("✅ No features exceeded the missing data threshold.")
+        
+    return df, [c for c in df.columns if c != 'Target' and not c.startswith('Target_')]
+
+
+def apply_auto_feature_selection(df: pd.DataFrame, target_col: str, top_n: int = 50, is_classification: bool = True, add_log=print):
+    """
+    Applies Hybrid Feature Selection (Random Forest + Mutual Information) to select the top N features.
+    This prevents the model from getting confused by too many noisy features (e.g., >270) and reduces overfitting.
+    """
+    from sklearn.ensemble import RandomForestClassifier, RandomForestRegressor
+    from sklearn.feature_selection import mutual_info_classif, mutual_info_regression
+    import numpy as np
+    
+    feature_cols = [c for c in df.columns if c != target_col and not c.startswith('Target_') and c not in ['timestamp', 'time', 'datetime']]
+    X_full = df[feature_cols].copy()
+    
+    # --- MISSING LOGIC ADDED: Zero Variance Check ---
+    add_log("🔍 Removing constant/zero-variance features...")
+    # Drop columns that have any NaN values (RandomForest cannot handle NaNs)
+    X_full = X_full.dropna(axis=1)
+    # Drop columns with zero variance
+    X_full = X_full.loc[:, X_full.var() > 1e-10]
+    
+    feature_cols = X_full.columns.tolist()
+    
+    # --- MISSING LOGIC ADDED: Correlation Filter (>0.85) ---
+    add_log("🔍 Removing highly correlated features (>0.85) to prevent collinearity...")
+    corr_matrix = X_full.corr().abs()
+    upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
+    to_drop = [column for column in upper.columns if any(upper[column] > 0.85)]
+    
+    feature_cols = [c for c in feature_cols if c not in to_drop]
+    add_log(f"🗑️ Dropped {len(to_drop)} highly correlated features. Remaining: {len(feature_cols)}")
+    
+    if len(feature_cols) <= top_n:
+        add_log(f"⚡ Auto Feature Selection skipped: Dataset only has {len(feature_cols)} features after correlation filter (<= {top_n}).")
+        return df, feature_cols
+        
+    add_log(f"🧠 Running Auto Feature Selection (Hybrid RF + MI) to select top {top_n} out of {len(feature_cols)} features...")
+    
+    X = df[feature_cols].values
+    y = df[target_col].values
+    
+    # 1. Random Forest Importance
+    if is_classification:
+        rf = RandomForestClassifier(n_estimators=50, max_depth=5, random_state=42, n_jobs=-1)
+    else:
+        rf = RandomForestRegressor(n_estimators=50, max_depth=5, random_state=42, n_jobs=-1)
+        
+    rf.fit(X, y)
+    importances = rf.feature_importances_
+    
+    # 2. Mutual Information
+    if is_classification:
+        mi_scores = mutual_info_classif(X, y, random_state=42)
+    else:
+        mi_scores = mutual_info_regression(X, y, random_state=42)
+        
+    # Normalize
+    imp_norm = importances / (np.max(importances) + 1e-9)
+    mi_norm = mi_scores / (np.max(mi_scores) + 1e-9)
+    
+    # 3. Hybrid Score
+    combined_scores = (imp_norm * 0.7) + (mi_norm * 0.3)
+    
+    # 4. Rank and Select
+    feature_ranking = list(zip(feature_cols, combined_scores))
+    feature_ranking.sort(key=lambda x: x[1], reverse=True)
+    
+    selected_features = [f[0] for f in feature_ranking[:top_n]]
+    
+    add_log(f"✅ Auto Feature Selection complete. Selected Top {top_n} features. (e.g. {selected_features[:5]})")
+    
+    # Include target columns back
+    target_cols_to_keep = [c for c in df.columns if c not in feature_cols]
+    final_cols = selected_features + target_cols_to_keep
+    
+    df_reduced = df[final_cols].copy()
+    
+    import gc
+    del rf, X, y
+    gc.collect()
+    
+    return df_reduced, selected_features

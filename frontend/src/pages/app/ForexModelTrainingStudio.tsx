@@ -41,6 +41,12 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
     const [useClusteredImportance, setUseClusteredImportance] = useState(false);
     const [enableAdversarial, setEnableAdversarial] = useState(false);
     const [adversarialEpsilon, setAdversarialEpsilon] = useState(0.01);
+    const [applyPcaCollinearity, setApplyPcaCollinearity] = useState(true);
+    const [applyShapSelection, setApplyShapSelection] = useState(true);
+    const [shapVarianceThreshold, setShapVarianceThreshold] = useState(0.95);
+    const [missingDataThreshold, setMissingDataThreshold] = useState(0.20);
+    const [autoFeatureSelection, setAutoFeatureSelection] = useState(true);
+    const [autoFeatureCount, setAutoFeatureCount] = useState(50);
     const [splitMethod, setSplitMethod] = useState('chronological');
     const [trainRatio, setTrainRatio] = useState(70);
     const [valRatio, setValRatio] = useState(15);
@@ -559,6 +565,12 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                     use_clustered_importance: useClusteredImportance,
                     enable_adversarial: enableAdversarial,
                     adversarial_epsilon: adversarialEpsilon,
+                    apply_pca_collinearity: applyPcaCollinearity,
+                    apply_shap_selection: applyShapSelection,
+                    shap_variance_threshold: shapVarianceThreshold,
+                    missing_data_threshold: missingDataThreshold,
+                    auto_feature_selection: autoFeatureSelection,
+                    auto_feature_count: autoFeatureCount,
                     split_method: splitMethod,
                     train_ratio: trainRatio,
                     val_ratio: valRatio,
@@ -738,6 +750,18 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                             setFeatureSelectionMethod={setFeatureSelectionMethod}
                             wfoWindows={wfoWindows}
                             setWfoWindows={setWfoWindows}
+                            applyPcaCollinearity={applyPcaCollinearity}
+                            setApplyPcaCollinearity={setApplyPcaCollinearity}
+                            applyShapSelection={applyShapSelection}
+                            setApplyShapSelection={setApplyShapSelection}
+                            shapVarianceThreshold={shapVarianceThreshold}
+                            setShapVarianceThreshold={setShapVarianceThreshold}
+                            missingDataThreshold={missingDataThreshold}
+                            setMissingDataThreshold={setMissingDataThreshold}
+                            autoFeatureSelection={autoFeatureSelection}
+                            setAutoFeatureSelection={setAutoFeatureSelection}
+                            autoFeatureCount={autoFeatureCount}
+                            setAutoFeatureCount={setAutoFeatureCount}
                         />
 
                         {/* COLUMN 2: Neural Architecture */}

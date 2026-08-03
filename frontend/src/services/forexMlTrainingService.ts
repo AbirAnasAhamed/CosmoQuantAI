@@ -32,6 +32,12 @@ export interface ForexTrainingConfig {
         scaling_method?: string;
         fractional_diff?: boolean;
         fractional_d_value?: number;
+        apply_pca_collinearity?: boolean;
+        apply_shap_selection?: boolean;
+        shap_variance_threshold?: number;
+        missing_data_threshold?: number;
+        auto_feature_selection?: boolean;
+        auto_feature_count?: number;
         augmentation_strategy?: string;
         augmentation_factor?: number;
         augmentation_samples?: number;

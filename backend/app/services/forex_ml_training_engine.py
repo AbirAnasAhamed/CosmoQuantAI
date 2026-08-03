@@ -223,10 +223,84 @@ class ForexMLTrainingEngine:
                 self._log(f"Fractional Differentiation complete. Shape: {df.shape}")
                 gc.collect()
 
+            # ── MISSING DATA THRESHOLD FILTER ──
+            missing_threshold = self.job.config.get("missing_data_threshold")
+            if missing_threshold is not None:
+                from app.services.ml_utils import apply_missing_data_threshold
+                naturally_zero = ['liquidation_volume', 'spread', 'volume', 'buy_volume', 'sell_volume', 'trade_count', 'obi', 'is_asian', 'is_london', 'is_ny', 'macro_risk_flag']
+                df, _ = apply_missing_data_threshold(
+                    df=df, 
+                    threshold=float(missing_threshold), 
+                    naturally_zero_features=naturally_zero, 
+                    add_log=self._log
+                )
+
             df.dropna(inplace=True)
             
             is_multi_output = (prediction_target == "advanced_setup")
-            features = [col for col in df.columns if col not in ['target', 'Target_Direction', 'Target_SL', 'Target_TP', 'open', 'high', 'low', 'close']]
+            features = [col for col in df.columns if col not in ['target', 'Target_Direction', 'Target_SL', 'Target_TP', 'open', 'high', 'low', 'close', 'tick_volume', 'time', 'timestamp']]
+            
+            # ── ADVANCED FEATURE ENGINEERING (PCA & SHAP) ──
+            if self.job.config.get("apply_pca_collinearity", True):
+                from app.services.ml_utils import apply_pca_orthogonalization
+                target_col_temp = 'Target_Direction' if is_multi_output else 'target'
+                df_pca_temp = df[features + [target_col_temp]].copy()
+                df_pca_temp = apply_pca_orthogonalization(df_pca_temp, target_col=target_col_temp, add_log=self._log)
+                
+                new_features = [c for c in df_pca_temp.columns if c != target_col_temp]
+                for c in new_features:
+                    if c not in df.columns:
+                        df[c] = df_pca_temp[c]
+                features = new_features
+                del df_pca_temp
+                import gc
+                gc.collect()
+
+            if self.job.config.get("apply_shap_selection", True):
+                from app.services.ml_utils import apply_shap_feature_selection
+                target_col_temp = 'Target_Direction' if is_multi_output else 'target'
+                df_shap_temp = df[features + [target_col_temp]].copy()
+                is_clf = (prediction_target == "classification" or prediction_target == "advanced_setup")
+                shap_variance = float(self.job.config.get("shap_variance_threshold", 0.95))
+                
+                df_shap_temp, selected_features = apply_shap_feature_selection(
+                    df_shap_temp, 
+                    target_col=target_col_temp, 
+                    cumulative_importance=shap_variance,
+                    is_classification=is_clf, 
+                    add_log=self._log
+                )
+                features = selected_features
+                del df_shap_temp
+                import gc
+                gc.collect()
+                
+            # Apply Auto Feature Selection (Phase 4 Hybrid RF+MI Ranking)
+            if self.job.config.get("auto_feature_selection", True):
+                from app.services.ml_utils import apply_auto_feature_selection
+                target_col_temp = 'Target_Direction' if is_multi_output else 'target'
+                df_auto_temp = df[features + [target_col_temp]].copy()
+                is_clf = (prediction_target == "classification" or prediction_target == "advanced_setup")
+                top_n_features = int(self.job.config.get("auto_feature_count", 50))
+                
+                df_auto_temp, selected_features = apply_auto_feature_selection(
+                    df_auto_temp,
+                    target_col=target_col_temp,
+                    top_n=top_n_features,
+                    is_classification=is_clf,
+                    add_log=self._log
+                )
+                features = selected_features
+                del df_auto_temp
+                import gc
+                gc.collect()
+                
+            # Ensure updated features are saved to config
+            current_config = dict(self.job.config) if self.job.config else {}
+            current_config["selected_forex_features"] = features
+            self.job.config = current_config
+            self.db.commit()
+
             X = df[features]
             if is_multi_output:
                 y = df[['Target_Direction', 'Target_SL', 'Target_TP']].values

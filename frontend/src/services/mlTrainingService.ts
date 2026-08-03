@@ -35,6 +35,12 @@ export interface TrainingConfig {
         scaling_method?: string;
         fractional_diff?: boolean;
         fractional_d_value?: number;
+        apply_pca_collinearity?: boolean;
+        apply_shap_selection?: boolean;
+        shap_variance_threshold?: number;
+        auto_feature_selection?: boolean;
+        auto_feature_count?: number;
+        missing_data_threshold?: number;
         fee_threshold?: number;
         augmentation_strategy?: string;
         augmentation_factor?: number;

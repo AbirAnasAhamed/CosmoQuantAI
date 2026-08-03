@@ -87,7 +87,7 @@ def calculate_advanced_trade_features(df_raw: pd.DataFrame, requested_features: 
     retail_flag = (df['amount'] < rolling_25th).astype(int)
     feats['retail_participation_ratio'] = retail_flag.rolling(window=window_short, min_periods=1).mean()
     
-    feats['trade_size_variance'] = df['amount'].rolling(window=window_short, min_periods=1).var().fillna(0)
+    feats['trade_size_variance'] = df['amount'].rolling(window=window_short, min_periods=1).var().ffill().fillna(0)
     
     # Iceberg proxy: consecutive trades at exact same price
     price_unchanged = (df['price'] == df['price'].shift(1)).astype(int)
@@ -101,7 +101,7 @@ def calculate_advanced_trade_features(df_raw: pd.DataFrame, requested_features: 
 
     # --- Price Impact & Micro-Volatility ---
     returns = df['price'].pct_change().fillna(0)
-    feats['micro_volatility'] = returns.rolling(window=window_short, min_periods=1).std().fillna(0)
+    feats['micro_volatility'] = returns.rolling(window=window_short, min_periods=1).std().ffill().fillna(0)
     
     # Amihud Illiquidity: |Return| / Volume
     feats['amihud_illiquidity'] = (returns.abs() / df['amount'].clip(lower=1e-9)).rolling(window=window_short, min_periods=1).mean()
@@ -114,14 +114,14 @@ def calculate_advanced_trade_features(df_raw: pd.DataFrame, requested_features: 
     # --- Advanced Stats ---
     # Kyle's Lambda proxy: slope = cov(signed_volume, price_diff) / var(signed_volume)
     price_diff = df['price'].diff().fillna(0)
-    cov_sv_pd = df['signed_volume'].rolling(window=window_short, min_periods=1).cov(price_diff).fillna(0)
-    var_sv = df['signed_volume'].rolling(window=window_short, min_periods=1).var().fillna(0)
-    feats['kyles_lambda'] = (cov_sv_pd / var_sv.clip(lower=1e-9)).fillna(0)
+    cov_sv_pd = df['signed_volume'].rolling(window=window_short, min_periods=1).cov(price_diff).ffill().fillna(0)
+    var_sv = df['signed_volume'].rolling(window=window_short, min_periods=1).var().ffill().fillna(0)
+    feats['kyles_lambda'] = (cov_sv_pd / var_sv.clip(lower=1e-9)).ffill().fillna(0)
     
     # Autocorrelation of Order Signs (Vectorised lag-1)
-    var_td = df['trade_dir'].rolling(window=window_short, min_periods=1).var().fillna(0)
-    cov_td = df['trade_dir'].rolling(window=window_short, min_periods=1).cov(df['trade_dir'].shift(1)).fillna(0)
-    feats['autocorr_signs'] = (cov_td / var_td.clip(lower=1e-9)).fillna(0)
+    var_td = df['trade_dir'].rolling(window=window_short, min_periods=1).var().ffill().fillna(0)
+    cov_td = df['trade_dir'].rolling(window=window_short, min_periods=1).cov(df['trade_dir'].shift(1)).ffill().fillna(0)
+    feats['autocorr_signs'] = (cov_td / var_td.clip(lower=1e-9)).ffill().fillna(0)
     
     # Entropy of Trade Directions
     p = feats['aggressor_ratio'].clip(1e-5, 1 - 1e-5)
@@ -129,7 +129,7 @@ def calculate_advanced_trade_features(df_raw: pd.DataFrame, requested_features: 
     
     # Roll Measure: Implicit Spread = 2 * sqrt( max(0, -Cov(dp_t, dp_t-1)) )
     lag_price_diff = price_diff.shift(1).fillna(0)
-    cov_dp = price_diff.rolling(window=window_short, min_periods=1).cov(lag_price_diff).fillna(0)
+    cov_dp = price_diff.rolling(window=window_short, min_periods=1).cov(lag_price_diff).ffill().fillna(0)
     feats['roll_measure_spread'] = 2 * np.sqrt(np.clip(-cov_dp, a_min=0, a_max=None))
     
     # VPIN Proxy (Volume-Synchronized Probability of Informed Trading)

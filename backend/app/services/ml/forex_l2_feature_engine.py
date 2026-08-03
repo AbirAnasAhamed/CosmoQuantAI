@@ -29,10 +29,10 @@ def generate_l2_price_spread_features(df: pd.DataFrame, selected_features: List[
         df['spread_sma'] = df['spread_absolute'].rolling(window=10, min_periods=1).mean()
         
     if 'spread_volatility' in selected_features and 'spread_absolute' in df.columns:
-        df['spread_volatility'] = df['spread_absolute'].rolling(window=10, min_periods=1).std().fillna(0)
+        df['spread_volatility'] = df['spread_absolute'].rolling(window=10, min_periods=1).std().ffill().fillna(0)
         
     if 'spread_roc' in selected_features and 'spread_absolute' in df.columns:
-        df['spread_roc'] = df['spread_absolute'].pct_change().fillna(0)
+        df['spread_roc'] = df['spread_absolute'].pct_change().fillna(0) # Pct change of missing should be 0
 
     return df
 
@@ -197,7 +197,7 @@ def generate_l2_volatility_features(df: pd.DataFrame, selected_features: List[st
         df['micro_rsi'] = 100 - (100 / (1 + rs)).fillna(50)
 
     if 'hf_realized_volatility' in selected_features and 'l2_mid_price' in df.columns:
-        df['hf_realized_volatility'] = np.log(df['l2_mid_price'] / df['l2_mid_price'].shift(1)).rolling(window=10).std().fillna(0) * np.sqrt(10)
+        df['hf_realized_volatility'] = np.log(df['l2_mid_price'] / df['l2_mid_price'].shift(1)).rolling(window=10).std().ffill().fillna(0) * np.sqrt(10)
 
     if 'bid_ask_bounce' in selected_features and 'l1_best_bid' in df.columns and 'l1_best_ask' in df.columns:
         df['bid_ask_bounce'] = np.where(df['l1_best_bid'].diff() > 0, 1, np.where(df['l1_best_ask'].diff() < 0, -1, 0))
@@ -304,5 +304,9 @@ def generate_all_l2_features(df: pd.DataFrame, selected_features: List[str]) -> 
     from app.services.ml.forex_l2_plp_engine import inject_plp_features
     df = inject_plp_features(df, selected_features)
     
-    df = df.fillna(0)
+    df = df.ffill().fillna(0)
+    
+    import gc
+    gc.collect()
+    
     return df
