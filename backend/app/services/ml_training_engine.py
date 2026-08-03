@@ -1628,7 +1628,7 @@ def train_model_task(job_id: str, db: Session):
                 fitted_estimators = []
                 add_log(f"Training {len(estimators)} Base Experts for MoE...")
                 for name, est in estimators:
-                    est.fit(X_train_df, y_train if is_multi_output else y_train.ravel())
+                    est.fit(X_train_df, y_train[:, 0] if (is_multi_output and len(y_train.shape) > 1) else y_train.ravel())
                     fitted_estimators.append(est)
                     preds = est.predict(X_train_df)
                     if len(preds.shape) > 1 and preds.shape[1] > 1:
@@ -1642,7 +1642,7 @@ def train_model_task(job_id: str, db: Session):
                 moe_engine.train_master_agent(
                     base_predictions=base_predictions_train,
                     market_states=X_train_df.values,
-                    actual_returns=y_train.ravel() if not is_multi_output else y_train[:, 0],
+                    actual_returns=y_train.ravel() if not is_multi_output else y_train,
                     total_timesteps=5000,
                     model_save_path=model_path + "_rl_agent.zip"
                 )

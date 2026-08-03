@@ -131,24 +131,53 @@ class TradingEnv(gym.Env):
                 discrete_action = action
                 
             self.position = discrete_action
-            current_y = self.y[self.current_step][0] if isinstance(self.y[self.current_step], np.ndarray) and self.y[self.current_step].size > 1 else self.y[self.current_step]
-            
-            if discrete_action == 1 and current_y > 0:
-                reward = 1
-                self.net_worth += 10.0 # Dummy profit
-                self.trade_history.append({"type": "open_long", "pnl": 10.0})
-            elif discrete_action == 1 and current_y <= 0:
-                reward = -1
-                self.net_worth -= 10.0 # Dummy loss
-                self.trade_history.append({"type": "close", "pnl": -10.0})
+            is_advanced = isinstance(self.y[self.current_step], np.ndarray) and self.y[self.current_step].size >= 3
+            if is_advanced:
+                current_y = self.y[self.current_step][0]
+                sl_pct = self.y[self.current_step][1]
+                tp_pct = self.y[self.current_step][2]
+                
+                if discrete_action == 1 and current_y > 0:
+                    reward = tp_pct
+                    pnl = self.net_worth * tp_pct
+                    self.net_worth += pnl
+                    self.trade_history.append({"type": "open_long", "pnl": pnl})
+                elif discrete_action == 1 and current_y <= 0:
+                    reward = -sl_pct
+                    pnl = -self.net_worth * sl_pct
+                    self.net_worth += pnl
+                    self.trade_history.append({"type": "close", "pnl": pnl})
+                else:
+                    # Hold/Short logic
+                    if discrete_action == 0 and current_y <= 0:
+                        reward = tp_pct
+                        pnl = self.net_worth * tp_pct
+                        self.net_worth += pnl
+                        self.trade_history.append({"type": "open_short", "pnl": pnl})
+                    elif discrete_action == 0 and current_y > 0:
+                        reward = -sl_pct
+                        pnl = -self.net_worth * sl_pct
+                        self.net_worth += pnl
+                        self.trade_history.append({"type": "close", "pnl": pnl})
             else:
-                # Hold/Sell logic (neutral)
-                if discrete_action == 0 and current_y <= 0:
-                    self.trade_history.append({"type": "open_short", "pnl": 5.0})
-                    self.net_worth += 5.0
-                elif discrete_action == 0 and current_y > 0:
-                    self.trade_history.append({"type": "close", "pnl": -5.0})
-                    self.net_worth -= 5.0
+                current_y = self.y[self.current_step][0] if isinstance(self.y[self.current_step], np.ndarray) and self.y[self.current_step].size > 1 else self.y[self.current_step]
+                
+                if discrete_action == 1 and current_y > 0:
+                    reward = 1
+                    self.net_worth += 10.0 # Dummy profit
+                    self.trade_history.append({"type": "open_long", "pnl": 10.0})
+                elif discrete_action == 1 and current_y <= 0:
+                    reward = -1
+                    self.net_worth -= 10.0 # Dummy loss
+                    self.trade_history.append({"type": "close", "pnl": -10.0})
+                else:
+                    # Hold/Sell logic (neutral)
+                    if discrete_action == 0 and current_y <= 0:
+                        self.trade_history.append({"type": "open_short", "pnl": 5.0})
+                        self.net_worth += 5.0
+                    elif discrete_action == 0 and current_y > 0:
+                        self.trade_history.append({"type": "close", "pnl": -5.0})
+                        self.net_worth -= 5.0
                     
             self.equity_history.append(self.net_worth)
                 

@@ -316,7 +316,7 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
     useEffect(() => {
         const ADVANCED_SETUP_SUPPORTED_ALGOS = [
             'LSTM', 'GRU', 'TCN', '1D-CNN', 'DeepLOB', 'Transformer', 
-            'PPO-RL', 'SAC-RL', 'DDPG-RL', 'TD3-RL'
+            'PPO-RL', 'SAC-RL', 'DDPG-RL', 'TD3-RL', 'Ensemble Model'
         ];
         
         if (predictionTarget === 'advanced_setup' && !ADVANCED_SETUP_SUPPORTED_ALGOS.includes(algorithm)) {

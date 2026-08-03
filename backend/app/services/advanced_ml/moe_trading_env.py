@@ -89,12 +89,25 @@ class MoETradingEnv(gym.Env):
         # Calculate step return
         actual = self.actual_returns[self.current_step]
         
-        # If actual is binary (0/1 classification target), map 0 to -1 for reward symmetry
-        if len(np.unique(self.actual_returns)) <= 2 and not np.any(self.actual_returns < 0):
-            actual_dir = 1 if actual > 0 else -1
-            step_return = position * actual_dir
+        is_advanced = isinstance(actual, np.ndarray) and actual.size >= 3
+        if is_advanced:
+            current_y = actual[0]
+            sl_pct = actual[1]
+            tp_pct = actual[2]
+            
+            if position == 1:
+                step_return = tp_pct if current_y > 0 else -sl_pct
+            elif position == -1:
+                step_return = tp_pct if current_y <= 0 else -sl_pct
+            else:
+                step_return = 0.0
         else:
-            step_return = position * actual
+            # If actual is binary (0/1 classification target), map 0 to -1 for reward symmetry
+            if len(np.unique(self.actual_returns)) <= 2 and not np.any(self.actual_returns < 0):
+                actual_dir = 1 if actual > 0 else -1
+                step_return = position * actual_dir
+            else:
+                step_return = position * actual
             
         # Apply Transaction Costs
         transaction_cost = 0.0

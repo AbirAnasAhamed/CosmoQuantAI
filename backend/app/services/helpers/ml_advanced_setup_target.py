@@ -49,8 +49,8 @@ def generate_advanced_setup_targets(df: pd.DataFrame, horizon: int, fee_threshol
     
     # We represent these as positive distances from the current price.
     # A model predicting this will learn the "Expected Volatility Bounds" for the upcoming horizon.
-    df['Target_TP'] = (future_highs - df[close_col]).clip(lower=0.0)
-    df['Target_SL'] = (df[close_col] - future_lows).clip(lower=0.0)
+    df['Target_TP'] = ((future_highs - df[close_col]) / df[close_col]).clip(lower=0.0)
+    df['Target_SL'] = ((df[close_col] - future_lows) / df[close_col]).clip(lower=0.0)
 
     # Prevent look-ahead bias at the very end of the dataframe by masking NaN future returns
     # where the horizon goes out of bounds.

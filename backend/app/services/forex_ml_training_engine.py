@@ -225,9 +225,13 @@ class ForexMLTrainingEngine:
 
             df.dropna(inplace=True)
             
-            features = [col for col in df.columns if col not in ['target', 'open', 'high', 'low', 'close']]
+            is_multi_output = (prediction_target == "advanced_setup")
+            features = [col for col in df.columns if col not in ['target', 'Target_Direction', 'Target_SL', 'Target_TP', 'open', 'high', 'low', 'close']]
             X = df[features]
-            y = df['target']
+            if is_multi_output:
+                y = df[['Target_Direction', 'Target_SL', 'Target_TP']].values
+            else:
+                y = df['target'].values
             
             # Map Triple Barrier [-1, 0, 1] to [0, 1, 2] for XGBoost/LightGBM compatibility
             if use_triple_barrier:
@@ -238,7 +242,8 @@ class ForexMLTrainingEngine:
             if feature_method != 'none':
                 self._log(f"Applying {feature_method.upper()} Feature Selection...")
                 from app.services.ml.feature_selection import select_features
-                X = select_features(X, y, method=feature_method)
+                y_for_fs = y[:, 0] if is_multi_output else y
+                X = select_features(X, y_for_fs, method=feature_method)
 
             # Step 6: Model Training & WFO
             algorithm = self.job.algorithm
@@ -400,7 +405,7 @@ class ForexMLTrainingEngine:
                 self._log(f"Training {len(base_models_names)} Base Experts for MoE...")
                 for m_name in base_models_names:
                     est = get_forex_model(m_name, self.job.config)
-                    est.fit(X_train, y_train)
+                    est.fit(X_train, y_train[:, 0] if len(y_train.shape) > 1 and y_train.shape[1] > 1 else y_train)
                     fitted_estimators.append(est)
                     preds = est.predict(X_train)
                     if len(preds.shape) > 1 and preds.shape[1] > 1:
@@ -451,8 +456,8 @@ class ForexMLTrainingEngine:
 
                 moe_engine.train_master_agent(
                     base_predictions=base_predictions_train,
-                    market_states=X_train.values,
-                    actual_returns=y_train.values,
+                    market_states=X_train.values if hasattr(X_train, 'values') else X_train,
+                    actual_returns=y_train.values if hasattr(y_train, 'values') else y_train,
                     total_timesteps=3000
                 )
                 
