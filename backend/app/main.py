@@ -245,10 +245,12 @@ async def fetch_market_data_background():
         while True:
             try:
                 if local_exchange_client:
-                    await local_exchange_client.watch_tickers()
+                    # Timeout after 60s if no updates (Binance should update constantly)
+                    await asyncio.wait_for(local_exchange_client.watch_tickers(), timeout=60.0)
                 else:
                     await asyncio.sleep(5)
-            except Exception:
+            except Exception as e:
+                print(f"⚠️ Watch Tickers Error or Timeout: {e}")
                 await asyncio.sleep(5)
 
     asyncio.create_task(_keep_tickers_updated())
@@ -334,7 +336,8 @@ async def fetch_market_data_background():
                                 "timestamp": datetime.utcnow().isoformat()
                             }
                             await manager.broadcast_market_data(symbol, "ticker", ticker_data)
-                    except Exception:
+                    except Exception as e:
+                        print(f"Ticker Broadcast Error: {e}")
                         pass
                         
                     # Spawn WebSocket stream tasks if not already running for this symbol
