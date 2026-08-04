@@ -10,13 +10,29 @@ interface TargetSelectionProps {
 
 const ADVANCED_SETUP_SUPPORTED_ALGOS = [
     'LSTM', 'GRU', 'TCN', '1D-CNN', 'DeepLOB', 'Transformer', 
-    'PPO-RL', 'SAC-RL', 'DDPG-RL', 'TD3-RL'
+    'PPO-RL', 'SAC-RL', 'DDPG-RL', 'TD3-RL',
+    'MuZero', 'Meta-RL', 'HRL', 'MAPPO',
+    'Mamba SSM', 'KAN Network', 'JEPA World Model', 'Time-LLM', 'TTFT', 'GNN-RL', 'SNN Liquid', 'Sparse MoE Router'
+];
+
+const RL_ONLY_ALGOS = [
+    'MuZero', 'Meta-RL', 'HRL', 'MAPPO'
 ];
 
 const TargetSelection: React.FC<TargetSelectionProps> = ({ predictionTarget, setPredictionTarget, isTraining, selectedAlgorithm }) => {
     
     // Check if the currently selected algorithm supports advanced setup
     const isAdvancedSupported = !selectedAlgorithm || ADVANCED_SETUP_SUPPORTED_ALGOS.includes(selectedAlgorithm);
+    
+    // Check if the currently selected algorithm forces advanced setup (RL only models)
+    const isRlOnly = !!selectedAlgorithm && RL_ONLY_ALGOS.includes(selectedAlgorithm);
+    
+    // Auto-switch to advanced_setup if an RL-only algorithm is selected
+    React.useEffect(() => {
+        if (isRlOnly && predictionTarget !== 'advanced_setup') {
+            setPredictionTarget('advanced_setup');
+        }
+    }, [isRlOnly, predictionTarget, setPredictionTarget]);
 
     return (
         <div>
@@ -26,11 +42,14 @@ const TargetSelection: React.FC<TargetSelectionProps> = ({ predictionTarget, set
             <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                 <button
                     onClick={() => setPredictionTarget('classification')}
-                    disabled={isTraining}
+                    disabled={isTraining || isRlOnly}
+                    title={isRlOnly ? "Not applicable for advanced RL engines" : ""}
                     className={`py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
-                        predictionTarget === 'classification' 
-                            ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)] border border-indigo-400/50' 
-                            : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'
+                        isRlOnly
+                            ? 'bg-white/5 text-slate-500 border border-white/5 opacity-40 cursor-not-allowed grayscale'
+                            : predictionTarget === 'classification' 
+                                ? 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)] border border-indigo-400/50' 
+                                : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'
                     }`}
                 >
                     <span className="block">Direction (Up/Down)</span>
@@ -38,11 +57,14 @@ const TargetSelection: React.FC<TargetSelectionProps> = ({ predictionTarget, set
                 </button>
                 <button
                     onClick={() => setPredictionTarget('regression')}
-                    disabled={isTraining}
+                    disabled={isTraining || isRlOnly}
+                    title={isRlOnly ? "Not applicable for advanced RL engines" : ""}
                     className={`py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
-                        predictionTarget === 'regression' 
-                            ? 'bg-gradient-to-r from-pink-600 to-rose-600 text-white shadow-[0_0_15px_rgba(225,29,72,0.4)] border border-rose-400/50' 
-                            : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'
+                        isRlOnly
+                            ? 'bg-white/5 text-slate-500 border border-white/5 opacity-40 cursor-not-allowed grayscale'
+                            : predictionTarget === 'regression' 
+                                ? 'bg-gradient-to-r from-pink-600 to-rose-600 text-white shadow-[0_0_15px_rgba(225,29,72,0.4)] border border-rose-400/50' 
+                                : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'
                     }`}
                 >
                     <span className="block">Exact Price</span>

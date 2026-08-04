@@ -474,8 +474,15 @@ def custom_asyncio_exception_handler(loop, context):
     # Log other unhandled exceptions normally
     loop.default_exception_handler(context)
 
+_startup_has_run = False
+
 @app.on_event("startup")
 async def startup_event():
+    global _startup_has_run
+    if _startup_has_run:
+        return
+    _startup_has_run = True
+
     # Set custom asyncio exception handler
     loop = asyncio.get_event_loop()
     loop.set_exception_handler(custom_asyncio_exception_handler)

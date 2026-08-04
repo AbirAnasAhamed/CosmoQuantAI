@@ -46,8 +46,11 @@ RUN mkdir -p /tmp/.cache && chmod 777 /tmp/.cache \
 
 # Install dependencies
 COPY requirements.txt .
-RUN pip install "pip<24.1" && \
-    pip install --no-cache-dir --default-timeout=1000 -r requirements.txt
+COPY requirements-advanced-rl.txt .
+COPY requirements-nextgen.txt .
+RUN pip install "pip<24.1" setuptools wheel packaging && \
+    pip install --no-cache-dir --default-timeout=1000 -r requirements.txt -r requirements-advanced-rl.txt && \
+    pip install --no-cache-dir --default-timeout=1000 --no-build-isolation -r requirements-nextgen.txt
 
 # Copy all backend files
 COPY . .

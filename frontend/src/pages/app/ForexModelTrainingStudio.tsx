@@ -75,6 +75,9 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
     const [learningRate, setLearningRate] = useState(0.001);
     const [maxDepth, setMaxDepth] = useState(6);
     
+    // Check if selected algorithm is God-Tier
+    const isGodTier = ["Mamba SSM", "KAN Network", "JEPA World Model", "Time-LLM", "TTFT", "GNN-RL", "SNN Liquid", "Sparse MoE Router"].includes(algorithm);
+    
     // Ensemble & MoE States
     const [isEnsemble, setIsEnsemble] = useState(false);
     const [ensembleMethod, setEnsembleMethod] = useState<'voting' | 'stacking' | 'rl_moe'>('voting');
@@ -240,6 +243,36 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
             algos: [
                 { id: 'CQL', type: 'Offline RL', desc: 'Conservative Q-Learning (Learn from history)' },
                 { id: 'GAIL', type: 'Imitation Learning', desc: 'Generative Adversarial Imitation Learning' }
+            ] 
+        },
+        { 
+            name: "RL: Advanced & Model-Based", 
+            desc: "Learns internal environment dynamics and meta-strategies", 
+            algos: [
+                { id: 'MuZero', type: 'Model-Based RL', desc: 'Predicts future market states internally' },
+                { id: 'Meta-RL', type: 'Meta-Learning', desc: 'Rapidly adapts to new market regimes' }
+            ] 
+        },
+        { 
+            name: "GOD-TIER AI (Next-Gen)", 
+            desc: "Experimental ultra-high-performance architectures", 
+            algos: [
+                { id: 'Sparse MoE Router', type: 'God-Brain Orchestrator', desc: 'Dynamically routes ticks to the best expert' },
+                { id: 'Mamba SSM', type: 'Sequence Model', desc: 'Infinite context window for tick-level data' },
+                { id: 'KAN Network', type: 'Fractal Math', desc: 'Kolmogorov-Arnold Network for exact math patterns' },
+                { id: 'JEPA World Model', type: 'Predictive Latent', desc: 'Joint Embedding Predictive Architecture' },
+                { id: 'Time-LLM', type: 'LLM Time-Series', desc: 'Reprogrammed LLM for forecasting' },
+                { id: 'TTFT', type: 'Tabular Foundation', desc: 'Temporal Tabular Foundation Models' },
+                { id: 'GNN-RL', type: 'Graph RL', desc: 'Graph Neural Networks with Reinforcement Learning' },
+                { id: 'SNN Liquid', type: 'Spiking Neural Net', desc: 'Biologically inspired asynchronous event handler' }
+            ] 
+        },
+        { 
+            name: "RL: Multi-Agent & Hierarchical", 
+            desc: "Complex agent interactions and task delegation", 
+            algos: [
+                { id: 'HRL', type: 'Hierarchical RL', desc: 'Manager-Worker architecture for risk & execution' },
+                { id: 'MAPPO', type: 'Multi-Agent RL', desc: 'Cooperative multi-agent portfolio management' }
             ] 
         },
         { 
@@ -837,13 +870,27 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                                         </AnimatePresence>
                                     </div>
                                     
-                                    <AdvancedHyperparameters
-                                        learningRate={learningRate}
-                                        setLearningRate={setLearningRate}
-                                        maxDepth={maxDepth}
-                                        setMaxDepth={setMaxDepth}
-                                        isTraining={isTraining}
-                                    />
+                                    {!isGodTier && (
+                                        <AdvancedHyperparameters
+                                            learningRate={learningRate}
+                                            setLearningRate={setLearningRate}
+                                            maxDepth={maxDepth}
+                                            setMaxDepth={setMaxDepth}
+                                            isTraining={isTraining}
+                                        />
+                                    )}
+
+                                    {isGodTier && (
+                                        <div className="mt-4 p-4 rounded-xl border border-purple-500/30 bg-purple-500/10 shadow-[0_0_15px_rgba(168,85,247,0.15)] flex items-start gap-3">
+                                            <svg className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
+                                            <div>
+                                                <h4 className="text-sm font-bold text-purple-300">God-Tier Engine Active</h4>
+                                                <p className="text-xs text-slate-400 mt-1">
+                                                    This Next-Gen model handles its own architecture dynamically. Standard hyperparameters are bypassed.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    )}
                                     
                                     <AutoMlToggle 
                                         useAutoMl={useAutoMl}

@@ -210,6 +210,9 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
     const [isRetrainMode, setIsRetrainMode] = useState(false);
     const [showTerminal, setShowTerminal] = useState(false);
     
+    // Check if selected algorithm is God-Tier
+    const isGodTier = ["Mamba SSM", "KAN Network", "JEPA World Model", "Time-LLM", "TTFT", "GNN-RL", "SNN Liquid", "Sparse MoE Router"].includes(algorithm);
+    
     // Historical Trades CSV States
     const [tradeFiles, setTradeFiles] = useState<string[]>([]);
     const [selectedTradeFile, setSelectedTradeFile] = useState('');
@@ -249,6 +252,13 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
     const [mergedFile, setMergedFile] = useState<File | null>(null);
     const [isMerging, setIsMerging] = useState(false);
     const [mergedResult, setMergedResult] = useState<any>(null);
+
+    React.useEffect(() => {
+        const isRlAlgo = ['MuZero', 'Meta-RL', 'HRL', 'MAPPO'].includes(algorithm);
+        if (isRlAlgo && (predictionTarget === 'classification' || predictionTarget === 'regression')) {
+            setPredictionTarget('advanced_setup');
+        }
+    }, [algorithm, predictionTarget]);
 
     useEffect(() => {
         if (retrainModelId) {
@@ -455,11 +465,41 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
             ] 
         },
         { 
+            name: "RL: Advanced & Model-Based", 
+            desc: "Learns internal environment dynamics and meta-strategies", 
+            algos: [
+                { id: 'MuZero', type: 'Model-Based RL', desc: 'Predicts future market states internally' },
+                { id: 'Meta-RL', type: 'Meta-Learning', desc: 'Rapidly adapts to new market regimes' }
+            ] 
+        },
+        { 
+            name: "RL: Multi-Agent & Hierarchical", 
+            desc: "Complex agent interactions and task delegation", 
+            algos: [
+                { id: 'HRL', type: 'Hierarchical RL', desc: 'Manager-Worker architecture for risk & execution' },
+                { id: 'MAPPO', type: 'Multi-Agent RL', desc: 'Cooperative multi-agent portfolio management' }
+            ] 
+        },
+        { 
             name: "Next-Gen Architectures", 
             desc: "Cutting-edge dynamic neural models", 
             algos: [
                 { id: 'Decision-Transformer', type: 'Offline RL', desc: 'Action generation based on target ROI' },
                 { id: 'Liquid-NN', type: 'Continuous RNN', desc: 'Dynamically adapts weights during live trading' }
+            ] 
+        },
+        { 
+            name: "GOD-TIER AI (Next-Gen)", 
+            desc: "Experimental ultra-high-performance architectures", 
+            algos: [
+                { id: 'Sparse MoE Router', type: 'God-Brain Orchestrator', desc: 'Dynamically routes ticks to the best expert' },
+                { id: 'Mamba SSM', type: 'Sequence Model', desc: 'Infinite context window for tick-level data' },
+                { id: 'KAN Network', type: 'Fractal Math', desc: 'Kolmogorov-Arnold Network for exact math patterns' },
+                { id: 'JEPA World Model', type: 'Predictive Latent', desc: 'Joint Embedding Predictive Architecture' },
+                { id: 'Time-LLM', type: 'LLM Time-Series', desc: 'Reprogrammed LLM for forecasting' },
+                { id: 'TTFT', type: 'Tabular Foundation', desc: 'Temporal Tabular Foundation Models' },
+                { id: 'GNN-RL', type: 'Graph RL', desc: 'Graph Neural Networks with Reinforcement Learning' },
+                { id: 'SNN Liquid', type: 'Spiking Neural Net', desc: 'Biologically inspired asynchronous event handler' }
             ] 
         },
         { 
@@ -1376,7 +1416,7 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                                 className="w-full bg-white/5 backdrop-blur-md border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-purple-500/50 focus:border-purple-400 outline-none transition-all disabled:opacity-50 shadow-inner"
                             />
                             
-                            {!useAutoML && (
+                            {!useAutoML && !isGodTier && (
                                 <AdvancedHyperparameters 
                                     learningRate={learningRate}
                                     setLearningRate={setLearningRate}
@@ -1384,6 +1424,18 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                                     setMaxDepth={setMaxDepth}
                                     isTraining={isTraining}
                                 />
+                            )}
+                            
+                            {isGodTier && (
+                                <div className="mt-4 p-4 rounded-xl border border-purple-500/30 bg-purple-500/10 shadow-[0_0_15px_rgba(168,85,247,0.15)] flex items-start gap-3">
+                                    <Cpu className="w-5 h-5 text-purple-400 flex-shrink-0 mt-0.5" />
+                                    <div>
+                                        <h4 className="text-sm font-bold text-purple-300">God-Tier Engine Active</h4>
+                                        <p className="text-xs text-slate-400 mt-1">
+                                            This Next-Gen model handles its own architecture dynamically. Standard hyperparameters are bypassed.
+                                        </p>
+                                    </div>
+                                </div>
                             )}
 
                             {/* 🚀 Hedge-Fund Supervised ML Pipeline Settings */}
@@ -2828,11 +2880,29 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                                     disabled={isTraining}
                                     className="w-full bg-black/50 backdrop-blur-md border border-white/10 rounded-xl px-4 py-3 text-sm text-white focus:ring-2 focus:ring-cyan-500/50 focus:border-cyan-400 outline-none transition-all shadow-inner"
                                 >
-                                    <option value="classification">Classification (Up/Down Return)</option>
-                                    <option value="regression">Regression (Exact Future Price)</option>
+                                    <option 
+                                        value="classification" 
+                                        disabled={['MuZero', 'Meta-RL', 'HRL', 'MAPPO'].includes(algorithm)}
+                                        className={['MuZero', 'Meta-RL', 'HRL', 'MAPPO'].includes(algorithm) ? 'opacity-30' : ''}
+                                    >
+                                        Classification (Up/Down Return)
+                                    </option>
+                                    <option 
+                                        value="regression"
+                                        disabled={['MuZero', 'Meta-RL', 'HRL', 'MAPPO'].includes(algorithm)}
+                                        className={['MuZero', 'Meta-RL', 'HRL', 'MAPPO'].includes(algorithm) ? 'opacity-30' : ''}
+                                    >
+                                        Regression (Exact Future Price)
+                                    </option>
                                     <option value="advanced_setup">Advanced SMC Setups (Aether)</option>
                                     <option value="smc_dynamic_mtf">SMC Dynamic MTF Target (1:2 R:R)</option>
                                 </select>
+                                {['MuZero', 'Meta-RL', 'HRL', 'MAPPO'].includes(algorithm) && (
+                                    <p className="text-[10px] text-purple-400 mt-2 flex items-start gap-1.5">
+                                        <Layers className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                                        <span>Advanced RL models use SL/TP setup as reward bounds. Classification/Regression is faded out.</span>
+                                    </p>
+                                )}
                             </div>
                             
                             {isAutoRetrain && (
