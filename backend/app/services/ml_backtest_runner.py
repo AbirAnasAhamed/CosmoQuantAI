@@ -91,6 +91,7 @@ def run_post_training_backtest(
 def _generate_signals(model, algorithm: str, X_test: np.ndarray, prediction_target: str, add_log: Callable, features: list = None):
     """Generate binary signals (0/1) from the trained model."""
     DEEP_LEARNING_ALGOS = {"LSTM", "GRU", "1D-CNN", "DeepLOB", "Transformer", "TCN", "TabNet", "Auto-Encoder"}
+    NEXT_GEN_ALGOS = {"Mamba SSM", "KAN Network", "JEPA World Model", "Time-LLM", "TTFT", "GNN-RL", "SNN Liquid", "Sparse MoE Router"}
 
     try:
         import pandas as pd
@@ -130,6 +131,24 @@ def _generate_signals(model, algorithm: str, X_test: np.ndarray, prediction_targ
         elif algorithm in ["PPO-RL", "SAC-RL", "A2C-RL", "DDPG-RL", "DQN-RL", "TD3-RL", "QR-DQN", "CQL", "GAIL", "Decision-Transformer", "Liquid-NN"]:
             add_log(f"[Post-Backtest] {algorithm} backtest via signal replay not supported. Skipped.")
             return None
+
+        elif algorithm in NEXT_GEN_ALGOS:
+            # Ensure model uses correct device for inference (like ml_predictor)
+            import torch
+            if hasattr(model, 'device'):
+                model.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+                
+            raw_preds = model.predict(X_test)
+            if len(raw_preds.shape) > 1 and raw_preds.shape[1] > 1:
+                raw_preds = raw_preds[:, 0]
+            
+            if prediction_target == "classification":
+                # Convert logic to probabilities for classification
+                probs = 1 / (1 + np.exp(-raw_preds))
+                signals = (probs > 0.5).astype(int).flatten().tolist()
+            else:
+                signals = (raw_preds > np.median(raw_preds)).astype(int).flatten().tolist()
+
 
         else:
             # sklearn-compatible: RF, XGBoost, LightGBM, CatBoost

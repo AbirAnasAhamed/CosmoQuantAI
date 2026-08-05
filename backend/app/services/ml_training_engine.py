@@ -2712,14 +2712,16 @@ def train_model_task(job_id: str, db: Session):
                 final_accuracy = 0.98 if prediction_target == "classification" else 0.95
                 final_f1 = 0.97 if prediction_target == "classification" else 0.02
                 
-                # Mock a scikit-learn compatible object to satisfy the rest of the pipeline
-                class MockNextGenEstimator:
-                    def predict(self, X):
-                        if prediction_target == "classification":
-                            return np.random.randint(0, 2, size=(X.shape[0],))
-                        return np.random.randn(X.shape[0])
+                # Use the real returned Next-Gen model
+                model = result.get("model")
+                if model is None:
+                    raise RuntimeError(f"Next-Gen Engine failed to return a model for {job.algorithm}")
                 
-                model = MockNextGenEstimator()
+                # Update model path and save to disk
+                model_path = model_path.replace(".pkl", ".pt")
+                nextgen_ml_engine.save_model(model, model_path)
+
+
                 
             except Exception as e:
                 err_msg = str(e).lower()
@@ -2735,6 +2737,7 @@ def train_model_task(job_id: str, db: Session):
             raise ValueError(f"Unsupported algorithm: {job.algorithm}")
             
         # Generate Explainability Data
+        final_explainability = {}
         try:
             if job.algorithm in ["Random Forest", "XGBoost", "LightGBM", "CatBoost"]:
                 add_log("Generating Real Explainability Metrics (SHAP, Feature Importance, etc.)...")

@@ -1,4 +1,6 @@
 import logging
+import os
+import torch
 from typing import Dict, Any
 from app.models.next_gen import NEXT_GEN_MODELS
 import numpy as np
@@ -41,6 +43,35 @@ class NextGenMLEngine:
         # Store in memory
         self.active_models[model_type] = model
         
+        # Return the trained model in the result dictionary
+        result["model"] = model
+        
         return result
+
+    def save_model(self, model, path: str):
+        """
+        Saves the custom Next-Gen model wrapper class to disk using torch.save.
+        """
+        try:
+            torch.save(model, path)
+            logger.info(f"NextGenMLEngine: Successfully saved model to {path}")
+        except Exception as e:
+            logger.error(f"NextGenMLEngine: Failed to save model to {path}: {e}")
+            raise e
+
+    def load_model(self, path: str):
+        """
+        Loads the custom Next-Gen model wrapper class from disk using torch.load.
+        """
+        if not os.path.exists(path):
+            raise FileNotFoundError(f"Model file not found: {path}")
+            
+        try:
+            model = torch.load(path, map_location='cpu', weights_only=False)
+            logger.info(f"NextGenMLEngine: Successfully loaded model from {path}")
+            return model
+        except Exception as e:
+            logger.error(f"NextGenMLEngine: Failed to load model from {path}: {e}")
+            raise e
 
 nextgen_ml_engine = NextGenMLEngine()

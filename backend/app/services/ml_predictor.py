@@ -38,6 +38,7 @@ from sqlalchemy.orm import Session
 
 DEEP_LEARNING_ALGOS = {"LSTM", "GRU", "1D-CNN", "DeepLOB", "Transformer", "TCN", "TabNet", "Auto-Encoder"}
 SKLEARN_ALGOS       = {"Random Forest", "XGBoost", "LightGBM", "CatBoost", "Custom Ensemble", "Ensemble"}
+NEXT_GEN_ALGOS      = {"Mamba SSM", "KAN Network", "JEPA World Model", "Time-LLM", "TTFT", "GNN-RL", "SNN Liquid", "Sparse MoE Router"}
 
 
 
@@ -740,6 +741,9 @@ def _run_inference(model_path: str, algorithm: str, X: np.ndarray, prediction_ta
         return _infer_sklearn(model_path, X, prediction_target, features, current_price)
     elif algorithm in ["PPO-RL", "SAC-RL", "A2C-RL", "DDPG-RL", "DQN-RL", "TD3-RL", "QR-DQN", "CQL", "GAIL", "Decision-Transformer", "Liquid-NN"]:
         return _infer_rl(model_path, algorithm, X, prediction_target=prediction_target, features=features, current_price=current_price)
+    elif algorithm in NEXT_GEN_ALGOS:
+        pt_path = model_path.replace(".pkl", ".pt")
+        return _infer_nextgen(pt_path, algorithm, X, prediction_target)
     else:
         # Unknown — try sklearn first, then torch, then RL
         try:
@@ -1065,3 +1069,45 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
             confidence = min(0.95, abs(float(raw)))
 
     return signal_str, confidence
+
+
+def _infer_nextgen(model_path: str, algorithm: str, X: np.ndarray, prediction_target: str):
+    """Inference for Next-Gen PyTorch wrappers."""
+    import torch
+    import os
+    from app.models.next_gen import NEXT_GEN_MODELS  # Required for torch.load to unpickle custom classes
+    
+    
+    if not os.path.exists(model_path):
+        print(f"[_infer_nextgen] Error: Model file missing at {model_path}")
+        return "HOLD", 0.5
+        
+    try:
+        device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        model = torch.load(model_path, map_location=device, weights_only=False)
+        
+        # Ensure device is correct for the current environment
+        if hasattr(model, 'device'):
+            model.device = device
+            
+        # Some NextGen models expect predict() to return arrays or single values
+        preds = model.predict(X)
+        
+        if len(preds.shape) > 0:
+            raw = preds[-1]
+        else:
+            raw = preds
+            
+        if prediction_target == "classification":
+            prob = float(1 / (1 + np.exp(-raw)))
+            signal_str = "BUY" if prob >= 0.5 else "SELL"
+            confidence = prob if prob >= 0.5 else 1 - prob
+        else:
+            signal_str = "BUY" if raw > 0 else "SELL"
+            confidence = min(0.95, abs(float(raw)))
+            
+        return signal_str, confidence
+        
+    except Exception as e:
+        print(f"[_infer_nextgen] Error running inference for {algorithm}: {e}")
+        return "HOLD", 0.5
