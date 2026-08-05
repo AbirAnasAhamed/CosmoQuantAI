@@ -14,23 +14,53 @@ class KANNetworkModel:
     def __init__(self, config: Dict[str, Any]):
         self.config = config
         self.model = None
+        self.input_dim = None
+        self.output_dim = None
+        self.use_kan = False
+
+    def __getstate__(self):
+        state = self.__dict__.copy()
+        if self.model is not None:
+            state['model_state_dict'] = self.model.state_dict()
+            del state['model']
+        return state
+
+    def __setstate__(self, state):
+        model_state_dict = state.pop('model_state_dict', None)
+        self.__dict__.update(state)
+        self.model = None
+        if model_state_dict is not None and self.input_dim is not None and self.output_dim is not None:
+            if getattr(self, 'use_kan', False):
+                try:
+                    from kan import KAN
+                    self.model = KAN(width=[self.input_dim, 5, self.output_dim], grid=5, k=3, seed=0)
+                except ImportError:
+                    pass
+            if self.model is None:
+                self.model = nn.Sequential(
+                    nn.Linear(self.input_dim, 32),
+                    nn.ReLU(),
+                    nn.Linear(32, self.output_dim)
+                )
+            # PyTorch load_state_dict
+            self.model.load_state_dict(model_state_dict)
 
     def train(self, X_train: np.ndarray, y_train: np.ndarray, epochs: int = 10):
         logger.info(f"Training KAN Network with {epochs} epochs on shape {X_train.shape}")
         
-        input_dim = X_train.shape[1]
-        output_dim = y_train.shape[1] if len(y_train.shape) > 1 else 1
+        self.input_dim = X_train.shape[1]
+        self.output_dim = y_train.shape[1] if len(y_train.shape) > 1 else 1
         
         try:
             from kan import KAN
-            self.model = KAN(width=[input_dim, 5, output_dim], grid=5, k=3, seed=0)
+            self.model = KAN(width=[self.input_dim, 5, self.output_dim], grid=5, k=3, seed=0)
             self.use_kan = True
         except ImportError:
             logger.warning("pykan not installed. Falling back to MLP stub.")
             self.model = nn.Sequential(
-                nn.Linear(input_dim, 32),
+                nn.Linear(self.input_dim, 32),
                 nn.ReLU(),
-                nn.Linear(32, output_dim)
+                nn.Linear(32, self.output_dim)
             )
             self.use_kan = False
             

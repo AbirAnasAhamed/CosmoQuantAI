@@ -1,6 +1,7 @@
 import logging
 import os
 import torch
+import dill
 from typing import Dict, Any
 from app.models.next_gen import NEXT_GEN_MODELS
 import numpy as np
@@ -53,7 +54,7 @@ class NextGenMLEngine:
         Saves the custom Next-Gen model wrapper class to disk using torch.save.
         """
         try:
-            torch.save(model, path)
+            torch.save(model, path, pickle_module=dill)
             logger.info(f"NextGenMLEngine: Successfully saved model to {path}")
         except Exception as e:
             logger.error(f"NextGenMLEngine: Failed to save model to {path}: {e}")
@@ -67,7 +68,7 @@ class NextGenMLEngine:
             raise FileNotFoundError(f"Model file not found: {path}")
             
         try:
-            model = torch.load(path, map_location='cpu', weights_only=False)
+            model = torch.load(path, map_location='cpu', weights_only=False, pickle_module=dill)
             logger.info(f"NextGenMLEngine: Successfully loaded model from {path}")
             return model
         except Exception as e:
