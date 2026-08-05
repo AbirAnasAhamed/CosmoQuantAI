@@ -493,7 +493,7 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
             desc: "Experimental ultra-high-performance architectures", 
             algos: [
                 { id: 'Sparse MoE Router', type: 'God-Brain Orchestrator', desc: 'Dynamically routes ticks to the best expert' },
-                { id: 'Mamba SSM', type: 'Sequence Model', desc: 'Infinite context window for tick-level data' },
+                { id: 'Mamba SSM', type: 'Sequence Model', desc: 'Infinite context window for tick-level data', disabled: true, disabledReason: 'CUDA (NVIDIA GPU) Required' },
                 { id: 'KAN Network', type: 'Fractal Math', desc: 'Kolmogorov-Arnold Network for exact math patterns' },
                 { id: 'JEPA World Model', type: 'Predictive Latent', desc: 'Joint Embedding Predictive Architecture' },
                 { id: 'Time-LLM', type: 'LLM Time-Series', desc: 'Reprogrammed LLM for forecasting' },
@@ -1370,6 +1370,10 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                                                         <div 
                                                             key={algo.id} 
                                                             onClick={() => {
+                                                                if ((algo as any).disabled) {
+                                                                    alert((algo as any).disabledReason || "This algorithm is currently disabled.");
+                                                                    return;
+                                                                }
                                                                 if (!isTraining) {
                                                                     if (isRetrainMode && !isCrossAlgorithmTransfer && algo.id !== initialAlgorithm) {
                                                                         return; // Prevent changing if transfer mode is off
@@ -1377,7 +1381,7 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                                                                     setAlgorithm(algo.id);
                                                                 }
                                                             }}
-                                                            className={`flex items-start p-3 rounded-xl border cursor-pointer transition-all duration-300 relative overflow-hidden ${algorithm === algo.id ? (isRetrainMode && initialAlgorithm === algo.id ? 'border-purple-400 bg-purple-500/20 shadow-[0_0_20px_rgba(168,85,247,0.3)]' : 'border-purple-500 bg-purple-500/10 shadow-[0_0_15px_rgba(168,85,247,0.15)]') : 'border-white/10 bg-white/5 hover:bg-white/10'} ${isTraining || (isRetrainMode && !isCrossAlgorithmTransfer && algo.id !== initialAlgorithm) ? 'opacity-50 cursor-not-allowed' : ''}`}
+                                                            className={`flex items-start p-3 rounded-xl border cursor-pointer transition-all duration-300 relative overflow-hidden ${algorithm === algo.id ? (isRetrainMode && initialAlgorithm === algo.id ? 'border-purple-400 bg-purple-500/20 shadow-[0_0_20px_rgba(168,85,247,0.3)]' : 'border-purple-500 bg-purple-500/10 shadow-[0_0_15px_rgba(168,85,247,0.15)]') : 'border-white/10 bg-white/5 hover:bg-white/10'} ${isTraining || (isRetrainMode && !isCrossAlgorithmTransfer && algo.id !== initialAlgorithm) || (algo as any).disabled ? 'opacity-50 cursor-not-allowed' : ''}`}
                                                         >
                                                             <div className={`mt-1 w-3.5 h-3.5 rounded-full border flex items-center justify-center flex-shrink-0 ${algorithm === algo.id ? 'border-purple-400' : 'border-white/30'}`}>
                                                                 {algorithm === algo.id && <div className="w-1.5 h-1.5 rounded-full bg-purple-400 shadow-[0_0_5px_#a855f7]"></div>}
@@ -1386,6 +1390,9 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                                                                 <div className="flex items-center gap-2">
                                                                     <span className={`text-sm font-semibold tracking-wide ${algorithm === algo.id && isRetrainMode && initialAlgorithm === algo.id ? 'text-purple-300' : 'text-slate-200'}`}>{algo.id}</span>
                                                                     <span className="text-[8px] font-bold text-slate-400 bg-white/5 border border-white/10 px-1.5 py-0.5 rounded uppercase tracking-widest">{algo.type}</span>
+                                                                    {(algo as any).disabled && (
+                                                                        <span className="text-[8px] font-bold text-red-400 bg-red-900/30 border border-red-500/30 px-1.5 py-0.5 rounded uppercase tracking-widest">CUDA REQUIRED</span>
+                                                                    )}
                                                                 </div>
                                                                 <p className="text-[10px] text-slate-500 mt-0.5 leading-tight">{algo.desc}</p>
                                                             </div>
