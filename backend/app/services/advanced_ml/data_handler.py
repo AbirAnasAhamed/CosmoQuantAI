@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-from typing import Tuple, List
+from typing import Tuple, List, Union
 
 class AdvancedDataHandler:
     """
@@ -13,7 +13,7 @@ class AdvancedDataHandler:
         df: pd.DataFrame, 
         features: List[str], 
         sequence_length: int = 60,
-        target_col: str = 'Target'
+        target_col: Union[str, List[str]] = 'Target'
     ) -> Tuple[np.ndarray, np.ndarray]:
         """
         Transforms a DataFrame into 3D sequences for Transformer/LSTM.
@@ -22,14 +22,18 @@ class AdvancedDataHandler:
             df: The input DataFrame.
             features: List of feature column names.
             sequence_length: Number of past steps to include in each sequence.
-            target_col: The column to use as target (optional).
+            target_col: The column to use as target (optional). Can be list of strings.
             
         Returns:
             X: (samples, sequence_length, feature_count)
-            y: (samples,)
+            y: (samples,) or (samples, targets)
         """
         X_data = df[features].values
-        y_data = df[target_col].values if target_col in df.columns else None
+        
+        if isinstance(target_col, list):
+            y_data = df[target_col].values if all(col in df.columns for col in target_col) else None
+        else:
+            y_data = df[target_col].values if target_col in df.columns else None
         
         X, y = [], []
         

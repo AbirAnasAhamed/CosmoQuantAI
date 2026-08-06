@@ -124,8 +124,16 @@ def _generate_signals(model, algorithm: str, X_test: np.ndarray, prediction_targ
                     if prediction_target == "classification":
                         out = torch.sigmoid(model(X_t)).numpy().flatten()
                         signals = (out > 0.5).astype(int).tolist()
+                    elif prediction_target == "multi_task":
+                        out_tuple = model(X_t)
+                        class_logits = out_tuple[0]
+                        out = torch.sigmoid(class_logits).numpy().flatten()
+                        signals = (out > 0.5).astype(int).tolist()
                     else:
-                        out = model(X_t).numpy().flatten()
+                        out_tensor = model(X_t)
+                        if isinstance(out_tensor, tuple):
+                            out_tensor = out_tensor[0]
+                        out = out_tensor.numpy().flatten()
                         signals = (out > np.median(out)).astype(int).tolist()
 
         elif algorithm in ["PPO-RL", "SAC-RL", "A2C-RL", "DDPG-RL", "DQN-RL", "TD3-RL", "QR-DQN", "CQL", "GAIL", "Decision-Transformer", "Liquid-NN"]:

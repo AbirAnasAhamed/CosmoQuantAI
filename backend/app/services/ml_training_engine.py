@@ -742,6 +742,14 @@ def train_model_task(job_id: str, db: Session):
             if prediction_target == "advanced_setup":
                 df = generate_advanced_setup_targets(df, horizon, fee_threshold=fee_threshold)
                 df['Target'] = df['Target_Direction'] # Dummy for dropna
+            elif prediction_target == "multi_task":
+                future_return = df['Close'].shift(-horizon) - df['Close']
+                pct_return = future_return / df['Close']
+                df['Target_Class'] = (pct_return > fee_threshold).astype(float)
+                df['Target_Reg'] = pct_return
+                df['Target'] = df['Target_Class'] # Dummy for dropna
+                df.loc[future_return.isna(), 'Target'] = np.nan
+                df.loc[future_return.isna(), 'Target_Reg'] = np.nan
             elif prediction_target == "classification":
                 # Calculate future return 'horizon' steps ahead
                 future_return = df['Close'].shift(-horizon) - df['Close']
@@ -996,6 +1004,14 @@ def train_model_task(job_id: str, db: Session):
             elif prediction_target == "advanced_setup":
                 df = generate_advanced_setup_targets(df, 5, fee_threshold=fee_threshold)
                 df['Target'] = df['Target_Direction']
+            elif prediction_target == "multi_task":
+                future_return = df['Close'].shift(-5) - df['Close']
+                pct_return = future_return / df['Close']
+                df['Target_Class'] = (pct_return > fee_threshold).astype(float)
+                df['Target_Reg'] = pct_return
+                df['Target'] = df['Target_Class']
+                df.loc[future_return.isna(), 'Target'] = np.nan
+                df.loc[future_return.isna(), 'Target_Reg'] = np.nan
             elif prediction_target == "classification":
                 # Calculate future return 5 steps ahead
                 future_return = df['Close'].shift(-5) - df['Close']
@@ -1166,6 +1182,14 @@ def train_model_task(job_id: str, db: Session):
             elif prediction_target == "advanced_setup":
                 df = generate_advanced_setup_targets(df, horizon, fee_threshold=fee_threshold)
                 df['Target'] = df['Target_Direction'] # Dummy for dropna
+            elif prediction_target == "multi_task":
+                future_return = df['Close'].shift(-horizon) - df['Close']
+                pct_return = future_return / df['Close']
+                df['Target_Class'] = (pct_return > fee_threshold).astype(float)
+                df['Target_Reg'] = pct_return
+                df['Target'] = df['Target_Class'] # Dummy for dropna
+                df.loc[future_return.isna(), 'Target'] = np.nan
+                df.loc[future_return.isna(), 'Target_Reg'] = np.nan
             elif prediction_target == "classification":
                 # Calculate future return 'horizon' steps ahead
                 future_return = df['Close'].shift(-horizon) - df['Close']
@@ -1335,6 +1359,8 @@ def train_model_task(job_id: str, db: Session):
         prediction_target = config.get("prediction_target", "classification")
         if prediction_target == "advanced_setup":
             y_base = df[['Target_Direction', 'Target_SL', 'Target_TP']].values
+        elif prediction_target == "multi_task":
+            y_base = df[['Target_Class', 'Target_Reg']].values
         else:
             y_base = df['Target'].values
 
@@ -1352,6 +1378,13 @@ def train_model_task(job_id: str, db: Session):
             df_test['Target_Direction'] = y_test_raw[:, 0]
             df_test['Target_SL'] = y_test_raw[:, 1]
             df_test['Target_TP'] = y_test_raw[:, 2]
+        elif prediction_target == "multi_task":
+            df_train['Target_Class'] = y_train_raw[:, 0]
+            df_train['Target_Reg'] = y_train_raw[:, 1]
+            df_test['Target_Class'] = y_test_raw[:, 0]
+            df_test['Target_Reg'] = y_test_raw[:, 1]
+            df_train['Target'] = df_train['Target_Class']
+            df_test['Target'] = df_test['Target_Class']
         else:
             df_train['Target'] = y_train_raw.ravel()
             df_test['Target'] = y_test_raw.ravel()
@@ -1366,7 +1399,7 @@ def train_model_task(job_id: str, db: Session):
                 df_train, df_test, target_col='Target', add_log=add_log
             )
             # Reconstruct the feature list
-            features = [c for c in df_train.columns if c not in ['Target', 'Target_Direction', 'Target_SL', 'Target_TP']]
+            features = [c for c in df_train.columns if c not in ['Target', 'Target_Direction', 'Target_SL', 'Target_TP', 'Target_Class', 'Target_Reg']]
 
         # Apply SHAP-based smart feature selection to filter out noise
         if config.get("apply_shap_selection", True) and not (is_fine_tune or is_auto_resume):
@@ -1425,11 +1458,14 @@ def train_model_task(job_id: str, db: Session):
         if prediction_target == "advanced_setup":
             y_train_final = df_train[['Target_Direction', 'Target_SL', 'Target_TP']].values
             y_test_final = df_test[['Target_Direction', 'Target_SL', 'Target_TP']].values
+        elif prediction_target == "multi_task":
+            y_train_final = df_train[['Target_Class', 'Target_Reg']].values
+            y_test_final = df_test[['Target_Class', 'Target_Reg']].values
         else:
             y_train_final = df_train['Target'].values
             y_test_final = df_test['Target'].values
         
-        is_multi_output = (prediction_target == "advanced_setup")
+        is_multi_output = (prediction_target == "advanced_setup" or prediction_target == "multi_task")
         scaling_method = config.get("scaling_method", "none")
         if scaling_method == "standard":
             add_log("Using StandardScaler for feature scaling.")
@@ -1459,12 +1495,20 @@ def train_model_task(job_id: str, db: Session):
             y_test = y_test_final.reshape(-1, 1).astype(int)
             scaler_y = None
         elif is_multi_output:
-            if scaler_y is not None:
-                y_train = scaler_y.fit_transform(y_train_final)
-                y_test = scaler_y.transform(y_test_final)
-            else:
-                y_train = y_train_final
-                y_test = y_test_final
+            y_train = np.copy(y_train_final)
+            y_test = np.copy(y_test_final)
+            
+            # Ensure classification targets are strictly integers (0 or 1)
+            # This prevents ValueError in sklearn accuracy_score if NaNs were imputed with mean
+            y_train[:, 0] = np.round(y_train[:, 0]).astype(int)
+            y_test[:, 0] = np.round(y_test[:, 0]).astype(int)
+            
+            if prediction_target_early == "multi_task" and scaler_y is not None:
+                y_train[:, 1] = scaler_y.fit_transform(y_train[:, 1].reshape(-1, 1)).ravel()
+                y_test[:, 1] = scaler_y.transform(y_test[:, 1].reshape(-1, 1)).ravel()
+            elif prediction_target_early == "advanced_setup" and scaler_y is not None:
+                y_train[:, 1:] = scaler_y.fit_transform(y_train[:, 1:])
+                y_test[:, 1:] = scaler_y.transform(y_test[:, 1:])
         else:
             if scaler_y is not None:
                 y_train = scaler_y.fit_transform(y_train_final.reshape(-1, 1))
@@ -1476,8 +1520,12 @@ def train_model_task(job_id: str, db: Session):
         # We need df_scaled for saving the DVC snapshot
         df_scaled = pd.concat([df_train, df_test])
         df_scaled[features] = np.vstack((X_train, X_test))
-        if is_multi_output:
+        if prediction_target == "advanced_setup":
             df_scaled[['Target_Direction', 'Target_SL', 'Target_TP']] = np.vstack((y_train, y_test))
+        elif prediction_target == "multi_task":
+            df_scaled[['Target_Class', 'Target_Reg']] = np.vstack((y_train, y_test))
+            df_scaled['Target'] = df_scaled['Target_Class']
+
         else:
             df_scaled['Target'] = np.vstack((y_train, y_test)).ravel()
         
@@ -1533,10 +1581,13 @@ def train_model_task(job_id: str, db: Session):
             add_log(f"Applying Data Augmentation ({aug_strategy}) factor {aug_factor}x to training set...")
             from app.services.ml_augmentation import apply_data_augmentation
             _train_df = pd.DataFrame(X_train, columns=features)
-            if is_multi_output:
+            if prediction_target == "advanced_setup":
                 _train_df['Target_Direction'] = y_train[:, 0]
                 _train_df['Target_SL'] = y_train[:, 1]
                 _train_df['Target_TP'] = y_train[:, 2]
+            elif prediction_target == "multi_task":
+                _train_df['Target_Class'] = y_train[:, 0]
+                _train_df['Target_Reg'] = y_train[:, 1]
             else:
                 _train_df['Target'] = y_train.ravel()
             
@@ -1544,8 +1595,10 @@ def train_model_task(job_id: str, db: Session):
             _aug_df = apply_data_augmentation(_train_df, strategy=aug_strategy, factor=aug_factor, samples=aug_samples)
             X_train = _aug_df[features].values
             
-            if is_multi_output:
+            if prediction_target == "advanced_setup":
                 y_train = _aug_df[['Target_Direction', 'Target_SL', 'Target_TP']].values
+            elif prediction_target == "multi_task":
+                y_train = _aug_df[['Target_Class', 'Target_Reg']].values
             else:
                 y_train = _aug_df['Target'].values.reshape(-1, 1)
             add_log(f"Data Augmentation complete. New train size: {len(X_train)} rows.")
@@ -1618,8 +1671,9 @@ def train_model_task(job_id: str, db: Session):
                     final_accuracy = metrics_dict.get("Accuracy", 0.0)
                     final_f1 = metrics_dict.get("F1_Score", 0.0)
                 else:
-                    final_accuracy = metrics_dict.get("R2_Score", 0.0) # Use R2 for accuracy display
-                    final_f1 = metrics_dict.get("MSE", metrics_dict.get("RMSE", 0.0))
+                    if prediction_target != "multi_task":
+                        final_accuracy = metrics_dict.get("R2_Score", 0.0) # Use R2 for accuracy display
+                        final_f1 = metrics_dict.get("MSE", metrics_dict.get("RMSE", 0.0))
             except Exception:
                 pass
 
@@ -2106,116 +2160,23 @@ def train_model_task(job_id: str, db: Session):
             
         elif job.algorithm == "LSTM":
             add_log("Initializing PyTorch LSTM network...")
-            import torch
-            import torch.nn as nn
-            
             from app.models.classic_dl_models import SimpleLSTM
+            from app.services.mtl.trainer import PyTorchTrainer
             
-            X_train_t = torch.FloatTensor(X_train).unsqueeze(1)
-            y_train_t = torch.FloatTensor(y_train)
-            
-            out_size = 3 if prediction_target == "advanced_setup" else 1
-            model = SimpleLSTM(input_size=X_train.shape[1], hidden_size=64, num_layers=2, output_size=out_size)
-            
-            # ── Fine-Tune: load previous weights ───────────────────────────
-            _ft_lr = learning_rate
-            if is_fine_tune:
-                _pt_path = _prev_path.replace('.pkl', '.pt') if _prev_path.endswith('.pkl') else _prev_path
-                if os.path.exists(_pt_path):
-                    try:
-                        model.load_state_dict(torch.load(_pt_path, map_location='cpu'))
-                        _ft_lr = learning_rate * 0.1
-                        add_log(f"✅ Fine-Tuning LSTM from {_pt_path} (LR: {_ft_lr:.6f})")
-                    except Exception as _ft_e:
-                        add_log(f"⚠️ LSTM weight load failed ({_ft_e}), training fresh.")
-                else:
-                    add_log("⚠️ No .pt checkpoint found, training LSTM fresh.")
-            
-            if prediction_target == "classification":
-                num_pos = max(y_train_t.sum().item(), 1.0)
-                num_neg = max(len(y_train_t) - y_train_t.sum().item(), 0.0)
-                pos_weight = torch.tensor([num_neg / num_pos], dtype=torch.float32)
-                criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+            if prediction_target == "multi_task":
+                from app.services.mtl.wrapper import DualHeadModel
+                base_model = SimpleLSTM(input_size=X_train.shape[1], hidden_size=64, num_layers=2, output_size=64)
+                model = DualHeadModel(base_model=base_model, hidden_dim=64)
             else:
-                from app.services.ml_custom_losses import get_custom_loss_fn
-                custom_loss = get_custom_loss_fn(eval_metric)
-                criterion = custom_loss if custom_loss else nn.MSELoss()
+                out_size = 3 if prediction_target == "advanced_setup" else 1
+                model = SimpleLSTM(input_size=X_train.shape[1], hidden_size=64, num_layers=2, output_size=out_size)
                 
-            optimizer = torch.optim.Adam(model.parameters(), lr=_ft_lr)
-            
-            # ── Continual Learning (EWC) Initialization ─────────────────
-            enable_ewc = config.get("enable_ewc", False)
-            ewc_lambda = float(config.get("ewc_lambda", 1.0))
-            ewc_instance = None
-            if enable_ewc and is_fine_tune:
-                try:
-                    add_log("Initializing EWC (Continual Learning) to preserve prior knowledge...")
-                    from app.services.ml_continual_learning import EWC, attach_ewc_to_loss
-                    from torch.utils.data import TensorDataset, DataLoader
-                    _ds = TensorDataset(X_train_t, y_train_t.reshape(-1, out_size))
-                    _dl = DataLoader(_ds, batch_size=32, shuffle=True)
-                    ewc_instance = EWC(model, _dl, device="cpu", ew_weight=ewc_lambda)
-                except Exception as e_ewc:
-                    add_log(f"⚠️ Failed to initialize EWC: {e_ewc}")
-            
-            enable_adversarial = config.get("enable_adversarial", False)
-            adv_epsilon = float(config.get("adversarial_epsilon", 0.01))
-            if enable_adversarial:
-                add_log(f"Adversarial FGSM Training Enabled (Epsilon={adv_epsilon:.3f})")
-                
-            add_log(f"Starting LSTM training for {epochs} epochs...")
-            for epoch in range(epochs):
-                model.train()
-                # 1. Standard Forward Pass
-                outputs = model(X_train_t)
-                optimizer.zero_grad()
-                # FIX: ensure y and outputs have matching shapes
-                loss = criterion(outputs, y_train_t.reshape(-1, out_size))
-                if ewc_instance:
-                    from app.services.ml_continual_learning import attach_ewc_to_loss
-                    loss = attach_ewc_to_loss(loss, model, ewc_instance)
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-                optimizer.step()
-                
-                # 2. Adversarial Pass (FGSM)
-                if enable_adversarial:
-                    from app.services.ml_adversarial import generate_fgsm_attack
-                    X_adv = generate_fgsm_attack(model, criterion, X_train_t, y_train_t.reshape(-1, out_size), epsilon=adv_epsilon)
-                    outputs_adv = model(X_adv)
-                    optimizer.zero_grad()
-                    loss_adv = criterion(outputs_adv, y_train_t.reshape(-1, out_size))
-                    loss_adv.backward()
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-                    optimizer.step()
-                
-                pct = 10.0 + (70.0 * (epoch+1)/epochs)
-                job.progress = pct
-                
-                if (epoch+1) % max(1, epochs//5) == 0 or epoch == 0:
-                    add_log(f"Epoch [{epoch+1}/{epochs}], Loss: {loss.item():.6f}")
-                    time.sleep(0.5) # allow ui to poll nicely
-            
-            model_filename = model_filename.replace(".pkl", ".pt")
-            model_path = model_path.replace(".pkl", ".pt")
-            torch.save(model.state_dict(), model_path)
-            
-            # Simple eval
-            model.eval()
-            with torch.no_grad():
-                X_test_t = torch.FloatTensor(X_test).unsqueeze(1)
-                start_time = time.time()
-                preds = model(X_test_t).numpy()
-                end_time = time.time()
-                final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
-                if prediction_target == "classification":
-                    preds_class = (1 / (1 + np.exp(-preds)) > 0.5).astype(int)
-                    process_metrics(calculate_classification_metrics(y_test, preds_class), True)
-                else:
-                    process_metrics(calculate_regression_metrics(y_test, preds), False)
-                    
-            add_log("PyTorch LSTM training complete.")
-            
+            final_latency, preds_class = PyTorchTrainer.train_model(
+                model=model, X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test,
+                config=config, job=job, add_log=add_log, process_metrics=process_metrics,
+                calculate_classification_metrics=calculate_classification_metrics, calculate_regression_metrics=calculate_regression_metrics,
+                model_path=model_path, previous_model_path=_prev_path if is_fine_tune else None
+            )
         elif job.algorithm == "LightGBM":
             add_log(f"Training LightGBM ({prediction_target.capitalize()})...")
             import lightgbm as lgb
@@ -2324,237 +2285,61 @@ def train_model_task(job_id: str, db: Session):
 
         elif job.algorithm == "GRU":
             add_log("Initializing PyTorch GRU network...")
-            import torch
-            import torch.nn as nn
-            
             from app.models.classic_dl_models import SimpleGRU
-                    
-            X_train_t = torch.FloatTensor(X_train).unsqueeze(1)
-            y_train_t = torch.FloatTensor(y_train)
+            from app.services.mtl.trainer import PyTorchTrainer
             
-            out_size = 3 if prediction_target == "advanced_setup" else 1
-            model = SimpleGRU(input_size=X_train.shape[1], hidden_size=64, num_layers=2, output_size=out_size)
-            
-            # ── Fine-Tune: load previous weights ───────────────────────────
-            _ft_lr = learning_rate
-            if is_fine_tune:
-                _pt_path = _prev_path.replace('.pkl', '.pt') if _prev_path.endswith('.pkl') else _prev_path
-                if os.path.exists(_pt_path):
-                    try:
-                        model.load_state_dict(torch.load(_pt_path, map_location='cpu'))
-                        _ft_lr = learning_rate * 0.1
-                        add_log(f"✅ Fine-Tuning GRU from {_pt_path} (LR: {_ft_lr:.6f})")
-                    except Exception as _ft_e:
-                        add_log(f"⚠️ GRU weight load failed ({_ft_e}), training fresh.")
-                else:
-                    add_log("⚠️ No .pt checkpoint found, training GRU fresh.")
-            
-            if prediction_target == "classification":
-                num_pos = max(y_train_t.sum().item(), 1.0)
-                num_neg = max(len(y_train_t) - y_train_t.sum().item(), 0.0)
-                pos_weight = torch.tensor([num_neg / num_pos], dtype=torch.float32)
-                criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+            if prediction_target == "multi_task":
+                from app.services.mtl.wrapper import DualHeadModel
+                base_model = SimpleGRU(input_size=X_train.shape[1], hidden_size=64, num_layers=2, output_size=64)
+                model = DualHeadModel(base_model=base_model, hidden_dim=64)
             else:
-                from app.services.ml_custom_losses import get_custom_loss_fn
-                custom_loss = get_custom_loss_fn(eval_metric)
-                criterion = custom_loss if custom_loss else nn.MSELoss()
+                out_size = 3 if prediction_target == "advanced_setup" else 1
+                model = SimpleGRU(input_size=X_train.shape[1], hidden_size=64, num_layers=2, output_size=out_size)
                 
-            optimizer = torch.optim.Adam(model.parameters(), lr=_ft_lr)
-            
-            add_log(f"Starting GRU training for {epochs} epochs...")
-            for epoch in range(epochs):
-                outputs = model(X_train_t)
-                optimizer.zero_grad()
-                # FIX: ensure y and outputs have matching shapes
-                loss = criterion(outputs, y_train_t.reshape(-1, out_size))
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-                optimizer.step()
-                
-            model_filename = model_filename.replace(".pkl", ".pt")
-            model_path = model_path.replace(".pkl", ".pt")
-            torch.save(model.state_dict(), model_path)
-            
-            model.eval()
-            with torch.no_grad():
-                X_test_t = torch.FloatTensor(X_test).unsqueeze(1)
-                start_time = time.time()
-                preds = model(X_test_t).numpy()
-                end_time = time.time()
-                final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
-                if prediction_target == "classification":
-                    preds_class = (1 / (1 + np.exp(-preds)) > 0.5).astype(int)
-                    process_metrics(calculate_classification_metrics(y_test, preds_class), True)
-                else:
-                    process_metrics(calculate_regression_metrics(y_test, preds), False)
-            add_log("PyTorch GRU training complete.")
-
+            final_latency, preds_class = PyTorchTrainer.train_model(
+                model=model, X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test,
+                config=config, job=job, add_log=add_log, process_metrics=process_metrics,
+                calculate_classification_metrics=calculate_classification_metrics, calculate_regression_metrics=calculate_regression_metrics,
+                model_path=model_path, previous_model_path=_prev_path if is_fine_tune else None
+            )
         elif job.algorithm == "1D-CNN":
             add_log("Initializing PyTorch 1D-CNN network...")
-            import torch
-            import torch.nn as nn
-            
             from app.models.classic_dl_models import CNN1D
-                    
-            X_train_t = torch.FloatTensor(X_train)
-            y_train_t = torch.FloatTensor(y_train)
+            from app.services.mtl.trainer import PyTorchTrainer
             
-            out_size = 3 if prediction_target == "advanced_setup" else 1
-            model = CNN1D(input_size=X_train.shape[1], output_size=out_size)
-            
-            # ── Fine-Tune: load previous weights ───────────────────────────
-            _ft_lr = learning_rate
-            if is_fine_tune:
-                _pt_path = _prev_path.replace('.pkl', '.pt') if _prev_path.endswith('.pkl') else _prev_path
-                if os.path.exists(_pt_path):
-                    try:
-                        model.load_state_dict(torch.load(_pt_path, map_location='cpu'))
-                        _ft_lr = learning_rate * 0.1
-                        add_log(f"✅ Fine-Tuning 1D-CNN from {_pt_path} (LR: {_ft_lr:.6f})")
-                    except Exception as _ft_e:
-                        add_log(f"⚠️ 1D-CNN weight load failed ({_ft_e}), training fresh.")
-                else:
-                    add_log("⚠️ No .pt checkpoint found, training 1D-CNN fresh.")
-            
-            if prediction_target == "classification":
-                num_pos = max(y_train_t.sum().item(), 1.0)
-                num_neg = max(len(y_train_t) - y_train_t.sum().item(), 0.0)
-                pos_weight = torch.tensor([num_neg / num_pos], dtype=torch.float32)
-                criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+            if prediction_target == "multi_task":
+                from app.services.mtl.wrapper import DualHeadModel
+                base_model = CNN1D(input_size=X_train.shape[1], output_size=64)
+                model = DualHeadModel(base_model=base_model, hidden_dim=64)
             else:
-                from app.services.ml_custom_losses import get_custom_loss_fn
-                custom_loss = get_custom_loss_fn(eval_metric)
-                criterion = custom_loss if custom_loss else nn.MSELoss()
+                out_size = 3 if prediction_target == "advanced_setup" else 1
+                model = CNN1D(input_size=X_train.shape[1], output_size=out_size)
                 
-            optimizer = torch.optim.Adam(model.parameters(), lr=_ft_lr)
-            
-            for epoch in range(epochs):
-                outputs = model(X_train_t)
-                optimizer.zero_grad()
-                loss = criterion(outputs, y_train_t.reshape(-1, out_size))
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-                optimizer.step()
-                
-            model_filename = model_filename.replace(".pkl", ".pt")
-            model_path = model_path.replace(".pkl", ".pt")
-            torch.save(model.state_dict(), model_path)
-            
-            model.eval()
-            with torch.no_grad():
-                X_test_t = torch.FloatTensor(X_test)
-                start_time = time.time()
-                preds = model(X_test_t).numpy()
-                end_time = time.time()
-                final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
-                if prediction_target == "classification":
-                    preds_class = (1 / (1 + np.exp(-preds)) > 0.5).astype(int)
-                    process_metrics(calculate_classification_metrics(y_test, preds_class), True)
-                else:
-                    process_metrics(calculate_regression_metrics(y_test, preds), False)
-            add_log("PyTorch 1D-CNN training complete.")
-
+            final_latency, preds_class = PyTorchTrainer.train_model(
+                model=model, X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test,
+                config=config, job=job, add_log=add_log, process_metrics=process_metrics,
+                calculate_classification_metrics=calculate_classification_metrics, calculate_regression_metrics=calculate_regression_metrics,
+                model_path=model_path, previous_model_path=_prev_path if is_fine_tune else None
+            )
         elif job.algorithm == "DeepLOB":
-            add_log("Initializing PyTorch DeepLOB architecture...")
-            import torch
-            import torch.nn as nn
-            
+            add_log("Initializing PyTorch DeepLOB network...")
             from app.models.classic_dl_models import DeepLOB
-
-            X_train_t = torch.FloatTensor(X_train)
-            y_train_t = torch.FloatTensor(y_train)
-            out_size = 3 if prediction_target == "advanced_setup" else 1
-            model = DeepLOB(input_size=X_train.shape[1], output_size=out_size)
+            from app.services.mtl.trainer import PyTorchTrainer
             
-            # ── Fine-Tune: load previous weights ───────────────────────────
-            _ft_lr = learning_rate
-            if is_fine_tune:
-                _pt_path = _prev_path.replace('.pkl', '.pt') if _prev_path.endswith('.pkl') else _prev_path
-                if os.path.exists(_pt_path):
-                    try:
-                        model.load_state_dict(torch.load(_pt_path, map_location='cpu'))
-                        _ft_lr = learning_rate * 0.1
-                        add_log(f"✅ Fine-Tuning DeepLOB from {_pt_path} (LR: {_ft_lr:.6f})")
-                    except Exception as _ft_e:
-                        add_log(f"⚠️ DeepLOB weight load failed ({_ft_e}), training fresh.")
-                else:
-                    add_log("⚠️ No .pt checkpoint found, training DeepLOB fresh.")
-            
-            if prediction_target == "classification":
-                num_pos = max(y_train_t.sum().item(), 1.0)
-                num_neg = max(len(y_train_t) - y_train_t.sum().item(), 0.0)
-                pos_weight = torch.tensor([num_neg / num_pos], dtype=torch.float32)
-                criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+            if prediction_target == "multi_task":
+                from app.services.mtl.wrapper import DualHeadModel
+                base_model = DeepLOB(input_size=X_train.shape[1], output_size=64)
+                model = DualHeadModel(base_model=base_model, hidden_dim=64)
             else:
-                from app.services.ml_custom_losses import get_custom_loss_fn
-                custom_loss = get_custom_loss_fn(eval_metric)
-                criterion = custom_loss if custom_loss else nn.MSELoss()
+                out_size = 3 if prediction_target == "advanced_setup" else 1
+                model = DeepLOB(input_size=X_train.shape[1], output_size=out_size)
                 
-            optimizer = torch.optim.Adam(model.parameters(), lr=_ft_lr)
-            
-            # ── Continual Learning (EWC) Initialization ─────────────────
-            enable_ewc = config.get("enable_ewc", False)
-            ewc_lambda = float(config.get("ewc_lambda", 1.0))
-            ewc_instance = None
-            if enable_ewc and is_fine_tune:
-                try:
-                    add_log("Initializing EWC (Continual Learning) to preserve prior knowledge...")
-                    from app.services.ml_continual_learning import EWC, attach_ewc_to_loss
-                    from torch.utils.data import TensorDataset, DataLoader
-                    _ds = TensorDataset(X_train_t, y_train_t.reshape(-1, out_size))
-                    _dl = DataLoader(_ds, batch_size=32, shuffle=True)
-                    ewc_instance = EWC(model, _dl, device="cpu", ew_weight=ewc_lambda)
-                except Exception as e_ewc:
-                    add_log(f"⚠️ Failed to initialize EWC: {e_ewc}")
-            
-            enable_adversarial = config.get("enable_adversarial", False)
-            adv_epsilon = float(config.get("adversarial_epsilon", 0.01))
-            if enable_adversarial:
-                add_log(f"Adversarial FGSM Training Enabled (Epsilon={adv_epsilon:.3f})")
-                
-            for epoch in range(epochs):
-                model.train()
-                # 1. Standard Forward Pass
-                outputs = model(X_train_t)
-                optimizer.zero_grad()
-                # FIX: ensure y and outputs have matching shapes
-                loss = criterion(outputs, y_train_t.reshape(-1, out_size))
-                if ewc_instance:
-                    from app.services.ml_continual_learning import attach_ewc_to_loss
-                    loss = attach_ewc_to_loss(loss, model, ewc_instance)
-                loss.backward()
-                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-                optimizer.step()
-                
-                # 2. Adversarial Pass (FGSM)
-                if enable_adversarial:
-                    from app.services.ml_adversarial import generate_fgsm_attack
-                    X_adv = generate_fgsm_attack(model, criterion, X_train_t, y_train_t.reshape(-1, out_size), epsilon=adv_epsilon)
-                    outputs_adv = model(X_adv)
-                    optimizer.zero_grad()
-                    loss_adv = criterion(outputs_adv, y_train_t.reshape(-1, out_size))
-                    loss_adv.backward()
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-                    optimizer.step()
-                
-            model_filename = model_filename.replace(".pkl", ".pt")
-            model_path = model_path.replace(".pkl", ".pt")
-            torch.save(model.state_dict(), model_path)
-            
-            model.eval()
-            with torch.no_grad():
-                X_test_t = torch.FloatTensor(X_test)
-                start_time = time.time()
-                preds = model(X_test_t).numpy()
-                end_time = time.time()
-                final_latency = max(1.0, (end_time - start_time) / max(1, len(X_test)) * 1000)
-                if prediction_target == "classification":
-                    preds_class = (1 / (1 + np.exp(-preds)) > 0.5).astype(int)
-                    process_metrics(calculate_classification_metrics(y_test, preds_class), True)
-                else:
-                    process_metrics(calculate_regression_metrics(y_test, preds), False)
-            add_log("PyTorch DeepLOB training complete.")
-
+            final_latency, preds_class = PyTorchTrainer.train_model(
+                model=model, X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test,
+                config=config, job=job, add_log=add_log, process_metrics=process_metrics,
+                calculate_classification_metrics=calculate_classification_metrics, calculate_regression_metrics=calculate_regression_metrics,
+                model_path=model_path, previous_model_path=_prev_path if is_fine_tune else None
+            )
         elif job.algorithm == "Transformer":
             add_log("🚀 Routing to Advanced ML Engine: Transformer...")
             try:
@@ -2749,35 +2534,43 @@ def train_model_task(job_id: str, db: Session):
             
             elif job.algorithm in ["LSTM", "GRU", "1D-CNN", "DeepLOB"]:
                 add_log("Generating Basic Explainability Metrics for Deep Learning model...")
-                import torch
-                is_cls = (prediction_target == "classification")
                 dl_explain = {}
                 
                 # 1. Confusion Matrix
                 try:
-                    if is_cls:
+                    if prediction_target in ["classification", "multi_task"]:
                         from sklearn.metrics import confusion_matrix
-                        y_true_int = np.round(y_test if is_multi_output else y_test.ravel()).astype(int)
-                        y_pred_int = np.round(preds_class.ravel()).astype(int) if is_cls else None
-                        if y_pred_int is not None:
-                            cm = confusion_matrix(y_true_int, y_pred_int)
-                            dl_explain["confusionMatrix"] = {
-                                "classes": ["Hold/Down", "Up"] if cm.shape[0] == 2 else ["Class 0", "Class 1"],
-                                "matrix": cm.tolist()
-                            }
+                        if prediction_target == "multi_task":
+                            y_t = np.round(y_test[:, 0]).astype(int)
+                        elif is_multi_output:
+                            y_t = np.round(y_test[:, 0]).astype(int)
+                        else:
+                            y_t = np.round(y_test.ravel()).astype(int)
+                            
+                        y_p = np.round(preds_class.ravel()).astype(int)
+                        cm = confusion_matrix(y_t, y_p)
+                        dl_explain["confusionMatrix"] = {
+                            "classes": ["Hold/Down", "Up"] if cm.shape[0] == 2 else ["Class 0", "Class 1"],
+                            "matrix": cm.tolist()
+                        }
                 except Exception as _e:
-                    add_log(f"[DL Explain] Confusion matrix failed: {_e}")
-                
+                    add_log(f"Error generating CM for DL: {_e}")
+
                 # 2. Actual vs Predicted time series
                 try:
-                    subset_len = min(50, len(y_test if is_multi_output else y_test.ravel()))
-                    y_t = y_test if is_multi_output else y_test.ravel()
-                    y_p = preds_class.ravel() if is_cls else preds.ravel()
+                    if prediction_target == "multi_task":
+                        y_ts = y_test[:, 1]  # Plot the regression target for time series
+                        y_p = preds_class.ravel()
+                    else:
+                        y_ts = y_test[:, 0] if is_multi_output else y_test.ravel()
+                        y_p = preds_class.ravel()
+
+                    subset_len = min(50, len(y_ts))
                     ts_data = []
                     for i in range(subset_len):
                         ts_data.append({
                             "time": f"T-{subset_len-i}",
-                            "actual": float(y_t[len(y_t)-subset_len+i]),
+                            "actual": float(y_ts[len(y_ts)-subset_len+i]),
                             "predicted": float(y_p[len(y_p)-subset_len+i])
                         })
                     dl_explain["timeSeriesData"] = ts_data
@@ -2786,13 +2579,20 @@ def train_model_task(job_id: str, db: Session):
                 
                 # 3. Permutation Feature Importance (works for any black-box model)
                 try:
+                    import torch
                     model.eval()
-                    baseline_preds = preds_class.ravel() if is_cls else preds.ravel()
+                    baseline_preds = preds_class.ravel()
                     from sklearn.metrics import accuracy_score, mean_squared_error
-                    if is_cls:
-                        baseline_score = accuracy_score(y_test if is_multi_output else y_test.ravel().astype(int), baseline_preds.astype(int))
+                    
+                    if prediction_target == "multi_task":
+                        y_t_perm = np.round(y_test[:, 0]).astype(int)
+                        baseline_score = accuracy_score(y_t_perm, baseline_preds.astype(int))
+                    elif prediction_target == "classification":
+                        y_t_perm = np.round(y_test[:, 0] if is_multi_output else y_test.ravel()).astype(int)
+                        baseline_score = accuracy_score(y_t_perm, baseline_preds.astype(int))
                     else:
-                        baseline_score = -mean_squared_error(y_test if is_multi_output else y_test.ravel(), baseline_preds)
+                        y_t_perm = y_test[:, 0] if is_multi_output else y_test.ravel()
+                        baseline_score = -mean_squared_error(y_t_perm, baseline_preds)
                     
                     perm_importances = []
                     for feat_idx, feat_name in enumerate(features):
@@ -2803,14 +2603,19 @@ def train_model_task(job_id: str, db: Session):
                                 X_perm_t = torch.FloatTensor(X_permuted).unsqueeze(1)
                             else:
                                 X_perm_t = torch.FloatTensor(X_permuted)
-                            perm_out = model(X_perm_t).numpy()
+                            
+                            perm_out = model(X_perm_t)
+                            if prediction_target == "multi_task":
+                                perm_out = perm_out[0].numpy() # take classification head
+                            else:
+                                perm_out = perm_out.numpy()
                         
-                        if is_cls:
+                        if prediction_target in ["classification", "multi_task"]:
                             perm_preds = (1 / (1 + np.exp(-perm_out)) > 0.5).astype(int).ravel()
-                            perm_score = accuracy_score(y_test if is_multi_output else y_test.ravel().astype(int), perm_preds)
+                            perm_score = accuracy_score(y_t_perm, perm_preds)
                         else:
                             perm_preds = perm_out.ravel()
-                            perm_score = -mean_squared_error(y_test if is_multi_output else y_test.ravel(), perm_preds)
+                            perm_score = -mean_squared_error(y_t_perm, perm_preds)
                         
                         importance = max(0.0, baseline_score - perm_score)
                         perm_importances.append({"name": feat_name, "value": float(importance)})
@@ -2821,7 +2626,7 @@ def train_model_task(job_id: str, db: Session):
                         for p in perm_importances:
                             p["value"] = p["value"] / total_imp
                     perm_importances.sort(key=lambda x: x["value"], reverse=True)
-                    dl_explain["featureImportance"] = perm_importances
+                    dl_explain["featureImportance"] = perm_importances[:20]
                 except Exception as _e:
                     add_log(f"[DL Explain] Permutation importance failed: {_e}")
                 
@@ -2925,6 +2730,11 @@ def train_model_task(job_id: str, db: Session):
                     joblib.dump("none", scaler_save_path)
                     add_log(f"✅ Scaler config saved (none) to: {scaler_save_path}")
                 
+                if scaler_y is not None:
+                    scaler_y_save_path = os.path.join(model_dir, f"scaler_y_{job.id}.pkl")
+                    joblib.dump(scaler_y, scaler_y_save_path)
+                    add_log(f"✅ Target Scaler saved to: {scaler_y_save_path}")
+                
                 if pca_model_data is not None:
                     pca_save_path = os.path.join(model_dir, f"pca_{job.id}.pkl")
                     joblib.dump(pca_model_data, pca_save_path)
@@ -2957,6 +2767,11 @@ def train_model_task(job_id: str, db: Session):
             scaler_save_path = model_path.replace('.pkl', '.scaler').replace('.pt', '.scaler').replace('.zip', '.scaler')
             joblib.dump(scaler_x, scaler_save_path)
             add_log(f"✅ Scaler saved to: {scaler_save_path}")
+            
+            if scaler_y is not None:
+                scaler_y_save_path = model_path.replace('.pkl', '.scaler_y').replace('.pt', '.scaler_y').replace('.zip', '.scaler_y')
+                joblib.dump(scaler_y, scaler_y_save_path)
+                add_log(f"✅ Target Scaler saved to: {scaler_y_save_path}")
             
             if pca_model_data is not None:
                 pca_save_path = model_path.replace('.pkl', '.pca').replace('.pt', '.pca').replace('.zip', '.pca')

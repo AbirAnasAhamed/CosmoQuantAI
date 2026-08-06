@@ -79,6 +79,9 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session, sequence
         raise ValueError("Model is not in READY state.")
 
     model_path = version.file_path
+    if model_path and not os.path.exists(model_path) and os.path.exists(model_path.replace(".pkl", ".pt")):
+        model_path = model_path.replace(".pkl", ".pt")
+        
     if not model_path or not os.path.exists(model_path):
         raise FileNotFoundError(f"Model file not found: {model_path}")
 
@@ -159,6 +162,15 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session, sequence
         scaler_path_fallback = os.path.join(os.path.dirname(model_path), "model.scaler")
         if os.path.exists(scaler_path_fallback):
             scaler_x = joblib.load(scaler_path_fallback)
+
+    scaler_y_path = model_path.replace(".pkl", ".scaler_y").replace(".pt", ".scaler_y").replace(".zip", ".scaler_y")
+    scaler_y = None
+    if os.path.exists(scaler_y_path):
+        scaler_y = joblib.load(scaler_y_path)
+    else:
+        scaler_y_path_fallback = os.path.join(os.path.dirname(model_path), "model.scaler_y")
+        if os.path.exists(scaler_y_path_fallback):
+            scaler_y = joblib.load(scaler_y_path_fallback)
             
     # Handle explicit 'none' string saved by our new pipeline
     if isinstance(scaler_x, str) and scaler_x == "none":
@@ -288,10 +300,12 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session, sequence
         if version.explainability and isinstance(version.explainability, dict):
             anomaly_threshold = version.explainability.get("anomaly_threshold")
 
-        inference_result = _run_inference(model_path, algorithm, X, prediction_target, features, anomaly_threshold, current_price)
+        inference_result = _run_inference(model_path, algorithm, X, prediction_target, features, anomaly_threshold, current_price, scaler_y=scaler_y)
         print(f"[ml_predictor DEBUG] _run_inference returned: {inference_result}")
-        sl_price, tp_price = None, None
-        if len(inference_result) == 4:
+        sl_price, tp_price, raw_return = None, None, None
+        if len(inference_result) == 5:
+            signal_str, confidence, sl_price, tp_price, raw_return = inference_result
+        elif len(inference_result) == 4:
             signal_str, confidence, sl_price, tp_price = inference_result
         else:
             signal_str, confidence = inference_result
@@ -355,6 +369,8 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session, sequence
         res["sl"] = sl_price
     if tp_price is not None:
         res["tp"] = tp_price
+    if raw_return is not None:
+        res["predicted_return"] = raw_return
     return res
 
 
@@ -729,16 +745,16 @@ def _calculate_indicators(df: pd.DataFrame, indicators: list) -> pd.DataFrame:
     return df
 
 
-def _run_inference(model_path: str, algorithm: str, X: np.ndarray, prediction_target: str, features: list = None, anomaly_threshold: float = None, current_price: float = 0.0):
+def _run_inference(model_path: str, algorithm: str, X: np.ndarray, prediction_target: str, features: list = None, anomaly_threshold: float = None, current_price: float = 0.0, scaler_y=None):
     """
     Load model and run inference. Returns (signal_str, confidence).
     signal_str : "BUY", "SELL", or "HOLD"
     confidence : 0.0 – 1.0
     """
     if algorithm in DEEP_LEARNING_ALGOS:
-        return _infer_torch(model_path, algorithm, X, prediction_target, anomaly_threshold, current_price)
+        return _infer_torch(model_path, algorithm, X, prediction_target, anomaly_threshold, current_price, scaler_y=scaler_y)
     elif algorithm in SKLEARN_ALGOS:
-        return _infer_sklearn(model_path, X, prediction_target, features, current_price)
+        return _infer_sklearn(model_path, X, prediction_target, features, current_price, scaler_y=scaler_y)
     elif algorithm in ["PPO-RL", "SAC-RL", "A2C-RL", "DDPG-RL", "DQN-RL", "TD3-RL", "QR-DQN", "CQL", "GAIL", "Decision-Transformer", "Liquid-NN"]:
         return _infer_rl(model_path, algorithm, X, prediction_target=prediction_target, features=features, current_price=current_price)
     elif algorithm in NEXT_GEN_ALGOS:
@@ -747,11 +763,11 @@ def _run_inference(model_path: str, algorithm: str, X: np.ndarray, prediction_ta
     else:
         # Unknown — try sklearn first, then torch, then RL
         try:
-            return _infer_sklearn(model_path, X, prediction_target, features, current_price)
+            return _infer_sklearn(model_path, X, prediction_target, features, current_price, scaler_y=scaler_y)
         except Exception:
             try:
                 pt_path = model_path.replace(".pkl", ".pt")
-                return _infer_torch(pt_path, algorithm, X, prediction_target, anomaly_threshold)
+                return _infer_torch(pt_path, algorithm, X, prediction_target, anomaly_threshold, current_price, scaler_y=scaler_y)
             except Exception:
                 return _infer_rl(model_path, algorithm, X, features=features, current_price=current_price)
 
@@ -835,7 +851,7 @@ def _infer_rl(model_path: str, algorithm: str, X: np.ndarray, prediction_target:
         return "HOLD", 0.5
 
 
-def _infer_sklearn(model_path: str, X: np.ndarray, prediction_target: str, features: list = None, current_price: float = 0.0):
+def _infer_sklearn(model_path: str, X: np.ndarray, prediction_target: str, features: list = None, current_price: float = 0.0, scaler_y=None):
     """Inference for sklearn-compatible models."""
     import os
     # Limit OpenBLAS/MKL threads to avoid thread bombs during inference
@@ -923,7 +939,7 @@ def _infer_sklearn(model_path: str, X: np.ndarray, prediction_target: str, featu
         return signal_str, confidence
 
 
-def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_target: str, anomaly_threshold: float = None, current_price: float = 0.0):
+def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_target: str, anomaly_threshold: float = None, current_price: float = 0.0, scaler_y=None):
     """Inference for PyTorch models. Reconstructs same tiny architecture as training."""
     import torch
     import torch.nn as nn
@@ -945,7 +961,13 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
             def forward(self, x):
                 out, _ = self.lstm(x)
                 return self.fc(out[:, -1, :])
-        model = SimpleLSTM(input_size)
+        if prediction_target == "multi_task":
+            from app.services.mtl.wrapper import DualHeadModel
+            base_model = SimpleLSTM(input_size)
+            base_model.fc = nn.Linear(64, 64)
+            model = DualHeadModel(base_model=base_model, hidden_dim=64)
+        else:
+            model = SimpleLSTM(input_size)
         
         # If batch_first=True, expected shape is (batch, seq, feature)
         # Our X is currently (seq, feature), so unsqueeze(0) gives (1, seq, feature)
@@ -963,7 +985,13 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
             def forward(self, x):
                 out, _ = self.gru(x)
                 return self.fc(out[:, -1, :])
-        model = SimpleGRU(input_size)
+        if prediction_target == "multi_task":
+            from app.services.mtl.wrapper import DualHeadModel
+            base_model = SimpleGRU(input_size)
+            base_model.fc = nn.Linear(64, 64)
+            model = DualHeadModel(base_model=base_model, hidden_dim=64)
+        else:
+            model = SimpleGRU(input_size)
         if len(X.shape) == 2:
             X_t = torch.FloatTensor(X).unsqueeze(0)
         else:
@@ -1049,7 +1077,20 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
             reconstructed = model(X_t)
             raw = torch.mean((reconstructed - X_t) ** 2, dim=1).numpy().flatten()[0]
         else:
-            raw = model(X_t).numpy().flatten()[0]
+            out = model(X_t)
+            if prediction_target == "multi_task":
+                class_logits, reg_value = out
+                prob = torch.sigmoid(class_logits).numpy().flatten()[0]
+                raw = reg_value.numpy().flatten()[0]
+                if scaler_y is not None:
+                    raw = float(scaler_y.inverse_transform(np.array([[raw]]))[0][0])
+                signal_str = "BUY" if prob >= 0.5 else "SELL"
+                confidence = float(prob if prob >= 0.5 else 1.0 - prob) * min(1.0, max(0.1, abs(raw) * 100.0))
+                confidence = min(0.99, max(0.1, confidence))
+                return signal_str, float(confidence), None, None, float(raw)
+            else:
+                if isinstance(out, tuple): out = out[0]
+                raw = out.numpy().flatten()[0]
 
     if algorithm == "Auto-Encoder":
         # Check against threshold

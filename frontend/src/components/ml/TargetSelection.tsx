@@ -27,6 +27,10 @@ const TargetSelection: React.FC<TargetSelectionProps> = ({ predictionTarget, set
     // Check if the currently selected algorithm forces advanced setup (RL only models)
     const isRlOnly = !!selectedAlgorithm && RL_ONLY_ALGOS.includes(selectedAlgorithm);
     
+    // Check if MTL is supported (Advanced Supported but NOT RL)
+    const isRlAlgo = !!selectedAlgorithm && selectedAlgorithm.includes('-RL') || isRlOnly;
+    const isMtlSupported = isAdvancedSupported && !isRlAlgo;
+
     // Auto-switch to advanced_setup if an RL-only algorithm is selected
     React.useEffect(() => {
         if (isRlOnly && predictionTarget !== 'advanced_setup') {
@@ -39,7 +43,7 @@ const TargetSelection: React.FC<TargetSelectionProps> = ({ predictionTarget, set
             <label className="block text-sm font-medium text-slate-300 mb-2 flex items-center gap-2">
                 <Target className="w-4 h-4 text-cyan-400" /> Prediction Target
             </label>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <button
                     onClick={() => setPredictionTarget('classification')}
                     disabled={isTraining || isRlOnly}
@@ -83,7 +87,22 @@ const TargetSelection: React.FC<TargetSelectionProps> = ({ predictionTarget, set
                     }`}
                 >
                     <span className="block">Advanced Setup (SL/TP)</span>
-                    <span className="block text-[10px] font-normal opacity-70 mt-0.5">Multi-Output Regression</span>
+                    <span className="block text-[10px] font-normal opacity-70 mt-0.5">Multi-Output</span>
+                </button>
+                <button
+                    onClick={() => setPredictionTarget('multi_task')}
+                    disabled={isTraining || !isMtlSupported}
+                    title={!isMtlSupported ? `Not supported by ${selectedAlgorithm || 'this algorithm'}` : ''}
+                    className={`py-3 rounded-xl text-sm font-bold transition-all duration-300 ${
+                        !isMtlSupported 
+                            ? 'bg-white/5 text-slate-500 border border-white/5 opacity-50 cursor-not-allowed grayscale'
+                            : predictionTarget === 'multi_task' 
+                                ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)] border border-emerald-400/50' 
+                                : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'
+                    }`}
+                >
+                    <span className="block">Multi-Task</span>
+                    <span className="block text-[10px] font-normal opacity-70 mt-0.5">Dir + Price</span>
                 </button>
             </div>
             <p className="text-xs text-slate-500 mt-2 ml-1 font-medium">What should the AI predict for the next candle?</p>

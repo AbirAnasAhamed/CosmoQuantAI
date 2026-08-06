@@ -29,9 +29,6 @@ class AdvancedMLEngine:
         """Supervised Training for Transformer Model."""
         config = job.config or {}
         seq_len = int(config.get("lookback_window", config.get("sequence_length", 30)))
-        epochs = int(config.get("epochs", 10))
-        lr = float(config.get("learning_rate", 0.001))
-        batch_size = 64
         
         add_log(f"Preparing sequence data (Window Size: {seq_len})...")
         
@@ -40,127 +37,50 @@ class AdvancedMLEngine:
             add_log(error_msg)
             raise Exception(error_msg)
 
-        target_col = "Target"
+        prediction_target = config.get("prediction_target", "classification")
+        if prediction_target == "multi_task":
+            target_col = ["Target_Class", "Target_Reg"]
+        elif prediction_target == "advanced_setup":
+            target_col = ["Target_Direction", "Target_SL", "Target_TP"]
+        else:
+            target_col = "Target"
+
+        from app.services.advanced_ml.data_handler import AdvancedDataHandler
         X, y = AdvancedDataHandler.create_sequences(df, features, sequence_length=seq_len, target_col=target_col)
         
+        from app.services.ml_training_engine import apply_data_split
         X_train, X_test, y_train, y_test = apply_data_split(X, y, config, add_log)
         
-        X_train, X_test = torch.FloatTensor(X_train), torch.FloatTensor(X_test)
-        y_train, y_test = torch.FloatTensor(y_train).view(-1, 1), torch.FloatTensor(y_test).view(-1, 1)
-        
-        train_loader = DataLoader(TensorDataset(X_train, y_train), batch_size=batch_size, shuffle=True)
-        
         add_log(f"Initializing Transformer Architecture (Input Dim: {len(features)})...")
-        model = TimeSeriesTransformer(input_dim=len(features), d_model=64, nhead=4, num_layers=3)
+        from app.services.advanced_ml.architectures import TimeSeriesTransformer
+        from app.services.mtl.trainer import PyTorchTrainer
+        import os
         
         model_dir = os.path.join("uploads", "models", f"job_{job.id}")
         os.makedirs(model_dir, exist_ok=True)
-        checkpoint_path = os.path.join(model_dir, "checkpoint_latest.pt")
-        state_path = os.path.join(model_dir, "training_state.json")
-        start_epoch = 0
+        model_path = os.path.join(model_dir, f"model_{job.id}.pt")
 
-        # ── Auto-Resume Logic ─────────────────────────────────────────
-        if os.path.exists(checkpoint_path) and os.path.exists(state_path):
-            try:
-                model.load_state_dict(torch.load(checkpoint_path, map_location='cpu'))
-                with open(state_path, "r") as f:
-                    state = json.load(f)
-                    start_epoch = state.get("epoch", 0)
-                add_log(f"🔄 Auto-Resuming Transformer from checkpoint (Epoch {start_epoch}/{epochs})")
-            except Exception as e:
-                add_log(f"⚠️ Auto-Resume failed ({e}), checking previous model...")
-        
-        # ── Fine-Tune: load previous weights (if not resuming) ────────
-        if start_epoch == 0 and previous_model_path and os.path.exists(previous_model_path):
-            try:
-                model.load_state_dict(torch.load(previous_model_path, map_location='cpu'))
-                lr = lr * 0.1  # Lower LR for fine-tuning
-                add_log(f"✅ Fine-Tuning Transformer from checkpoint (LR: {lr:.6f})")
-            except Exception as _ft_e:
-                add_log(f"⚠️ Transformer weight load failed ({_ft_e}), training fresh.")
-        elif start_epoch == 0:
-            add_log("🆕 Fresh Transformer Training")
-        
-        is_classification = config.get("prediction_target") == "classification"
-        if is_classification:
-            num_pos = max(y_train.sum().item(), 1.0)
-            num_neg = max(len(y_train) - y_train.sum().item(), 0.0)
-            pos_weight = torch.tensor([num_neg / num_pos], dtype=torch.float32)
-            criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+        if prediction_target == "multi_task":
+            from app.services.mtl.wrapper import DualHeadModel
+            base_model = TimeSeriesTransformer(input_dim=len(features), d_model=64, nhead=4, num_layers=3, output_dim=64)
+            model = DualHeadModel(base_model=base_model, hidden_dim=64)
         else:
-            criterion = nn.MSELoss()
-        optimizer = optim.Adam(model.parameters(), lr=lr)
+            out_size = 3 if prediction_target == "advanced_setup" else 1
+            model = TimeSeriesTransformer(input_dim=len(features), d_model=64, nhead=4, num_layers=3, output_dim=out_size)
+            
+        def dummy_process_metrics(metrics_str, is_classification):
+            add_log(metrics_str)
+            
+        from app.services.ml_training_engine import calculate_classification_metrics, calculate_regression_metrics
         
-        add_log(f"Starting Supervised Training for {epochs} epochs...")
-        checkpoint_interval = max(1, epochs // 20)  # Save ~20 times (every 5%)
-
-        for epoch in range(start_epoch, epochs):
-            model.train()
-            epoch_loss = 0
-            for batch_X, batch_y in train_loader:
-                optimizer.zero_grad()
-                outputs = model(batch_X)
-                loss = criterion(outputs, batch_y)
-                loss.backward()
-                optimizer.step()
-                epoch_loss += loss.item()
-            
-            avg_loss = epoch_loss / len(train_loader)
-            db.refresh(job)
-            if job.status == models.TrainingStatus.PAUSED:
-                torch.save(model.state_dict(), checkpoint_path)
-                with open(state_path, "w") as f:
-                    json.dump({"epoch": epoch + 1}, f)
-                raise Exception("Training paused by user.")
-            if job.status == models.TrainingStatus.FAILED and job.error_message and "cancelled" in job.error_message.lower():
-                raise Exception("Training cancelled by user.")
-                
-            job.progress = 40 + (50 * (epoch + 1) / epochs)
-            db.commit()
-            add_log(f"Epoch [{epoch+1}/{epochs}], Avg Loss: {avg_loss:.6f}")
-            
-            # Periodic Checkpoint Save
-            if (epoch + 1) % checkpoint_interval == 0 or (epoch + 1) == epochs:
-                torch.save(model.state_dict(), checkpoint_path)
-                with open(state_path, "w") as f:
-                    json.dump({"epoch": epoch + 1}, f)
-            
-        # Save final model
-        model_filename = f"model_{job.id}.pt"
-        model_path = os.path.join(model_dir, model_filename)
-        torch.save(model.state_dict(), model_path)
+        final_latency, _ = PyTorchTrainer.train_model(
+            model=model, X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test,
+            config=config, job=job, add_log=add_log, process_metrics=dummy_process_metrics,
+            calculate_classification_metrics=calculate_classification_metrics, calculate_regression_metrics=calculate_regression_metrics,
+            model_path=model_path, previous_model_path=previous_model_path
+        )
         
-        # Clean up temporary checkpoint if desired (optional, we leave it for now)
-
-        
-        # ✅ Calculate Final Metrics for UI
-        add_log("Finalizing Model and Calculating Performance Metrics...")
-        model.eval()
-        with torch.no_grad():
-            test_outputs = model(X_test)
-            
-            if config.get("prediction_target") == "classification":
-                # Classification Metrics
-                preds = (torch.sigmoid(test_outputs).squeeze() > 0.5).int().numpy()
-                y_true = y_test.int().numpy()
-                metrics = {
-                    "accuracy": float(accuracy_score(y_true, preds)),
-                    "precision": float(precision_score(y_true, preds, zero_division=0)),
-                    "recall": float(recall_score(y_true, preds, zero_division=0)),
-                    "f1_score": float(f1_score(y_true, preds, zero_division=0))
-                }
-            else:
-                # Regression Metrics
-                preds = test_outputs.squeeze().numpy()
-                y_true = y_test.squeeze().numpy()
-                metrics = {
-                    "mse": float(mean_squared_error(y_true, preds)),
-                    "mae": float(mean_absolute_error(y_true, preds)),
-                    "rmse": float(np.sqrt(mean_squared_error(y_true, preds)))
-                }
-            
-            add_log(f"[METRICS] {json.dumps(metrics)}")
-        
+        metrics = {"latency": final_latency}
         return model, model_path, metrics
 
     @staticmethod
@@ -168,105 +88,58 @@ class AdvancedMLEngine:
         """Supervised Training for TCN Model."""
         config = job.config or {}
         seq_len = int(config.get("lookback_window", config.get("sequence_length", 30)))
-        epochs = int(config.get("epochs", 10))
-        lr = float(config.get("learning_rate", 0.001))
-        batch_size = 64
         
-        add_log(f"Preparing sequence data for TCN (Window Size: {seq_len})...")
-        target_col = "Target"
+        add_log(f"Preparing sequence data (Window Size: {seq_len})...")
+        
+        if len(df) < seq_len:
+            error_msg = f"❌ Not enough data: You have {len(df)} candles but sequence length is {seq_len}. Suggestion: Decrease 'Sequence Length' to {max(1, len(df)-1)} or use a lower 'Timeframe' to generate more candles."
+            add_log(error_msg)
+            raise Exception(error_msg)
+
+        prediction_target = config.get("prediction_target", "classification")
+        if prediction_target == "multi_task":
+            target_col = ["Target_Class", "Target_Reg"]
+        elif prediction_target == "advanced_setup":
+            target_col = ["Target_Direction", "Target_SL", "Target_TP"]
+        else:
+            target_col = "Target"
+
+        from app.services.advanced_ml.data_handler import AdvancedDataHandler
         X, y = AdvancedDataHandler.create_sequences(df, features, sequence_length=seq_len, target_col=target_col)
         
+        from app.services.ml_training_engine import apply_data_split
         X_train, X_test, y_train, y_test = apply_data_split(X, y, config, add_log)
         
-        X_train, X_test = torch.FloatTensor(X_train), torch.FloatTensor(X_test)
-        y_train, y_test = torch.FloatTensor(y_train).view(-1, 1), torch.FloatTensor(y_test).view(-1, 1)
-        
-        train_loader = DataLoader(TensorDataset(X_train, y_train), batch_size=batch_size, shuffle=True)
-        
         add_log(f"Initializing TCN Architecture (Input Dim: {len(features)})...")
-        model = TCNModel(input_size=len(features), num_channels=[32, 64, 128], output_size=1)
+        from app.services.advanced_ml.architectures import TCNModel
+        from app.services.mtl.trainer import PyTorchTrainer
+        import os
         
         model_dir = os.path.join("uploads", "models", f"job_{job.id}")
         os.makedirs(model_dir, exist_ok=True)
-        checkpoint_path = os.path.join(model_dir, "checkpoint_latest.pt")
-        state_path = os.path.join(model_dir, "training_state.json")
-        start_epoch = 0
+        model_path = os.path.join(model_dir, f"model_{job.id}.pt")
 
-        # ── Auto-Resume Logic ─────────────────────────────────────────
-        if os.path.exists(checkpoint_path) and os.path.exists(state_path):
-            try:
-                model.load_state_dict(torch.load(checkpoint_path, map_location='cpu'))
-                with open(state_path, "r") as f:
-                    state = json.load(f)
-                    start_epoch = state.get("epoch", 0)
-                add_log(f"🔄 Auto-Resuming TCN from checkpoint (Epoch {start_epoch}/{epochs})")
-            except Exception as e:
-                add_log(f"⚠️ Auto-Resume failed ({e}), checking previous model...")
-        
-        if start_epoch == 0 and previous_model_path and os.path.exists(previous_model_path):
-            try:
-                model.load_state_dict(torch.load(previous_model_path, map_location='cpu'))
-                lr = lr * 0.1
-                add_log(f"✅ Fine-Tuning TCN from checkpoint (LR: {lr:.6f})")
-            except Exception as e:
-                add_log(f"⚠️ TCN weight load failed ({e}), training fresh.")
-        
-        is_classification = config.get("prediction_target") == "classification"
-        if is_classification:
-            num_pos = max(y_train.sum().item(), 1.0)
-            num_neg = max(len(y_train) - y_train.sum().item(), 0.0)
-            pos_weight = torch.tensor([num_neg / num_pos], dtype=torch.float32)
-            criterion = nn.BCEWithLogitsLoss(pos_weight=pos_weight)
+        if prediction_target == "multi_task":
+            from app.services.mtl.wrapper import DualHeadModel
+            base_model = TCNModel(input_size=len(features), num_channels=[32, 64, 128], output_size=64)
+            model = DualHeadModel(base_model=base_model, hidden_dim=64)
         else:
-            criterion = nn.MSELoss()
-        optimizer = optim.Adam(model.parameters(), lr=lr)
-        
-        checkpoint_interval = max(1, epochs // 20)
-
-        for epoch in range(start_epoch, epochs):
-            model.train()
-            epoch_loss = 0
-            for batch_X, batch_y in train_loader:
-                optimizer.zero_grad()
-                outputs = model(batch_X)
-                loss = criterion(outputs, batch_y)
-                loss.backward()
-                optimizer.step()
-                epoch_loss += loss.item()
+            out_size = 3 if prediction_target == "advanced_setup" else 1
+            model = TCNModel(input_size=len(features), num_channels=[32, 64, 128], output_size=out_size)
             
-            db.refresh(job)
-            if job.status == models.TrainingStatus.PAUSED:
-                torch.save(model.state_dict(), checkpoint_path)
-                with open(state_path, "w") as f:
-                    json.dump({"epoch": epoch + 1}, f)
-                raise Exception("Training paused by user.")
-            if job.status == models.TrainingStatus.FAILED and job.error_message and "cancelled" in job.error_message.lower():
-                raise Exception("Training cancelled by user.")
-                
-            job.progress = 40 + (50 * (epoch + 1) / epochs)
-            db.commit()
-            add_log(f"Epoch [{epoch+1}/{epochs}], Avg Loss: {(epoch_loss / len(train_loader)):.6f}")
-
-            if (epoch + 1) % checkpoint_interval == 0 or (epoch + 1) == epochs:
-                torch.save(model.state_dict(), checkpoint_path)
-                with open(state_path, "w") as f:
-                    json.dump({"epoch": epoch + 1}, f)
+        def dummy_process_metrics(metrics_str, is_classification):
+            add_log(metrics_str)
             
-        model_filename = f"model_{job.id}.pt"
-        model_path = os.path.join(model_dir, model_filename)
-        torch.save(model.state_dict(), model_path)
+        from app.services.ml_training_engine import calculate_classification_metrics, calculate_regression_metrics
         
-        model.eval()
-        with torch.no_grad():
-            test_outputs = model(X_test)
-            preds = (torch.sigmoid(test_outputs).squeeze() > 0.5).int().numpy() if config.get("prediction_target") == "classification" else test_outputs.squeeze().numpy()
-            y_true = y_test.int().numpy() if config.get("prediction_target") == "classification" else y_test.squeeze().numpy()
-            if config.get("prediction_target") == "classification":
-                metrics = { "accuracy": float(accuracy_score(y_true, preds)), "f1_score": float(f1_score(y_true, preds, zero_division=0)) }
-            else:
-                metrics = { "mse": float(mean_squared_error(y_true, preds)), "rmse": float(np.sqrt(mean_squared_error(y_true, preds))) }
-            add_log(f"[METRICS] {json.dumps(metrics)}")
+        final_latency, _ = PyTorchTrainer.train_model(
+            model=model, X_train=X_train, y_train=y_train, X_test=X_test, y_test=y_test,
+            config=config, job=job, add_log=add_log, process_metrics=dummy_process_metrics,
+            calculate_classification_metrics=calculate_classification_metrics, calculate_regression_metrics=calculate_regression_metrics,
+            model_path=model_path, previous_model_path=previous_model_path
+        )
         
+        metrics = {"latency": final_latency}
         return model, model_path, metrics
 
     @staticmethod

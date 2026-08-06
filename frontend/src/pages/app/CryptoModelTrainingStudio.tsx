@@ -255,7 +255,7 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
 
     React.useEffect(() => {
         const isRlAlgo = ['MuZero', 'Meta-RL', 'HRL', 'MAPPO'].includes(algorithm);
-        if (isRlAlgo && (predictionTarget === 'classification' || predictionTarget === 'regression')) {
+        if (isRlAlgo && (predictionTarget === 'classification' || predictionTarget === 'regression' || predictionTarget === 'multi_task')) {
             setPredictionTarget('advanced_setup');
         }
     }, [algorithm, predictionTarget]);

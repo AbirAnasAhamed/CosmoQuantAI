@@ -200,6 +200,7 @@ export type SignalResult = {
     timestamp: string;
     features_used?: number;
     dataset_type?: string;
+    predicted_return?: number;
 };
 
 export const SignalModal: React.FC<{
@@ -333,6 +334,7 @@ export const SignalModal: React.FC<{
                     <div className="w-full bg-white/4 rounded-2xl border border-white/6 p-4 space-y-2.5 text-left">
                         {[
                             { label: 'Price', value: `$${result.price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 4 })}`, color: 'text-white' },
+                            ...(result.predicted_return !== undefined ? [{ label: 'Pred. Movement', value: `${result.predicted_return > 0 ? '+' : ''}${(result.predicted_return * 100).toFixed(2)}%`, color: result.predicted_return > 0 ? 'text-emerald-400' : 'text-rose-400' }] : []),
                             { label: 'Symbol', value: result.symbol, color: 'text-gray-300' },
                             { label: 'Algorithm', value: result.algorithm, color: 'text-purple-400' },
                             ...(result.features_used ? [{ label: 'Features', value: `${result.features_used} features`, color: 'text-gray-400' }] : []),
