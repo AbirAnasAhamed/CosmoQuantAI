@@ -759,7 +759,7 @@ def _run_inference(model_path: str, algorithm: str, X: np.ndarray, prediction_ta
         return _infer_rl(model_path, algorithm, X, prediction_target=prediction_target, features=features, current_price=current_price)
     elif algorithm in NEXT_GEN_ALGOS:
         pt_path = model_path.replace(".pkl", ".pt")
-        return _infer_nextgen(pt_path, algorithm, X, prediction_target)
+        return _infer_nextgen(pt_path, algorithm, X, prediction_target, current_price=current_price, scaler_y=scaler_y)
     else:
         # Unknown — try sklearn first, then torch, then RL
         try:
@@ -886,10 +886,24 @@ def _infer_sklearn(model_path: str, X: np.ndarray, prediction_target: str, featu
     with joblib.parallel_backend('threading', n_jobs=1):
         if prediction_target == "advanced_setup":
             pred = model.predict(X_input)[0]
-            # pred is [Target_Direction, Target_SL, Target_TP]
-            direction = pred[0]
-            sl_dist = pred[1]
-            tp_dist = pred[2]
+            if np.isscalar(pred) or (hasattr(pred, "shape") and len(pred.shape) == 0):
+                direction = float(pred)
+                sl_dist = 0.01
+                tp_dist = 0.01
+            elif len(pred) < 3:
+                direction = float(pred[0])
+                sl_dist = 0.01
+                tp_dist = 0.01
+            else:
+                if scaler_y is not None:
+                    try:
+                        pred = scaler_y.inverse_transform([pred])[0]
+                    except Exception:
+                        pass
+                # pred is [Target_Direction, Target_SL, Target_TP]
+                direction = pred[0]
+                sl_dist = pred[1]
+                tp_dist = pred[2]
             signal_str = "BUY" if direction > 0.5 else "SELL"
             confidence = 0.95 # Advanced setup implies high confidence in the exact bounds
             
@@ -933,8 +947,24 @@ def _infer_sklearn(model_path: str, X: np.ndarray, prediction_target: str, featu
                 signal_str = "BUY" if label == 1 else "SELL"
         else:
             pred = float(model.predict(X_input)[0])
-            signal_str = "BUY" if pred > 0 else "SELL"
-            confidence = min(0.95, abs(pred))
+            if scaler_y is not None:
+                try:
+                    pred = float(scaler_y.inverse_transform([[pred]])[0][0])
+                except Exception:
+                    pass
+            
+            if current_price and current_price > 0:
+                # Heuristic: if pred is within 50% of current_price, it's an exact price.
+                if abs((pred - current_price) / current_price) < 0.5:
+                    pred_return = (pred - current_price) / current_price
+                else:
+                    pred_return = pred
+            else:
+                pred_return = pred
+                
+            signal_str = "BUY" if pred_return > 0 else "SELL"
+            confidence = min(0.95, abs(pred_return) * 10)
+            return signal_str, confidence, None, None, float(pred_return)
 
         return signal_str, confidence
 
@@ -950,6 +980,7 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
         raise FileNotFoundError(f"PyTorch checkpoint not found: {pt_path}")
 
     input_size = X.shape[1]
+    out_size = 3 if prediction_target == "advanced_setup" else 1
 
     # ── Rebuild Architecture ──────────────────────────────────────────────────
     if algorithm == "LSTM":
@@ -957,7 +988,7 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
             def __init__(self, input_size):
                 super().__init__()
                 self.lstm = nn.LSTM(input_size, 64, 2, batch_first=True)
-                self.fc   = nn.Linear(64, 1)
+                self.fc   = nn.Linear(64, out_size)
             def forward(self, x):
                 out, _ = self.lstm(x)
                 return self.fc(out[:, -1, :])
@@ -981,7 +1012,7 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
             def __init__(self, input_size):
                 super().__init__()
                 self.gru = nn.GRU(input_size, 64, 2, batch_first=True)
-                self.fc  = nn.Linear(64, 1)
+                self.fc  = nn.Linear(64, out_size)
             def forward(self, x):
                 out, _ = self.gru(x)
                 return self.fc(out[:, -1, :])
@@ -1005,7 +1036,7 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
                 self.relu  = nn.ReLU()
                 self.pool  = nn.MaxPool1d(2)
                 self.fc1   = nn.Linear(16 * (input_size // 2), 32)
-                self.fc2   = nn.Linear(32, 1)
+                self.fc2   = nn.Linear(32, out_size)
             def forward(self, x):
                 x = x.unsqueeze(1)
                 out = self.pool(self.relu(self.conv1(x)))
@@ -1024,7 +1055,7 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
                 self.conv1 = nn.Conv1d(1, 16, 2, padding=1)
                 self.relu  = nn.ReLU()
                 self.lstm  = nn.LSTM(16, 32, 1, batch_first=True)
-                self.fc    = nn.Linear(32, 1)
+                self.fc    = nn.Linear(32, out_size)
             def forward(self, x):
                 x = x.unsqueeze(1)
                 x = self.relu(self.conv1(x))
@@ -1038,14 +1069,14 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
             X_t = torch.FloatTensor(X)
 
     elif algorithm == "TCN":
-        model = TCNModel(input_size=input_size, num_channels=[32, 64, 128], output_size=1)
+        model = TCNModel(input_size=input_size, num_channels=[32, 64, 128], output_size=out_size)
         if len(X.shape) == 2:
             X_t = torch.FloatTensor(X).unsqueeze(0)
         else:
             X_t = torch.FloatTensor(X).unsqueeze(1)
 
     elif algorithm == "TabNet":
-        model = TabNetEncoder(input_dim=input_size, output_dim=1)
+        model = TabNetEncoder(input_dim=input_size, output_dim=out_size)
         X_t = torch.FloatTensor(X[-1:])
 
     elif algorithm == "Auto-Encoder":
@@ -1060,7 +1091,7 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
                 self.net = nn.Sequential(
                     nn.Linear(input_size, 64), nn.ReLU(),
                     nn.Linear(64, 32), nn.ReLU(),
-                    nn.Linear(32, 1)
+                    nn.Linear(32, out_size)
                 )
             def forward(self, x):
                 return self.net(x)
@@ -1083,14 +1114,46 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
                 prob = torch.sigmoid(class_logits).numpy().flatten()[0]
                 raw = reg_value.numpy().flatten()[0]
                 if scaler_y is not None:
-                    raw = float(scaler_y.inverse_transform(np.array([[raw]]))[0][0])
+                    try:
+                        raw = float(scaler_y.inverse_transform(np.array([[raw]]))[0][0])
+                    except Exception:
+                        pass
+                
+                if current_price and current_price > 0:
+                    if abs((raw - current_price) / current_price) < 0.5:
+                        pred_return = (raw - current_price) / current_price
+                    else:
+                        pred_return = raw
+                else:
+                    pred_return = raw
+                    
                 signal_str = "BUY" if prob >= 0.5 else "SELL"
-                confidence = float(prob if prob >= 0.5 else 1.0 - prob) * min(1.0, max(0.1, abs(raw) * 100.0))
+                confidence = float(prob if prob >= 0.5 else 1.0 - prob) * min(1.0, max(0.1, abs(pred_return) * 100.0))
                 confidence = min(0.99, max(0.1, confidence))
-                return signal_str, float(confidence), None, None, float(raw)
+                return signal_str, float(confidence), None, None, float(pred_return)
             else:
                 if isinstance(out, tuple): out = out[0]
-                raw = out.numpy().flatten()[0]
+                if prediction_target == "advanced_setup":
+                    pred = out.numpy().flatten()
+                    if scaler_y is not None:
+                        try:
+                            pred = scaler_y.inverse_transform([pred])[0]
+                        except Exception:
+                            pass
+                    direction = pred[0]
+                    sl_dist = pred[1]
+                    tp_dist = pred[2]
+                    signal_str = "BUY" if direction > 0.5 else "SELL"
+                    confidence = 0.95
+                    if signal_str == "BUY":
+                        sl_price = current_price - sl_dist
+                        tp_price = current_price + tp_dist
+                    else:
+                        sl_price = current_price + sl_dist
+                        tp_price = current_price - tp_dist
+                    return signal_str, confidence, float(sl_price), float(tp_price)
+                else:
+                    raw = out.numpy().flatten()[0]
 
     if algorithm == "Auto-Encoder":
         # Check against threshold
@@ -1106,13 +1169,28 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
             signal_str = "BUY" if prob >= 0.5 else "SELL"
             confidence = prob if prob >= 0.5 else 1 - prob
         else:
-            signal_str = "BUY" if raw > 0 else "SELL"
-            confidence = min(0.95, abs(float(raw)))
+            if scaler_y is not None:
+                try:
+                    raw = float(scaler_y.inverse_transform(np.array([[raw]]))[0][0])
+                except Exception:
+                    pass
+            
+            if current_price and current_price > 0:
+                if abs((raw - current_price) / current_price) < 0.5:
+                    pred_return = (raw - current_price) / current_price
+                else:
+                    pred_return = raw
+            else:
+                pred_return = raw
+                
+            signal_str = "BUY" if pred_return > 0 else "SELL"
+            confidence = min(0.95, abs(float(pred_return)) * 10)
+            return signal_str, confidence, None, None, float(pred_return)
 
     return signal_str, confidence
 
 
-def _infer_nextgen(model_path: str, algorithm: str, X: np.ndarray, prediction_target: str):
+def _infer_nextgen(model_path: str, algorithm: str, X: np.ndarray, prediction_target: str, current_price: float = 0.0, scaler_y=None):
     """Inference for Next-Gen PyTorch wrappers."""
     import torch
     import os
@@ -1139,13 +1217,53 @@ def _infer_nextgen(model_path: str, algorithm: str, X: np.ndarray, prediction_ta
         else:
             raw = preds
             
-        if prediction_target == "classification":
+        if prediction_target == "advanced_setup":
+            pred = raw.flatten() if isinstance(raw, np.ndarray) else np.array([raw]).flatten()
+            if len(pred) >= 3:
+                if scaler_y is not None:
+                    try:
+                        pred = scaler_y.inverse_transform([pred[:3]])[0]
+                    except Exception:
+                        pass
+                direction = pred[0]
+                sl_dist = pred[1]
+                tp_dist = pred[2]
+                signal_str = "BUY" if direction > 0.5 else "SELL"
+                confidence = 0.95
+                if signal_str == "BUY":
+                    sl_price = current_price - sl_dist
+                    tp_price = current_price + tp_dist
+                else:
+                    sl_price = current_price + sl_dist
+                    tp_price = current_price - tp_dist
+                return signal_str, confidence, float(sl_price), float(tp_price)
+            else:
+                signal_str = "BUY" if float(pred[0]) > 0 else "SELL"
+                confidence = 0.5
+                return signal_str, confidence
+                
+        elif prediction_target == "classification":
             prob = float(1 / (1 + np.exp(-raw)))
             signal_str = "BUY" if prob >= 0.5 else "SELL"
             confidence = prob if prob >= 0.5 else 1 - prob
         else:
-            signal_str = "BUY" if raw > 0 else "SELL"
-            confidence = min(0.95, abs(float(raw)))
+            if scaler_y is not None:
+                try:
+                    raw = float(scaler_y.inverse_transform(np.array([[raw]]))[0][0])
+                except Exception:
+                    pass
+            
+            if current_price and current_price > 0:
+                if abs((raw - current_price) / current_price) < 0.5:
+                    pred_return = (raw - current_price) / current_price
+                else:
+                    pred_return = raw
+            else:
+                pred_return = raw
+                
+            signal_str = "BUY" if pred_return > 0 else "SELL"
+            confidence = min(0.95, abs(float(pred_return)) * 10)
+            return signal_str, confidence, None, None, float(pred_return)
             
         return signal_str, confidence
         

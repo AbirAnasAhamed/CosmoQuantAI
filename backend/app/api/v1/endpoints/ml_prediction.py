@@ -80,5 +80,7 @@ def predict_signal(
         response_data["sl"] = result["sl"]
     if "tp" in result:
         response_data["tp"] = result["tp"]
+    if "predicted_return" in result:
+        response_data["predicted_return"] = result["predicted_return"]
         
     return response_data

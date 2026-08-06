@@ -452,6 +452,11 @@ def apply_data_cleaning(df, config, add_log):
     initial_len = len(df)
     
     # 1. Missing Data Strategy
+    # ALWAYS drop rows where target variables are NaN, as we cannot impute targets
+    target_cols = [c for c in df.columns if c in ['Target', 'Target_Direction', 'Target_SL', 'Target_TP', 'Target_Class', 'Target_Reg']]
+    if target_cols:
+        df.dropna(subset=target_cols, inplace=True)
+
     missing_strategy = config.get("missing_data_strategy", "drop")
     if missing_strategy == "ffill":
         add_log("Applying Forward Fill (ffill) for missing data...")
