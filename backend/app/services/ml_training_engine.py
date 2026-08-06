@@ -1371,6 +1371,32 @@ def train_model_task(job_id: str, db: Session):
         df_train = pd.DataFrame(X_train_raw, columns=features, index=df.index[:len(X_train_raw)])
         df_test = pd.DataFrame(X_test_raw, columns=features, index=df.index[-len(X_test_raw):])
         
+        pca_model_data = None
+
+        # ── ADVANCED FEATURE ENGINEERING (PCA & SHAP) ──
+        # Apply PCA Orthogonalization to handle collinearity without data loss
+        if config.get("apply_pca_collinearity", True) and not (is_fine_tune or is_auto_resume):
+            from app.services.ml_utils import apply_pca_orthogonalization
+            df_train, df_test, pca_model_data = apply_pca_orthogonalization(
+                df_train, df_test, target_col='Target', add_log=add_log
+            )
+            # Reconstruct the feature list
+            features = [c for c in df_train.columns if c not in ['Target', 'Target_Direction', 'Target_SL', 'Target_TP', 'Target_Class', 'Target_Reg']]
+            
+            # Apply PCA to the main dataframe so RL engine and backtesters receive the correct features
+            if pca_model_data is not None:
+                try:
+                    to_compress = pca_model_data['to_compress']
+                    pca_cols = pca_model_data['pca_cols']
+                    X_comp = df[to_compress].fillna(0)
+                    X_scaled_full = pca_model_data['scaler'].transform(X_comp)
+                    X_pca_full = pca_model_data['pca'].transform(X_scaled_full)
+                    df_pca = pd.DataFrame(X_pca_full, columns=pca_cols, index=df.index)
+                    df = pd.concat([df.drop(columns=to_compress), df_pca], axis=1)
+                except Exception as e:
+                    add_log(f"⚠️ Failed to apply PCA to main df: {e}")
+
+        # Add targets back to df_train and df_test AFTER PCA to prevent target leakage
         if prediction_target == "advanced_setup":
             df_train['Target_Direction'] = y_train_raw[:, 0]
             df_train['Target_SL'] = y_train_raw[:, 1]
@@ -1388,18 +1414,6 @@ def train_model_task(job_id: str, db: Session):
         else:
             df_train['Target'] = y_train_raw.ravel()
             df_test['Target'] = y_test_raw.ravel()
-
-        pca_model_data = None
-
-        # ── ADVANCED FEATURE ENGINEERING (PCA & SHAP) ──
-        # Apply PCA Orthogonalization to handle collinearity without data loss
-        if config.get("apply_pca_collinearity", True) and not (is_fine_tune or is_auto_resume):
-            from app.services.ml_utils import apply_pca_orthogonalization
-            df_train, df_test, pca_model_data = apply_pca_orthogonalization(
-                df_train, df_test, target_col='Target', add_log=add_log
-            )
-            # Reconstruct the feature list
-            features = [c for c in df_train.columns if c not in ['Target', 'Target_Direction', 'Target_SL', 'Target_TP', 'Target_Class', 'Target_Reg']]
 
         # Apply SHAP-based smart feature selection to filter out noise
         if config.get("apply_shap_selection", True) and not (is_fine_tune or is_auto_resume):

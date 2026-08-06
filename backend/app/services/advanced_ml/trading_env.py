@@ -137,6 +137,19 @@ class AdvancedTradingEnv(gym.Env):
             if action == 1: target_position = 1
             elif action == 2: target_position = -1
         
+        # 2.5. Enforce Stop Loss and Take Profit (if position is already open)
+        if self.position != 0 and self.prediction_target == "advanced_setup" and self.current_sl_dist > 0:
+            if self.position == 1:
+                sl_level = self.entry_price - self.current_sl_dist
+                tp_level = self.entry_price + self.current_tp_dist
+                if current_price <= sl_level or current_price >= tp_level:
+                    target_position = 0 # Force close
+            elif self.position == -1:
+                sl_level = self.entry_price + self.current_sl_dist
+                tp_level = self.entry_price - self.current_tp_dist
+                if current_price >= sl_level or current_price <= tp_level:
+                    target_position = 0 # Force close
+
         # 3. Update Net Worth based on current price BEFORE closing/opening positions
         self._update_net_worth(current_price)
         

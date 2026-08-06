@@ -176,6 +176,16 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session, sequence
     if isinstance(scaler_x, str) and scaler_x == "none":
         scaler_x = None
 
+    # Load PCA Model (Fix)
+    pca_path = model_path.replace(".pkl", ".pca").replace(".pt", ".pca").replace(".zip", ".pca")
+    pca_model_data = None
+    if os.path.exists(pca_path):
+        pca_model_data = joblib.load(pca_path)
+    else:
+        pca_path_fallback = os.path.join(os.path.dirname(model_path), "model.pca")
+        if os.path.exists(pca_path_fallback):
+            pca_model_data = joblib.load(pca_path_fallback)
+
     # ── 4. Fetch Live Data ───────────────────────────────────────────────────
     if dataset_type in ("l2_orderbook", "hybrid_deep", "hybrid"):
         df = _fetch_live_l2_data(symbol, db, sequence_length=sequence_length)
@@ -252,6 +262,29 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session, sequence
                         df[col] = last_trade_row[col]
         except Exception as e:
             print(f"[ml_predictor] Failed to fetch live trades: {e}")
+
+    # ── 5.6 Apply PCA (if applicable) ────────────────────────────────────────
+    if pca_model_data is not None:
+        try:
+            to_compress = pca_model_data['to_compress']
+            pca_cols = pca_model_data['pca_cols']
+            
+            # Extract features to compress. If missing, fill with 0
+            missing_cols = [c for c in to_compress if c not in df.columns]
+            for mc in missing_cols:
+                df[mc] = 0.0
+                
+            X_comp = df[to_compress].fillna(0)
+            X_scaled_full = pca_model_data['scaler'].transform(X_comp)
+            X_pca_full = pca_model_data['pca'].transform(X_scaled_full)
+            
+            df_pca = pd.DataFrame(X_pca_full, columns=pca_cols, index=df.index)
+            # Add PCA columns to df
+            for col in pca_cols:
+                df[col] = df_pca[col]
+            print(f"[ml_predictor] Applied PCA compression on {len(to_compress)} features.")
+        except Exception as e:
+            print(f"[ml_predictor] Failed to apply live PCA: {e}")
 
     # ── 6. Prepare Feature Row / Sequence ────────────────────────────────────
     available_features = [f for f in features if f in df.columns]
