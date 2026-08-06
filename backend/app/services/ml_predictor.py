@@ -912,11 +912,11 @@ def _infer_sklearn(model_path: str, X: np.ndarray, prediction_target: str, featu
             # But wait, python scope trick: kwargs? We will modify _infer_sklearn signature below.
             # So we just assume we have current_price.
             if signal_str == "BUY":
-                sl_price = current_price - sl_dist
-                tp_price = current_price + tp_dist
+                sl_price = current_price * (1 - sl_dist)
+                tp_price = current_price * (1 + tp_dist)
             else:
-                sl_price = current_price + sl_dist
-                tp_price = current_price - tp_dist
+                sl_price = current_price * (1 + sl_dist)
+                tp_price = current_price * (1 - tp_dist)
                 
             return signal_str, confidence, sl_price, tp_price
         
@@ -1146,11 +1146,11 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
                     signal_str = "BUY" if direction > 0.5 else "SELL"
                     confidence = 0.95
                     if signal_str == "BUY":
-                        sl_price = current_price - sl_dist
-                        tp_price = current_price + tp_dist
+                        sl_price = current_price * (1 - sl_dist)
+                        tp_price = current_price * (1 + tp_dist)
                     else:
-                        sl_price = current_price + sl_dist
-                        tp_price = current_price - tp_dist
+                        sl_price = current_price * (1 + sl_dist)
+                        tp_price = current_price * (1 - tp_dist)
                     return signal_str, confidence, float(sl_price), float(tp_price)
                 else:
                     raw = out.numpy().flatten()[0]
@@ -1231,11 +1231,11 @@ def _infer_nextgen(model_path: str, algorithm: str, X: np.ndarray, prediction_ta
                 signal_str = "BUY" if direction > 0.5 else "SELL"
                 confidence = 0.95
                 if signal_str == "BUY":
-                    sl_price = current_price - sl_dist
-                    tp_price = current_price + tp_dist
+                    sl_price = current_price * (1 - sl_dist)
+                    tp_price = current_price * (1 + tp_dist)
                 else:
-                    sl_price = current_price + sl_dist
-                    tp_price = current_price - tp_dist
+                    sl_price = current_price * (1 + sl_dist)
+                    tp_price = current_price * (1 - tp_dist)
                 return signal_str, confidence, float(sl_price), float(tp_price)
             else:
                 signal_str = "BUY" if float(pred[0]) > 0 else "SELL"
