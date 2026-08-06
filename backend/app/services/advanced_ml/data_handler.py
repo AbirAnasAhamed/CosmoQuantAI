@@ -68,6 +68,9 @@ class AdvancedDataHandler:
         if 'Target' in df.columns and 'Target' not in needed_cols:
             needed_cols.append('Target')
             
+        # FIX: Only include columns that actually exist in the dataframe to prevent KeyErrors
+        needed_cols = [col for col in needed_cols if col in df.columns]
+            
         res_df = df[needed_cols].copy()
         
         # FIX: Preserve Raw_Close for unscaled PnL calculation in the TradingEnv
@@ -83,9 +86,11 @@ class AdvancedDataHandler:
         from sklearn.preprocessing import StandardScaler
         import joblib
         import logging
-        if len(features) > 0:
+        
+        valid_features = [f for f in features if f in res_df.columns]
+        if len(valid_features) > 0:
             scaler = StandardScaler()
-            scaled_vals = scaler.fit_transform(res_df[features].values)
+            scaled_vals = scaler.fit_transform(res_df[valid_features].values)
             
             if scaler_path:
                 try:
@@ -98,9 +103,10 @@ class AdvancedDataHandler:
             scaled_vals = np.nan_to_num(scaled_vals, nan=0.0)
             # Strict clip to prevent extreme outliers from blowing up SAC gradients
             scaled_vals = np.clip(scaled_vals, -10.0, 10.0)
-            res_df[features] = scaled_vals
+            res_df[valid_features] = scaled_vals
             
         res_df = res_df.copy()
-        res_df['Raw_Close'] = df['Close'].copy()
+        if 'Close' in df.columns:
+            res_df['Raw_Close'] = df['Close'].copy()
         return res_df
 

@@ -59,7 +59,8 @@ class AdvancedTradingEnv(gym.Env):
 
         # Observation Space
         if features is not None:
-            self.feature_cols = features
+            # FIX: Ensure we only include features that actually exist in the dataframe
+            self.feature_cols = [col for col in features if col in df.columns]
         else:
             self.feature_cols = [col for col in df.columns if col not in ['timestamp', 'Target', 'Raw_Close', 'Close']]
 
