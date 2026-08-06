@@ -49,3 +49,16 @@ class ModelVersion(Base):
     metadata_path = Column(String, nullable=True) # For custom uploaded metadata.json
 
     model = relationship("CustomMLModel", back_populates="versions", foreign_keys=[model_id])
+
+    @property
+    def features(self):
+        import os
+        import json
+        if self.metadata_path and os.path.exists(self.metadata_path):
+            try:
+                with open(self.metadata_path, 'r') as f:
+                    meta = json.load(f)
+                    return meta.get("features", [])
+            except:
+                pass
+        return []

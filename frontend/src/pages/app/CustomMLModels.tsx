@@ -1201,9 +1201,23 @@ const ModelCard: React.FC<{
                                                 style={{ width: `${signalProgress}%` }}
                                             ></div>
                                         </div>
-                                        <p className="text-xs text-center text-slate-500 mt-3 animate-pulse">
-                                            Fetching L2 data & calculating {model.versions.find(v => v.id === model.activeVersionId)?.features?.length || 0} features...
-                                        </p>
+                                        {(() => {
+                                            const activeVersion = model.versions.find(v => v.id === model.activeVersionId);
+                                            const featureCount = activeVersion?.features?.length || 0;
+                                            const isL2 = activeVersion?.features?.some(f => f.includes('Bid') || f.includes('Ask')) || false;
+                                            const isPCA = activeVersion?.features?.some(f => f.includes('PCA_Comp')) || false;
+                                            
+                                            let dataString = 'Market Data';
+                                            if (isL2) dataString = 'L2 Orderbook Data';
+                                            else if (isPCA) dataString = 'PCA Compressed Data';
+                                            else dataString = 'OHLCV Data';
+
+                                            return (
+                                                <p className="text-xs text-center text-slate-500 mt-3 animate-pulse">
+                                                    Fetching {dataString} & calculating {featureCount} features...
+                                                </p>
+                                            );
+                                        })()}
                                     </div>
                                 )}
                             </div>

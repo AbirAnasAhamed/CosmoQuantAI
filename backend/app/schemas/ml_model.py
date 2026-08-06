@@ -19,6 +19,7 @@ class ModelVersionResponse(ModelVersionBase):
     f1_score: Optional[float] = None
     latency: Optional[float] = None
     explainability: Optional[Any] = None
+    features: Optional[List[str]] = None
 
     model_config = ConfigDict(from_attributes=True)
 
