@@ -930,13 +930,13 @@ def _infer_sklearn(model_path: str, X: np.ndarray, prediction_target: str, featu
             else:
                 if scaler_y is not None:
                     try:
-                        pred = scaler_y.inverse_transform([pred])[0]
+                        pred[1:] = scaler_y.inverse_transform([pred[1:]])[0]
                     except Exception:
                         pass
-                # pred is [Target_Direction, Target_SL, Target_TP]
+                # pred is [Target_Direction, Target_TP, Target_SL]
                 direction = pred[0]
-                sl_dist = pred[1]
-                tp_dist = pred[2]
+                tp_dist = abs(pred[1])
+                sl_dist = abs(pred[2])
             signal_str = "BUY" if direction > 0.5 else "SELL"
             confidence = 0.95 # Advanced setup implies high confidence in the exact bounds
             
@@ -1170,12 +1170,12 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
                     pred = out.numpy().flatten()
                     if scaler_y is not None:
                         try:
-                            pred = scaler_y.inverse_transform([pred])[0]
+                            pred[1:] = scaler_y.inverse_transform([pred[1:]])[0]
                         except Exception:
                             pass
                     direction = pred[0]
-                    sl_dist = pred[1]
-                    tp_dist = pred[2]
+                    tp_dist = abs(pred[1])
+                    sl_dist = abs(pred[2])
                     signal_str = "BUY" if direction > 0.5 else "SELL"
                     confidence = 0.95
                     if signal_str == "BUY":
@@ -1255,12 +1255,12 @@ def _infer_nextgen(model_path: str, algorithm: str, X: np.ndarray, prediction_ta
             if len(pred) >= 3:
                 if scaler_y is not None:
                     try:
-                        pred = scaler_y.inverse_transform([pred[:3]])[0]
+                        pred[1:3] = scaler_y.inverse_transform([pred[1:3]])[0]
                     except Exception:
                         pass
                 direction = pred[0]
-                sl_dist = pred[1]
-                tp_dist = pred[2]
+                tp_dist = abs(pred[1])
+                sl_dist = abs(pred[2])
                 signal_str = "BUY" if direction > 0.5 else "SELL"
                 confidence = 0.95
                 if signal_str == "BUY":

@@ -303,7 +303,9 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
     useEffect(() => {
         const ADVANCED_SETUP_SUPPORTED_ALGOS = [
             'LSTM', 'GRU', 'TCN', '1D-CNN', 'DeepLOB', 'Transformer', 
-            'PPO-RL', 'SAC-RL', 'DDPG-RL', 'TD3-RL', 'Ensemble Model'
+            'PPO-RL', 'SAC-RL', 'DDPG-RL', 'TD3-RL', 'Ensemble Model',
+            'MuZero', 'Meta-RL', 'HRL', 'MAPPO',
+            'Mamba SSM', 'KAN Network', 'JEPA World Model', 'Time-LLM', 'TTFT', 'GNN-RL', 'SNN Liquid', 'Sparse MoE Router'
         ];
         
         if (predictionTarget === 'advanced_setup' && !ADVANCED_SETUP_SUPPORTED_ALGOS.includes(algorithm)) {
