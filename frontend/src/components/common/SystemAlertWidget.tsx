@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useSystemAlerts, type SystemAlert, type AlertSeverity } from '@/hooks/useSystemAlerts';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -295,7 +296,7 @@ const LogTerminal: React.FC<{
       </div>
 
       {/* Terminal body */}
-      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-px font-mono text-[10px] scrollbar-thin"
+      <div className="flex-1 overflow-y-auto px-3 py-2 space-y-px font-mono text-[20px] scrollbar-thin"
         style={{ background: 'rgba(0,0,0,0.4)' }}>
         {lines.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-3">
@@ -313,7 +314,7 @@ const LogTerminal: React.FC<{
             return (
               <div key={key} className="flex items-start gap-2 leading-relaxed py-px px-1 rounded hover:bg-white/3 group transition-colors">
                 {!filter && info && (
-                  <span className={`flex-shrink-0 text-[8.5px] font-black tracking-wider mt-px ${info.color}`}
+                  <span className={`flex-shrink-0 text-[17px] font-black tracking-wider mt-px ${info.color}`}
                     style={{ textShadow: `0 0 4px ${info.neon}` }}>
                     {info.short}
                   </span>
@@ -419,12 +420,17 @@ const SystemAlertWidget: React.FC = () => {
     };
   }, []);
 
-  // Initial position
+  // Initial position - Center of screen
   useEffect(() => {
-    if (open && position.x === 0 && position.y === 0) {
-      setPosition({ x: 20, y: 80 });
+    if (open) {
+      const w = 530;
+      const h = 530;
+      setPosition({ 
+        x: Math.max(0, (window.innerWidth - w) / 2), 
+        y: Math.max(0, (window.innerHeight - h) / 2) 
+      });
     }
-  }, [open, position.x, position.y]);
+  }, [open]);
 
   // Drag
   useEffect(() => {
@@ -516,8 +522,9 @@ const SystemAlertWidget: React.FC = () => {
       </button>
 
       {/* ─── Floating Window ─── */}
-      <div
-        className={`fixed z-[9999] transition-all duration-300 ${open ? 'opacity-100 pointer-events-auto scale-100' : 'opacity-0 pointer-events-none scale-95'}`}
+      {createPortal(
+        <div
+          className={`fixed z-[9999] transition-all duration-300 ${open ? 'opacity-100 pointer-events-auto scale-100' : 'opacity-0 pointer-events-none scale-95'}`}
         style={{
           top: `${position.y}px`,
           left: `${position.x}px`,
@@ -538,8 +545,8 @@ const SystemAlertWidget: React.FC = () => {
         >
           <div className="rounded-2xl overflow-hidden flex flex-col" style={{
             height: '530px',
-            background: 'rgba(8,8,18,0.97)',
-            backdropFilter: 'blur(30px)',
+            background: 'rgba(8,8,18,0.40)',
+            backdropFilter: 'blur(60px)',
           }}>
             {/* Scanline overlay */}
             <div className="absolute inset-0 pointer-events-none rounded-2xl overflow-hidden z-10 opacity-[0.025]"
@@ -692,7 +699,9 @@ const SystemAlertWidget: React.FC = () => {
             </div>
           </div>
         </div>
-      </div>
+      </div>,
+      document.body
+      )}
 
       {/* Animations */}
       <style>{`
