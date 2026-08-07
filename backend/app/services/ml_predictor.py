@@ -1174,8 +1174,8 @@ def _infer_torch(model_path: str, algorithm: str, X: np.ndarray, prediction_targ
                         except Exception:
                             pass
                     direction = pred[0]
-                    tp_dist = abs(pred[1])
-                    sl_dist = abs(pred[2])
+                    sl_dist = abs(pred[1])
+                    tp_dist = abs(pred[2])
                     signal_str = "BUY" if direction > 0.5 else "SELL"
                     confidence = 0.95
                     if signal_str == "BUY":
@@ -1259,8 +1259,8 @@ def _infer_nextgen(model_path: str, algorithm: str, X: np.ndarray, prediction_ta
                     except Exception:
                         pass
                 direction = pred[0]
-                tp_dist = abs(pred[1])
-                sl_dist = abs(pred[2])
+                sl_dist = abs(pred[1])
+                tp_dist = abs(pred[2])
                 signal_str = "BUY" if direction > 0.5 else "SELL"
                 confidence = 0.95
                 if signal_str == "BUY":

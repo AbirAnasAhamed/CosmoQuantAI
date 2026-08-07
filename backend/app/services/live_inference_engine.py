@@ -56,6 +56,169 @@ class LiveFeatureExtractor:
                 
         return df
 
+class LivePyTorchModel:
+    def __init__(self, pt_path: str, algorithm: str, input_size: int, out_size: int, prediction_target: str):
+        import torch
+        import torch.nn as nn
+        from app.services.advanced_ml.architectures import TCNModel, TabNetEncoder, AutoEncoder
+        
+        self.algorithm = algorithm
+        self.prediction_target = prediction_target
+        
+        # Build Architecture
+        if algorithm == "LSTM":
+            class SimpleLSTM(nn.Module):
+                def __init__(self, input_size):
+                    super().__init__()
+                    self.lstm = nn.LSTM(input_size, 64, 2, batch_first=True)
+                    self.fc   = nn.Linear(64, out_size)
+                def forward(self, x):
+                    out, _ = self.lstm(x)
+                    return self.fc(out[:, -1, :])
+            if prediction_target == "multi_task":
+                from app.services.mtl.wrapper import DualHeadModel
+                base_model = SimpleLSTM(input_size)
+                base_model.fc = nn.Linear(64, 64)
+                self.model = DualHeadModel(base_model=base_model, hidden_dim=64)
+            else:
+                self.model = SimpleLSTM(input_size)
+
+        elif algorithm == "GRU":
+            class SimpleGRU(nn.Module):
+                def __init__(self, input_size):
+                    super().__init__()
+                    self.gru = nn.GRU(input_size, 64, 2, batch_first=True)
+                    self.fc  = nn.Linear(64, out_size)
+                def forward(self, x):
+                    out, _ = self.gru(x)
+                    return self.fc(out[:, -1, :])
+            if prediction_target == "multi_task":
+                from app.services.mtl.wrapper import DualHeadModel
+                base_model = SimpleGRU(input_size)
+                base_model.fc = nn.Linear(64, 64)
+                self.model = DualHeadModel(base_model=base_model, hidden_dim=64)
+            else:
+                self.model = SimpleGRU(input_size)
+
+        elif algorithm in ("1D-CNN",):
+            class CNN1D(nn.Module):
+                def __init__(self, input_size):
+                    super().__init__()
+                    self.conv1 = nn.Conv1d(1, 16, 3, padding=1)
+                    self.relu  = nn.ReLU()
+                    self.pool  = nn.MaxPool1d(2)
+                    self.fc1   = nn.Linear(16 * (input_size // 2), 32)
+                    self.fc2   = nn.Linear(32, out_size)
+                def forward(self, x):
+                    x = x.unsqueeze(1)
+                    out = self.pool(self.relu(self.conv1(x)))
+                    out = out.view(out.size(0), -1)
+                    return self.fc2(self.relu(self.fc1(out)))
+            self.model = CNN1D(input_size)
+
+        elif algorithm == "DeepLOB":
+            class DeepLOB(nn.Module):
+                def __init__(self, input_size):
+                    super().__init__()
+                    self.conv1 = nn.Conv1d(1, 16, 2, padding=1)
+                    self.relu  = nn.ReLU()
+                    self.lstm  = nn.LSTM(16, 32, 1, batch_first=True)
+                    self.fc    = nn.Linear(32, out_size)
+                def forward(self, x):
+                    x = x.unsqueeze(1)
+                    x = self.relu(self.conv1(x))
+                    x = x.transpose(1, 2)
+                    out, _ = self.lstm(x)
+                    return self.fc(out[:, -1, :])
+            self.model = DeepLOB(input_size)
+
+        elif algorithm == "TCN":
+            self.model = TCNModel(input_size=input_size, num_channels=[32, 64, 128], output_size=out_size)
+
+        elif algorithm == "TabNet":
+            self.model = TabNetEncoder(input_dim=input_size, output_dim=out_size)
+
+        elif algorithm == "Auto-Encoder":
+            self.model = AutoEncoder(input_dim=input_size, hidden_dim=32)
+
+        else:
+            class MLPFallback(nn.Module):
+                def __init__(self, input_size):
+                    super().__init__()
+                    self.net = nn.Sequential(
+                        nn.Linear(input_size, 64), nn.ReLU(),
+                        nn.Linear(64, 32), nn.ReLU(),
+                        nn.Linear(32, out_size)
+                    )
+                def forward(self, x):
+                    return self.net(x)
+            self.model = MLPFallback(input_size)
+
+        # Load weights
+        state = torch.load(pt_path, map_location='cpu')
+        self.model.load_state_dict(state, strict=False)
+        self.model.eval()
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.model.to(self.device)
+
+    def predict(self, X):
+        import torch
+        import numpy as np
+        
+        # X is (1, feature) or (feature,) from live extraction
+        if isinstance(X, pd.DataFrame):
+            X = X.values
+            
+        if self.algorithm in ["LSTM", "GRU", "TCN"]:
+            if len(X.shape) == 2:
+                X_t = torch.FloatTensor(X).unsqueeze(0)
+            else:
+                X_t = torch.FloatTensor(X).unsqueeze(1)
+        elif self.algorithm in ("1D-CNN",):
+            if len(X.shape) == 2:
+                X_t = torch.FloatTensor(X[-1:]).unsqueeze(0)
+            else:
+                X_t = torch.FloatTensor(X)
+        elif self.algorithm == "DeepLOB":
+            if len(X.shape) == 2:
+                X_t = torch.FloatTensor(X[-1:])
+            else:
+                X_t = torch.FloatTensor(X)
+        else:
+            if len(X.shape) == 2:
+                X_t = torch.FloatTensor(X[-1:])
+            else:
+                X_t = torch.FloatTensor(X)
+                
+        X_t = X_t.to(self.device)
+
+        with torch.no_grad():
+            if self.algorithm == "Auto-Encoder":
+                reconstructed = self.model(X_t)
+                raw = torch.mean((reconstructed - X_t) ** 2, dim=1).cpu().numpy().flatten()
+                return raw
+                
+            out = self.model(X_t)
+            
+            if self.prediction_target == "multi_task":
+                class_logits, reg_value = out
+                cls_prob = torch.sigmoid(class_logits).cpu().numpy().flatten()
+                reg_val = reg_value.cpu().numpy().flatten()
+                return np.concatenate([cls_prob, reg_val])
+            else:
+                if isinstance(out, tuple):
+                    out = out[0]
+                if self.prediction_target == "advanced_setup":
+                    # Keep raw logits or pass through sigmoid? ml_predictor uses raw.
+                    # live_inference_engine expects 0-1 for direction. So sigmoid the first element.
+                    cls_out = torch.sigmoid(out[:, 0:1])
+                    if out.shape[1] > 1:
+                        reg_out = out[:, 1:]
+                        return torch.cat([cls_out, reg_out], dim=1).cpu().numpy().flatten()
+                    return cls_out.cpu().numpy().flatten()
+                else:
+                    return torch.sigmoid(out).cpu().numpy().flatten()
+
 class LiveInferenceEngine:
     def __init__(self):
         self.active_model_id = None
@@ -78,7 +241,15 @@ class LiveInferenceEngine:
                 return False
                 
             version = db.query(models.ModelVersion).filter(models.ModelVersion.id == db_model.active_version_id).first()
-            if not version or not os.path.exists(version.file_path):
+            if not version:
+                print(f"[InferenceEngine] Model version missing for {model_id}.")
+                return False
+                
+            model_path = version.file_path
+            if model_path and not os.path.exists(model_path) and os.path.exists(model_path.replace(".pkl", ".pt")):
+                model_path = model_path.replace(".pkl", ".pt")
+                
+            if not model_path or not os.path.exists(model_path):
                 print(f"[InferenceEngine] Model file missing for {model_id}.")
                 return False
                 
@@ -88,11 +259,12 @@ class LiveInferenceEngine:
                 with open(version.metadata_path, 'r') as f:
                     meta = json.load(f)
                     
-            print(f"[InferenceEngine] Loading model {model_id} from {version.file_path}")
+            print(f"[InferenceEngine] Loading model {model_id} from {model_path}")
             
             try:
                 algorithm = meta.get("algorithm", "")
                 rl_algos = ["PPO-RL", "SAC-RL", "A2C-RL", "DDPG-RL", "DQN-RL", "TD3-RL"]
+                pytorch_algos = ["1D-CNN", "LSTM", "GRU", "DeepLOB", "TCN", "TabNet", "Auto-Encoder"]
                 
                 if algorithm in rl_algos:
                     from stable_baselines3 import PPO, SAC, A2C, DDPG, DQN, TD3
@@ -102,17 +274,27 @@ class LiveInferenceEngine:
                     }
                     ModelClass = algo_map.get(algorithm)
                     if ModelClass:
-                        self.model = ModelClass.load(version.file_path)
+                        self.model = ModelClass.load(model_path)
                     else:
                         print(f"[InferenceEngine] Unsupported RL algorithm: {algorithm}")
                         return False
-                elif algorithm in ["1D-CNN", "LSTM", "GRU"]:
-                    # Placeholder for PyTorch models
-                    print(f"[InferenceEngine] Dynamic PyTorch loading not yet implemented for live inference.")
-                    return False
+                elif algorithm in pytorch_algos:
+                    # Dynamically build PyTorch model for live inference
+                    features = meta.get("features", [])
+                    prediction_target = meta.get("prediction_target", "classification")
+                    input_size = len(features) if features else 1
+                    out_size = 3 if prediction_target == "advanced_setup" else 1
+                    
+                    self.model = LivePyTorchModel(
+                        pt_path=model_path,
+                        algorithm=algorithm,
+                        input_size=input_size,
+                        out_size=out_size,
+                        prediction_target=prediction_target
+                    )
                 else:
                     # Load joblib/pickle model
-                    self.model = joblib.load(version.file_path)
+                    self.model = joblib.load(model_path)
             except Exception as e:
                 print(f"[InferenceEngine] Failed to load model file: {e}")
                 return False
@@ -210,8 +392,8 @@ class LiveInferenceEngine:
                 
                 if prediction_target == "advanced_setup" and len(preds) >= 3:
                     direction = float(preds[0]) # 1.0 (Long) or 0.0 (Short)
-                    sl_raw = float(preds[1])
-                    tp_raw = float(preds[2])
+                    sl_raw = abs(float(preds[1]))
+                    tp_raw = abs(float(preds[2]))
                     
                     current_price = float(market_data.get("currentPrice", market_data.get("price", market_data.get("Close", market_data.get("midPrice", 0.0)))))
                     
