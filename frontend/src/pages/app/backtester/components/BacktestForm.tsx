@@ -169,6 +169,7 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
     const [availableTimeframes, setAvailableTimeframes] = useState<string[]>(DEFAULT_TIMEFRAMES);
     const [isLoadingTimeframes, setIsLoadingTimeframes] = useState(false);
     const [isBuilderOpen, setIsBuilderOpen] = useState(false);
+    const [activeConfigTab, setActiveConfigTab] = useState<'general' | 'strategy' | 'risk'>('general');
 
     useEffect(() => {
         const fetchTimeframes = async () => {
@@ -231,206 +232,193 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
     };
 
     return (
-        <div className="space-y-6">
-            {/* Control Panel Header */}
-            <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-slate-900 dark:text-white">Settings</h2>
-                <Button variant="secondary" onClick={handleSyncData} disabled={isSyncing} className={`transition-all duration-300 ${isSyncing ? 'bg-blue-50 text-blue-600 border-blue-200' : ''}`}>
-                    {isSyncing ? (<span className="flex items-center gap-2"><RefreshCw className="animate-spin" size={16} /> Syncing...</span>) : (<span className="flex items-center gap-2"><UploadCloud size={16} /> Sync Data</span>)}
-                </Button>
+        <div className="flex flex-col h-full space-y-4">
+            {/* Header Tabs */}
+            <div className="flex bg-slate-100 dark:bg-[#111] p-1 rounded-lg shrink-0">
+                <button onClick={() => setActiveConfigTab('general')} className={`flex-1 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded-md transition-all ${activeConfigTab === 'general' ? 'bg-white dark:bg-[#222] shadow-sm text-brand-primary' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>General</button>
+                <button onClick={() => setActiveConfigTab('strategy')} className={`flex-1 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded-md transition-all ${activeConfigTab === 'strategy' ? 'bg-white dark:bg-[#222] shadow-sm text-brand-primary' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Strategy</button>
+                <button onClick={() => setActiveConfigTab('risk')} className={`flex-1 py-1.5 text-[11px] font-bold uppercase tracking-wider rounded-md transition-all ${activeConfigTab === 'risk' ? 'bg-white dark:bg-[#222] shadow-sm text-brand-primary' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}>Risk</button>
             </div>
 
-            {/* Sync Progress */}
-            {isSyncing && (
-                <div className="mb-4 p-4 rounded-xl border border-blue-100 dark:border-blue-900/30 bg-blue-50/50 dark:bg-blue-900/10 backdrop-blur-sm shadow-sm animate-fade-in">
-                    <div className="flex justify-between items-center mb-2">
-                        <span className="text-sm font-semibold text-blue-600 dark:text-blue-400">{syncStatusText}</span>
-                        <span className="text-sm font-bold text-blue-600 dark:text-blue-400">{syncProgress}%</span>
-                    </div>
-                    <div className="w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-                        <div className="h-full bg-blue-500 rounded-full transition-all duration-500 ease-out" style={{ width: `${syncProgress}%` }} />
-                    </div>
-                </div>
-            )}
-
-            {/* Data Source Selection */}
-            <div className="mb-6 border-b border-gray-200 dark:border-gray-700 pb-4">
-                <label className="text-sm font-semibold text-gray-500 mb-2 block">Data Source</label>
-                <div className="flex gap-4">
-                    <button onClick={() => setDataSource('database')} className={`flex-1 flex items-center gap-2 px-4 py-3 border rounded-lg transition-all ${dataSource === 'database' ? 'border-brand-primary bg-brand-primary/5 ring-2 ring-brand-primary/20' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
-                        <span className="text-lg">🗄️</span>
-                        <div className="text-left">
-                            <div className="font-semibold text-sm text-slate-900 dark:text-white">Exchange Database</div>
-                            <div className="text-xs text-gray-500">Sync from Binance/Bybit</div>
-                        </div>
-                    </button>
-                    <button onClick={() => setDataSource('csv')} className={`flex-1 flex items-center gap-2 px-4 py-3 border rounded-lg transition-all ${dataSource === 'csv' ? 'border-brand-primary bg-brand-primary/5 ring-2 ring-brand-primary/20' : 'border-gray-200 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-800'}`}>
-                        <span className="text-lg">📂</span>
-                        <div className="text-left">
-                            <div className="font-semibold text-sm text-slate-900 dark:text-white">Upload CSV</div>
-                            <div className="text-xs text-gray-500">Use local OHLCV data</div>
-                        </div>
-                    </button>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                {dataSource === 'database' && (
-                    <>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-500 mb-1">Exchange</label>
-                            <select className={inputBaseClasses} value={selectedExchange} onChange={(e) => setSelectedExchange(e.target.value)}>
-                                {exchanges.map(ex => <option key={ex} value={ex}>{ex.toUpperCase()}</option>)}
-                            </select>
-                        </div>
-                        <div>
-                            <SearchableSelect label="Market Pair" options={markets} value={symbol} onChange={setSymbol} />
-                        </div>
-                    </>
-                )}
-
-                {/* ✅ UPDATED: Cleaned up CSV Section (Convert section removed) */}
-                {dataSource === 'csv' && (
-                    <div className="col-span-2">
-                        <label className="block text-sm font-medium text-gray-500 mb-1">Upload Data (CSV)</label>
-                        <div className="flex gap-2">
-                            <input type="file" ref={dataFileInputRef} onChange={handleDataFileUpload} className="hidden" accept=".csv" />
-                            <Button variant="outline" onClick={() => dataFileInputRef.current?.click()} className="w-full h-10 border-dashed border-2 flex items-center justify-center gap-2">
-                                <UploadCloud size={16} /> {isUploadingData ? 'Uploading...' : 'Choose CSV'}
+            {/* Content Area */}
+            <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 pb-4">
+                {activeConfigTab === 'general' && (
+                    <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+                        {/* Sync Data Header */}
+                        <div className="flex items-center justify-between">
+                            <label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Environment</label>
+                            <Button variant="secondary" onClick={handleSyncData} disabled={isSyncing} className={`py-1 px-2 text-[10px] h-auto ${isSyncing ? 'bg-blue-50 text-blue-600' : ''}`}>
+                                {isSyncing ? (<RefreshCw className="animate-spin" size={12} />) : (<UploadCloud size={12} />)} Sync
                             </Button>
                         </div>
-                        {csvFileName && <p className="text-xs text-green-600 mt-1">✅ {csvFileName}</p>}
-                    </div>
-                )}
-
-                {mode !== 'batch' ? (
-                    <div>
-                        {/* Indicator Selector */}
-                        <div className="mb-4 p-3 bg-indigo-50 dark:bg-[#050505] border border-indigo-200 dark:border-indigo-900 rounded-lg">
-                            <label className="block text-xs font-bold text-indigo-700 dark:text-indigo-400 mb-1">Use Saved Indicator (Optional)</label>
-                            <select
-                                className={inputBaseClasses}
-                                value={selectedIndicatorId || ''}
-                                onChange={(e) => {
-                                    const val = e.target.value ? Number(e.target.value) : null;
-                                    setSelectedIndicatorId(val);
-                                    if (val) {
-                                        // Optional: Clear strategy selection to avoid confusion?
-                                        // or setStrategy('')
-                                    }
-                                }}
-                            >
-                                <option value="">-- No Indicator (Use Strategy Below) --</option>
-                                {savedIndicators.map(ind => (
-                                    <option key={ind.id} value={ind.id}>
-                                        {ind.name} ({ind.baseType || ind.base_type || 'Custom'})
-                                    </option>
-                                ))}
-                            </select>
-                        </div>
-
-                        <div className={`transition-opacity duration-300 ${selectedIndicatorId ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
-                            <div className="flex justify-between items-center mb-1">
-                                <label className="block text-sm font-medium text-gray-500">Strategy</label>
-                                <button onClick={() => setIsBuilderOpen(true)} className="text-xs flex items-center gap-1 text-brand-primary hover:text-brand-primary/80 font-semibold transition-colors"><PlusCircle size={12} /> New</button>
-                            </div>
-                            <select className={inputBaseClasses} value={strategy} onChange={(e) => setStrategy(e.target.value)}>
-                                <optgroup label="Strategy Library">{safeStrategies.map(s => <option key={`lib-${s}`} value={s}>{s}</option>)}</optgroup>
-                                {uniqueCustomStrategies.length > 0 && (<optgroup label="My Custom Strategies">{uniqueCustomStrategies.map(s => <option key={`cust-${s}`} value={s}>{s}</option>)}</optgroup>)}
-                            </select>
-                        </div>
-                    </div>
-                ) : (
-                    <div className="bg-gray-50 dark:bg-[#0A0A0A] p-4 rounded-lg border border-gray-200 dark:border-gray-700 col-span-1 md:col-span-2 lg:col-span-3">
-                        <h3 className="text-sm font-bold mb-3 flex items-center gap-2 text-slate-700 dark:text-slate-300"><CheckSquare size={16} /> Select Strategies for Batch Run</h3>
-                        <div className="h-40 overflow-y-auto border border-gray-300 dark:border-gray-600 rounded p-2 bg-white dark:bg-[#050505] grid grid-cols-2 md:grid-cols-3 gap-2">
-                            {allBatchStrategies.length > 0 ? (allBatchStrategies.map(s => (
-                                <div key={`batch-${s}`} onClick={() => toggleBatchStrategy(s)} className={`flex items-center gap-2 p-2 rounded cursor-pointer transition-colors border select-none ${(batchStrategies || []).includes(s) ? 'bg-blue-100 dark:bg-blue-900/30 border-blue-500' : 'hover:bg-gray-100 dark:hover:bg-gray-800 border-transparent'}`}>
-                                    {(batchStrategies || []).includes(s) ? <CheckSquare size={14} className="text-blue-600" /> : <Square size={14} className="text-gray-400" />}
-                                    <span className="text-xs font-medium text-slate-700 dark:text-slate-300 truncate" title={s}>{s}</span>
+                        
+                        {/* Sync Progress */}
+                        {isSyncing && (
+                            <div className="p-2 rounded-lg border border-blue-100 dark:border-blue-900/30 bg-blue-50/50 dark:bg-blue-900/10">
+                                <div className="flex justify-between items-center mb-1 text-[10px]">
+                                    <span className="font-semibold text-blue-600">{syncStatusText}</span>
+                                    <span className="font-bold text-blue-600">{syncProgress}%</span>
                                 </div>
-                            ))) : (<div className="col-span-full flex flex-col items-center justify-center text-gray-400 h-full"><ShieldAlert size={24} className="mb-2 opacity-50" /><span className="text-xs">No strategies found available for batch testing.</span></div>)}
-                        </div>
-                        <div className="flex justify-between items-center mt-2">
-                            <p className="text-xs text-gray-500">Selected: {(batchStrategies || []).length}</p>
+                                <div className="h-1 bg-gray-200 dark:bg-gray-700 rounded-full"><div className="h-full bg-blue-500 rounded-full transition-all" style={{ width: `${syncProgress}%` }} /></div>
+                            </div>
+                        )}
+
+                        <div className="space-y-3">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Data Source</label>
                             <div className="flex gap-2">
-                                <button onClick={() => setBatchStrategies(allBatchStrategies)} className="text-[10px] text-blue-600 hover:underline">Select All</button>
-                                <button onClick={() => setBatchStrategies([])} className="text-[10px] text-gray-500 hover:underline">Clear</button>
+                                <button onClick={() => setDataSource('database')} className={`flex-1 p-2 rounded-lg border text-xs font-medium transition-all flex flex-col items-center gap-1 ${dataSource === 'database' ? 'border-brand-primary bg-brand-primary/10 text-brand-primary' : 'border-slate-200 dark:border-[#1F1F1F] text-slate-600 dark:text-slate-400'}`}>
+                                    <span className="text-lg">🗄️</span> Exchange
+                                </button>
+                                <button onClick={() => setDataSource('csv')} className={`flex-1 p-2 rounded-lg border text-xs font-medium transition-all flex flex-col items-center gap-1 ${dataSource === 'csv' ? 'border-brand-primary bg-brand-primary/10 text-brand-primary' : 'border-slate-200 dark:border-[#1F1F1F] text-slate-600 dark:text-slate-400'}`}>
+                                    <span className="text-lg">📂</span> CSV
+                                </button>
+                            </div>
+                        </div>
+
+                        {dataSource === 'database' ? (
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Exchange</label>
+                                    <select className={`${inputBaseClasses} text-sm`} value={selectedExchange} onChange={(e) => setSelectedExchange(e.target.value)}>
+                                        {exchanges.map(ex => <option key={ex} value={ex}>{ex.toUpperCase()}</option>)}
+                                    </select>
+                                </div>
+                                <div>
+                                    <SearchableSelect label="Market Pair" options={markets} value={symbol} onChange={setSymbol} />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Upload Data (CSV)</label>
+                                <input type="file" ref={dataFileInputRef} onChange={handleDataFileUpload} className="hidden" accept=".csv" />
+                                <Button variant="outline" onClick={() => dataFileInputRef.current?.click()} className="w-full text-xs border-dashed">
+                                    <UploadCloud size={14} className="mr-2"/> {isUploadingData ? 'Uploading...' : 'Choose CSV'}
+                                </Button>
+                                {csvFileName && <p className="text-[10px] text-green-500 truncate">✅ {csvFileName}</p>}
+                            </div>
+                        )}
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Timeframe {isLoadingTimeframes && '*'}</label>
+                                <select className={`${inputBaseClasses} text-sm`} value={timeframe} onChange={(e) => setTimeframe(e.target.value)} disabled={isLoadingTimeframes}>
+                                    {availableTimeframes.map(t => (<option key={t} value={t}>{t}</option>))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Sec TF</label>
+                                <select className={`${inputBaseClasses} text-sm`} value={secondaryTimeframe} onChange={(e) => setSecondaryTimeframe(e.target.value)}>
+                                    <option value="">None</option>
+                                    {availableTimeframes.map(t => (<option key={t} value={t}>{t}</option>))}
+                                </select>
+                            </div>
+                        </div>
+
+                        <div className="space-y-2 bg-slate-50 dark:bg-[#111] p-3 rounded-lg border border-slate-200 dark:border-[#1F1F1F]">
+                            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5"><History size={12}/> Time Horizon</label>
+                            
+                            <div className="flex bg-white dark:bg-[#050505] rounded border border-slate-200 dark:border-[#1F1F1F] p-0.5 mb-2">
+                                {presetOptions.slice(0, 4).map((option) => (<button key={option.label} onClick={() => handlePresetChange(option.days)} className="flex-1 py-1 text-[10px] font-medium rounded hover:bg-slate-100 dark:hover:bg-[#1F1F1F]">{option.label}</button>))}
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-2">
+                                <div>
+                                    <label className="text-[10px] text-slate-500 block mb-0.5">Start</label>
+                                    <DatePicker selected={startDate ? new Date(startDate) : null} onChange={(date: Date) => setStartDate(date?.toISOString().split('T')[0] || '')} className={`${inputBaseClasses} text-xs py-1.5 w-full`} dateFormat="yyyy-MM-dd" renderCustomHeader={CustomInputHeader} />
+                                </div>
+                                <div>
+                                    <label className="text-[10px] text-slate-500 block mb-0.5">End</label>
+                                    <DatePicker selected={endDate ? new Date(endDate) : null} onChange={(date: Date) => setEndDate(date?.toISOString().split('T')[0] || '')} className={`${inputBaseClasses} text-xs py-1.5 w-full`} dateFormat="yyyy-MM-dd" renderCustomHeader={CustomInputHeader} />
+                                </div>
                             </div>
                         </div>
                     </div>
                 )}
 
-                {/* Rest of the UI (Params, WFA, Optimization, Timeframe, Dates) - KEPT SAME */}
-                {mode !== 'batch' && (
-                    <div className="col-span-1 md:col-span-2 lg:col-span-3">
-                        <StrategyParams mode={(mode === 'optimization' || mode === 'walk_forward') ? 'optimization' : 'single'} activeParamsConfig={optimizableParams} params={params} setParams={setParams} optimizationParams={optimizationParams} setOptimizationParams={setOptimizationParams} optimizationMethod={optimizationMethod} setOptimizationMethod={setOptimizationMethod} hideOptimizationMethod={mode === 'walk_forward'} gaParams={gaParams} setGaParams={setGaParams} />
+                {activeConfigTab === 'strategy' && (
+                    <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+                        {mode !== 'batch' ? (
+                            <div className="space-y-4">
+                                <div className="space-y-2">
+                                    <label className="text-[10px] font-bold text-indigo-500 uppercase tracking-wider block">Saved Indicator (Opt)</label>
+                                    <select className={`${inputBaseClasses} text-sm border-indigo-200 dark:border-indigo-900/50 bg-indigo-50/30 dark:bg-indigo-900/10`} value={selectedIndicatorId || ''} onChange={(e) => setSelectedIndicatorId(e.target.value ? Number(e.target.value) : null)}>
+                                        <option value="">-- Use Strategy --</option>
+                                        {savedIndicators.map(ind => <option key={ind.id} value={ind.id}>{ind.name}</option>)}
+                                    </select>
+                                </div>
+
+                                <div className={`space-y-2 transition-opacity ${selectedIndicatorId ? 'opacity-50 pointer-events-none' : 'opacity-100'}`}>
+                                    <div className="flex justify-between items-center">
+                                        <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Strategy</label>
+                                        <button onClick={() => setIsBuilderOpen(true)} className="text-[10px] text-brand-primary flex items-center gap-1 font-bold"><PlusCircle size={10}/> New</button>
+                                    </div>
+                                    <select className={`${inputBaseClasses} text-sm`} value={strategy} onChange={(e) => setStrategy(e.target.value)}>
+                                        <optgroup label="Library">{safeStrategies.map(s => <option key={`lib-${s}`} value={s}>{s}</option>)}</optgroup>
+                                        {uniqueCustomStrategies.length > 0 && <optgroup label="Custom">{uniqueCustomStrategies.map(s => <option key={`cust-${s}`} value={s}>{s}</option>)}</optgroup>}
+                                    </select>
+                                </div>
+
+                                <div className="pt-2 border-t border-slate-100 dark:border-[#1F1F1F]">
+                                    <StrategyParams mode={(mode === 'optimization' || mode === 'walk_forward') ? 'optimization' : 'single'} activeParamsConfig={optimizableParams} params={params} setParams={setParams} optimizationParams={optimizationParams} setOptimizationParams={setOptimizationParams} optimizationMethod={optimizationMethod} setOptimizationMethod={setOptimizationMethod} hideOptimizationMethod={mode === 'walk_forward'} gaParams={gaParams} setGaParams={setGaParams} />
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="space-y-2">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">Batch Strategies</label>
+                                <div className="h-48 overflow-y-auto border border-slate-200 dark:border-[#1F1F1F] rounded p-2 bg-slate-50 dark:bg-[#111] space-y-1 custom-scrollbar">
+                                    {allBatchStrategies.map(s => (
+                                        <div key={s} onClick={() => toggleBatchStrategy(s)} className={`flex items-center gap-2 p-1.5 rounded cursor-pointer text-xs ${batchStrategies.includes(s) ? 'bg-brand-primary/10 text-brand-primary' : 'hover:bg-slate-200 dark:hover:bg-[#1F1F1F]'}`}>
+                                            {batchStrategies.includes(s) ? <CheckSquare size={12}/> : <Square size={12}/>} <span className="truncate">{s}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
+                        {mode === 'walk_forward' && (
+                            <div className="space-y-3 pt-4 border-t border-slate-100 dark:border-[#1F1F1F]">
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">WFA Config</label>
+                                <div className="grid grid-cols-2 gap-3">
+                                    <div><label className="text-[10px] text-slate-500 block mb-1">Train Window</label><input type="number" value={wfaTrainWindow} onChange={(e) => setWfaTrainWindow(Number(e.target.value))} className={`${inputBaseClasses} py-1.5 text-xs`} /></div>
+                                    <div><label className="text-[10px] text-slate-500 block mb-1">Test Window</label><input type="number" value={wfaTestWindow} onChange={(e) => setWfaTestWindow(Number(e.target.value))} className={`${inputBaseClasses} py-1.5 text-xs`} /></div>
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
 
-                {/* ... (WFA and Optimization config sections kept as is) ... */}
-                {mode === 'walk_forward' && (
-                    <div className="col-span-1 md:col-span-2 lg:col-span-3 bg-blue-50/50 dark:bg-blue-900/10 border border-blue-200 dark:border-blue-800 rounded-xl p-4 animate-fade-in space-y-4 mb-6">
-                        <div className="flex items-center gap-2 border-b border-blue-200 dark:border-blue-800 pb-2">
-                            <h3 className="text-sm font-bold text-blue-800 dark:text-blue-300">WFA Configuration</h3>
+                {activeConfigTab === 'risk' && (
+                    <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-300">
+                        <div className="flex items-center justify-between p-3 bg-slate-50 dark:bg-[#111] rounded-lg border border-slate-200 dark:border-[#1F1F1F]">
+                            <label className="text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center gap-2">
+                                {enableRiskManagement ? <ShieldCheck size={14} className="text-green-500" /> : <ShieldAlert size={14} className="text-gray-400" />}
+                                Enable Risk Mgt
+                            </label>
+                            <input type="checkbox" checked={enableRiskManagement} onChange={(e) => setEnableRiskManagement(e.target.checked)} className="w-4 h-4 accent-brand-primary" />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
-                            <div><label className="text-xs font-semibold text-gray-500 mb-1 block">Training Window</label><input type="number" value={wfaTrainWindow} onChange={(e) => setWfaTrainWindow(Number(e.target.value))} className="w-full bg-white dark:bg-[#050505] border border-gray-300 dark:border-gray-700 rounded p-2 text-sm" /></div>
-                            <div><label className="text-xs font-semibold text-gray-500 mb-1 block">Testing Window</label><input type="number" value={wfaTestWindow} onChange={(e) => setWfaTestWindow(Number(e.target.value))} className="w-full bg-white dark:bg-[#050505] border border-gray-300 dark:border-gray-700 rounded p-2 text-sm" /></div>
+                        
+                        <div className={`space-y-4 transition-opacity ${enableRiskManagement ? 'opacity-100' : 'opacity-50 pointer-events-none'}`}>
+                            <div>
+                                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Initial Cash ($)</label>
+                                <input type="number" value={initialCash} onChange={(e) => setInitialCash(Number(e.target.value))} className={`${inputBaseClasses} text-lg font-mono font-bold text-green-600 dark:text-green-400`} />
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-3">
+                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Commission %</label><input type="number" step="0.01" value={commission} onChange={(e) => setCommission(parseFloat(e.target.value))} className={`${inputBaseClasses} text-sm`} /></div>
+                                <div><label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">Slippage %</label><input type="number" step="0.01" value={slippage} onChange={(e) => setSlippage(parseFloat(e.target.value))} className={`${inputBaseClasses} text-sm`} /></div>
+                            </div>
+
+                            <div className="p-3 bg-slate-50 dark:bg-[#111] rounded-lg border border-slate-200 dark:border-[#1F1F1F] space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">Leverage</label>
+                                    <span className="text-xs font-bold text-brand-primary">{leverage}x</span>
+                                </div>
+                                <input type="range" min="1" max="125" step="1" value={leverage} onChange={(e) => setLeverage(Number(e.target.value))} className="w-full accent-brand-primary" />
+                                <div className="text-[9px] text-slate-400 flex justify-between"><span>Spot (1x)</span><span>Futures (125x)</span></div>
+                            </div>
                         </div>
                     </div>
                 )}
-
-                <div>
-                    <label className="block text-sm font-medium text-gray-500 mb-1">Timeframe {isLoadingTimeframes && <span className="text-xs text-brand-primary ml-2 animate-pulse">Loading...</span>}</label>
-                    <select className={inputBaseClasses} value={timeframe} onChange={(e) => setTimeframe(e.target.value)} disabled={isLoadingTimeframes}>
-                        {availableTimeframes.map(t => (<option key={t} value={t}>{t}</option>))}
-                    </select>
-                </div>
-                <div>
-                    <label className="block text-sm font-medium text-gray-500 mb-1">Secondary TF</label>
-                    <select className={inputBaseClasses} value={secondaryTimeframe} onChange={(e) => setSecondaryTimeframe(e.target.value)}><option value="">None</option>{availableTimeframes.map(t => (<option key={t} value={t}>{t}</option>))}</select>
-                </div>
-
-                <div className="col-span-1 md:col-span-2 lg:col-span-3 bg-gray-50 dark:bg-[#0A0A0A]/50 p-4 rounded-xl border border-gray-200 dark:border-gray-700">
-                    <div className="flex items-center gap-2 mb-3"><History size={16} className="text-brand-primary" /><label className="text-sm font-bold text-slate-700 dark:text-slate-300">Time Horizon</label></div>
-                    <div className="flex flex-col lg:flex-row gap-4 items-end">
-                        <div className="flex-1 grid grid-cols-2 gap-4 w-full">
-                            <div className="relative group">
-                                <label className="text-xs font-semibold text-gray-500 mb-1.5 block ml-1">Start Date</label>
-                                <DatePicker selected={startDate ? new Date(startDate) : null} onChange={(date: Date) => setStartDate(date?.toISOString().split('T')[0] || '')} className={`${inputBaseClasses} pl-2 font-medium cursor-pointer`} dateFormat="yyyy-MM-dd" placeholderText="Select start" renderCustomHeader={CustomInputHeader} calendarClassName="!bg-white dark:!bg-[#050505] !border-gray-200 dark:!border-gray-700" />
-                            </div>
-                            <div className="relative group">
-                                <label className="text-xs font-semibold text-gray-500 mb-1.5 block ml-1">End Date</label>
-                                <DatePicker selected={endDate ? new Date(endDate) : null} onChange={(date: Date) => setEndDate(date?.toISOString().split('T')[0] || '')} className={`${inputBaseClasses} pl-2 font-medium cursor-pointer`} dateFormat="yyyy-MM-dd" placeholderText="Select end" renderCustomHeader={CustomInputHeader} calendarClassName="!bg-white dark:!bg-[#050505] !border-gray-200 dark:!border-gray-700" />
-                            </div>
-                        </div>
-                        <div className="w-full lg:w-auto">
-                            <label className="text-xs font-semibold text-gray-500 mb-1.5 block ml-1 lg:text-right px-1">Quick Select</label>
-                            <div className="flex bg-white dark:bg-[#050505] rounded-lg border border-gray-200 dark:border-gray-700 p-1">
-                                {presetOptions.map((option) => (<button key={option.label} onClick={() => handlePresetChange(option.days)} className="flex-1 px-3 py-1.5 text-xs font-medium rounded-md text-slate-600 dark:text-slate-400 hover:bg-brand-primary/10 hover:text-brand-primary transition-all">{option.label}</button>))}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="mt-4 pt-4 border-t border-brand-border-light dark:border-[#1A1A1A]">
-                <div className="flex items-center justify-between mb-3">
-                    <h3 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">{enableRiskManagement ? <ShieldCheck size={16} className="text-green-500" /> : <ShieldAlert size={16} className="text-gray-400" />} Risk Management & Execution</h3>
-                    <input type="checkbox" checked={enableRiskManagement} onChange={(e) => setEnableRiskManagement(e.target.checked)} className="w-4 h-4 text-brand-primary rounded" />
-                </div>
-                <div className={`grid grid-cols-2 md:grid-cols-5 gap-4 transition-opacity duration-300 ${enableRiskManagement ? 'opacity-100' : 'opacity-50'}`}>
-                    <div><label className="block text-xs text-gray-500 mb-1">Initial Cash ($)</label><input type="number" value={initialCash} onChange={(e) => setInitialCash(Number(e.target.value))} className={`${inputBaseClasses} font-bold text-green-600 dark:text-green-400`} /></div>
-                    <div><label className="block text-xs text-gray-500 mb-1">Commission (%)</label><input type="number" step="0.01" value={commission} onChange={(e) => setCommission(parseFloat(e.target.value))} className={inputBaseClasses} /></div>
-                    <div><label className="block text-xs text-gray-500 mb-1">Slippage (%)</label><input type="number" step="0.01" value={slippage} onChange={(e) => setSlippage(parseFloat(e.target.value))} className={inputBaseClasses} /></div>
-                    <div className="col-span-2 md:col-span-3">
-                        <div className="space-y-2 border border-gray-700 p-2 rounded-lg">
-                            <label className="text-xs font-medium text-gray-300 flex justify-between"><span>Leverage (x{leverage})</span><span className="text-[10px] text-gray-500">{leverage > 1 ? "Futures Mode" : "Spot Mode"}</span></label>
-                            <div className="flex items-center gap-4"><input type="range" min="1" max="20" step="1" value={leverage} onChange={(e) => setLeverage(Number(e.target.value))} className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-blue-500" /><input type="number" min="1" max="125" value={leverage} onChange={(e) => setLeverage(Number(e.target.value))} className="w-16 px-2 py-1 bg-gray-800 border border-gray-700 rounded-md text-white text-xs" /></div>
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <StrategyBuilderModal isOpen={isBuilderOpen} onClose={() => setIsBuilderOpen(false)} onSuccess={() => { window.location.reload(); }} />

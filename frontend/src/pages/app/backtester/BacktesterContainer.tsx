@@ -298,69 +298,129 @@ export const BacktesterContainer: React.FC = () => {
     };
 
     return (
-        <div className="space-y-8 staggered-fade-in">
-            <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-                <h1 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-2"><span className="text-brand-primary">⚡</span> Algo Backtester</h1>
-                <div className="flex bg-gray-200 dark:bg-[#0A0A0A] p-1 rounded-lg flex-wrap">
+        <div className="flex flex-col h-[calc(100vh-8rem)] bg-white dark:bg-[#050505] rounded-xl overflow-hidden animate-in fade-in duration-300 border border-slate-200 dark:border-[#1F1F1F]">
+            {/* Top Bar */}
+            <div className="flex flex-col md:flex-row items-center justify-between p-3 border-b border-slate-200 dark:border-[#1F1F1F] bg-white dark:bg-[#0A0A0A] shrink-0 gap-3">
+                <h1 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    <span className="text-brand-primary">⚡</span> Algo Backtester
+                </h1>
+                
+                <div className="flex bg-slate-100 dark:bg-[#111] p-1 rounded-lg overflow-x-auto w-full md:w-auto">
                     {[{ id: 'single', icon: PlayIcon, label: 'Single' }, { id: 'batch', icon: LayoutGrid, label: 'Batch' }, { id: 'optimization', icon: Layers, label: 'Optimize' }, { id: 'walk_forward', icon: GitMerge, label: 'WFA' }, { id: 'editor', icon: CodeIcon, label: 'Editor' }].map(tab => (
-                        <button key={tab.id} onClick={() => handleTabChange(tab.id as any)} className={`flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium transition-colors ${activeTab === tab.id ? 'bg-white dark:bg-brand-primary text-slate-900 dark:text-white shadow' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'}`}><tab.icon size={14} /> {tab.label}</button>
+                        <button 
+                            key={tab.id} 
+                            onClick={() => handleTabChange(tab.id as any)} 
+                            className={`flex items-center justify-center gap-2 px-3 py-1.5 rounded-md text-xs font-medium transition-all duration-200 whitespace-nowrap flex-1 md:flex-none ${activeTab === tab.id ? 'bg-white dark:bg-[#2A2A2A] text-slate-900 dark:text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'}`}
+                        >
+                            <tab.icon size={14} /> {tab.label}
+                        </button>
                     ))}
                 </div>
-                <button onClick={() => setIsDownloadModalOpen(true)} className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-lg transition-all"><Download size={16} /> Data</button>
+                
+                <button onClick={() => setIsDownloadModalOpen(true)} className="flex items-center justify-center gap-2 px-4 py-1.5 bg-blue-600/10 hover:bg-blue-600/20 text-blue-600 dark:text-blue-400 rounded-lg transition-colors text-xs font-bold w-full md:w-auto shrink-0">
+                    <Download size={14} /> Data
+                </button>
             </div>
 
-            {activeTab === 'editor' ? (
-                <AIStrategyLab aiPrompt={aiPrompt} setAiPrompt={setAiPrompt} handleAiGenerate={handleAiGenerate} isGenerating={isGenerating} fileInputRef={fileInputRef} handleFileChange={(e) => { if (e.target.files?.[0]) setFileName(e.target.files[0].name); }} handleUpload={handleStrategyUpload} fileName={fileName} strategy={strategy} currentStrategyCode={currentStrategyCode} setCurrentStrategyCode={setCurrentStrategyCode} />
-            ) : (
-                <>
-                    <BacktestForm
-                        strategies={strategies} customStrategies={customStrategies} strategy={strategy} setStrategy={setStrategy}
-                        batchStrategies={batchStrategies} setBatchStrategies={setBatchStrategies}
-                        exchanges={exchanges} selectedExchange={selectedExchange} setSelectedExchange={setSelectedExchange}
-                        markets={markets} symbol={symbol} setSymbol={setSymbol}
-                        timeframe={timeframe} setTimeframe={setTimeframe}
-                        startDate={startDate} setStartDate={setStartDate}
-                        endDate={endDate} setEndDate={setEndDate}
-                        dataSource={dataSource} setDataSource={setDataSource}
-                        handleDataFileUpload={handleDataFileUpload} isUploadingData={isUploadingData} dataFileInputRef={dataFileInputRef}
-                        // ❌ REMOVED: tradeFiles, selectedTradeFile, handleConvertTradesToCandles, isConverting
-                        csvFileName={csvFileName}
-                        handleSyncData={() => handleSyncData(timeframe, startDate, endDate)} isSyncing={isSyncing} syncProgress={syncProgress} syncStatusText={syncStatusText}
-                        enableRiskManagement={enableRiskManagement} setEnableRiskManagement={setEnableRiskManagement}
-                        initialCash={initialCash} setInitialCash={setInitialCash}
-                        mode={activeTab === 'batch' ? 'batch' : mode} setMode={setMode}
-                        wfaTrainWindow={wfaTrainWindow} setWfaTrainWindow={setWfaTrainWindow}
-                        wfaTestWindow={wfaTestWindow} setWfaTestWindow={setWfaTestWindow}
-                        wfaMethod={wfaMethod} setWfaMethod={setWfaMethod}
-                        wfaPopSize={wfaPopSize} setWfaPopSize={setWfaPopSize}
-                        wfaGenerations={wfaGenerations} setWfaGenerations={setWfaGenerations}
-                        wfaOptTarget={wfaOptTarget} setWfaOptTarget={setWfaOptTarget}
-                        wfaMinTrades={wfaMinTrades} setWfaMinTrades={setWfaMinTrades}
-                        activeTab={activeTab}
-                        params={params} setParams={setParams}
-                        optimizationParams={optimizationParams} setOptimizationParams={setOptimizationParams}
-                        optimizableParams={optimizableParams}
-                        optimizationMethod={optimizationMethod} setOptimizationMethod={setOptimizationMethod}
-                        gaParams={gaParams} setGaParams={setGaParams}
-                        savedIndicators={savedIndicators}
-                        selectedIndicatorId={selectedIndicatorId}
-                        setSelectedIndicatorId={setSelectedIndicatorId}
-                    />
-                    <div className="mt-8 pt-6 border-t border-brand-border-light dark:border-[#1A1A1A]">
-                        {isLoading && (
-                            <div className="w-full mt-4 animate-fade-in">
-                                <div className="flex justify-between text-xs text-blue-400 mb-1 font-mono uppercase"><span>{statusMessage || 'Processing...'}</span><span>{progress}%</span></div>
-                                <div className="h-3 w-full bg-[#131722] rounded-full overflow-hidden border border-[#2A2E39] relative shadow-[0_0_10px_rgba(41,98,255,0.1)]"><div className="h-full bg-gradient-to-r from-blue-600 via-purple-500 to-blue-400 transition-all duration-300 ease-out relative" style={{ width: `${progress}%` }}><div className="absolute top-0 left-0 w-full h-full bg-white/20 animate-pulse"></div></div></div>
-                            </div>
-                        )}
-                        <div className="flex items-center gap-4">
-                            <button onClick={onRun} disabled={isLoading} className="flex-1 py-3 text-lg shadow-lg shadow-brand-primary/20 bg-brand-primary text-white rounded-lg font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2">{isLoading ? (<span className="flex items-center gap-2">Processing...</span>) : (<span className="flex items-center gap-2">{activeTab === 'walk_forward' ? <GitMerge size={20} /> : activeTab === 'batch' ? <LayoutGrid size={20} /> : <PlayIcon size={20} />} Run {activeTab === 'walk_forward' ? 'WFA' : activeTab === 'optimization' ? 'Optimization' : activeTab === 'batch' ? 'Batch Analysis' : 'Backtest'}</span>)}</button>
-                            {isLoading && (<button onClick={handleStop} className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg shadow-lg" title="Stop"><Square size={20} fill="currentColor" /></button>)}
-                        </div>
+            {/* Main Split Layout */}
+            <div className="flex-1 flex flex-col md:flex-row min-h-0 overflow-hidden">
+                {activeTab === 'editor' ? (
+                    <div className="flex-1 overflow-auto p-4 custom-scrollbar">
+                        <AIStrategyLab aiPrompt={aiPrompt} setAiPrompt={setAiPrompt} handleAiGenerate={handleAiGenerate} isGenerating={isGenerating} fileInputRef={fileInputRef} handleFileChange={(e) => { if (e.target.files?.[0]) setFileName(e.target.files[0].name); }} handleUpload={handleStrategyUpload} fileName={fileName} strategy={strategy} currentStrategyCode={currentStrategyCode} setCurrentStrategyCode={setCurrentStrategyCode} />
                     </div>
-                    {results ? (activeTab === 'walk_forward' ? (<WalkForwardResults results={results} />) : activeTab === 'batch' ? (<BatchResults batchResults={results.results || []} viewMode={resultsTab as any} setViewMode={(m) => setResultsTab(m)} />) : (<ResultsPanel singleResult={results!} resultsTab={resultsTab} setResultsTab={setResultsTab} taskId={taskId!} />)) : null}
-                </>
-            )}
+                ) : (
+                    <>
+                        {/* Left Sidebar: Configuration Panel */}
+                        <div className="w-full md:w-[28rem] border-r-0 md:border-r border-b md:border-b-0 border-slate-200 dark:border-[#1F1F1F] bg-slate-50/50 dark:bg-[#0A0A0A]/50 flex flex-col min-h-0 shrink-0">
+                            <div className="flex-1 overflow-y-auto p-4 custom-scrollbar">
+                                <BacktestForm
+                                    strategies={strategies} customStrategies={customStrategies} strategy={strategy} setStrategy={setStrategy}
+                                    batchStrategies={batchStrategies} setBatchStrategies={setBatchStrategies}
+                                    exchanges={exchanges} selectedExchange={selectedExchange} setSelectedExchange={setSelectedExchange}
+                                    markets={markets} symbol={symbol} setSymbol={setSymbol}
+                                    timeframe={timeframe} setTimeframe={setTimeframe}
+                                    startDate={startDate} setStartDate={setStartDate}
+                                    endDate={endDate} setEndDate={setEndDate}
+                                    dataSource={dataSource} setDataSource={setDataSource}
+                                    handleDataFileUpload={handleDataFileUpload} isUploadingData={isUploadingData} dataFileInputRef={dataFileInputRef}
+                                    csvFileName={csvFileName}
+                                    handleSyncData={() => handleSyncData(timeframe, startDate, endDate)} isSyncing={isSyncing} syncProgress={syncProgress} syncStatusText={syncStatusText}
+                                    enableRiskManagement={enableRiskManagement} setEnableRiskManagement={setEnableRiskManagement}
+                                    initialCash={initialCash} setInitialCash={setInitialCash}
+                                    mode={activeTab === 'batch' ? 'batch' : mode} setMode={setMode}
+                                    wfaTrainWindow={wfaTrainWindow} setWfaTrainWindow={setWfaTrainWindow}
+                                    wfaTestWindow={wfaTestWindow} setWfaTestWindow={setWfaTestWindow}
+                                    wfaMethod={wfaMethod} setWfaMethod={setWfaMethod}
+                                    wfaPopSize={wfaPopSize} setWfaPopSize={setWfaPopSize}
+                                    wfaGenerations={wfaGenerations} setWfaGenerations={setWfaGenerations}
+                                    wfaOptTarget={wfaOptTarget} setWfaOptTarget={setWfaOptTarget}
+                                    wfaMinTrades={wfaMinTrades} setWfaMinTrades={setWfaMinTrades}
+                                    activeTab={activeTab}
+                                    params={params} setParams={setParams}
+                                    optimizationParams={optimizationParams} setOptimizationParams={setOptimizationParams}
+                                    optimizableParams={optimizableParams}
+                                    optimizationMethod={optimizationMethod} setOptimizationMethod={setOptimizationMethod}
+                                    gaParams={gaParams} setGaParams={setGaParams}
+                                    savedIndicators={savedIndicators}
+                                    selectedIndicatorId={selectedIndicatorId}
+                                    setSelectedIndicatorId={setSelectedIndicatorId}
+                                />
+                            </div>
+                            
+                            {/* Run Button pinned to bottom of sidebar */}
+                            <div className="p-4 border-t border-slate-200 dark:border-[#1F1F1F] bg-white dark:bg-[#0A0A0A] shrink-0 space-y-3">
+                                {isLoading && (
+                                    <div className="w-full animate-fade-in">
+                                        <div className="flex justify-between text-[10px] text-blue-500 mb-1 font-mono uppercase font-bold tracking-wider">
+                                            <span className="truncate pr-2">{statusMessage || 'Processing...'}</span>
+                                            <span>{progress}%</span>
+                                        </div>
+                                        <div className="h-2 w-full bg-slate-100 dark:bg-[#111] rounded-full overflow-hidden">
+                                            <div className="h-full bg-brand-primary transition-all duration-300 ease-out" style={{ width: `${progress}%` }} />
+                                        </div>
+                                    </div>
+                                )}
+                                
+                                <div className="flex items-center gap-2">
+                                    <button onClick={onRun} disabled={isLoading} className="flex-1 py-3 text-sm shadow-lg shadow-brand-primary/20 bg-brand-primary text-white rounded-lg font-bold hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2">
+                                        {isLoading ? (
+                                            <span className="flex items-center gap-2">Processing...</span>
+                                        ) : (
+                                            <span className="flex items-center gap-2">
+                                                {activeTab === 'walk_forward' ? <GitMerge size={18} /> : activeTab === 'batch' ? <LayoutGrid size={18} /> : <PlayIcon size={18} />} 
+                                                Run {activeTab === 'walk_forward' ? 'WFA' : activeTab === 'optimization' ? 'Opt' : activeTab === 'batch' ? 'Batch' : 'Backtest'}
+                                            </span>
+                                        )}
+                                    </button>
+                                    {isLoading && (
+                                        <button onClick={handleStop} className="px-4 py-3 bg-red-500 hover:bg-red-600 text-white rounded-lg shadow-lg transition-colors" title="Stop">
+                                            <Square size={18} fill="currentColor" />
+                                        </button>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* Right Area: Results */}
+                        <div className="flex-1 overflow-y-auto p-4 custom-scrollbar bg-slate-50 dark:bg-[#050505]">
+                            {results ? (
+                                activeTab === 'walk_forward' ? (
+                                    <WalkForwardResults results={results} />
+                                ) : activeTab === 'batch' ? (
+                                    <BatchResults batchResults={results.results || []} viewMode={resultsTab as any} setViewMode={(m) => setResultsTab(m)} />
+                                ) : (
+                                    <ResultsPanel singleResult={results!} resultsTab={resultsTab} setResultsTab={setResultsTab} taskId={taskId!} />
+                                )
+                            ) : (
+                                <div className="h-full flex flex-col items-center justify-center text-slate-400 dark:text-slate-600">
+                                    <Layers size={48} className="mb-4 opacity-20" />
+                                    <p className="text-sm font-medium">Configure parameters and run a backtest to see results here.</p>
+                                </div>
+                            )}
+                        </div>
+                    </>
+                )}
+            </div>
 
             <DownloadDataModal
                 isOpen={isDownloadModalOpen} onClose={() => setIsDownloadModalOpen(false)}
