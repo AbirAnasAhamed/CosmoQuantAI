@@ -57,9 +57,12 @@ const calculateDrawdownFromCandles = (candles: any[]) => {
     if (!candles || !Array.isArray(candles) || candles.length === 0) return [];
     let peak = -Infinity;
     return candles.map(c => {
-        if (c.close > peak) peak = c.close;
-        const drawdown = ((c.close - peak) / peak) * 100;
-        return { time: c.time, value: drawdown };
+        const close = Array.isArray(c) ? c[4] : c.close;
+        const time = Array.isArray(c) ? c[0] : c.time;
+        
+        if (close > peak) peak = close;
+        const drawdown = peak > 0 ? ((close - peak) / peak) * 100 : 0;
+        return { time, value: drawdown };
     });
 };
 
@@ -256,7 +259,7 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ singleResult, result
                 <div className="mt-4">
                     {singleResult.equity_curve && singleResult.equity_curve.length > 0 ? (
                         <EquityChart data={singleResult.equity_curve.map(d => ({
-                            time: typeof d.name === 'number' ? d.name : (new Date(d.name).getTime() / 1000),
+                            time: d.time !== undefined ? d.time : (typeof d.name === 'number' ? d.name : (new Date(d.name).getTime() / 1000)),
                             value: d.value
                         }))} />
                     ) : (
