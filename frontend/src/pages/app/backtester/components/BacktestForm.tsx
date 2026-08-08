@@ -153,19 +153,6 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
         trailingStop, setTrailingStop
     } = useBacktest();
 
-    const toggleBatchStrategy = (strat: string) => {
-        if (batchStrategies.includes(strat)) {
-            setBatchStrategies(batchStrategies.filter(s => s !== strat));
-        } else {
-            setBatchStrategies([...batchStrategies, strat]);
-        }
-    };
-
-    const safeStrategies = strategies || [];
-    const safeCustomStrategies = customStrategies || [];
-    const uniqueCustomStrategies = safeCustomStrategies.filter(s => !safeStrategies.includes(s));
-    const allBatchStrategies = Array.from(new Set([...safeStrategies, ...safeCustomStrategies]));
-
     const [availableTimeframes, setAvailableTimeframes] = useState<string[]>(DEFAULT_TIMEFRAMES);
     const [isLoadingTimeframes, setIsLoadingTimeframes] = useState(false);
     const [isBuilderOpen, setIsBuilderOpen] = useState(false);
@@ -187,6 +174,19 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
         };
         fetchTimeframes();
     }, [selectedExchange]);
+
+    const toggleBatchStrategy = (strat: string) => {
+        if (batchStrategies.includes(strat)) {
+            setBatchStrategies(batchStrategies.filter(s => s !== strat));
+        } else {
+            setBatchStrategies([...batchStrategies, strat]);
+        }
+    };
+
+    const safeStrategies = strategies || [];
+    const safeCustomStrategies = customStrategies || [];
+    const uniqueCustomStrategies = safeCustomStrategies.filter(s => !safeStrategies.includes(s));
+    const allBatchStrategies = Array.from(new Set([...safeStrategies, ...safeCustomStrategies]));
 
     const inputBaseClasses = "w-full bg-white dark:bg-[#0A0A0A]/50 border border-brand-border-light dark:border-[#1A1A1A] rounded-md p-2 text-slate-900 dark:text-white focus:ring-brand-primary focus:border-brand-primary";
 

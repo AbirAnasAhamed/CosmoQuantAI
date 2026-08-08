@@ -59,7 +59,12 @@ export const BacktesterContainer: React.FC = () => {
     } = useDownloadData();
 
     const { execute, isLoading, progress, statusMessage, results, mode: currentMode, taskId } = useBacktestExecution();
-    const { commission, slippage, stopLoss, takeProfit, trailingStop, setParams: setContextParams } = useBacktest();
+    const { 
+        commission, slippage, leverage, 
+        stopLoss, takeProfit, trailingStop, 
+        secondaryTimeframe, 
+        setParams: setContextParams 
+    } = useBacktest();
 
     const [initialCash, setInitialCash] = useState(10000);
     const [enableRiskManagement, setEnableRiskManagement] = useState(true);
@@ -271,6 +276,7 @@ export const BacktesterContainer: React.FC = () => {
         const commonParams = {
             symbol: dataSource === 'csv' ? `FILE: ${csvFileName}` : symbol,
             timeframe,
+            secondary_timeframe: secondaryTimeframe || undefined,
             strategy: selectedStrategy, // ✅ Use resolved strategy
             indicator_id: indicatorId, // ✅ Pass ID
             initial_cash: initialCash,
@@ -279,7 +285,10 @@ export const BacktesterContainer: React.FC = () => {
             end_date: endDate,
             commission,
             slippage,
-            leverage: 1
+            leverage,
+            stop_loss: stopLoss || undefined,
+            take_profit: takeProfit || undefined,
+            trailing_stop: trailingStop || undefined
         };
 
         if (activeTab === 'walk_forward') {
