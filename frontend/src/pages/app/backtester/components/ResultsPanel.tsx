@@ -138,7 +138,7 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ singleResult, result
         return (
             <div className="animate-fade-in space-y-6 mt-6">
                 {/* Best Result Highlight Card */}
-                <div className="bg-gradient-to-r from-blue-900/40 to-purple-900/40 border border-blue-500/30 p-6 rounded-lg flex items-center justify-between">
+                <div className="bg-gradient-to-r from-blue-900/40 to-purple-900/40 border border-blue-500/30 p-6 rounded-2xl flex items-center justify-between backdrop-blur-md">
                     <div>
                         <div className="flex items-center gap-2 mb-2">
                             <Trophy className="text-yellow-400 h-6 w-6" />
@@ -153,8 +153,8 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ singleResult, result
                 </div>
 
                 {/* Best Parameters Display */}
-                <div className="bg-[#131722] border border-[#2A2E39] rounded-lg p-4">
-                    <h3 className="text-sm font-semibold text-gray-400 mb-3 uppercase">Winning Parameters</h3>
+                <div className="bg-slate-50 dark:bg-white/5 border border-slate-200 dark:border-white/10 rounded-2xl p-5 backdrop-blur-md">
+                    <h3 className="text-sm font-bold text-slate-700 dark:text-gray-300 mb-3 uppercase tracking-wider">Winning Parameters</h3>
                     <div className="flex flex-wrap gap-3">
                         {bestResult.params && Object.entries(bestResult.params).map(([key, value]) => (
                             <span key={key} className="px-3 py-1 bg-[#2A2E39] rounded text-sm text-blue-300 font-mono border border-blue-900/50">
@@ -165,8 +165,8 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ singleResult, result
                 </div>
 
                 {/* Optimization Table */}
-                <div className="bg-[#131722] border border-[#2A2E39] rounded-lg overflow-hidden shadow-lg">
-                    <div className="px-6 py-4 border-b border-[#2A2E39] bg-[#1e222d] flex items-center gap-2">
+                <div className="bg-white dark:bg-[#0A0A0A] border border-slate-200 dark:border-white/10 rounded-2xl overflow-hidden shadow-lg">
+                    <div className="px-6 py-4 border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 flex items-center gap-2">
                         <BarChart2 className="h-4 w-4 text-[#2962FF]" />
                         <h3 className="text-sm font-semibold text-gray-200">Top Configurations</h3>
                     </div>
@@ -209,9 +209,9 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ singleResult, result
         <div className="animate-fade-in space-y-6 mt-6">
 
             {/* 👇 HEADER SECTION WITH DOWNLOAD BUTTON */}
-            <div className="flex justify-between items-center bg-[#131722] p-4 rounded-lg border border-[#2A2E39]">
+            <div className="flex justify-between items-center bg-white dark:bg-white/5 p-5 rounded-2xl border border-slate-200 dark:border-white/10 backdrop-blur-md shadow-sm">
                 <div>
-                    <h2 className="text-lg font-bold text-white">Backtest Results: {singleResult.symbol}</h2>
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">Backtest Results: {singleResult.symbol}</h2>
                     <p className="text-sm text-gray-400">Strategy: {singleResult.strategy}</p>
                 </div>
 
@@ -237,7 +237,7 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ singleResult, result
             </div>
 
             {/* A. Chart Section */}
-            <div className="bg-[#131722] border border-[#2A2E39] rounded-lg overflow-hidden shadow-lg p-1">
+            <div className="bg-white dark:bg-[#0A0A0A] border border-slate-200 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm p-2">
                 {/* Main Price Chart */}
                 <div className="h-[450px]">
                     {singleResult.candle_data && singleResult.candle_data.length > 0 ? (
@@ -265,7 +265,7 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ singleResult, result
                 </div>
 
                 {/* Underwater Drawdown Chart */}
-                <div className="h-[200px] border-t border-[#2A2E39] mt-1">
+                <div className="h-[200px] border-t border-slate-200 dark:border-white/10 mt-1">
                     <UnderwaterChart
                         data={
                             (singleResult.underwater_data && singleResult.underwater_data.length > 0)
@@ -285,9 +285,9 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ singleResult, result
             )}
 
             {/* B. Performance Summary Panel */}
-            <div className="bg-[#131722] border border-[#2A2E39] rounded-lg overflow-hidden shadow-lg animate-fade-in">
+            <div className="bg-white dark:bg-[#0A0A0A] border border-slate-200 dark:border-white/10 rounded-2xl overflow-hidden shadow-sm animate-fade-in">
                 {/* Header Tabs */}
-                <div className="flex border-b border-[#2A2E39] px-4 bg-[#1e222d] overflow-x-auto">
+                <div className="flex border-b border-slate-200 dark:border-white/10 px-4 bg-slate-50 dark:bg-white/5 overflow-x-auto">
                     {['overview', 'performance', 'traders_analysis', 'trades'].map(tab => (
                         <button
                             key={tab}
@@ -316,19 +316,19 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ singleResult, result
                     <div className="p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 animate-fade-in">
                         {/* Row 1: Trade Counts Breakdown */}
                         <div className="col-span-1 md:col-span-2 lg:col-span-4 grid grid-cols-1 md:grid-cols-3 gap-6 mb-4">
-                            <div className="bg-[#1e222d] p-4 rounded border border-[#2A2E39] text-center">
-                                <p className="text-gray-400 text-xs uppercase mb-1">Total Trades</p>
-                                <p className="text-3xl font-bold text-white">{singleResult.trade_analysis.total_closed}</p>
+                            <div className="bg-slate-50 dark:bg-white/5 p-5 rounded-2xl border border-slate-200 dark:border-white/10 text-center">
+                                <p className="text-slate-500 dark:text-gray-400 text-xs font-bold uppercase mb-1">Total Trades</p>
+                                <p className="text-3xl font-bold text-slate-900 dark:text-white">{singleResult.trade_analysis.total_closed}</p>
                             </div>
-                            <div className="bg-[#1e222d] p-4 rounded border border-[#2A2E39] text-center">
-                                <p className="text-gray-400 text-xs uppercase mb-1">Long Trades</p>
-                                <p className="text-3xl font-bold text-green-400">{singleResult.trade_analysis.long_trades_total}</p>
-                                <p className="text-xs text-green-600">Won: {singleResult.trade_analysis.long_trades_won}</p>
+                            <div className="bg-slate-50 dark:bg-white/5 p-5 rounded-2xl border border-slate-200 dark:border-white/10 text-center">
+                                <p className="text-slate-500 dark:text-gray-400 text-xs font-bold uppercase mb-1">Long Trades</p>
+                                <p className="text-3xl font-bold text-green-500 dark:text-green-400">{singleResult.trade_analysis.long_trades_total}</p>
+                                <p className="text-xs text-green-600 font-medium">Won: {singleResult.trade_analysis.long_trades_won}</p>
                             </div>
-                            <div className="bg-[#1e222d] p-4 rounded border border-[#2A2E39] text-center">
-                                <p className="text-gray-400 text-xs uppercase mb-1">Short Trades</p>
-                                <p className="text-3xl font-bold text-red-400">{singleResult.trade_analysis.short_trades_total}</p>
-                                <p className="text-xs text-red-600">Won: {singleResult.trade_analysis.short_trades_won}</p>
+                            <div className="bg-slate-50 dark:bg-white/5 p-5 rounded-2xl border border-slate-200 dark:border-white/10 text-center">
+                                <p className="text-slate-500 dark:text-gray-400 text-xs font-bold uppercase mb-1">Short Trades</p>
+                                <p className="text-3xl font-bold text-red-500 dark:text-red-400">{singleResult.trade_analysis.short_trades_total}</p>
+                                <p className="text-xs text-red-600 font-medium">Won: {singleResult.trade_analysis.short_trades_won}</p>
                             </div>
                         </div>
 
@@ -352,10 +352,10 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ singleResult, result
 
                 {/* PERFORMANCE MATRIX */}
                 {resultsTab === 'performance' && (
-                    <div className="bg-[#131722] animate-fade-in">
-                        <div className="px-6 py-4 border-b border-[#2A2E39] bg-[#1e222d] flex items-center gap-2">
-                            <Activity className="h-4 w-4 text-[#2962FF]" />
-                            <h3 className="text-sm font-semibold text-gray-200">Key Metrics Matrix</h3>
+                    <div className="bg-white dark:bg-[#0A0A0A] animate-fade-in">
+                        <div className="px-6 py-4 border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 flex items-center gap-2">
+                            <Activity className="h-4 w-4 text-brand-primary" />
+                            <h3 className="text-sm font-bold text-slate-800 dark:text-gray-200">Key Metrics Matrix</h3>
                         </div>
                         <div className="p-0">
                             <table className="w-full text-sm text-left">
@@ -374,10 +374,10 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ singleResult, result
 
                 {/* TRADE LIST */}
                 {resultsTab === 'trades' && (
-                    <div className="bg-[#131722] animate-fade-in flex flex-col h-[600px]">
-                        <div className="px-6 py-4 border-b border-[#2A2E39] bg-[#1e222d] flex items-center gap-2">
-                            <Layers className="h-4 w-4 text-[#2962FF]" />
-                            <h3 className="text-sm font-semibold text-gray-200">Trade List</h3>
+                    <div className="bg-white dark:bg-[#0A0A0A] animate-fade-in flex flex-col h-[600px]">
+                        <div className="px-6 py-4 border-b border-slate-200 dark:border-white/10 bg-slate-50 dark:bg-white/5 flex items-center gap-2">
+                            <Layers className="h-4 w-4 text-brand-primary" />
+                            <h3 className="text-sm font-bold text-slate-800 dark:text-gray-200">Trade List</h3>
                         </div>
                         <div className="flex-1 overflow-auto custom-scrollbar">
                             <table className="w-full text-xs text-left">

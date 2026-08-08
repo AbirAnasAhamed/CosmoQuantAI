@@ -317,8 +317,8 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                         <div className="space-y-2 bg-slate-50 dark:bg-[#111] p-3 rounded-lg border border-slate-200 dark:border-[#1F1F1F]">
                             <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider flex items-center gap-1.5"><History size={12}/> Time Horizon</label>
                             
-                            <div className="flex bg-white dark:bg-[#050505] rounded border border-slate-200 dark:border-[#1F1F1F] p-0.5 mb-2">
-                                {presetOptions.slice(0, 4).map((option) => (<button key={option.label} onClick={() => handlePresetChange(option.days)} className="flex-1 py-1 text-[10px] font-medium rounded hover:bg-slate-100 dark:hover:bg-[#1F1F1F]">{option.label}</button>))}
+                            <div className="grid grid-cols-3 gap-1 bg-white dark:bg-[#050505] rounded border border-slate-200 dark:border-[#1F1F1F] p-0.5 mb-2">
+                                {presetOptions.map((option) => (<button key={option.label} onClick={() => handlePresetChange(option.days)} className="py-1 text-[10px] font-medium rounded hover:bg-slate-100 dark:hover:bg-[#1F1F1F] transition-colors">{option.label}</button>))}
                             </div>
 
                             <div className="grid grid-cols-2 gap-2">
@@ -371,6 +371,14 @@ export const BacktestForm: React.FC<BacktestFormProps> = ({
                                             {batchStrategies.includes(s) ? <CheckSquare size={12}/> : <Square size={12}/>} <span className="truncate">{s}</span>
                                         </div>
                                     ))}
+                                    {allBatchStrategies.length === 0 && <div className="text-xs text-gray-500 text-center py-4">No strategies found</div>}
+                                </div>
+                                <div className="flex justify-between items-center mt-1 px-1">
+                                    <span className="text-[10px] font-medium text-slate-500">Selected: {batchStrategies.length}</span>
+                                    <div className="flex gap-2">
+                                        <button onClick={() => setBatchStrategies(allBatchStrategies)} className="text-[10px] text-brand-primary hover:underline font-bold">Select All</button>
+                                        <button onClick={() => setBatchStrategies([])} className="text-[10px] text-slate-500 hover:underline">Clear</button>
+                                    </div>
                                 </div>
                             </div>
                         )}
