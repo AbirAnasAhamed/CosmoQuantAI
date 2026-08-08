@@ -258,7 +258,7 @@ export const ResultsPanel: React.FC<ResultsPanelProps> = ({ singleResult, result
                 {/* Equity Curve Chart */}
                 <div className="mt-4">
                     {singleResult.equity_curve && singleResult.equity_curve.length > 0 ? (
-                        <EquityChart data={singleResult.equity_curve.map(d => ({
+                        <EquityChart data={singleResult.equity_curve.map((d: any) => ({
                             time: d.time !== undefined ? d.time : (typeof d.name === 'number' ? d.name : (new Date(d.name).getTime() / 1000)),
                             value: d.value
                         }))} />
