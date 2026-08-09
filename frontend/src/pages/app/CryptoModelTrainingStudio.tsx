@@ -385,6 +385,7 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
         { name: 'Momentum', indicators: ['RSI', 'Stoch', 'ROC', 'CCI', 'WillR', 'MFI'] },
         { name: 'Trend', indicators: ['MACD', 'EMA', 'SMA', 'ADX', 'Supertrend', 'Parabolic SAR'] },
         { name: 'Volatility', indicators: ['BBANDS', 'ATR', 'Keltner Channel', 'Donchian Channel'] },
+        { name: 'Advanced Hedge Fund Modules', indicators: ['Advanced Trend & Momentum', 'Advanced Volume & Flow', 'Advanced Volatility & Risk', 'Advanced Geometric Cycles'] },
         { name: 'Multi-Parameter (Dynamic)', indicators: ['RSI Multi', 'MACD Multi', 'EMA Multi', 'SMA Multi', 'Stoch Multi', 'ROC Multi', 'CCI Multi', 'WillR Multi', 'MFI Multi', 'ADX Multi', 'Supertrend Multi', 'Parabolic SAR Multi', 'BBANDS Multi', 'ATR Multi', 'Keltner Channel Multi', 'Donchian Channel Multi', 'CMF Multi'] }
     ];
 
@@ -393,7 +394,7 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
         { name: 'Momentum', icon: '🚀', list: ['RSI', 'ROC', 'Stoch', 'MFI', 'WillR'] },
         { name: 'Trend Focused', icon: '📈', list: ['MACD', 'EMA', 'SMA', 'ADX', 'Supertrend', 'Parabolic SAR'] },
         { name: 'Dynamic (Multi)', icon: '🧠', list: ['RSI Multi', 'MACD Multi', 'EMA Multi', 'ATR Multi'] },
-        { name: 'Kitchen Sink', icon: '🏆', list: ['SMC FVG', 'ICT Killzones', 'Order Blocks', 'Market Structure', 'Wick Rejection', 'VWAP_SD', 'RSI', 'Stoch', 'ROC', 'CCI', 'WillR', 'MFI', 'MACD', 'EMA', 'SMA', 'ADX', 'Supertrend', 'Parabolic SAR', 'BBANDS', 'ATR', 'Keltner Channel', 'Donchian Channel', 'OBV', 'VWAP', 'CMF', 'ADOSC'] }
+        { name: 'Kitchen Sink', icon: '🏆', list: ['SMC FVG', 'ICT Killzones', 'Order Blocks', 'Market Structure', 'Wick Rejection', 'VWAP_SD', 'RSI', 'Stoch', 'ROC', 'CCI', 'WillR', 'MFI', 'MACD', 'EMA', 'SMA', 'ADX', 'Supertrend', 'Parabolic SAR', 'BBANDS', 'ATR', 'Keltner Channel', 'Donchian Channel', 'OBV', 'VWAP', 'CMF', 'ADOSC', 'Advanced Trend & Momentum', 'Advanced Volume & Flow', 'Advanced Volatility & Risk', 'Advanced Geometric Cycles'] }
     ];
     const ALGORITHM_CATEGORIES = [
         { 

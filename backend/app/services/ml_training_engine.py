@@ -21,6 +21,10 @@ from app.services.helpers.ml_advanced_setup_target import generate_advanced_setu
 from app.services.helpers.vwap_calculator import calculate_vwap_sd_features
 from app.services.helpers.institutional_features import add_smc_fvg, add_ict_killzones, add_wick_rejection, add_swing_structure, add_order_blocks
 from app.services.aether_ml_features import add_aether_smc_features
+from app.services.feature_engines.trend_momentum import add_trend_momentum_features
+from app.services.feature_engines.volume_flow import add_volume_flow_features
+from app.services.feature_engines.volatility_risk import add_volatility_risk_features
+from app.services.feature_engines.geometric_cycles import add_geometric_cycle_features
 # ✅ NEW: Modular ML Pipeline Services
 from app.services.ml_walk_forward_cv import run_walk_forward_cv
 from app.services.ml_backtest_runner import run_post_training_backtest
@@ -936,6 +940,12 @@ def train_model_task(job_id: str, db: Session):
                 "Order Blocks": lambda d: add_order_blocks(d),
                 "Aether SMC Flow": lambda d: add_aether_smc_features(d),
                 
+                # Advanced Phase 2 Modules (Bulk Additions)
+                "Advanced Trend & Momentum": lambda d: add_trend_momentum_features(d),
+                "Advanced Volume & Flow": lambda d: add_volume_flow_features(d),
+                "Advanced Volatility & Risk": lambda d: add_volatility_risk_features(d),
+                "Advanced Geometric Cycles": lambda d: add_geometric_cycle_features(d),
+                
                 # --- Multi-Parameter (Dynamic) Variants ---
                 # Momentum Multi
                 "RSI Multi": lambda d: [d.ta.rsi(length=l, append=True) for l in [7, 14, 21]],
@@ -1112,6 +1122,12 @@ def train_model_task(job_id: str, db: Session):
                 "Market Structure": lambda d: add_swing_structure(d),
                 "Order Blocks": lambda d: add_order_blocks(d),
                 "Aether SMC Flow": lambda d: add_aether_smc_features(d),
+                
+                # Advanced Phase 2 Modules (Bulk Additions)
+                "Advanced Trend & Momentum": lambda d: add_trend_momentum_features(d),
+                "Advanced Volume & Flow": lambda d: add_volume_flow_features(d),
+                "Advanced Volatility & Risk": lambda d: add_volatility_risk_features(d),
+                "Advanced Geometric Cycles": lambda d: add_geometric_cycle_features(d),
                 
                 # --- Multi-Parameter (Dynamic) Variants ---
                 # Momentum Multi
