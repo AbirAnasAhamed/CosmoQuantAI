@@ -634,10 +634,10 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                     feature_selection_method: featureSelectionMethod,
                     wfo_windows: wfoWindows,
                     selected_forex_features: selectedForexFeatures,
-                    snapshot_file: dataSource === 'hybrid_ohlcv_tick' ? selectedHybridFile : selectedForexFile,
-                    l2_orderbook_file: dataSource === 'l2_orderbook' || dataSource === 'hybrid_ohlcv_l2' ? selectedL2File : undefined,
+                    snapshot_file: (dataSource === 'hybrid_ohlcv_tick' || dataSource === 'l2_and_hybrid') ? selectedHybridFile : selectedForexFile,
+                    l2_orderbook_file: (dataSource === 'l2_orderbook' || dataSource === 'hybrid_ohlcv_l2' || dataSource === 'l2_and_hybrid') ? selectedL2File : undefined,
                     tick_data_file: undefined, // Tick data is already merged into snapshot_file
-                    tick_binning_strategy: dataSource === 'hybrid_ohlcv_tick' ? tickBinningStrategy : undefined,
+                    tick_binning_strategy: (dataSource === 'hybrid_ohlcv_tick' || dataSource === 'l2_and_hybrid') ? tickBinningStrategy : undefined,
                     data_source_type: dataSource,
                     is_ensemble: isEnsemble,
                     ensemble_method: ensembleMethod,

@@ -658,6 +658,45 @@ export const FOREX_MODULES = [
             { id: 'aleatoric_uncertainty', name: 'Aleatoric Uncertainty' },
             { id: 'ensemble_agreement_ratio', name: 'Ensemble Agreement Ratio' }
         ]
+    },
+    {
+        id: 'universal_advanced_math',
+        title: 'Universal Advanced Math (L2 & Tick)',
+        icon: Cpu,
+        description: 'Iceberg detection, spatial density and tick velocity vectors.',
+        source: 'hybrid_ohlcv_tick',
+        features: [
+            { id: 'iceberg_replenishment_variance', name: 'Iceberg Replenishment Variance' },
+            { id: 'lob_spatial_density_matrix', name: 'LOB Spatial Density Matrix (Image)' },
+            { id: 'tick_velocity_vector_field', name: 'Tick Velocity Vector Field' },
+            { id: 'latent_space_crash_proximity', name: 'Latent Space Crash Proximity' },
+            { id: 'hawkes_process_excitation', name: 'Hawkes Process Excitation' },
+            { id: 'fractional_brownian_motion_hurst', name: 'Fractional Brownian Motion (Hurst)' },
+            { id: 'stop_hunt_liquidity_voids', name: 'Stop-Hunt Liquidity Voids' },
+            { id: 'orderbook_heatmap_entropy', name: 'Orderbook Heatmap Entropy (Shannon)' },
+            { id: 'kalman_filter_true_midprice', name: 'Kalman Filter True Midprice' },
+            { id: 'lyapunov_exponent_chaos', name: 'Lyapunov Exponent (Chaos Theory)' },
+            { id: 'markov_transition_toxicity', name: 'Markov Transition Toxicity Prob' },
+            { id: 'fourier_transform_cycle_phase', name: 'FFT Dominant Cycle Phase' }
+        ]
+    },
+    {
+        id: 'fx_exclusive_macro',
+        title: 'Forex Exclusive Macro (Hybrid)',
+        icon: Globe,
+        description: 'Cross-pair arb, USD index divergence and peg defense.',
+        source: 'hybrid_ohlcv_tick',
+        features: [
+            { id: 'synthetic_triangular_arb_pressure', name: 'Synthetic Triangular Arb Pressure' },
+            { id: 'usd_index_tick_divergence', name: 'USD Index (DXY) Tick Divergence' },
+            { id: 'central_bank_peg_defense_proxy', name: 'Central Bank Peg Defense Proxy' },
+            { id: 'fx_session_overlap_intensity', name: 'FX Session Overlap Intensity' },
+            { id: 'yield_differential_proxy', name: 'Yield Differential Proxy' },
+            { id: 'interbank_spoofing_mirage', name: 'Interbank Spoofing Mirage (EBS)' },
+            { id: 'cot_commercial_hedger_divergence', name: 'COT Commercial Hedger Divergence' },
+            { id: 'retail_broker_book_imbalance', name: 'Retail Broker Book Trap (OANDA)' },
+            { id: 'sovereign_wealth_fund_execution_proxy', name: 'Sovereign Wealth Fund Execution Proxy' }
+        ]
     }
 ];
 
@@ -776,6 +815,13 @@ export const ForexAdvancedPipeline: React.FC<ForexAdvancedPipelineProps> = (prop
                     >
                         Alternative Data
                     </button>
+                    <button
+                        onClick={() => { setDataSource('l2_and_hybrid'); setExpandedModule(null); }}
+                        disabled={props.isTraining}
+                        className={`py-2 rounded-xl text-[11px] font-bold transition-all duration-300 ${dataSource === 'l2_and_hybrid' ? 'bg-gradient-to-r from-orange-600 to-red-600 text-white shadow-[0_0_15px_rgba(249,115,22,0.4)]' : 'bg-white/5 text-slate-400 hover:bg-white/10 border border-white/5 hover:text-white'}`}
+                    >
+                        L2 Orderbook + Hybrid
+                    </button>
                 </div>
             </div>
             
@@ -823,7 +869,7 @@ export const ForexAdvancedPipeline: React.FC<ForexAdvancedPipelineProps> = (prop
                 )}
 
                 {/* LEVEL 2 CSV UPLOAD INJECTION */}
-                {dataSource === 'l2_orderbook' && (
+                {(dataSource === 'l2_orderbook' || dataSource === 'l2_and_hybrid') && (
                     <div className="mb-4 p-5 border border-purple-500/30 rounded-xl bg-purple-500/5 shadow-[inset_0_0_20px_rgba(168,85,247,0.05)]">
                         <div className="mb-5 text-center">
                             <h4 className="text-sm font-bold text-purple-400 mb-1">Custom L2 Orderbook Data</h4>
@@ -879,7 +925,7 @@ export const ForexAdvancedPipeline: React.FC<ForexAdvancedPipelineProps> = (prop
                 )}
 
                 {/* HYBRID OHLCV + TICK INJECTION */}
-                {dataSource === 'hybrid_ohlcv_tick' && (
+                {(dataSource === 'hybrid_ohlcv_tick' || dataSource === 'l2_and_hybrid') && (
                     <HybridOhlcvTickPanel 
                         symbol={props.symbol}
                         isTraining={props.isTraining}
@@ -916,7 +962,12 @@ export const ForexAdvancedPipeline: React.FC<ForexAdvancedPipelineProps> = (prop
                 />
 
                 {/* ACCORDION MODULES */}
-                {FOREX_MODULES.filter(m => m.source === dataSource).map((module) => {
+                {FOREX_MODULES.filter(m => {
+                    if (dataSource === 'l2_and_hybrid') {
+                        return m.source === 'l2_orderbook' || m.source === 'hybrid_ohlcv_tick';
+                    }
+                    return m.source === dataSource;
+                }).map((module) => {
                     const ModuleIcon = module.icon;
                     const isExpanded = expandedModule === module.id;
                     

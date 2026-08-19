@@ -64,7 +64,18 @@ export const ALL_L2_FEATURES = [
     { internal: "bid_wall_absorption", name: "Bid Wall Absorption 🚀 ADVANCED", desc: "Execution rate into a large bid cluster" },
     { internal: "ask_wall_absorption", name: "Ask Wall Absorption 🚀 ADVANCED", desc: "Execution rate into a large ask cluster" },
     { internal: "l2_liquidity_vacuum", name: "Liquidity Vacuum 🚀 ADVANCED", desc: "Sudden withdrawal of liquidity leading to air pockets" },
-    { internal: "cross_spread_momentum", name: "Cross-Spread Momentum 🚀 ADVANCED", desc: "Momentum of mid-price across the bid-ask bounce" }
+    { internal: "cross_spread_momentum", name: "Cross-Spread Momentum 🚀 ADVANCED", desc: "Momentum of mid-price across the bid-ask bounce" },
+    // ── 🧠 UNIVERSAL ADVANCED MATH METRICS ────────────────────────
+    { internal: "iceberg_replenishment_variance", name: "Iceberg Replenishment Variance 🧠 UNIVERSAL", desc: "Variance of time taken to refill hidden orders" },
+    { internal: "lob_spatial_density_matrix", name: "LOB Spatial Density Matrix 🧠 UNIVERSAL", desc: "Orderbook represented as a 2D density image" },
+    { internal: "hawkes_process_excitation", name: "Hawkes Process Excitation 🧠 UNIVERSAL", desc: "Self-exciting nature of institutional trades" },
+    { internal: "fractional_brownian_motion_hurst", name: "Fractional Brownian Motion 🧠 UNIVERSAL", desc: "Hurst exponent mapping trend vs mean-reversion memory" },
+    { internal: "stop_hunt_liquidity_voids", name: "Stop-Hunt Liquidity Voids 🧠 UNIVERSAL", desc: "Detection of liquidity gaps where stops are clustered" },
+    { internal: "orderbook_heatmap_entropy", name: "Orderbook Heatmap Entropy (Shannon) 🧠 UNIVERSAL", desc: "Information entropy calculated across the 2D density image" },
+    { internal: "kalman_filter_true_midprice", name: "Kalman Filter True Midprice 🧠 UNIVERSAL", desc: "Noise-filtered theoretical true price" },
+    { internal: "lyapunov_exponent_chaos", name: "Lyapunov Exponent (Chaos) 🧠 UNIVERSAL", desc: "Predictability horizon based on chaos theory" },
+    { internal: "markov_transition_toxicity", name: "Markov Transition Toxicity Prob 🧠 UNIVERSAL", desc: "Probability matrix of toxic flow states" },
+    { internal: "fourier_transform_cycle_phase", name: "FFT Dominant Cycle Phase 🧠 UNIVERSAL", desc: "Fast Fourier Transform of micro-cycles" }
 ];
 
 export const BASIC_L2_INTERNAL_NAMES = [
@@ -163,7 +174,19 @@ export const ALL_HYBRID_DEEP_TRADE_FEATURES = [
     { internal: "cross_domain_momentum_ignition", name: "Momentum Ignition 🚀 CROSS-DOMAIN", desc: "Cross-domain flag for momentum ignition spoofing" },
     { internal: "l2_depth_vs_trade_vol_ratio", name: "Depth vs Volume Ratio 🚀 CROSS-DOMAIN", desc: "Total L2 depth divided by 1m rolling trade volume" },
     { internal: "effective_spread_realization", name: "Spread Realization 🚀 CROSS-DOMAIN", desc: "Actual spread realized on executions vs quoted" },
-    { internal: "quote_depletion_vs_trade_intensity", name: "Quote Depletion Intensity 🚀 CROSS-DOMAIN", desc: "Pace of quote pulling vs trade arrivals" }
+    { internal: "quote_depletion_vs_trade_intensity", name: "Quote Depletion Intensity 🚀 CROSS-DOMAIN", desc: "Pace of quote pulling vs trade arrivals" },
+    // ── 💥 CRYPTO EXCLUSIVE METRICS ────────────────────────
+    { internal: "liquidation_engine_cascade_speed", name: "Liquidation Cascade Speed 💥 CRYPTO", desc: "Velocity of cascading margin calls" },
+    { internal: "altcoin_btc_beta_divergence", name: "Altcoin BTC Beta Divergence 💥 CRYPTO", desc: "Divergence between Altcoin L2 and BTC sweeps" },
+    { internal: "on_chain_tx_delay_proxy", name: "On-Chain Tx Delay Proxy 💥 CRYPTO", desc: "Estimating block-time congestion impact on CEX spread" },
+    { internal: "cex_dex_arb_latency_proxy", name: "CEX-DEX Arb Latency Proxy 💥 CRYPTO", desc: "Latency delay signature between Binance and Uniswap bots" },
+    { internal: "deribit_gamma_exposure_proxy", name: "Deribit Gamma Exposure (GEX) Proxy 💥 CRYPTO", desc: "Options market maker hedging pressure" },
+    { internal: "miner_capitulation_stress_index", name: "Miner Capitulation Stress 💥 CRYPTO", desc: "Aggressive selling behavior consistent with miners" },
+    { internal: "perpetual_basis_mean_reversion", name: "Perp-Spot Basis Reversion 💥 CRYPTO", desc: "Speed of funding rate and premium reversion" },
+    // ── 🧠 UNIVERSAL ADVANCED MATH METRICS ────────────────────────
+    { internal: "tick_velocity_vector_field", name: "Tick Velocity Vector Field 🧠 UNIVERSAL", desc: "Physics vector representation of price/volume" },
+    { internal: "latent_space_crash_proximity", name: "Latent Space Crash Proximity 🧠 UNIVERSAL", desc: "Distance to historical crash states in latent space" },
+    { internal: "bifurcation_point_breakout", name: "Bifurcation Breakout Point 🧠 UNIVERSAL", desc: "Chaos theory metric for impending breakouts" }
 ];
 
 
