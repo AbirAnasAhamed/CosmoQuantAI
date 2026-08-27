@@ -46,6 +46,16 @@ class ForexVolatilityModel(BaseEstimator, ClassifierMixin):
         mean_vol = np.mean(vol_pred)
         return (vol_pred > mean_vol).astype(int)
 
+
+    def predict_proba(self, X):
+        preds = self.predict(X)
+        n_classes = len(self.classes_) if hasattr(self, 'classes_') else 3
+        probs = __import__('numpy').zeros((len(preds), n_classes))
+        for i, p in enumerate(preds):
+            if int(p) < n_classes:
+                probs[i, int(p)] = 1.0
+        return probs
+
     def score(self, X: pd.DataFrame, y: pd.Series):
         preds = self.predict(X)
         y_vals = getattr(y, 'values', y)

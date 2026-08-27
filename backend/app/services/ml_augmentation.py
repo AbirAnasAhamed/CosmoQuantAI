@@ -21,7 +21,7 @@ def block_bootstrap(df, block_size=10, factor=2):
         
         # Small noise to prevent exact duplicates
         for col in sampled_df.select_dtypes(include=[np.number]).columns:
-            if 'Target' not in col:
+            if 'target' not in col.lower():
                 std = sampled_df[col].std()
                 if std > 0:
                     sampled_df[col] += np.random.normal(0, std * 0.01, size=n)
@@ -39,7 +39,7 @@ def jitter_data(df, factor=2, noise_level=0.05):
     for _ in range(factor - 1):
         noisy_df = df.copy()
         for col in noisy_df.select_dtypes(include=[np.number]).columns:
-            if 'Target' not in col:
+            if 'target' not in col.lower():
                 std = noisy_df[col].std()
                 if std > 0:
                     noisy_df[col] += np.random.normal(0, std * noise_level, size=len(noisy_df))
@@ -86,7 +86,8 @@ def apply_data_augmentation(df, strategy='none', factor=2, samples=None, is_rl=F
                 for col in target_cols:
                     if col in synthetic_df.columns:
                         # Round and clip to ensure valid class labels (e.g., 0, 1, 2)
-                        synthetic_df[col] = synthetic_df[col].round().clip(lower=0)
+                        max_val = df[col].max()
+                        synthetic_df[col] = synthetic_df[col].round().clip(lower=0, upper=max_val)
             
             return pd.concat([df, synthetic_df], ignore_index=True)
             

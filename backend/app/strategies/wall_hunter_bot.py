@@ -1795,7 +1795,7 @@ class WallHunterBot:
         while self.running:
             try:
                 # Use fetch_order_book to get exact real-time mid price locally since watch_ticker isn't always reliable across pairs without socket issues
-                native_book = await self.public_exchange.fetch_order_book(self.symbol, limit=5)
+                native_book = await market_depth_service.fetch_ccxt_order_book(self.symbol, self.exchange_id, limit=5)
                 if native_book['bids'] and native_book['asks']:
                     self.current_native_price = (native_book['bids'][0][0] + native_book['asks'][0][0]) / 2
                 await asyncio.sleep(1.0) # Refresh every second
@@ -1823,7 +1823,7 @@ class WallHunterBot:
                 except Exception as e:
                     self.logger.warning(f"WebSocket orderbook error on {watch_sym}: {e}, falling back to REST")
                     await asyncio.sleep(1.5) # Rate limit protection for REST fallback
-                    orderbook = await watch_exchange.fetch_order_book(watch_sym, limit=limit)
+                    orderbook = await market_depth_service.fetch_ccxt_order_book(watch_sym, getattr(self, \'proxy_exchange\', self.exchange_id) if watch_sym == getattr(self, \'proxy_symbol\', None) else self.exchange_id, limit=limit)
                     
                 if not orderbook['bids'] or not orderbook['asks']:
                     await asyncio.sleep(1)
@@ -1846,7 +1846,7 @@ class WallHunterBot:
                     if self.enable_proxy_wall and self.proxy_symbol:
                         try:
                             native_limit = market_depth_service._normalize_order_book_limit(self.exchange_id, 20)
-                            native_ob = await self.public_exchange.fetch_order_book(self.symbol, limit=native_limit)
+                            native_ob = await market_depth_service.fetch_ccxt_order_book(self.symbol, self.exchange_id, limit=native_limit)
                             if native_ob['bids'] and native_ob['asks']:
                                 self.iceberg_tracker.update_orderbook(native_ob['bids'], native_ob['asks'])
                         except Exception:
@@ -1925,7 +1925,7 @@ class WallHunterBot:
                                     self.logger.info(f"🔥 WICK S/R TRIGGER! Executing {w_sig['mode'].upper()} {target_side.upper()} Snipe at {w_sig['price']} {oib_log_str}!")
                                     if self.enable_proxy_wall:
                                         try:
-                                            native_book = await self.public_exchange.fetch_order_book(self.symbol, limit=5)
+                                            native_book = await market_depth_service.fetch_ccxt_order_book(self.symbol, self.exchange_id, limit=5)
                                             native_mid = (native_book['bids'][0][0] + native_book['asks'][0][0]) / 2
                                             await self.execute_snipe(w_sig['price'], target_side, native_mid, native_book['bids'][0][0], native_book['asks'][0][0])
                                         except Exception as e:
@@ -1968,7 +1968,7 @@ class WallHunterBot:
 
                             if self.enable_proxy_wall:
                                 try:
-                                    native_book = await self.public_exchange.fetch_order_book(self.symbol, limit=5)
+                                    native_book = await market_depth_service.fetch_ccxt_order_book(self.symbol, self.exchange_id, limit=5)
                                     native_best_bid = native_book['bids'][0][0]
                                     native_best_ask = native_book['asks'][0][0]
                                     native_mid = (native_best_bid + native_best_ask) / 2
@@ -2172,7 +2172,7 @@ class WallHunterBot:
                             self.logger.info(f"🟢 Instant Snipe at {price} (Spoof Detect is 0s) {'[HVN Confirmed]' if self.vpvr_enabled else ''}. Executing!")
                             if self.enable_proxy_wall:
                                 try:
-                                    native_book = await self.public_exchange.fetch_order_book(self.symbol, limit=5)
+                                    native_book = await market_depth_service.fetch_ccxt_order_book(self.symbol, self.exchange_id, limit=5)
                                     native_best_bid = native_book['bids'][0][0]
                                     native_best_ask = native_book['asks'][0][0]
                                     native_mid = (native_best_bid + native_best_ask) / 2
@@ -2373,7 +2373,7 @@ class WallHunterBot:
                                 self.logger.info(f"🟢 Genuine Wall detected at {price} (Alive for {time_alive:.1f}s) {'[HVN Confirmed]' if self.vpvr_enabled else ''}. Executing Snipe!")
                                 if self.enable_proxy_wall:
                                     try:
-                                        native_book = await self.public_exchange.fetch_order_book(self.symbol, limit=5)
+                                        native_book = await market_depth_service.fetch_ccxt_order_book(self.symbol, self.exchange_id, limit=5)
                                         native_best_bid = native_book['bids'][0][0]
                                         native_best_ask = native_book['asks'][0][0]
                                         native_mid = (native_best_bid + native_best_ask) / 2
@@ -3065,7 +3065,7 @@ class WallHunterBot:
                         try:
                             from app.services.market_depth_service import market_depth_service
                             limit_size = market_depth_service._normalize_order_book_limit(self.exchange_id, 5) if hasattr(market_depth_service, '_normalize_order_book_limit') else 5
-                            ob = await self.public_exchange.fetch_order_book(self.symbol, limit=limit_size)
+                            ob = await market_depth_service.fetch_ccxt_order_book(self.symbol, self.exchange_id, limit=limit_size)
                             best_bid = ob['bids'][0][0] if ob['bids'] else 0
                             best_ask = ob['asks'][0][0] if ob['asks'] else 0
                             
@@ -3519,7 +3519,7 @@ class WallHunterBot:
                 try:
                     from app.services.market_depth_service import market_depth_service
                     limit_size = market_depth_service._normalize_order_book_limit(self.exchange_id, 5) if hasattr(market_depth_service, '_normalize_order_book_limit') else 5
-                    ob = await self.public_exchange.fetch_order_book(self.symbol, limit=limit_size)
+                    ob = await market_depth_service.fetch_ccxt_order_book(self.symbol, self.exchange_id, limit=limit_size)
                     best_bid = ob['bids'][0][0] if ob['bids'] else current_price
                     best_ask = ob['asks'][0][0] if ob['asks'] else current_price
                 except Exception as e:
@@ -3792,7 +3792,7 @@ class WallHunterBot:
             
             # 2. Fetch current best bid/ask to place a Maker order
             limit_size = market_depth_service._normalize_order_book_limit(self.exchange_id, 5) if hasattr(market_depth_service, '_normalize_order_book_limit') else 5
-            ob = await self.public_exchange.fetch_order_book(self.symbol, limit=limit_size)
+            ob = await market_depth_service.fetch_ccxt_order_book(self.symbol, self.exchange_id, limit=limit_size)
             best_bid = ob['bids'][0][0] if ob['bids'] else 0
             best_ask = ob['asks'][0][0] if ob['asks'] else 0
             
@@ -3943,7 +3943,7 @@ class WallHunterBot:
         # Determine the execution price
         try:
             limit = market_depth_service._normalize_order_book_limit(self.exchange_id, 5)
-            ob = await self.public_exchange.fetch_order_book(self.symbol, limit=limit)
+            ob = await market_depth_service.fetch_ccxt_order_book(self.symbol, self.exchange_id, limit=limit)
             best_bid = ob['bids'][0][0] if ob['bids'] else 0
             best_ask = ob['asks'][0][0] if ob['asks'] else 0
             current_price = (best_bid + best_ask) / 2 if best_bid and best_ask else best_bid or best_ask
@@ -4222,7 +4222,7 @@ class WallHunterBot:
         
         try:
             limit = market_depth_service._normalize_order_book_limit(self.exchange_id, 20)
-            ob = await self.public_exchange.fetch_order_book(self.symbol, limit=limit)
+            ob = await market_depth_service.fetch_ccxt_order_book(self.symbol, self.exchange_id, limit=limit)
             if not ob['bids'] or not ob['asks']: return
             
             best_bid = ob['bids'][0][0]

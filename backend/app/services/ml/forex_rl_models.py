@@ -46,8 +46,8 @@ class StableBaselinesWrapper(BaseEstimator, ClassifierMixin):
             # Initialize Agent
             self.model = RLClass("MlpPolicy", env, verbose=0)
             
-            # Calculate total timesteps based on epochs
-            total_timesteps = max(10000, self.epochs * len(X))
+            # Calculate total timesteps based on epochs (No hardcoded minimum limit)
+            total_timesteps = max(10, self.epochs * len(X))
             
             # Train Agent
             self.model.learn(total_timesteps=total_timesteps, callback=callback)
@@ -90,6 +90,16 @@ class StableBaselinesWrapper(BaseEstimator, ClassifierMixin):
             preds = np.append(preds, padding)
             
         return preds
+
+
+    def predict_proba(self, X):
+        preds = self.predict(X)
+        n_classes = len(self.classes_) if hasattr(self, 'classes_') else 3
+        probs = __import__('numpy').zeros((len(preds), n_classes))
+        for i, p in enumerate(preds):
+            if int(p) < n_classes:
+                probs[i, int(p)] = 1.0
+        return probs
 
     def score(self, X: pd.DataFrame, y: pd.Series):
         preds = self.predict(X)

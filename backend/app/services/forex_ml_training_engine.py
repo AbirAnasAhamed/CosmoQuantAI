@@ -249,6 +249,18 @@ class ForexMLTrainingEngine:
             if len(df) == 0:
                 raise Exception("Dataset has 0 samples after data cleaning and dropping NaNs. Try using a larger snapshot or fewer lagging indicators.")
                 
+            # ── CALCULATE ETA ──
+            try:
+                from app.services.ml.ml_eta_calculator import calculate_training_eta
+                # features roughly = df.columns
+                eta_str = calculate_training_eta(self.job.algorithm, df.shape, self.job.config)
+                self._log(f"⏳ Estimated Training Time: {eta_str} (Algo: {self.job.algorithm}, Rows: {df.shape[0]})")
+            except Exception as e:
+                self._log(f"⚠️ Failed to calculate ETA: {e}")
+                
+            epochs = self.job.config.get('epochs', 50)
+            self._log(f"⚙️ Training Configuration: Epochs/Trees = {epochs}")
+                
             # Safely encode targets for classification (XGBoost/LGBM strictly require 0, 1, 2... classes)
             prediction_target = self.job.config.get("prediction_target", "classification")
             is_classification = prediction_target in ["classification", "advanced_setup", "direction"]
@@ -601,6 +613,21 @@ class ForexMLTrainingEngine:
                         model = get_model_instance(algorithm, self.job.config)
                         
                     is_rl = not is_ensemble and algorithm and algorithm.endswith('-RL')
+                    
+                    if is_classification and is_ensemble:
+                        unique_classes = np.unique(y_train)
+                        target_classes = np.array([0, 1, 2]) if use_triple_barrier else np.array([0, 1])
+                        missing_classes = np.setdiff1d(target_classes, unique_classes)
+                        if len(missing_classes) > 0:
+                            if isinstance(X_train, pd.DataFrame):
+                                for mc in missing_classes:
+                                    X_train = pd.concat([X_train, X_train.iloc[0:1].copy()], ignore_index=True)
+                                    y_train = pd.concat([y_train, pd.Series([mc])], ignore_index=True) if isinstance(y_train, pd.Series) else np.append(y_train, mc)
+                            else:
+                                for mc in missing_classes:
+                                    X_train = np.vstack([X_train, X_train[0]])
+                                    y_train = np.append(y_train, mc)
+                    
                     if is_rl:
                         model.fit(X_train, y_train, callback=callback)
                     else:
@@ -647,6 +674,21 @@ class ForexMLTrainingEngine:
                     model = get_model_instance(algorithm, self.job.config)
                     
                 is_rl = not is_ensemble and algorithm and algorithm.endswith('-RL')
+                
+                if is_classification and is_ensemble:
+                    unique_classes = np.unique(y_train)
+                    target_classes = np.array([0, 1, 2]) if use_triple_barrier else np.array([0, 1])
+                    missing_classes = np.setdiff1d(target_classes, unique_classes)
+                    if len(missing_classes) > 0:
+                        if isinstance(X_train, pd.DataFrame):
+                            for mc in missing_classes:
+                                X_train = pd.concat([X_train, X_train.iloc[0:1].copy()], ignore_index=True)
+                                y_train = pd.concat([y_train, pd.Series([mc])], ignore_index=True) if isinstance(y_train, pd.Series) else np.append(y_train, mc)
+                        else:
+                            for mc in missing_classes:
+                                X_train = np.vstack([X_train, X_train[0]])
+                                y_train = np.append(y_train, mc)
+                                
                 if is_rl:
                     model.fit(X_train, y_train, callback=callback)
                 else:

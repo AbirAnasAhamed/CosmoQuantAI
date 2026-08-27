@@ -619,4 +619,47 @@ class MarketDepthService:
                 logger.error(f"Error fetching raw order book for {symbol} on {exchange_id}: {e}")
                 raise e
 
+    async def fetch_ccxt_order_book(self, symbol: str, exchange_id: str, limit: int = 100) -> Dict[str, Any]:
+        """
+        Fetches the order book from the exchange in CCXT format. Uses live cache if available.
+        This is a drop-in replacement for ccxt's fetch_order_book to avoid rate limits.
+        Returns: { "bids": [[price, amount], ...], "asks": [[price, amount], ...] }
+        """
+        import time
+        redis = redis_manager.get_redis()
+        
+        lock = self._get_ob_lock(exchange_id, symbol)
+        async with lock:
+            if redis:
+                cached_ob = await redis.get(f"latest_orderbook:{exchange_id.lower()}:{symbol.upper()}")
+                if cached_ob:
+                    data = json.loads(cached_ob)
+                    return {
+                        "symbol": symbol.upper(),
+                        "bids": [[b["price"], b["size"]] for b in data.get("bids", [])][:limit],
+                        "asks": [[a["price"], a["size"]] for a in data.get("asks", [])][:limit],
+                        "timestamp": int(time.time() * 1000),
+                        "datetime": None,
+                        "nonce": None
+                    }
+
+            if exchange_id.lower() == 'oanda':
+                return {
+                    "symbol": symbol.upper(),
+                    "bids": [],
+                    "asks": [],
+                    "timestamp": int(time.time() * 1000),
+                    "datetime": None,
+                    "nonce": None
+                }
+
+            exchange = await self.get_exchange_instance(exchange_id, symbol)
+            try:
+                logger.warning(f"fetch_ccxt_order_book cache miss for {symbol}. Falling back to REST API.")
+                order_book = await exchange.fetch_order_book(symbol, limit=limit)
+                return order_book
+            except Exception as e:
+                logger.error(f"Error in fetch_ccxt_order_book fallback: {e}")
+                return {"symbol": symbol, "bids": [], "asks": [], "timestamp": int(time.time() * 1000)}
+
 market_depth_service = MarketDepthService()

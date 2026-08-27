@@ -653,7 +653,7 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                     commission: tradingFees,
                     slippage: slippage,
                     max_allowed_drawdown: maxAllowedDrawdown,
-                    custom_indicators: customIndicators.filter(ind => ind.isActive),
+                    custom_indicators: customIndicators.filter(ind => ind.isActive && ind.dataSource === dataSource),
                     asmc_htf: asmcHtf,
                     asmc_ltf: asmcLtf
                 }

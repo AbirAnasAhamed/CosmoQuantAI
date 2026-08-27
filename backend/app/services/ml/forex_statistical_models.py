@@ -51,6 +51,16 @@ class ForexARIMAModel(BaseEstimator, ClassifierMixin):
         # assuming the target y was binary 0/1 for price going up/down
         return (predictions > 0.5).astype(int).values
 
+
+    def predict_proba(self, X):
+        preds = self.predict(X)
+        n_classes = len(self.classes_) if hasattr(self, 'classes_') else 3
+        probs = __import__('numpy').zeros((len(preds), n_classes))
+        for i, p in enumerate(preds):
+            if int(p) < n_classes:
+                probs[i, int(p)] = 1.0
+        return probs
+
     def score(self, X: pd.DataFrame, y: pd.Series):
         preds = self.predict(X)
         y_vals = getattr(y, 'values', y)
@@ -96,6 +106,16 @@ class ForexVARModel(BaseEstimator, ClassifierMixin):
         # target_y is the last column
         target_preds = predictions[:, -1]
         return (target_preds > 0.5).astype(int)
+
+
+    def predict_proba(self, X):
+        preds = self.predict(X)
+        n_classes = len(self.classes_) if hasattr(self, 'classes_') else 3
+        probs = __import__('numpy').zeros((len(preds), n_classes))
+        for i, p in enumerate(preds):
+            if int(p) < n_classes:
+                probs[i, int(p)] = 1.0
+        return probs
 
     def score(self, X: pd.DataFrame, y: pd.Series):
         preds = self.predict(X)
@@ -190,6 +210,16 @@ class ForexNeuralProphetModel(BaseEstimator, ClassifierMixin):
         if len(X) == 1 and len(preds) > 1:
             return preds[-1:]
         return preds
+
+
+    def predict_proba(self, X):
+        preds = self.predict(X)
+        n_classes = len(self.classes_) if hasattr(self, 'classes_') else 3
+        probs = __import__('numpy').zeros((len(preds), n_classes))
+        for i, p in enumerate(preds):
+            if int(p) < n_classes:
+                probs[i, int(p)] = 1.0
+        return probs
 
     def score(self, X: pd.DataFrame, y: pd.Series):
         preds = self.predict(X)

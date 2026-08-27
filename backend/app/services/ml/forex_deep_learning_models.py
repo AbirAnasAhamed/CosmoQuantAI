@@ -109,6 +109,16 @@ class PyTorchModelWrapper(BaseEstimator, ClassifierMixin):
         full_preds = padding + preds
         return np.array(full_preds)
 
+
+    def predict_proba(self, X):
+        preds = self.predict(X)
+        n_classes = len(self.classes_) if hasattr(self, 'classes_') else 3
+        probs = __import__('numpy').zeros((len(preds), n_classes))
+        for i, p in enumerate(preds):
+            if int(p) < n_classes:
+                probs[i, int(p)] = 1.0
+        return probs
+
     def score(self, X: pd.DataFrame, y: pd.Series):
         preds = self.predict(X)
         y_vals = np.asarray(getattr(y, 'values', y))
