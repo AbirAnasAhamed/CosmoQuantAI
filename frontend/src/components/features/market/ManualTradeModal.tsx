@@ -36,6 +36,18 @@ export const ManualTradeModal: React.FC<ManualTradeModalProps> = ({ symbol, curr
     orderType: 'Limit' as 'Limit' | 'Market',
     timeoutMins: 5
   });
+  const [slConfig, setSlConfig] = useState({
+    enabled: false,
+    mode: 'percentage' as 'percentage' | 'price',
+    value: '',
+    orderType: 'Market' as 'Limit' | 'Market'
+  });
+  const [trailingConfig, setTrailingConfig] = useState({
+    enabled: false,
+    mode: 'native' as 'native' | 'synthetic',
+    trailPercent: '',
+    activationPrice: ''
+  });
 
   // Fetch API Keys
   React.useEffect(() => {
@@ -59,6 +71,30 @@ export const ManualTradeModal: React.FC<ManualTradeModalProps> = ({ symbol, curr
   React.useEffect(() => {
     setSize('');
     setSizeMode('base');
+    setLimitPrice('');
+    setTradeSide('Buy');
+    setTpConfig({
+      enabled: false,
+      mode: 'percentage',
+      value: '',
+      orderType: 'Limit',
+      timeoutMins: 5
+    });
+    setSlConfig({
+      enabled: false,
+      mode: 'percentage',
+      value: '',
+      orderType: 'Market'
+    });
+    setTrailingConfig({
+      enabled: false,
+      mode: 'native',
+      trailPercent: '',
+      activationPrice: ''
+    });
+    setReduceOnly(false);
+    setLeverage(10);
+    setMarginMode('isolated');
   }, [symbol]);
 
   // Fetch balance when selected API or symbol changes
@@ -121,12 +157,19 @@ export const ManualTradeModal: React.FC<ManualTradeModalProps> = ({ symbol, curr
 
     // Convert quote amount → base amount if needed
     let baseAmount = Number(size);
+    let isQuoteSize = false;
     if (sizeMode === 'quote') {
       if (!currentPrice || currentPrice <= 0) {
         toast.error('Cannot convert: current price is unavailable.');
         return;
       }
-      baseAmount = Number(size) / currentPrice;
+      if (!isFutures && side === 'Buy' && orderType === 'Market') {
+        // Keep amount as quote amount for spot market buy to prevent slippage issues
+        baseAmount = Number(size);
+        isQuoteSize = true;
+      } else {
+        baseAmount = Number(size) / currentPrice;
+      }
     }
     
     setIsSubmitting(true);
@@ -139,6 +182,9 @@ export const ManualTradeModal: React.FC<ManualTradeModalProps> = ({ symbol, curr
       const paramsPayload: any = isFutures ? { leverage, marginMode, reduceOnly } : {};
       if (orderType === 'Limit' && isAutoLimit) {
         paramsPayload.autoBestLimit = true;
+      }
+      if (isQuoteSize) {
+        paramsPayload.isQuoteSize = true;
       }
 
       // BUG-09 fix: Use the actual selected API key's exchange instead of hardcoded 'binance'
@@ -163,6 +209,24 @@ export const ManualTradeModal: React.FC<ManualTradeModalProps> = ({ symbol, curr
           value: Number(tpConfig.value),
           order_type: tpConfig.orderType,
           timeout_mins: tpConfig.timeoutMins
+        };
+      }
+      
+      if (slConfig.enabled && slConfig.value && Number(slConfig.value) > 0) {
+        payload.attached_sl = {
+          enabled: true,
+          mode: slConfig.mode,
+          value: Number(slConfig.value),
+          order_type: slConfig.orderType
+        };
+      }
+      
+      if (trailingConfig.enabled && trailingConfig.trailPercent && Number(trailingConfig.trailPercent) > 0) {
+        payload.trailing_config = {
+          enabled: true,
+          mode: trailingConfig.mode,
+          trail_percent: Number(trailingConfig.trailPercent),
+          activation_price: trailingConfig.activationPrice ? Number(trailingConfig.activationPrice) : undefined
         };
       }
 
@@ -206,7 +270,7 @@ export const ManualTradeModal: React.FC<ManualTradeModalProps> = ({ symbol, curr
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
-            className="fixed bottom-[104px] right-8 w-80 rounded-2xl bg-[#000000]/80 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)] z-[999] overflow-hidden"
+            className="fixed bottom-[104px] right-8 w-80 max-h-[80vh] flex flex-col rounded-2xl bg-[#000000]/80 backdrop-blur-xl border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)] z-[999] overflow-hidden"
           >
             {/* Header (Drag area) */}
             <div 
@@ -227,7 +291,7 @@ export const ManualTradeModal: React.FC<ManualTradeModalProps> = ({ symbol, curr
 
             {/* Body */}
             <div 
-              className="p-4 space-y-4 cursor-default"
+              className="p-4 space-y-4 cursor-default overflow-y-auto flex-1 [&::-webkit-scrollbar]:w-1.5 [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:bg-white/20 [&::-webkit-scrollbar-thumb]:rounded-full hover:[&::-webkit-scrollbar-thumb]:bg-white/40"
               onPointerDown={(e) => e.stopPropagation()}
             >
               {/* Buy / Sell Tabs */}
@@ -430,6 +494,11 @@ export const ManualTradeModal: React.FC<ManualTradeModalProps> = ({ symbol, curr
                         if (!balanceData || currentPrice <= 0) return;
                         const percentage = Number(pct.replace('%', '')) / 100;
 
+                        if (isFutures && reduceOnly && (!positionData || positionData.amount <= 0)) {
+                          toast.error("No active position to reduce.");
+                          return;
+                        }
+                        
                         let maxValue = 0;
                         if (sizeMode === 'quote') {
                           // Quote mode → set the $ amount
@@ -456,7 +525,17 @@ export const ManualTradeModal: React.FC<ManualTradeModalProps> = ({ symbol, curr
                         }
 
                         const val = maxValue * percentage;
-                        const decimals = sizeMode === 'quote' ? 2 : 4;
+                        let decimals = 2;
+                        if (sizeMode === 'quote') {
+                          decimals = 2;
+                        } else {
+                          if (currentPrice < 0.001) decimals = 0;
+                          else if (currentPrice < 0.1) decimals = 1;
+                          else if (currentPrice < 10) decimals = 2;
+                          else if (currentPrice < 1000) decimals = 3;
+                          else decimals = 5;
+                        }
+                        
                         setSize((Math.floor(val * Math.pow(10, decimals)) / Math.pow(10, decimals)).toString());
                       }}
                     >
@@ -466,96 +545,124 @@ export const ManualTradeModal: React.FC<ManualTradeModalProps> = ({ symbol, curr
                 </div>
               </div>
 
-              {/* Bracket Order (Attached TP) Panel */}
+              {/* Combined Bracket Order Panel */}
               <div className="space-y-3 bg-black/20 p-3 rounded-lg border border-brand-primary/10 transition-all">
-                  <div className="flex justify-between items-center cursor-pointer" onClick={() => setTpConfig({...tpConfig, enabled: !tpConfig.enabled})}>
-                      <div className="flex flex-col">
-                          <span className="text-xs font-bold text-gray-300 group-hover:text-white transition-colors">Attached Take-Profit (Bracket)</span>
-                          <span className="text-[10px] text-gray-500">Auto-trigger scalp exit once entry fills</span>
-                      </div>
-                      <div className={`relative w-8 h-4 rounded-full transition-colors ${tpConfig.enabled ? 'bg-brand-primary' : 'bg-gray-600'}`}>
-                          <MotionDiv 
-                             className="absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full"
-                             animate={{ x: tpConfig.enabled ? 16 : 0 }}
-                             transition={{ type: 'spring', stiffness: 500, damping: 30 }}
-                          />
-                      </div>
+                  <div className="flex flex-col">
+                      <span className="text-xs font-bold text-gray-300">Advanced Bracket & Trailing</span>
+                      <span className="text-[10px] text-gray-500">Auto-manage your exit orders</span>
                   </div>
                   
+                  {/* TP Toggle */}
+                  <div className="flex justify-between items-center cursor-pointer mt-2 border-t border-white/5 pt-2" onClick={() => setTpConfig({...tpConfig, enabled: !tpConfig.enabled})}>
+                      <span className="text-xs font-semibold text-gray-400 group-hover:text-white transition-colors">Take-Profit (TP)</span>
+                      <div className={`relative w-8 h-4 rounded-full transition-colors ${tpConfig.enabled ? 'bg-green-500/80' : 'bg-gray-600'}`}>
+                          <MotionDiv className="absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full" animate={{ x: tpConfig.enabled ? 16 : 0 }} transition={{ type: 'spring', stiffness: 500, damping: 30 }} />
+                      </div>
+                  </div>
                   <AnimatePresence>
                      {tpConfig.enabled && (
-                        <MotionDiv
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            className="space-y-3 overflow-hidden pt-2 border-t border-white/5"
-                        >
-                            {/* Layout Grid */}
+                        <MotionDiv initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="space-y-3 overflow-hidden pt-2">
                             <div className="grid grid-cols-2 gap-2">
-                                {/* TP Order Type */}
                                 <div className="space-y-1">
                                     <label className="text-[10px] text-gray-400 font-medium">TP Order Type</label>
                                     <div className="flex bg-black/40 rounded border border-white/5 p-0.5">
                                         {(['Limit', 'Market'] as const).map(type => (
-                                            <button
-                                                key={type}
-                                                onClick={() => setTpConfig({...tpConfig, orderType: type})}
-                                                className={`flex-1 text-[10px] py-1 rounded transition-colors ${tpConfig.orderType === type ? 'bg-brand-primary text-white font-bold' : 'text-gray-500 hover:text-white'}`}
-                                            >
-                                                {type}
-                                            </button>
+                                            <button key={type} onClick={() => setTpConfig({...tpConfig, orderType: type})} className={`flex-1 text-[10px] py-1 rounded transition-colors ${tpConfig.orderType === type ? 'bg-green-500/80 text-white font-bold' : 'text-gray-500 hover:text-white'}`}>{type}</button>
                                         ))}
                                     </div>
                                 </div>
-
-                                {/* Gap Mode */}
                                 <div className="space-y-1">
                                     <label className="text-[10px] text-gray-400 font-medium">Gap Mode</label>
                                     <div className="flex bg-black/40 rounded border border-white/5 p-0.5">
-                                        <button
-                                            onClick={() => setTpConfig({...tpConfig, mode: 'percentage'})}
-                                            className={`flex-1 text-[10px] py-1 rounded transition-colors ${tpConfig.mode === 'percentage' ? 'bg-brand-primary text-white font-bold' : 'text-gray-500 hover:text-white'}`}
-                                        >
-                                            %
-                                        </button>
-                                        <button
-                                            onClick={() => setTpConfig({...tpConfig, mode: 'price'})}
-                                            className={`flex-1 text-[10px] py-1 rounded transition-colors ${tpConfig.mode === 'price' ? 'bg-brand-primary text-white font-bold' : 'text-gray-500 hover:text-white'}`}
-                                        >
-                                            $
-                                        </button>
+                                        <button onClick={() => setTpConfig({...tpConfig, mode: 'percentage'})} className={`flex-1 text-[10px] py-1 rounded transition-colors ${tpConfig.mode === 'percentage' ? 'bg-green-500/80 text-white font-bold' : 'text-gray-500 hover:text-white'}`}>%</button>
+                                        <button onClick={() => setTpConfig({...tpConfig, mode: 'price'})} className={`flex-1 text-[10px] py-1 rounded transition-colors ${tpConfig.mode === 'price' ? 'bg-green-500/80 text-white font-bold' : 'text-gray-500 hover:text-white'}`}>$</button>
                                     </div>
                                 </div>
                             </div>
-                            
-                            {/* Target Gap & Timeout */}
                             <div className="grid grid-cols-2 gap-2">
                                 <div className="space-y-1">
                                     <label className="text-[10px] text-gray-400 font-medium">Target Gap</label>
                                     <div className="relative">
-                                        <input 
-                                            type="number"
-                                            value={tpConfig.value}
-                                            onChange={(e) => setTpConfig({...tpConfig, value: e.target.value})}
-                                            placeholder={tpConfig.mode === 'percentage' ? "e.g. 1.5" : "e.g. 0.005"}
-                                            className="w-full bg-black/30 border border-white/10 rounded py-1 px-2 pr-6 text-white text-xs focus:outline-none focus:border-brand-primary/50"
-                                        />
-                                        <span className="absolute right-2 top-1.5 text-[10px] text-brand-primary font-bold">{tpConfig.mode === 'percentage' ? '%' : '$'}</span>
+                                        <input type="number" value={tpConfig.value} onChange={(e) => setTpConfig({...tpConfig, value: e.target.value})} placeholder={tpConfig.mode === 'percentage' ? "e.g. 1.5" : "e.g. 0.005"} className="w-full bg-black/30 border border-white/10 rounded py-1 px-2 pr-6 text-white text-xs focus:outline-none focus:border-green-500/50" />
+                                        <span className="absolute right-2 top-1.5 text-[10px] text-green-500 font-bold">{tpConfig.mode === 'percentage' ? '%' : '$'}</span>
                                     </div>
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[10px] text-gray-400 font-medium">Monitor Limit (Mins)</label>
                                     <div className="flex items-center space-x-2">
-                                        <input 
-                                            type="range"
-                                            min="1" max="15" step="1"
-                                            value={tpConfig.timeoutMins}
-                                            onChange={(e) => setTpConfig({...tpConfig, timeoutMins: Number(e.target.value)})}
-                                            className="w-full accent-brand-primary h-1 bg-black/50 rounded appearance-none"
-                                        />
+                                        <input type="range" min="1" max="15" step="1" value={tpConfig.timeoutMins} onChange={(e) => setTpConfig({...tpConfig, timeoutMins: Number(e.target.value)})} className="w-full accent-green-500 h-1 bg-black/50 rounded appearance-none" />
                                         <span className="text-[10px] text-gray-300 w-4 text-right">{tpConfig.timeoutMins}</span>
                                     </div>
                                 </div>
+                            </div>
+                        </MotionDiv>
+                     )}
+                  </AnimatePresence>
+
+                  {/* SL Toggle */}
+                  <div className="flex justify-between items-center cursor-pointer mt-2 border-t border-white/5 pt-2" onClick={() => setSlConfig({...slConfig, enabled: !slConfig.enabled})}>
+                      <span className="text-xs font-semibold text-gray-400 group-hover:text-white transition-colors">Stop-Loss (SL)</span>
+                      <div className={`relative w-8 h-4 rounded-full transition-colors ${slConfig.enabled ? 'bg-red-500/80' : 'bg-gray-600'}`}>
+                          <MotionDiv className="absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full" animate={{ x: slConfig.enabled ? 16 : 0 }} transition={{ type: 'spring', stiffness: 500, damping: 30 }} />
+                      </div>
+                  </div>
+                  <AnimatePresence>
+                     {slConfig.enabled && (
+                        <MotionDiv initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="space-y-3 overflow-hidden pt-2">
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] text-gray-400 font-medium">SL Order Type</label>
+                                    <div className="flex bg-black/40 rounded border border-white/5 p-0.5">
+                                        {(['Limit', 'Market'] as const).map(type => (
+                                            <button key={type} onClick={() => setSlConfig({...slConfig, orderType: type})} className={`flex-1 text-[10px] py-1 rounded transition-colors ${slConfig.orderType === type ? 'bg-red-500/80 text-white font-bold' : 'text-gray-500 hover:text-white'}`}>{type}</button>
+                                        ))}
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] text-gray-400 font-medium">Gap Mode</label>
+                                    <div className="flex bg-black/40 rounded border border-white/5 p-0.5">
+                                        <button onClick={() => setSlConfig({...slConfig, mode: 'percentage'})} className={`flex-1 text-[10px] py-1 rounded transition-colors ${slConfig.mode === 'percentage' ? 'bg-red-500/80 text-white font-bold' : 'text-gray-500 hover:text-white'}`}>%</button>
+                                        <button onClick={() => setSlConfig({...slConfig, mode: 'price'})} className={`flex-1 text-[10px] py-1 rounded transition-colors ${slConfig.mode === 'price' ? 'bg-red-500/80 text-white font-bold' : 'text-gray-500 hover:text-white'}`}>$</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] text-gray-400 font-medium">Stop Gap</label>
+                                <div className="relative">
+                                    <input type="number" value={slConfig.value} onChange={(e) => setSlConfig({...slConfig, value: e.target.value})} placeholder={slConfig.mode === 'percentage' ? "e.g. 1.0" : "e.g. 0.002"} className="w-full bg-black/30 border border-white/10 rounded py-1 px-2 pr-6 text-white text-xs focus:outline-none focus:border-red-500/50" />
+                                    <span className="absolute right-2 top-1.5 text-[10px] text-red-500 font-bold">{slConfig.mode === 'percentage' ? '%' : '$'}</span>
+                                </div>
+                            </div>
+                        </MotionDiv>
+                     )}
+                  </AnimatePresence>
+
+                  {/* Trailing Toggle */}
+                  <div className="flex justify-between items-center cursor-pointer mt-2 border-t border-white/5 pt-2" onClick={() => setTrailingConfig({...trailingConfig, enabled: !trailingConfig.enabled})}>
+                      <span className="text-xs font-semibold text-gray-400 group-hover:text-white transition-colors">Trailing Stop</span>
+                      <div className={`relative w-8 h-4 rounded-full transition-colors ${trailingConfig.enabled ? 'bg-brand-primary' : 'bg-gray-600'}`}>
+                          <MotionDiv className="absolute top-0.5 left-0.5 w-3 h-3 bg-white rounded-full" animate={{ x: trailingConfig.enabled ? 16 : 0 }} transition={{ type: 'spring', stiffness: 500, damping: 30 }} />
+                      </div>
+                  </div>
+                  <AnimatePresence>
+                     {trailingConfig.enabled && (
+                        <MotionDiv initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="space-y-3 overflow-hidden pt-2">
+                            <div className="grid grid-cols-2 gap-2">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] text-gray-400 font-medium">Trailing System</label>
+                                    <div className="flex bg-black/40 rounded border border-white/5 p-0.5">
+                                        <button onClick={() => setTrailingConfig({...trailingConfig, mode: 'native'})} className={`flex-1 text-[10px] py-1 rounded transition-colors ${trailingConfig.mode === 'native' ? 'bg-brand-primary text-white font-bold' : 'text-gray-500 hover:text-white'}`}>Native</button>
+                                        <button onClick={() => setTrailingConfig({...trailingConfig, mode: 'synthetic'})} className={`flex-1 text-[10px] py-1 rounded transition-colors ${trailingConfig.mode === 'synthetic' ? 'bg-brand-primary text-white font-bold' : 'text-gray-500 hover:text-white'}`}>Synthetic</button>
+                                    </div>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] text-gray-400 font-medium">Trail Percent (%)</label>
+                                    <input type="number" value={trailingConfig.trailPercent} onChange={(e) => setTrailingConfig({...trailingConfig, trailPercent: e.target.value})} placeholder="e.g. 1.0" className="w-full bg-black/30 border border-white/10 rounded py-1 px-2 text-white text-xs focus:outline-none focus:border-brand-primary/50" />
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] text-gray-400 font-medium">Activation Price (Optional)</label>
+                                <input type="number" value={trailingConfig.activationPrice} onChange={(e) => setTrailingConfig({...trailingConfig, activationPrice: e.target.value})} placeholder="Start trailing when price hits..." className="w-full bg-black/30 border border-white/10 rounded py-1 px-2 text-white text-xs focus:outline-none focus:border-brand-primary/50" />
                             </div>
                         </MotionDiv>
                      )}

@@ -15,9 +15,46 @@ from app.services.exchange_pool import get_or_create_exchange
 from app.services.notification import NotificationService
 from app.services.bracket_order_service import bracket_order_service
 from fastapi import HTTPException
+from app.db.session import SessionLocal
 
 logger = logging.getLogger(__name__)
 
+async def background_send_notification(user_id: int, msg: str):
+    db = SessionLocal()
+    try:
+        await NotificationService.send_message(db, user_id, msg)
+    finally:
+        db.close()
+
+async def background_bracket_monitor(
+    api_key_id: int, user_id: int, entry_order_id, symbol, side, amount, is_futures, 
+    tp_config, sl_config, trailing_config, initial_entry_price
+):
+    db = SessionLocal()
+    try:
+        api_key_record = db.query(models.ApiKey).filter(
+            models.ApiKey.id == api_key_id,
+            models.ApiKey.user_id == user_id,
+            models.ApiKey.is_enabled == True
+        ).first()
+        if api_key_record:
+            await bracket_order_service.monitor_and_execute_bracket(
+                api_key_record=api_key_record,
+                entry_order_id=entry_order_id,
+                symbol=symbol,
+                side=side,
+                amount=amount,
+                is_futures=is_futures,
+                tp_config=tp_config,
+                sl_config=sl_config,
+                trailing_config=trailing_config,
+                initial_entry_price=initial_entry_price,
+                user_id=user_id
+            )
+    except Exception as e:
+        logger.error(f"Background Bracket monitor failed: {e}")
+    finally:
+        db.close()
 
 class ManualTradeService:
 
@@ -208,7 +245,7 @@ class ManualTradeService:
             raise HTTPException(status_code=500, detail=f"Open Orders Error: {str(e)}")
 
     @staticmethod
-    async def place_manual_trade(db: Session, user_id: int, order_req) -> dict:
+    async def place_manual_trade(db: Session, user_id: int, order_req, start_time: float = None) -> dict:
         """
         Exchange Connection Pool ব্যবহার করে ultra-fast order execution।
         প্রথম অর্ডারের পরে পরবর্তী সব অর্ডার ~100-200ms এ সম্পন্ন হয়।
@@ -261,9 +298,15 @@ class ManualTradeService:
 
             # Execute Trade
             if order_req.type.lower() == 'market':
-                response = await exchange.create_market_order(
-                    order_req.symbol, order_req.side, order_req.amount, ex_params
-                )
+                if not is_futures and order_req.side.lower() == 'buy' and params.get('isQuoteSize'):
+                    ex_params['quoteOrderQty'] = order_req.amount
+                    response = await exchange.create_order(
+                        order_req.symbol, 'market', order_req.side, None, None, ex_params
+                    )
+                else:
+                    response = await exchange.create_market_order(
+                        order_req.symbol, order_req.side, order_req.amount, ex_params
+                    )
             elif order_req.type.lower() == 'limit':
                 if params.get('autoBestLimit'):
                     try:
@@ -294,13 +337,10 @@ class ManualTradeService:
             else:
                 raise HTTPException(status_code=400, detail="Invalid order type. Use 'market' or 'limit'.")
 
-            # Calculate Latency (using backend perf_counter to eliminate PC-Server clock drift)
+            # Calculate Latency
             latency_ms = 0
-            if hasattr(order_req, '_backend_start_time'):
-                latency_ms = int((time.perf_counter() - getattr(order_req, '_backend_start_time')) * 1000)
-            else:
-                # Fallback if somehow not set, just assume 0 or fast
-                latency_ms = 0
+            if start_time is not None:
+                latency_ms = int((time.perf_counter() - start_time) * 1000)
             
             latency_msg = f"⏱ Execution Time: {latency_ms} ms ⚡\n"
             
@@ -314,26 +354,30 @@ class ManualTradeService:
                     f"Amount: {order_req.amount}\n"
                     f"{latency_msg}"
                 )
-                asyncio.create_task(NotificationService.send_message(db, user_id, msg))
+                asyncio.create_task(background_send_notification(user_id, msg))
             except Exception as notify_err:
                 logger.warning(f"Failed to trigger telegram notification: {notify_err}")
 
             # [Bracket Order Link] — spawned as a background asyncio task, non-blocking
-            if getattr(order_req, 'attached_tp', None) and order_req.attached_tp.enabled:
+            has_tp = getattr(order_req, 'attached_tp', None) and order_req.attached_tp.enabled
+            has_sl = getattr(order_req, 'attached_sl', None) and order_req.attached_sl.enabled
+            has_trail = getattr(order_req, 'trailing_config', None) and order_req.trailing_config.enabled
+
+            if has_tp or has_sl or has_trail:
                 initial_price = response.get('price') or response.get('average') or getattr(order_req, 'price', 0.0)
-                asyncio.create_task(
-                    bracket_order_service.monitor_and_execute_tp(
-                        api_key_record=api_key_record,
-                        entry_order_id=response.get('id'),
-                        symbol=order_req.symbol,
-                        side=order_req.side,
-                        amount=order_req.amount,
-                        is_futures=is_futures,
-                        tp_config=order_req.attached_tp.dict(),
-                        initial_entry_price=float(initial_price) if initial_price else 0.0,
-                        user_id=user_id  # BUG-07 fix: pass user_id for TP notification
-                    )
-                )
+                asyncio.create_task(background_bracket_monitor(
+                    api_key_id=api_key_record.id,
+                    user_id=user_id,
+                    entry_order_id=response.get('id'),
+                    symbol=order_req.symbol,
+                    side=order_req.side,
+                    amount=order_req.amount,
+                    is_futures=is_futures,
+                    tp_config=order_req.attached_tp.dict() if has_tp else None,
+                    sl_config=order_req.attached_sl.dict() if has_sl else None,
+                    trailing_config=order_req.trailing_config.dict() if has_trail else None,
+                    initial_entry_price=float(initial_price) if initial_price else 0.0
+                ))
 
             return {
                 "id": response.get('id'),
@@ -398,7 +442,7 @@ class ManualTradeService:
                     f"Amount: {amount}\n"
                     f"New Price: {new_price}"
                 )
-                asyncio.create_task(NotificationService.send_message(db, user_id, msg))
+                asyncio.create_task(background_send_notification(user_id, msg))
             except Exception as notify_err:
                 logger.warning(f"Failed to trigger telegram notification on edit: {notify_err}")
 

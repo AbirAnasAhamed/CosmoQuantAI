@@ -20,6 +20,18 @@ class AttachedTPConfig(BaseModel):
     order_type: str  # 'Limit' or 'Market'
     timeout_mins: float  # Background threshold for limit order monitor
 
+class AttachedSLConfig(BaseModel):
+    enabled: bool
+    mode: str  # 'percentage' or 'price'
+    value: float
+    order_type: str  # 'Market' or 'Limit'
+
+class TrailingConfig(BaseModel):
+    enabled: bool
+    mode: str  # 'native' or 'synthetic'
+    trail_percent: float
+    activation_price: Optional[float] = None
+
 class OrderRequest(BaseModel):
     symbol: str
     side: str # 'buy' or 'sell'
@@ -31,6 +43,8 @@ class OrderRequest(BaseModel):
     params: Optional[dict] = {}
     client_timestamp: Optional[int] = None
     attached_tp: Optional[AttachedTPConfig] = None
+    attached_sl: Optional[AttachedSLConfig] = None
+    trailing_config: Optional[TrailingConfig] = None
 
 class ConnectionTestRequest(BaseModel):
     exchange_id: str
@@ -91,14 +105,14 @@ async def place_order(
     """Place a REAL order on the exchange"""
     try:
         import time
-        order._backend_start_time = time.perf_counter()
+        start_time = time.perf_counter()
         
         from app.services.manual_trade_service import manual_trade_service
-        return await manual_trade_service.place_manual_trade(db, current_user.id, order)
+        return await manual_trade_service.place_manual_trade(db, current_user.id, order, start_time)
     except HTTPException as he:
         raise he
     except Exception as e:
-        logger.error(f"Order placement failed: {e}")
+        logger.exception(f"Order placement failed: {e}")
         raise HTTPException(status_code=500, detail=f"Exchange Error: {str(e)}")
 
 class EditOrderRequest(BaseModel):
@@ -131,7 +145,7 @@ async def edit_order(
     except HTTPException as he:
         raise he
     except Exception as e:
-        logger.error(f"Order edit failed: {e}")
+        logger.exception(f"Order edit failed: {e}")
         raise HTTPException(status_code=500, detail=f"Exchange Error: {str(e)}")
 
 @router.get("/api-key-balance/{api_key_id}")
@@ -148,7 +162,7 @@ async def get_api_key_balance(
     except HTTPException as he:
         raise he
     except Exception as e:
-        logger.error(f"Balance fetch failed: {e}")
+        logger.exception(f"Balance fetch failed: {e}")
         raise HTTPException(status_code=500, detail=f"Balance Error: {str(e)}")
 
 @router.get("/api-key-position/{api_key_id}")
@@ -165,7 +179,7 @@ async def get_api_key_position(
     except HTTPException as he:
         raise he
     except Exception as e:
-        logger.error(f"Position fetch failed: {e}")
+        logger.exception(f"Position fetch failed: {e}")
         raise HTTPException(status_code=500, detail=f"Position Error: {str(e)}")
 
 @router.get("/open-limit-orders/{api_key_id}")
@@ -182,7 +196,7 @@ async def get_open_limit_orders(
     except HTTPException as he:
         raise he
     except Exception as e:
-        logger.error(f"Open orders fetch failed: {e}")
+        logger.exception(f"Open orders fetch failed: {e}")
         raise HTTPException(status_code=500, detail=f"Open Orders Error: {str(e)}")
 
 @router.post("/sor/preview")
