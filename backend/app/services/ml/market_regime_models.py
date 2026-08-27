@@ -1,15 +1,19 @@
 import numpy as np
 import pandas as pd
 import warnings
+from sklearn.base import BaseEstimator, ClassifierMixin
 
 warnings.filterwarnings("ignore")
 
-class MarketHMMModel:
+class MarketHMMModel(BaseEstimator, ClassifierMixin):
     """Wrapper for hmmlearn Hidden Markov Model"""
+    _estimator_type = "classifier"
+
     def __init__(self, n_components=2, **kwargs):
         # n_components corresponds to hidden states e.g. trending vs ranging
         self.n_components = n_components
         self.model = None
+        self.classes_ = np.array([0, 1, 2])
         # We need a classifier or regressor on top of the HMM states to map to the target y
         self.classifier = None
         self.is_regression = False
@@ -75,11 +79,14 @@ class MarketHMMModel:
         return np.mean(preds == y_arr)
 
 
-class MarketMarkovSwitchingModel:
+class MarketMarkovSwitchingModel(BaseEstimator, ClassifierMixin):
     """Wrapper for statsmodels Markov Regression"""
+    _estimator_type = "classifier"
+
     def __init__(self, k_regimes=2, **kwargs):
         self.k_regimes = k_regimes
         self.model_fit = None
+        self.classes_ = np.array([0, 1, 2])
         
     def fit(self, X: pd.DataFrame, y: pd.Series):
         try:

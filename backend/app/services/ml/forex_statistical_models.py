@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import warnings
 from typing import Any, Dict
+from sklearn.base import BaseEstimator, ClassifierMixin
 
 # Disable warnings from statsmodels
 warnings.filterwarnings("ignore")
@@ -10,11 +11,14 @@ warnings.filterwarnings("ignore")
 if not hasattr(np, 'NaN'):
     np.NaN = np.nan
 
-class ForexARIMAModel:
+class ForexARIMAModel(BaseEstimator, ClassifierMixin):
     """Wrapper for statsmodels ARIMA"""
+    _estimator_type = "classifier"
+
     def __init__(self, order=(5,1,0), **kwargs):
         self.order = order
         self.model_fit = None
+        self.classes_ = np.array([0, 1, 2])
         
     def fit(self, X: pd.DataFrame, y: pd.Series):
         # Handle multi-output y (e.g. advanced_setup) by taking the first column (Direction)
@@ -49,14 +53,18 @@ class ForexARIMAModel:
 
     def score(self, X: pd.DataFrame, y: pd.Series):
         preds = self.predict(X)
-        return np.mean(preds == y.values)
+        y_vals = getattr(y, 'values', y)
+        return np.mean(preds == y_vals)
 
 
-class ForexVARModel:
+class ForexVARModel(BaseEstimator, ClassifierMixin):
     """Wrapper for Vector AutoRegression (VAR)"""
+    _estimator_type = "classifier"
+
     def __init__(self, lags=5, **kwargs):
         self.lags = lags
         self.model_fit = None
+        self.classes_ = np.array([0, 1, 2])
         
     def fit(self, X: pd.DataFrame, y: pd.Series):
         # Handle multi-output y (e.g. advanced_setup) by taking the first column (Direction)
@@ -72,7 +80,8 @@ class ForexVARModel:
             df['target_y'] = y
             model = VAR(df)
             self.model_fit = model.fit(self.lags)
-            self.train_data = df.values[-self.lags:]
+            X_vals = getattr(df, 'values', df)
+            self.train_data = X_vals[-self.lags:]
         except ImportError:
             print("Warning: statsmodels not installed. Using dummy VAR.")
             self.model_fit = "dummy"
@@ -90,13 +99,19 @@ class ForexVARModel:
 
     def score(self, X: pd.DataFrame, y: pd.Series):
         preds = self.predict(X)
-        return np.mean(preds == y.values)
+        y_vals = getattr(y, 'values', y)
+        return np.mean(preds == y_vals)
 
 
-class ForexNeuralProphetModel:
+class ForexNeuralProphetModel(BaseEstimator, ClassifierMixin):
     """Wrapper for NeuralProphet"""
-    def __init__(self, **kwargs):
+    _estimator_type = "classifier"
+
+    def __init__(self, epochs=10, **kwargs):
+        self.epochs = epochs
         self.model = None
+        self.model_fit = None
+        self.classes_ = np.array([0, 1, 2])
         
     def fit(self, X: pd.DataFrame, y: pd.Series):
         # Handle multi-output y (e.g. advanced_setup) by taking the first column (Direction)
@@ -130,7 +145,8 @@ class ForexNeuralProphetModel:
             else:
                 ds = pd.date_range(start='2020-01-01', periods=len(X), freq='H')
                 
-            df = pd.DataFrame({'ds': ds, 'y': y.values if hasattr(y, 'values') else y})
+            y_vals = getattr(y, 'values', y) if hasattr(y, 'values') else y
+            df = pd.DataFrame({'ds': ds, 'y': y_vals})
             import multiprocessing
             current_proc = multiprocessing.current_process()
             is_daemon = current_proc.daemon
@@ -177,4 +193,5 @@ class ForexNeuralProphetModel:
 
     def score(self, X: pd.DataFrame, y: pd.Series):
         preds = self.predict(X)
-        return np.mean(preds == y.values)
+        y_vals = getattr(y, 'values', y)
+        return np.mean(preds == y_vals)

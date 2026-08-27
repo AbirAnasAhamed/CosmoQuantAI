@@ -105,6 +105,18 @@ def get_forex_model(algorithm_name: str, config: dict = None):
         if is_clf:
             return RandomForestClassifier(n_estimators=n_estimators, max_depth=max_depth, class_weight=cw_param, random_state=42, n_jobs=1)
         return RandomForestRegressor(n_estimators=n_estimators, max_depth=max_depth, random_state=42, n_jobs=1)
+        
+    elif base_algo == 'Logistic Regression':
+        from sklearn.linear_model import LogisticRegression, LinearRegression
+        if is_clf:
+            return LogisticRegression(class_weight=cw_param, random_state=42, max_iter=1000)
+        return LinearRegression()
+        
+    elif base_algo in ['SVM', 'Support Vector Machine']:
+        from sklearn.svm import SVC, SVR
+        if is_clf:
+            return SVC(class_weight=cw_param, random_state=42, probability=True)
+        return SVR()
 
     # 4. Deep Learning Models (Native PyTorch)
     elif base_algo == 'LSTM':

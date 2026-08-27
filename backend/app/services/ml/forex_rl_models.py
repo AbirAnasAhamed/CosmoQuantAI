@@ -1,20 +1,24 @@
 import numpy as np
 import pandas as pd
 import warnings
+from sklearn.base import BaseEstimator, ClassifierMixin
 
 warnings.filterwarnings("ignore")
 
 from app.services.ml_architectures import TradingEnv
 
-class StableBaselinesWrapper:
+class StableBaselinesWrapper(BaseEstimator, ClassifierMixin):
     """
     Scikit-Learn compatible wrapper for Reinforcement Learning (RL) agents via stable-baselines3.
     It encapsulates the environment creation and RL training loops.
     """
+    _estimator_type = "classifier"
+
     def __init__(self, algo_name="PPO", epochs=10, **kwargs):
         self.algo_name = algo_name
         self.epochs = int(epochs) if epochs else 10
         self.model = None
+        self.classes_ = np.array([0, 1, 2])
 
     def fit(self, X: pd.DataFrame, y: pd.Series, callback=None):
         try:
@@ -32,7 +36,9 @@ class StableBaselinesWrapper:
             is_continuous = self.algo_name.split('-')[0] in ['SAC', 'DDPG', 'TD3']
             
             # Create Custom Gym Environment for Trading
-            env = TradingEnv(X=X.values, y=y.values, is_continuous=is_continuous)
+            X_vals = getattr(X, 'values', X)
+            y_vals = getattr(y, 'values', y)
+            env = TradingEnv(X=X_vals, y=y_vals, is_continuous=is_continuous)
             
             # Select algorithm
             RLClass = algo_map.get(self.algo_name.split('-')[0], PPO)
@@ -57,7 +63,8 @@ class StableBaselinesWrapper:
             return np.random.choice([0, 1], size=len(X))
             
         is_continuous = self.algo_name.split('-')[0] in ['SAC', 'DDPG', 'TD3']
-        env = TradingEnv(X=X.values, is_continuous=is_continuous)
+        X_vals = getattr(X, 'values', X)
+        env = TradingEnv(X=X_vals, is_continuous=is_continuous)
         obs, _ = env.reset()
         
         preds = []
@@ -86,7 +93,8 @@ class StableBaselinesWrapper:
 
     def score(self, X: pd.DataFrame, y: pd.Series):
         preds = self.predict(X)
-        return np.mean(preds == y.values)
+        y_vals = getattr(y, 'values', y)
+        return np.mean(preds == y_vals)
 
 
 # Explicit RL Wrappers for the Factory

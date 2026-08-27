@@ -1,16 +1,20 @@
 import numpy as np
 import pandas as pd
 import warnings
+from sklearn.base import BaseEstimator, ClassifierMixin
 
 warnings.filterwarnings("ignore")
 
-class ForexVolatilityModel:
+class ForexVolatilityModel(BaseEstimator, ClassifierMixin):
     """Wrapper for ARCH/GARCH Volatility Models"""
+    _estimator_type = "classifier"
+
     def __init__(self, vol='Garch', p=1, q=1, **kwargs):
         self.vol = vol # 'Garch' or 'EGARCH'
         self.p = p
         self.q = q
         self.model_fit = None
+        self.classes_ = np.array([0, 1, 2])
         
     def fit(self, X: pd.DataFrame, y: pd.Series):
         try:
@@ -44,7 +48,8 @@ class ForexVolatilityModel:
 
     def score(self, X: pd.DataFrame, y: pd.Series):
         preds = self.predict(X)
-        return np.mean(preds == y.values)
+        y_vals = getattr(y, 'values', y)
+        return np.mean(preds == y_vals)
 
 
 class ForexGARCHModel(ForexVolatilityModel):

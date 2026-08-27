@@ -444,8 +444,8 @@ def apply_data_cleaning(df, config, add_log):
     df.replace([np.inf, -np.inf], np.nan, inplace=True)
     
     # Fill sparse indicator columns that inherently return NaN
-    sparse_prefixes = ('PSARl', 'PSARs', 'SUPERTl', 'SUPERTs')
-    sparse_cols = [c for c in df.columns if str(c).startswith(sparse_prefixes)]
+    sparse_prefixes = ('psarl', 'psars', 'supertl', 'superts')
+    sparse_cols = [c for c in df.columns if str(c).lower().startswith(sparse_prefixes)]
     if sparse_cols:
         df[sparse_cols] = df[sparse_cols].fillna(0)
 
@@ -453,7 +453,7 @@ def apply_data_cleaning(df, config, add_log):
     
     # 1. Missing Data Strategy
     # ALWAYS drop rows where target variables are NaN, as we cannot impute targets
-    target_cols = [c for c in df.columns if c in ['Target', 'Target_Direction', 'Target_SL', 'Target_TP', 'Target_Class', 'Target_Reg']]
+    target_cols = [c for c in df.columns if str(c).lower() in ['target', 'target_direction', 'target_sl', 'target_tp', 'target_class', 'target_reg']]
     if target_cols:
         df.dropna(subset=target_cols, inplace=True)
 
@@ -610,10 +610,13 @@ def apply_shap_feature_selection(df, target_col='Target', top_k=None, cumulative
             add_log("Only one class present in target. Skipping SHAP selection.")
             return df, feature_cols
         model = XGBClassifier(n_estimators=50, max_depth=4, n_jobs=-1, random_state=42)
+        from sklearn.preprocessing import LabelEncoder
+        le = LabelEncoder()
+        y_encoded = le.fit_transform(y)
+        model.fit(X, y_encoded)
     else:
         model = XGBRegressor(n_estimators=50, max_depth=4, n_jobs=-1, random_state=42)
-        
-    model.fit(X, y)
+        model.fit(X, y)
     
     # Compute feature importances
     importances = model.feature_importances_
@@ -673,7 +676,7 @@ def apply_missing_data_threshold(df: pd.DataFrame, threshold: float = 0.2, natur
     add_log(f"🔍 Running Missing Data Filter (Threshold: {threshold*100:.1f}%) on {initial_cols} features...")
     
     for col in df.columns:
-        if col == 'Target' or col.startswith('Target_'):
+        if str(col).lower() == 'target' or str(col).lower().startswith('target_'):
             continue
             
         # Count NaNs
@@ -726,7 +729,14 @@ def apply_auto_feature_selection(df: pd.DataFrame, target_col: str, top_n: int =
     upper = corr_matrix.where(np.triu(np.ones(corr_matrix.shape), k=1).astype(bool))
     to_drop = [column for column in upper.columns if any(upper[column] > 0.85)]
     
-    feature_cols = [c for c in feature_cols if c not in to_drop]
+    feature_cols_filtered = [c for c in feature_cols if c not in to_drop]
+    
+    # Fallback if ALL features were dropped by zero-variance or correlation filters
+    if len(feature_cols_filtered) == 0:
+        add_log("⚠️ Warning: Variance/Correlation filters removed ALL features! Falling back to original feature set.")
+        feature_cols_filtered = [c for c in df.columns if c != target_col and not c.startswith('Target_') and c not in ['timestamp', 'time', 'datetime']]
+    
+    feature_cols = feature_cols_filtered
     add_log(f"🗑️ Dropped {len(to_drop)} highly correlated features. Remaining: {len(feature_cols)}")
     
     if len(feature_cols) <= top_n:
@@ -741,16 +751,18 @@ def apply_auto_feature_selection(df: pd.DataFrame, target_col: str, top_n: int =
     # 1. Random Forest Importance
     if is_classification:
         rf = RandomForestClassifier(n_estimators=50, max_depth=5, random_state=42, n_jobs=-1)
+        from sklearn.preprocessing import LabelEncoder
+        le = LabelEncoder()
+        y_encoded = le.fit_transform(y)
+        rf.fit(X, y_encoded)
+        importances = rf.feature_importances_
+        # 2. Mutual Information
+        mi_scores = mutual_info_classif(X, y_encoded, random_state=42)
     else:
         rf = RandomForestRegressor(n_estimators=50, max_depth=5, random_state=42, n_jobs=-1)
-        
-    rf.fit(X, y)
-    importances = rf.feature_importances_
-    
-    # 2. Mutual Information
-    if is_classification:
-        mi_scores = mutual_info_classif(X, y, random_state=42)
-    else:
+        rf.fit(X, y)
+        importances = rf.feature_importances_
+        # 2. Mutual Information
         mi_scores = mutual_info_regression(X, y, random_state=42)
         
     # Normalize

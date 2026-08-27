@@ -5,19 +5,23 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader, TensorDataset
 import warnings
+from sklearn.base import BaseEstimator, ClassifierMixin
 
 warnings.filterwarnings("ignore")
 
 # Import the PyTorch architectures from Crypto ML layer
 from app.services.ml_architectures import SimpleLSTM, SimpleGRU, CNN1D, DeepLOB, TimeSeriesTransformer
 
-class PyTorchModelWrapper:
+class PyTorchModelWrapper(BaseEstimator, ClassifierMixin):
     """
     Scikit-Learn compatible wrapper for native PyTorch Deep Learning models.
     Converts 2D tabular data into 3D sequences (batch, seq_len, features) for time-series NNs.
     """
+    _estimator_type = "classifier"
+
     def __init__(self, architecture_class, seq_len=10, epochs=10, batch_size=32, lr=1e-3, **kwargs):
         self.architecture_class = architecture_class
+        self.classes_ = np.array([0, 1, 2])
         self.seq_len = seq_len
         self.epochs = epochs
         self.batch_size = batch_size
@@ -37,8 +41,8 @@ class PyTorchModelWrapper:
         return np.array(Xs)
 
     def fit(self, X: pd.DataFrame, y: pd.Series):
-        X_vals = X.values.astype(np.float32)
-        y_vals = y.values.astype(np.float32)
+        X_vals = np.asarray(getattr(X, 'values', X), dtype=np.float32)
+        y_vals = np.asarray(getattr(y, 'values', y), dtype=np.float32)
 
         if len(X_vals) <= self.seq_len:
             print(f"Warning: Not enough data for seq_len {self.seq_len}. Skipping training.")
@@ -79,11 +83,10 @@ class PyTorchModelWrapper:
         return self
 
     def predict(self, X: pd.DataFrame):
+        X_vals = np.asarray(getattr(X, 'values', X), dtype=np.float32)
         if self.model == "dummy":
             return np.random.choice([0, 1], size=len(X))
             
-        X_vals = X.values.astype(np.float32)
-        
         # Handle padding for the first `seq_len` steps to keep output array same size as input
         if len(X_vals) <= self.seq_len:
             return np.random.choice([0, 1], size=len(X))
@@ -108,7 +111,8 @@ class PyTorchModelWrapper:
 
     def score(self, X: pd.DataFrame, y: pd.Series):
         preds = self.predict(X)
-        return np.mean(preds == y.values)
+        y_vals = np.asarray(getattr(y, 'values', y))
+        return np.mean(preds == y_vals)
 
 
 # Explicit Wrappers for the Factory

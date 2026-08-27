@@ -107,7 +107,8 @@ class ForexMLTrainingEngine:
                     except Exception as e:
                         self._log(f"⚠️ Failed to apply custom indicator '{ind.get('name')}': {e}")
                         
-            df.dropna(inplace=True)
+            # Do NOT dropna here! We wait until apply_data_cleaning is called 
+            # downstream to properly handle sparse features like SUPERTs first.
             self.job.progress = 30.0
             self.db.commit()
 
@@ -224,7 +225,8 @@ class ForexMLTrainingEngine:
                 gc.collect()
 
             # ── MISSING DATA THRESHOLD FILTER ──
-            missing_threshold = self.job.config.get("missing_data_threshold")
+            # Default to 0.5 (50%) to ensure features that are mostly NaNs (e.g. lagging indicators longer than dataset) are dropped
+            missing_threshold = self.job.config.get("missing_data_threshold", 0.5)
             if missing_threshold is not None:
                 from app.services.ml_utils import apply_missing_data_threshold
                 naturally_zero = ['liquidation_volume', 'spread', 'volume', 'buy_volume', 'sell_volume', 'trade_count', 'obi', 'is_asian', 'is_london', 'is_ny', 'macro_risk_flag']
@@ -234,8 +236,27 @@ class ForexMLTrainingEngine:
                     naturally_zero_features=naturally_zero, 
                     add_log=self._log
                 )
-
-            df.dropna(inplace=True)
+            
+            # DEBUG: Log NaN distribution before data cleaning
+            nan_counts = df.isna().sum()
+            nan_cols = nan_counts[nan_counts > 0].sort_values(ascending=False)
+            self._log(f"DEBUG: Dataset has {len(df)} rows. Columns with NaNs: {nan_cols.to_dict()}")
+            
+            # ── DATA CLEANING & SPARSE FEATURE HANDLING ──
+            from app.services.ml_utils import apply_data_cleaning
+            df = apply_data_cleaning(df, self.job.config, self._log)
+            
+            if len(df) == 0:
+                raise Exception("Dataset has 0 samples after data cleaning and dropping NaNs. Try using a larger snapshot or fewer lagging indicators.")
+                
+            # Safely encode targets for classification (XGBoost/LGBM strictly require 0, 1, 2... classes)
+            prediction_target = self.job.config.get("prediction_target", "classification")
+            is_classification = prediction_target in ["classification", "advanced_setup", "direction"]
+            if is_classification:
+                from sklearn.preprocessing import LabelEncoder
+                le = LabelEncoder()
+                df['target'] = le.fit_transform(df['target'])
+                self._log(f"Encoded target labels. Unique classes: {np.unique(df['target'])}")
             
             is_multi_output = (prediction_target == "advanced_setup")
             features = [col for col in df.columns if col not in ['target', 'Target_Direction', 'Target_SL', 'Target_TP', 'open', 'high', 'low', 'close', 'tick_volume', 'time', 'timestamp']]

@@ -67,8 +67,9 @@ def apply_fractional_differentiation(df, d_value=0.5, exclude_cols=None):
             # Here we apply to all non-excluded numeric columns for simplicity
             df_diff[col] = frac_diff(df_diff[col], d=d_value)
             
-    # Drop rows with NaNs introduced by the windowing
-    df_diff.dropna(inplace=True)
+    # We DO NOT call df_diff.dropna(inplace=True) here!
+    # If we do, it drops all rows because sparse indicators (like SUPERTs) have NaNs.
+    # Downstream data_cleaning will handle filling sparse features first, then dropping remaining NaNs.
     
     # RAM Management
     gc.collect()

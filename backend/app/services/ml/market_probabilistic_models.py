@@ -1,13 +1,17 @@
 import numpy as np
 import pandas as pd
 import warnings
+from sklearn.base import BaseEstimator, ClassifierMixin
 
 warnings.filterwarnings("ignore")
 
-class MarketBayesianNNModel:
+class MarketBayesianNNModel(BaseEstimator, ClassifierMixin):
     """Wrapper for a Probabilistic Bayesian Neural Network"""
+    _estimator_type = "classifier"
+
     def __init__(self, **kwargs):
         self.model = None
+        self.classes_ = np.array([0, 1, 2])
         
     def fit(self, X: pd.DataFrame, y: pd.Series):
         # A true Bayesian NN requires torchbnn or pyro
