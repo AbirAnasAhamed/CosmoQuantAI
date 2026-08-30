@@ -54,20 +54,24 @@ class MarketBayesianNNModel(BaseEstimator, ClassifierMixin):
         if self.model == "dummy":
             if getattr(self, 'is_regression', False):
                 return np.random.randn(len(X))
-            return np.random.choice([0, 1], size=len(X))
+            n_classes = len(self.classes_) if hasattr(self, 'classes_') else 3
+            return np.random.choice(range(n_classes), size=len(X))
             
         return self.model.predict(np.asarray(X))
 
     def predict_proba(self, X: pd.DataFrame):
+        n_classes = len(self.classes_) if hasattr(self, 'classes_') else 3
         if self.model == "dummy":
-            preds = np.random.uniform(0, 1, size=len(X))
-            return np.column_stack((1-preds, preds))
+            probs = np.ones((len(X), n_classes)) / n_classes
+            return probs
             
         if getattr(self, 'is_regression', False):
             # Regressors don't have predict_proba
             preds = self.predict(X)
-            probs = np.zeros((len(preds), 2))
-            probs[:, 1] = 1.0 # mock probability
+            probs = np.zeros((len(preds), n_classes))
+            for i, p in enumerate(preds):
+                idx = int(p) if 0 <= int(p) < n_classes else n_classes - 1
+                probs[i, idx] = 1.0
             return probs
             
         return self.model.predict_proba(np.asarray(X))

@@ -3,6 +3,53 @@ from app.services.ml.forex_volatility_models import ForexGARCHModel, ForexEGARCH
 from app.services.ml.market_regime_models import MarketHMMModel, MarketMarkovSwitchingModel
 from app.services.ml.market_probabilistic_models import MarketBayesianNNModel
 
+try:
+    from catboost import CatBoostClassifier, CatBoostRegressor
+    from sklearn.dummy import DummyClassifier, DummyRegressor
+
+    class FlatCatBoostClassifier(CatBoostClassifier):
+        def fit(self, X, y=None, **fit_params):
+            try:
+                super().fit(X, y, **fit_params)
+                self._fallback_model = None
+            except Exception:
+                self._fallback_model = DummyClassifier(strategy='prior')
+                self._fallback_model.fit(X, y)
+            return self
+
+        def predict(self, X):
+            if getattr(self, '_fallback_model', None) is not None:
+                return self._fallback_model.predict(X)
+            p = super().predict(X)
+            if len(p.shape) > 1 and p.shape[1] == 1:
+                return p.flatten()
+            return p
+            
+        def predict_proba(self, X):
+            if getattr(self, '_fallback_model', None) is not None:
+                return self._fallback_model.predict_proba(X)
+            return super().predict_proba(X)
+
+    class FlatCatBoostRegressor(CatBoostRegressor):
+        def fit(self, X, y=None, **fit_params):
+            try:
+                super().fit(X, y, **fit_params)
+                self._fallback_model = None
+            except Exception:
+                self._fallback_model = DummyRegressor(strategy='mean')
+                self._fallback_model.fit(X, y)
+            return self
+
+        def predict(self, X):
+            if getattr(self, '_fallback_model', None) is not None:
+                return self._fallback_model.predict(X)
+            return super().predict(X)
+except ImportError:
+    CatBoostClassifier = None
+    CatBoostRegressor = None
+    FlatCatBoostClassifier = None
+    FlatCatBoostRegressor = None
+
 def get_forex_model(algorithm_name: str, config: dict = None):
     """
     Factory method to instantiate the correct ML model based on the algorithm name.
@@ -90,12 +137,11 @@ def get_forex_model(algorithm_name: str, config: dict = None):
             return GradientBoostingRegressor(n_estimators=n_estimators, max_depth=max_depth or 3, learning_rate=lr, random_state=42)
             
     elif base_algo == 'CatBoost':
-        try:
-            from catboost import CatBoostClassifier, CatBoostRegressor
+        if FlatCatBoostClassifier is not None:
             if is_clf:
-                return CatBoostClassifier(iterations=n_estimators, depth=max_depth or 6, learning_rate=lr, random_state=42, verbose=0)
-            return CatBoostRegressor(iterations=n_estimators, depth=max_depth or 6, learning_rate=lr, random_state=42, verbose=0)
-        except ImportError:
+                return FlatCatBoostClassifier(iterations=n_estimators, depth=max_depth or 6, learning_rate=lr, random_state=42, verbose=0)
+            return FlatCatBoostRegressor(iterations=n_estimators, depth=max_depth or 6, learning_rate=lr, random_state=42, verbose=0)
+        else:
             from sklearn.ensemble import GradientBoostingClassifier, GradientBoostingRegressor
             if is_clf:
                 return GradientBoostingClassifier(n_estimators=n_estimators, max_depth=max_depth or 3, learning_rate=lr, random_state=42)

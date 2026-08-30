@@ -31,10 +31,15 @@ def walk_forward_split(X: pd.DataFrame, y: pd.Series, n_splits: int = 5):
         if i == n_splits - 1:
             test_end = total_samples
             
-        X_train = X.iloc[0:train_end]
-        y_train = y.iloc[0:train_end]
+        def safe_slice(obj, start, end):
+            if hasattr(obj, 'iloc'):
+                return obj.iloc[start:end]
+            return obj[start:end]
+            
+        X_train = safe_slice(X, 0, train_end)
+        y_train = safe_slice(y, 0, train_end)
         
-        X_test = X.iloc[train_end:test_end]
-        y_test = y.iloc[train_end:test_end]
+        X_test = safe_slice(X, train_end, test_end)
+        y_test = safe_slice(y, train_end, test_end)
         
         yield X_train, X_test, y_train, y_test
