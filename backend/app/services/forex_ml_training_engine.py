@@ -228,6 +228,18 @@ class ForexMLTrainingEngine:
             # Default to 0.5 (50%) to ensure features that are mostly NaNs (e.g. lagging indicators longer than dataset) are dropped
             missing_threshold = self.job.config.get("missing_data_threshold", 0.5)
             if missing_threshold is not None:
+                # --- FUTURE PROOF FIX FOR SMALL DATASETS ---
+                # Technical indicators create initial NaNs (lookback warmup). If dataset is small, these NaNs exceed standard thresholds.
+                if len(df) < 1000:
+                    old_threshold = float(missing_threshold)
+                    missing_threshold = max(0.85, old_threshold)
+                    self._log(f"⚠️ Dataset is very small ({len(df)} rows). Auto-adjusting missing_data_threshold from {old_threshold} to {missing_threshold} to prevent catastrophic feature wipeout.")
+                    
+                    # Pre-emptively drop the initial warmup rows (e.g., rows where >50% technical indicators are NaN)
+                    thresh_drop = int(len(df.columns) * 0.5)
+                    df.dropna(thresh=thresh_drop, inplace=True)
+                    self._log(f"🧹 Cleared initial indicator warmup rows. Remaining rows: {len(df)}")
+
                 from app.services.ml_utils import apply_missing_data_threshold
                 naturally_zero = ['liquidation_volume', 'spread', 'volume', 'buy_volume', 'sell_volume', 'trade_count', 'obi', 'is_asian', 'is_london', 'is_ny', 'macro_risk_flag']
                 df, _ = apply_missing_data_threshold(
@@ -257,13 +269,12 @@ class ForexMLTrainingEngine:
                 self._log(f"⏳ Estimated Training Time: {eta_str} (Algo: {self.job.algorithm}, Rows: {df.shape[0]})")
             except Exception as e:
                 self._log(f"⚠️ Failed to calculate ETA: {e}")
-                
             epochs = self.job.config.get('epochs', 50)
             self._log(f"⚙️ Training Configuration: Epochs/Trees = {epochs}")
                 
             # Safely encode targets for classification (XGBoost/LGBM strictly require 0, 1, 2... classes)
             prediction_target = self.job.config.get("prediction_target", "classification")
-            is_classification = prediction_target in ["classification", "advanced_setup", "direction"]
+            is_classification = prediction_target in ["classification", "advanced_setup", "direction", "multi_task"] or self.job.config.get("use_triple_barrier", False)
             if is_classification:
                 from sklearn.preprocessing import LabelEncoder
                 le = LabelEncoder()
@@ -341,11 +352,6 @@ class ForexMLTrainingEngine:
                 y = df[['Target_Direction', 'Target_SL', 'Target_TP']].values
             else:
                 y = df['target'].values
-            
-            # Map Triple Barrier [-1, 0, 1] to [0, 1, 2] for XGBoost/LightGBM compatibility
-            if use_triple_barrier:
-                y = y + 1
-            
             # Feature Selection
             feature_method = self.job.config.get('feature_selection_method', 'none')
             if feature_method != 'none':
@@ -452,16 +458,36 @@ class ForexMLTrainingEngine:
                     base_models_names = cfg.get("base_models", ["Random Forest", "XGBoost"])
                     estimators = []
                     for name in base_models_names:
-                        estimators.append((name, get_forex_model(name, cfg)))
+                        try:
+                            estimators.append((name, get_forex_model(name, cfg)))
+                        except Exception as e:
+                            self._log(f"⚠️ Skipping base model '{name}': {e}")
+                            
+                    if not estimators:
+                        self._log("⚠️ No valid base estimators found. Falling back to Random Forest.")
+                        estimators.append(("Random Forest", get_forex_model("Random Forest", cfg)))
                         
                     if ensemble_method == "voting":
-                        from sklearn.ensemble import VotingClassifier
-                        return VotingClassifier(estimators=estimators, voting=cfg.get("voting_strategy", "soft"))
+                        if is_classification:
+                            from sklearn.ensemble import VotingClassifier
+                            return VotingClassifier(estimators=estimators, voting=cfg.get("voting_strategy", "soft"))
+                        else:
+                            from sklearn.ensemble import VotingRegressor
+                            return VotingRegressor(estimators=estimators)
                     elif ensemble_method == "stacking":
-                        from sklearn.ensemble import StackingClassifier
                         meta_model_name = cfg.get("meta_model", "Logistic Regression")
-                        meta_est = get_forex_model(meta_model_name, cfg)
-                        return StackingClassifier(estimators=estimators, final_estimator=meta_est)
+                        try:
+                            meta_est = get_forex_model(meta_model_name, cfg)
+                        except Exception as e:
+                            self._log(f"⚠️ Meta model '{meta_model_name}' unsupported ({e}). Falling back to Random Forest.")
+                            meta_est = get_forex_model("Random Forest", cfg)
+                            
+                        if is_classification:
+                            from sklearn.ensemble import StackingClassifier
+                            return StackingClassifier(estimators=estimators, final_estimator=meta_est)
+                        else:
+                            from sklearn.ensemble import StackingRegressor
+                            return StackingRegressor(estimators=estimators, final_estimator=meta_est)
                 else:
                     from app.services.ml.forex_model_factory import get_forex_model
                     return get_forex_model(alg, cfg)
@@ -613,10 +639,10 @@ class ForexMLTrainingEngine:
                         model = get_model_instance(algorithm, self.job.config)
                         
                     is_rl = not is_ensemble and algorithm and algorithm.endswith('-RL')
-                    
-                    if is_classification and is_ensemble:
+                    if is_classification:
                         unique_classes = np.unique(y_train)
-                        target_classes = np.array([0, 1, 2]) if use_triple_barrier else np.array([0, 1])
+                        is_multi = use_triple_barrier or prediction_target == "advanced_setup" or prediction_target == "direction"
+                        target_classes = np.array([0, 1, 2]) if is_multi else np.array([0, 1])
                         missing_classes = np.setdiff1d(target_classes, unique_classes)
                         if len(missing_classes) > 0:
                             if isinstance(X_train, pd.DataFrame):
@@ -628,6 +654,7 @@ class ForexMLTrainingEngine:
                                     X_train = np.vstack([X_train, X_train[0]])
                                     y_train = np.append(y_train, mc)
                     
+                    self._log(f"DEBUG: Before model.fit Fold {i+1} - y_train unique={np.unique(y_train)}, is_multi={is_multi if 'is_multi' in locals() else 'N/A'}")
                     if is_rl:
                         model.fit(X_train, y_train, callback=callback)
                     else:
@@ -674,10 +701,10 @@ class ForexMLTrainingEngine:
                     model = get_model_instance(algorithm, self.job.config)
                     
                 is_rl = not is_ensemble and algorithm and algorithm.endswith('-RL')
-                
-                if is_classification and is_ensemble:
+                if is_classification:
                     unique_classes = np.unique(y_train)
-                    target_classes = np.array([0, 1, 2]) if use_triple_barrier else np.array([0, 1])
+                    is_multi = use_triple_barrier or prediction_target == "advanced_setup" or prediction_target == "direction"
+                    target_classes = np.array([0, 1, 2]) if is_multi else np.array([0, 1])
                     missing_classes = np.setdiff1d(target_classes, unique_classes)
                     if len(missing_classes) > 0:
                         if isinstance(X_train, pd.DataFrame):
@@ -689,6 +716,7 @@ class ForexMLTrainingEngine:
                                 X_train = np.vstack([X_train, X_train[0]])
                                 y_train = np.append(y_train, mc)
                                 
+                self._log(f"DEBUG: Before model.fit - y_train unique={np.unique(y_train)}, is_multi={is_multi if 'is_multi' in locals() else 'N/A'}")
                 if is_rl:
                     model.fit(X_train, y_train, callback=callback)
                 else:
@@ -843,9 +871,13 @@ class ForexMLTrainingEngine:
             self.db.commit()
             
         except Exception as e:
+            import traceback
+            err_msg = f"ERROR: {e}\n{traceback.format_exc()}"
+            self._log(err_msg)
+            print(err_msg)
+            
             self.job.status = TrainingStatus.FAILED
             self.job.error_message = str(e)
-            self._log(f"ERROR: {str(e)}")
             self.db.commit()
         finally:
             self.db.close()

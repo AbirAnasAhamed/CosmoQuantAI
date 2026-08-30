@@ -14,7 +14,7 @@ def get_forex_model(algorithm_name: str, config: dict = None):
     base_algo = algorithm_name.replace("Crypto", "").replace("Forex", "").replace(" ", "").strip()
     
     # Re-add space for specific names if needed or just use original for sklearn models
-    if algorithm_name in ["Random Forest", "Logistic Regression", "Bayesian NN", "Markov-Switching"]:
+    if algorithm_name in ["Random Forest", "Logistic Regression", "Bayesian NN", "Markov-Switching", "Neural Network (MLP)"]:
         base_algo = algorithm_name
         
     # Also handle some edge cases
@@ -41,7 +41,8 @@ def get_forex_model(algorithm_name: str, config: dict = None):
         return MarketBayesianNNModel()
 
     # Extract core parameters from frontend config
-    is_clf = config.get('prediction_target', 'classification') == 'classification'
+    prediction_target = config.get('prediction_target', 'classification')
+    is_clf = prediction_target in ['classification', 'advanced_setup', 'direction', 'multi_task'] or config.get("use_triple_barrier", False)
     n_estimators = config.get('n_estimators', config.get('epochs', 100))
     epochs = config.get('epochs', 10)
     tree_depth = config.get('tree_depth', None)
@@ -117,6 +118,12 @@ def get_forex_model(algorithm_name: str, config: dict = None):
         if is_clf:
             return SVC(class_weight=cw_param, random_state=42, probability=True)
         return SVR()
+        
+    elif base_algo == 'Neural Network (MLP)' or 'MLP' in base_algo:
+        from sklearn.neural_network import MLPClassifier, MLPRegressor
+        if is_clf:
+            return MLPClassifier(hidden_layer_sizes=(100, 50), max_iter=epochs if epochs > 200 else 500, random_state=42)
+        return MLPRegressor(hidden_layer_sizes=(100, 50), max_iter=epochs if epochs > 200 else 500, random_state=42)
 
     # 4. Deep Learning Models (Native PyTorch)
     elif base_algo == 'LSTM':

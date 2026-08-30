@@ -23,9 +23,18 @@ def apply_imbalance_strategy(X, y, strategy="none", log_func=None):
 
     try:
         if strategy == "smote":
-            from imblearn.over_sampling import SMOTE
-            smote = SMOTE(random_state=42)
-            X_resampled, y_resampled = smote.fit_resample(X, y)
+            from imblearn.over_sampling import SMOTE, RandomOverSampler
+            counts = pd.Series(y).value_counts()
+            min_count = counts.min()
+            if min_count <= 1:
+                if log_func:
+                    log_func(f"SMOTE requires >1 samples in minority class (has {min_count}). Falling back to RandomOverSampler.")
+                ros = RandomOverSampler(random_state=42)
+                X_resampled, y_resampled = ros.fit_resample(X, y)
+            else:
+                k_neighbors = min(5, min_count - 1)
+                smote = SMOTE(random_state=42, k_neighbors=k_neighbors)
+                X_resampled, y_resampled = smote.fit_resample(X, y)
         elif strategy == "adasyn":
             from imblearn.over_sampling import ADASYN
             adasyn = ADASYN(random_state=42)
