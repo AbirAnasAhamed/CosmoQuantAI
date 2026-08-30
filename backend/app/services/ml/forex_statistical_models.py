@@ -34,8 +34,8 @@ class ForexARIMAModel(BaseEstimator, ClassifierMixin):
             exog_data = X if (hasattr(X, 'empty') and not X.empty) or (isinstance(X, np.ndarray) and X.size > 0) else None
             model = ARIMA(y, exog=exog_data, order=self.order)
             self.model_fit = model.fit()
-        except ImportError:
-            print("Warning: statsmodels not installed. Using dummy ARIMA.")
+        except Exception as e:
+            print(f"Warning: ARIMA fitting failed ({e}). Using dummy ARIMA.")
             self.model_fit = "dummy"
             
         return self
@@ -85,15 +85,26 @@ class ForexVARModel(BaseEstimator, ClassifierMixin):
             
         try:
             from statsmodels.tsa.vector_ar.var_model import VAR
-            # Combine X and y for VAR since it's multivariate
             df = X.copy() if hasattr(X, 'copy') else pd.DataFrame(X)
+            
+            # Future-proof fix: Drop constant columns to prevent "Adding a constant with trend='c' is not allowed"
+            # This happens often when VAR is used as a meta-model and base models output identical predictions
+            self.kept_cols_ = [c for c in df.columns if df[c].nunique() > 1]
+            df = df[self.kept_cols_]
+            
             df['target_y'] = y
+            
+            if len(df.columns) < 2:
+                raise ValueError("Not enough non-constant columns for VAR.")
+                
             model = VAR(df)
-            self.model_fit = model.fit(self.lags)
+            # Handle cases where lags > number of rows
+            lags_to_use = min(self.lags, max(1, len(df) - 2))
+            self.model_fit = model.fit(lags_to_use)
             X_vals = getattr(df, 'values', df)
-            self.train_data = X_vals[-self.lags:]
-        except ImportError:
-            print("Warning: statsmodels not installed. Using dummy VAR.")
+            self.train_data = X_vals[-lags_to_use:]
+        except Exception as e:
+            print(f"Warning: VAR fitting failed ({e}). Using dummy VAR.")
             self.model_fit = "dummy"
             
         return self
@@ -101,6 +112,14 @@ class ForexVARModel(BaseEstimator, ClassifierMixin):
     def predict(self, X: pd.DataFrame):
         if self.model_fit == "dummy":
             return np.random.choice([0, 1], size=len(X))
+            
+        df = X.copy() if hasattr(X, 'copy') else pd.DataFrame(X)
+        if hasattr(self, 'kept_cols_'):
+            # Ensure only the columns used during training are passed, fill missing with 0
+            for c in self.kept_cols_:
+                if c not in df.columns:
+                    df[c] = 0
+            df = df[self.kept_cols_]
             
         predictions = self.model_fit.forecast(y=self.train_data, steps=len(X))
         # target_y is the last column
@@ -175,8 +194,8 @@ class ForexNeuralProphetModel(BaseEstimator, ClassifierMixin):
                 self.model.fit(df, freq="H")
             finally:
                 current_proc.daemon = is_daemon
-        except ImportError:
-            print("Warning: neuralprophet not installed. Using dummy NeuralProphet.")
+        except Exception as e:
+            print(f"Warning: NeuralProphet fitting failed ({e}). Using dummy NeuralProphet.")
             self.model = "dummy"
             
         return self

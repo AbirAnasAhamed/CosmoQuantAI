@@ -228,24 +228,13 @@ class ForexMLTrainingEngine:
             # Default to 0.5 (50%) to ensure features that are mostly NaNs (e.g. lagging indicators longer than dataset) are dropped
             missing_threshold = self.job.config.get("missing_data_threshold", 0.5)
             if missing_threshold is not None:
-                # --- FUTURE PROOF FIX FOR SMALL DATASETS ---
-                # Technical indicators create initial NaNs (lookback warmup). If dataset is small, these NaNs exceed standard thresholds.
-                if len(df) < 1000:
-                    old_threshold = float(missing_threshold)
-                    missing_threshold = max(0.85, old_threshold)
-                    self._log(f"⚠️ Dataset is very small ({len(df)} rows). Auto-adjusting missing_data_threshold from {old_threshold} to {missing_threshold} to prevent catastrophic feature wipeout.")
-                    
-                    # Pre-emptively drop the initial warmup rows (e.g., rows where >50% technical indicators are NaN)
-                    thresh_drop = int(len(df.columns) * 0.5)
-                    df.dropna(thresh=thresh_drop, inplace=True)
-                    self._log(f"🧹 Cleared initial indicator warmup rows. Remaining rows: {len(df)}")
-
-                from app.services.ml_utils import apply_missing_data_threshold
+                from app.services.ml.forex_data_cleaning import advanced_forex_data_cleaning
                 naturally_zero = ['liquidation_volume', 'spread', 'volume', 'buy_volume', 'sell_volume', 'trade_count', 'obi', 'is_asian', 'is_london', 'is_ny', 'macro_risk_flag']
-                df, _ = apply_missing_data_threshold(
-                    df=df, 
-                    threshold=float(missing_threshold), 
-                    naturally_zero_features=naturally_zero, 
+                df = advanced_forex_data_cleaning(
+                    df=df,
+                    missing_data_threshold=float(missing_threshold),
+                    max_warmup_tolerance=0.3, # 30% of dataset size
+                    naturally_zero_features=naturally_zero,
                     add_log=self._log
                 )
             
