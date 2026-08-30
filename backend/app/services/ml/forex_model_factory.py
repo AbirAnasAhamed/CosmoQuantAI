@@ -29,6 +29,12 @@ try:
             if getattr(self, '_fallback_model', None) is not None:
                 return self._fallback_model.predict_proba(X)
             return super().predict_proba(X)
+            
+        @property
+        def classes_(self):
+            if getattr(self, '_fallback_model', None) is not None:
+                return self._fallback_model.classes_
+            return super().classes_
 
     class FlatCatBoostRegressor(CatBoostRegressor):
         def fit(self, X, y=None, **fit_params):
