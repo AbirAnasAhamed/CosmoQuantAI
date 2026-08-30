@@ -87,6 +87,8 @@ export interface ForexCoreParametersProps {
     setShapVarianceThreshold: (v: number) => void;
     missingDataThreshold: number;
     setMissingDataThreshold: (v: number) => void;
+    maxWarmupTolerance: number;
+    setMaxWarmupTolerance: (v: number) => void;
     autoFeatureSelection: boolean;
     setAutoFeatureSelection: (v: boolean) => void;
     autoFeatureCount: number;
@@ -434,7 +436,53 @@ export const ForexCoreParametersPanel: React.FC<ForexCoreParametersProps> = (pro
                                 </div>
                             )}
                         </div>
-                        
+                    </div>
+                </div>
+
+                {/* Dynamic Warmup Trimming Section */}
+                <div className="mt-6 pt-6 border-t border-white/10">
+                    <h4 className="text-xs font-bold text-teal-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <Activity className="w-4 h-4" /> Dynamic Warmup Trimming
+                    </h4>
+                    
+                    <div className="p-3 bg-teal-500/5 border border-teal-500/20 rounded-xl space-y-3">
+                        <div className="flex justify-between items-center text-[10px] text-slate-400 mb-1">
+                            <span>Max Warmup Tolerance</span>
+                            <div className="flex items-center gap-1">
+                                <input 
+                                    type="number" 
+                                    min="5" max="50" step="1"
+                                    disabled={props.isTraining}
+                                    value={Math.round(props.maxWarmupTolerance * 100) || ""}
+                                    onChange={(e) => {
+                                        let val = parseInt(e.target.value);
+                                        if (isNaN(val)) val = 27; // Graceful fallback
+                                        props.setMaxWarmupTolerance(val / 100);
+                                    }}
+                                    className="w-12 bg-black/40 border border-white/10 rounded px-1 py-0.5 text-teal-400 font-bold text-right focus:outline-none focus:border-teal-500/50 disabled:opacity-50"
+                                />
+                                <span className="text-teal-400 font-bold">%</span>
+                            </div>
+                        </div>
+                        <input 
+                            type="range" min="5" max="50" step="1"
+                            disabled={props.isTraining}
+                            value={Math.round(props.maxWarmupTolerance * 100)} 
+                            onChange={(e) => props.setMaxWarmupTolerance(parseInt(e.target.value) / 100)}
+                            className="w-full accent-teal-500 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer disabled:opacity-50"
+                        />
+                        <p className="text-[9px] text-slate-500 mt-1 leading-relaxed">
+                            Defines the maximum percentage of data that can be trimmed to accommodate indicator warmup (burn-in). For example, 27% means if an indicator requires more than 27% of the dataset to calculate its first value, the indicator is dropped instead of trimming the data. This protects small datasets from extreme data loss.
+                        </p>
+                    </div>
+                </div>
+                
+                {/* Data Augmentation and Advanced Settings */}
+                <div className="mt-6 pt-6 border-t border-white/10">
+                    <h4 className="text-xs font-bold text-teal-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                        <Activity className="w-4 h-4" /> Advanced Augmentation & Labeling
+                    </h4>
+                    <div className="space-y-4">
                         <DataAugmentationConfig
                             augmentationStrategy={props.augmentationStrategy}
                             setAugmentationStrategy={props.setAugmentationStrategy}

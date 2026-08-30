@@ -227,13 +227,20 @@ class ForexMLTrainingEngine:
             # ── MISSING DATA THRESHOLD FILTER ──
             # Default to 0.5 (50%) to ensure features that are mostly NaNs (e.g. lagging indicators longer than dataset) are dropped
             missing_threshold = self.job.config.get("missing_data_threshold", 0.5)
+            
+            # Define naturally zero features before data cleaning (Only true binary/zero flags, NOT volume/spread)
+            naturally_zero = ['liquidation_volume', 'is_asian', 'is_london', 'is_ny', 'macro_risk_flag']
+            
             if missing_threshold is not None:
                 from app.services.ml.forex_data_cleaning import advanced_forex_data_cleaning
-                naturally_zero = ['liquidation_volume', 'spread', 'volume', 'buy_volume', 'sell_volume', 'trade_count', 'obi', 'is_asian', 'is_london', 'is_ny', 'macro_risk_flag']
+
+                # Fetch max_warmup_tolerance from UI config (default 0.27 or 27%)
+                max_warmup_tol = float(self.job.config.get("max_warmup_tolerance", 0.27))
+                
                 df = advanced_forex_data_cleaning(
                     df=df,
                     missing_data_threshold=float(missing_threshold),
-                    max_warmup_tolerance=0.3, # 30% of dataset size
+                    max_warmup_tolerance=max_warmup_tol,
                     naturally_zero_features=naturally_zero,
                     add_log=self._log
                 )
@@ -634,14 +641,21 @@ class ForexMLTrainingEngine:
                         target_classes = np.array([0, 1, 2]) if is_multi else np.array([0, 1])
                         missing_classes = np.setdiff1d(target_classes, unique_classes)
                         if len(missing_classes) > 0:
+                            num_fake = 10  # Ensure enough samples for any cross-validation (e.g. CV=5 or CV=10)
                             if isinstance(X_train, pd.DataFrame):
                                 for mc in missing_classes:
-                                    X_train = pd.concat([X_train, X_train.iloc[0:1].copy()], ignore_index=True)
-                                    y_train = pd.concat([y_train, pd.Series([mc])], ignore_index=True) if isinstance(y_train, pd.Series) else np.append(y_train, mc)
+                                    # Duplicate random existing rows to avoid single-point bias
+                                    idx = np.random.choice(len(X_train), num_fake, replace=True)
+                                    fake_X = X_train.iloc[idx].copy()
+                                    X_train = pd.concat([X_train, fake_X], ignore_index=True)
+                                    fake_y = pd.Series([mc] * num_fake)
+                                    y_train = pd.concat([y_train, fake_y], ignore_index=True) if isinstance(y_train, pd.Series) else np.append(y_train, [mc] * num_fake)
                             else:
                                 for mc in missing_classes:
-                                    X_train = np.vstack([X_train, X_train[0]])
-                                    y_train = np.append(y_train, mc)
+                                    idx = np.random.choice(len(X_train), num_fake, replace=True)
+                                    fake_X = X_train[idx]
+                                    X_train = np.vstack([X_train, fake_X])
+                                    y_train = np.append(y_train, [mc] * num_fake)
                     
                     self._log(f"DEBUG: Before model.fit Fold {i+1} - y_train unique={np.unique(y_train)}, is_multi={is_multi if 'is_multi' in locals() else 'N/A'}")
                     if is_rl:
@@ -696,14 +710,21 @@ class ForexMLTrainingEngine:
                     target_classes = np.array([0, 1, 2]) if is_multi else np.array([0, 1])
                     missing_classes = np.setdiff1d(target_classes, unique_classes)
                     if len(missing_classes) > 0:
+                        num_fake = 10  # Ensure enough samples for any cross-validation (e.g. CV=5 or CV=10)
                         if isinstance(X_train, pd.DataFrame):
                             for mc in missing_classes:
-                                X_train = pd.concat([X_train, X_train.iloc[0:1].copy()], ignore_index=True)
-                                y_train = pd.concat([y_train, pd.Series([mc])], ignore_index=True) if isinstance(y_train, pd.Series) else np.append(y_train, mc)
+                                # Duplicate random existing rows to avoid single-point bias
+                                idx = np.random.choice(len(X_train), num_fake, replace=True)
+                                fake_X = X_train.iloc[idx].copy()
+                                X_train = pd.concat([X_train, fake_X], ignore_index=True)
+                                fake_y = pd.Series([mc] * num_fake)
+                                y_train = pd.concat([y_train, fake_y], ignore_index=True) if isinstance(y_train, pd.Series) else np.append(y_train, [mc] * num_fake)
                         else:
                             for mc in missing_classes:
-                                X_train = np.vstack([X_train, X_train[0]])
-                                y_train = np.append(y_train, mc)
+                                idx = np.random.choice(len(X_train), num_fake, replace=True)
+                                fake_X = X_train[idx]
+                                X_train = np.vstack([X_train, fake_X])
+                                y_train = np.append(y_train, [mc] * num_fake)
                                 
                 self._log(f"DEBUG: Before model.fit - y_train unique={np.unique(y_train)}, is_multi={is_multi if 'is_multi' in locals() else 'N/A'}")
                 if is_rl:

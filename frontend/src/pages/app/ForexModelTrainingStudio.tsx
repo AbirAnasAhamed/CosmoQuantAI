@@ -45,6 +45,7 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
     const [applyShapSelection, setApplyShapSelection] = useState(true);
     const [shapVarianceThreshold, setShapVarianceThreshold] = useState(0.95);
     const [missingDataThreshold, setMissingDataThreshold] = useState(0.20);
+    const [maxWarmupTolerance, setMaxWarmupTolerance] = useState(0.27);
     const [autoFeatureSelection, setAutoFeatureSelection] = useState(true);
     const [autoFeatureCount, setAutoFeatureCount] = useState(50);
     const [splitMethod, setSplitMethod] = useState('chronological');
@@ -604,6 +605,7 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                     apply_shap_selection: applyShapSelection,
                     shap_variance_threshold: shapVarianceThreshold,
                     missing_data_threshold: missingDataThreshold,
+                    max_warmup_tolerance: maxWarmupTolerance,
                     auto_feature_selection: autoFeatureSelection,
                     auto_feature_count: autoFeatureCount,
                     split_method: splitMethod,
@@ -793,6 +795,8 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
                             setShapVarianceThreshold={setShapVarianceThreshold}
                             missingDataThreshold={missingDataThreshold}
                             setMissingDataThreshold={setMissingDataThreshold}
+                            maxWarmupTolerance={maxWarmupTolerance}
+                            setMaxWarmupTolerance={setMaxWarmupTolerance}
                             autoFeatureSelection={autoFeatureSelection}
                             setAutoFeatureSelection={setAutoFeatureSelection}
                             autoFeatureCount={autoFeatureCount}
