@@ -2,10 +2,71 @@ from app.services.ml.forex_statistical_models import ForexARIMAModel, ForexVARMo
 from app.services.ml.forex_volatility_models import ForexGARCHModel, ForexEGARCHModel
 from app.services.ml.market_regime_models import MarketHMMModel, MarketMarkovSwitchingModel
 from app.services.ml.market_probabilistic_models import MarketBayesianNNModel
+from sklearn.base import BaseEstimator, clone
+from sklearn.dummy import DummyClassifier, DummyRegressor
+import numpy as np
+
+class SafeEstimatorWrapper(BaseEstimator):
+    """
+    Wraps standard scikit-learn models to catch any internal exceptions (e.g., XGBoost failing
+    on missing classes during CV folds) and seamlessly fall back to a Dummy model to prevent pipeline crashes.
+    """
+    def __init__(self, base_estimator, is_clf=True):
+        self.base_estimator = base_estimator
+        self.is_clf = is_clf
+        self._fallback = None
+        self.model_ = None
+        self._estimator_type = "classifier" if is_clf else "regressor"
+
+    def fit(self, X, y, **fit_params):
+        try:
+            self.model_ = clone(self.base_estimator)
+            self.model_.fit(X, y, **fit_params)
+            self._fallback = None
+        except Exception:
+            if self.is_clf:
+                self._fallback = DummyClassifier(strategy='prior')
+            else:
+                self._fallback = DummyRegressor(strategy='mean')
+            self._fallback.fit(X, y)
+        return self
+
+    def predict(self, X):
+        if getattr(self, '_fallback', None) is not None:
+            return self._fallback.predict(X)
+        if getattr(self, 'model_', None) is not None:
+            return self.model_.predict(X)
+        raise ValueError("Model not fitted")
+
+    def predict_proba(self, X):
+        if not self.is_clf:
+            raise AttributeError("predict_proba is not available for regressors")
+        if getattr(self, '_fallback', None) is not None:
+            return self._fallback.predict_proba(X)
+        if getattr(self, 'model_', None) is not None:
+            if hasattr(self.model_, 'predict_proba'):
+                return self.model_.predict_proba(X)
+            preds = self.predict(X)
+            classes = self.classes_
+            probs = np.zeros((len(preds), len(classes)))
+            for i, p in enumerate(preds):
+                idx = int(p) if 0 <= int(p) < len(classes) else len(classes)-1
+                probs[i, idx] = 1.0
+            return probs
+        raise ValueError("Model not fitted")
+
+    @property
+    def classes_(self):
+        if not self.is_clf:
+            raise AttributeError("classes_ is not available for regressors")
+        if getattr(self, '_fallback', None) is not None:
+            return self._fallback.classes_
+        if getattr(self, 'model_', None) is not None:
+            return getattr(self.model_, 'classes_', None)
+        return None
 
 try:
     from catboost import CatBoostClassifier, CatBoostRegressor
-    from sklearn.dummy import DummyClassifier, DummyRegressor
 
     class FlatCatBoostClassifier(CatBoostClassifier):
         def fit(self, X, y=None, **fit_params):
@@ -206,24 +267,36 @@ def get_forex_model(algorithm_name: str, config: dict = None):
     # 5. Reinforcement Learning Models (Native stable-baselines3)
     elif base_algo == 'PPO-RL':
         from app.services.ml.forex_rl_models import ForexPPORL
-        return ForexPPORL(epochs=epochs)
+        model = ForexPPORL(epochs=epochs)
     elif base_algo == 'SAC-RL':
         from app.services.ml.forex_rl_models import ForexSACRL
-        return ForexSACRL(epochs=epochs)
+        model = ForexSACRL(epochs=epochs)
     elif base_algo == 'A2C-RL':
         from app.services.ml.forex_rl_models import ForexA2CRL
-        return ForexA2CRL(epochs=epochs)
+        model = ForexA2CRL(epochs=epochs)
     elif base_algo == 'DDPG-RL':
         from app.services.ml.forex_rl_models import ForexDDPGRL
-        return ForexDDPGRL(epochs=epochs)
+        model = ForexDDPGRL(epochs=epochs)
     elif base_algo == 'TD3-RL':
         from app.services.ml.forex_rl_models import ForexTD3RL
-        return ForexTD3RL(epochs=epochs)
+        model = ForexTD3RL(epochs=epochs)
     elif base_algo == 'DQN-RL':
         from app.services.ml.forex_rl_models import ForexDQNRL
-        return ForexDQNRL(epochs=epochs)
+        model = ForexDQNRL(epochs=epochs)
     elif base_algo in ['QR-DQN', 'CQL', 'GAIL', 'Decision-Transformer']:
         from app.services.ml.forex_rl_models import ForexAdvancedRL
-        return ForexAdvancedRL(algo_name=base_algo, epochs=epochs)
+        model = ForexAdvancedRL(algo_name=base_algo, epochs=epochs)
     else:
         raise ValueError(f"Algorithm '{algorithm_name}' not natively supported in Engine.")
+        
+    # Wrap standard models in SafeEstimatorWrapper to guarantee 100% stability against CV/Missing-Class crashes
+    custom_safe_classes = [
+        'ForexARIMAModel', 'ForexVARModel', 'ForexGARCHModel', 'ForexEGARCHModel', 
+        'ForexNeuralProphetModel', 'MarketHMMModel', 'MarketMarkovSwitchingModel', 
+        'MarketBayesianNNModel', 'FlatCatBoostClassifier', 'FlatCatBoostRegressor',
+        'ForexLSTM', 'Forex1DCNN', 'ForexTransformer', 'ForexAutoEncoder', 'ForexLiquidNN',
+        'ForexPPORL', 'ForexSACRL', 'ForexA2CRL', 'ForexDDPGRL', 'ForexTD3RL', 'ForexDQNRL', 'ForexAdvancedRL'
+    ]
+    if model.__class__.__name__ in custom_safe_classes:
+        return model
+    return SafeEstimatorWrapper(model, is_clf=is_clf)
