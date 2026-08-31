@@ -112,6 +112,7 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
     const [applyShapSelection, setApplyShapSelection] = useState(true);
     const [shapVarianceThreshold, setShapVarianceThreshold] = useState(0.95);
     const [missingDataThreshold, setMissingDataThreshold] = useState(0.20);
+    const [maxWarmupTolerance, setMaxWarmupTolerance] = useState(0.27);
     const [autoFeatureSelection, setAutoFeatureSelection] = useState(true);
     const [autoFeatureCount, setAutoFeatureCount] = useState(50);
     
@@ -732,6 +733,7 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                     prediction_target: predictionTarget,
                     missing_data_strategy: missingDataStrategy,
                     missing_data_threshold: missingDataThreshold,
+                    max_warmup_tolerance: maxWarmupTolerance,
                     auto_feature_selection: autoFeatureSelection,
                     auto_feature_count: autoFeatureCount,
                     outlier_removal: outlierRemoval,
@@ -1234,6 +1236,44 @@ const CryptoModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = 
                                             />
                                         </div>
                                     )}
+                                </div>
+                                
+                                {/* Dynamic Warmup Trimming Section */}
+                                <div className="mt-4 p-4 bg-white/5 border border-purple-500/10 rounded-2xl">
+                                    <h4 className="text-xs font-bold text-purple-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                                        <Activity className="w-4 h-4" /> Dynamic Warmup Trimming
+                                    </h4>
+                                    
+                                    <div className="p-3 bg-purple-500/5 border border-purple-500/20 rounded-xl space-y-3">
+                                        <div className="flex justify-between items-center text-[10px] text-slate-400 mb-1">
+                                            <span>Max Warmup Tolerance</span>
+                                            <div className="flex items-center gap-1">
+                                                <input 
+                                                    type="number" 
+                                                    min="5" max="50" step="1"
+                                                    disabled={isTraining}
+                                                    value={Math.round(maxWarmupTolerance * 100) || ""}
+                                                    onChange={(e) => {
+                                                        let val = parseInt(e.target.value);
+                                                        if (isNaN(val)) val = 27; // Graceful fallback
+                                                        setMaxWarmupTolerance(val / 100);
+                                                    }}
+                                                    className="w-12 bg-black/40 border border-white/10 rounded px-1 py-0.5 text-purple-400 font-bold text-right focus:outline-none focus:border-purple-500/50 disabled:opacity-50"
+                                                />
+                                                <span className="text-purple-400 font-bold">%</span>
+                                            </div>
+                                        </div>
+                                        <input 
+                                            type="range" min="5" max="50" step="1"
+                                            disabled={isTraining}
+                                            value={Math.round(maxWarmupTolerance * 100)} 
+                                            onChange={(e) => setMaxWarmupTolerance(parseInt(e.target.value) / 100)}
+                                            className="w-full accent-purple-500 h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer"
+                                        />
+                                        <p className="text-[9px] text-slate-500 mt-1 leading-tight">
+                                            Automatically trims initial rows containing NaNs. Rejects indicators if they demand trimming &gt;{(maxWarmupTolerance * 100).toFixed(0)}% of the dataset.
+                                        </p>
+                                    </div>
                                 </div>
                                 
                                 <FractionalDiffConfig 

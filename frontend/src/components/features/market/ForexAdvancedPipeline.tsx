@@ -45,6 +45,7 @@ export const FOREX_MODULES = [
         description: 'Trend identification and moving averages.',
         source: 'ohlcv',
         features: [
+            // --- Legacy Retail Metrics (12) ---
             { id: 'sma', name: 'Simple Moving Average (SMA)' },
             { id: 'ema', name: 'Exponential Moving Average (EMA)' },
             { id: 'wma', name: 'Weighted Moving Average (WMA)' },
@@ -56,7 +57,70 @@ export const FOREX_MODULES = [
             { id: 'macd_hist', name: 'MACD Histogram' },
             { id: 'parabolic_sar', name: 'Parabolic SAR' },
             { id: 'adx', name: 'ADX (Average Directional Index)' },
-            { id: 'supertrend', name: 'Supertrend' }
+            { id: 'supertrend', name: 'Supertrend' },
+            
+            // --- Advanced Quant Metrics (50) ---
+            // Phase 1: Foundation & Distance
+            { id: 'trend_dist_ema_9', name: 'Distance to EMA 9' },
+            { id: 'trend_dist_ema_21', name: 'Distance to EMA 21' },
+            { id: 'trend_dist_ema_50', name: 'Distance to EMA 50' },
+            { id: 'trend_dist_ema_200', name: 'Distance to EMA 200' },
+            { id: 'trend_dist_vwap', name: 'Distance to VWAP' },
+            { id: 'trend_spread_9_21', name: 'EMA Spread (9 vs 21)' },
+            { id: 'trend_spread_21_50', name: 'EMA Spread (21 vs 50)' },
+            { id: 'trend_spread_50_200', name: 'EMA Spread (50 vs 200)' },
+            { id: 'trend_ribbon_expansion_rate', name: 'Ribbon Expansion Rate' },
+            { id: 'trend_crossover_intensity', name: 'Crossover Intensity (Force)' },
+            
+            // Phase 2: Velocity & Acceleration
+            { id: 'trend_slope_ema_9', name: 'EMA 9 Slope (Velocity)' },
+            { id: 'trend_slope_ema_21', name: 'EMA 21 Slope (Velocity)' },
+            { id: 'trend_slope_ema_50', name: 'EMA 50 Slope (Velocity)' },
+            { id: 'trend_accel_ema_21', name: 'EMA 21 Acceleration' },
+            { id: 'trend_curvature_macd', name: 'MACD Histogram Curvature' },
+            
+            // Phase 3: DSP & Adaptive Filters
+            { id: 'trend_kama_efficiency', name: 'Kaufman Efficiency Ratio (KAMA)' },
+            { id: 'trend_hma_inflection', name: 'Hull MA (HMA) Inflection' },
+            { id: 'trend_alma_dist', name: 'Distance to ALMA' },
+            { id: 'trend_super_smoother_dist', name: 'Super Smoother Filter Distance' },
+            { id: 'trend_super_smoother_slope', name: 'Super Smoother Slope' },
+            { id: 'trend_jurik_proxy_dist', name: 'Jurik MA Proxy Distance' },
+            { id: 'trend_jurik_proxy_slope', name: 'Jurik MA Proxy Slope' },
+            { id: 'trend_kalman_error_proxy', name: 'Kalman Filter Error Proxy' },
+            { id: 'trend_kalman_velocity_proxy', name: 'Kalman State Velocity' },
+            { id: 'trend_butterworth_dist_proxy', name: 'Butterworth Filter Distance' },
+            { id: 'trend_fram_divergence_proxy', name: 'FRAM Divergence Proxy' },
+            
+            // Phase 4: Volatility, Volume & Regression
+            { id: 'trend_choppiness_index', name: 'Choppiness Index' },
+            { id: 'trend_polarized_fractal_eff', name: 'Polarized Fractal Efficiency (PFE)' },
+            { id: 'trend_vidya_dist', name: 'Distance to VIDYA (Vol Adjusted)' },
+            { id: 'trend_keltner_center_dist', name: 'Keltner Channel Center Distance' },
+            { id: 'trend_tii_score', name: 'Trend Intensity Index (TII)' },
+            { id: 'trend_vwmacd_hist', name: 'Volume Weighted MACD Histogram' },
+            { id: 'trend_vwmacd_signal_dist', name: 'VWMACD Signal Distance' },
+            { id: 'trend_mvwap_dist', name: 'Distance to Moving VWAP' },
+            { id: 'trend_pvts_slope', name: 'Price Volume Trend (PVT) Slope' },
+            { id: 'trend_volume_adjusted_ema_dist', name: 'Volume Adjusted EMA Distance' },
+            { id: 'trend_linreg_dist', name: 'Distance to Linear Regression' },
+            { id: 'trend_linreg_slope', name: 'Linear Regression Slope' },
+            { id: 'trend_linreg_error', name: 'Linear Regression Error' },
+            { id: 'trend_linreg_r2', name: 'Linear Regression R-Squared' },
+            { id: 'trend_polynomial_reg_dist_proxy', name: 'Polynomial Regression Distance' },
+            { id: 'trend_tsf_dist_proxy', name: 'Time Series Forecast Distance' },
+            { id: 'trend_lsma_dist_proxy', name: 'Least Squares MA Distance' },
+            { id: 'trend_linreg_angle', name: 'Linear Regression Angle' },
+            
+            // Phase 5: Macro & Exhaustion
+            { id: 'trend_mtf_alignment_score', name: 'MTF Alignment Score' },
+            { id: 'trend_adx_derivative', name: 'ADX Derivative (Strength Change)' },
+            { id: 'trend_dmi_spread_norm', name: 'DMI Spread (Normalized)' },
+            { id: 'trend_ichimoku_kumo_dist', name: 'Distance to Ichimoku Kumo' },
+            { id: 'trend_ichimoku_kumo_thickness', name: 'Ichimoku Kumo Thickness' },
+            { id: 'trend_aroon_oscillator', name: 'Aroon Oscillator' },
+            { id: 'trend_aroon_slope', name: 'Aroon Oscillator Slope' },
+            { id: 'trend_schaff_trend_cycle_proxy', name: 'Schaff Trend Cycle (STC) Proxy' }
         ]
     },
     {

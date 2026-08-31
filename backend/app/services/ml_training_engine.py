@@ -1278,17 +1278,61 @@ def train_model_task(job_id: str, db: Session):
         # FIX: Ensure no Infs exist
         df.replace([np.inf, -np.inf], np.nan, inplace=True)
         
-        # ── MISSING DATA THRESHOLD FILTER ──
+        # ── DYNAMIC WARMUP TRIMMING & MISSING DATA FILTER ──
         missing_threshold = config.get("missing_data_threshold")
+        max_warmup_tolerance = config.get("max_warmup_tolerance", 0.27)
+        
         if missing_threshold is not None and not (is_fine_tune or is_auto_resume):
             from app.services.ml_utils import apply_missing_data_threshold
             naturally_zero = ['liquidation_volume', 'spread', 'volume', 'buy_volume', 'sell_volume', 'trade_count', 'obi']
-            df, features = apply_missing_data_threshold(
-                df=df, 
-                threshold=float(missing_threshold), 
-                naturally_zero_features=naturally_zero, 
-                add_log=add_log
-            )
+            
+            if len(df) > 0:
+                # 1. Warmup Detection
+                total_rows = len(df)
+                max_warmup_allowed = int(total_rows * float(max_warmup_tolerance))
+                add_log(f"🧹 Running Data Cleaning. Max warmup tolerance: {float(max_warmup_tolerance)*100}% ({max_warmup_allowed} rows).")
+                
+                warmup_periods = {}
+                for col in df.columns:
+                    if col in naturally_zero or col in ['Target', 'Target_Direction', 'Target_SL', 'Target_TP']:
+                        continue
+                    series = df[col].values
+                    warmup_len = 0
+                    for val in series:
+                        if pd.isna(val):
+                            warmup_len += 1
+                        else:
+                            break
+                    if warmup_len > 0:
+                        warmup_periods[col] = warmup_len
+                
+                # 2. Lagging Feature Removal
+                features_to_drop = [col for col, warmup in warmup_periods.items() if warmup > max_warmup_allowed]
+                if features_to_drop:
+                    df.drop(columns=features_to_drop, inplace=True)
+                    add_log(f"✂️ Dropped {len(features_to_drop)} features exceeding warmup tolerance (e.g. {features_to_drop[:3]}).")
+                    for f in features_to_drop:
+                        del warmup_periods[f]
+                
+                # 3. Dynamic Trimming
+                rows_to_trim = max(warmup_periods.values()) if warmup_periods else 0
+                if rows_to_trim > 0:
+                    df = df.iloc[rows_to_trim:].copy()
+                    add_log(f"✂️ Dynamically trimmed top {rows_to_trim} rows to handle indicator warmup. Remaining rows: {len(df)}.")
+                    
+                # 4. Small Dataset Threshold Adjustment
+                final_threshold = float(missing_threshold)
+                if len(df) < 1000:
+                    final_threshold = max(0.85, final_threshold)
+                    add_log(f"📉 Dataset is small ({len(df)} rows). Auto-adjusted missing_data_threshold from {missing_threshold} to {final_threshold} to prevent feature wipeout.")
+                    
+                # 5. Standard Missing Data Filter
+                df, features = apply_missing_data_threshold(
+                    df=df, 
+                    threshold=final_threshold, 
+                    naturally_zero_features=naturally_zero, 
+                    add_log=add_log
+                )
 
         # Drop any remaining rows with NaNs after dropping bad columns
         df.dropna(inplace=True)

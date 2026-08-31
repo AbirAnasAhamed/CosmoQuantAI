@@ -41,6 +41,7 @@ export interface TrainingConfig {
         auto_feature_selection?: boolean;
         auto_feature_count?: number;
         missing_data_threshold?: number;
+        max_warmup_tolerance?: number;
         fee_threshold?: number;
         augmentation_strategy?: string;
         augmentation_factor?: number;
