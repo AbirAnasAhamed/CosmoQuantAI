@@ -129,15 +129,8 @@ class ForexMLTrainingEngine:
             self._log("Fetching Macroeconomic Calendar Data...")
             macro_events = economic_service.get_latest_indicators()
             self._log(f"Found {len(macro_events)} recent/upcoming high-impact events.")
+            # Note: Dummy macro_risk_flag generation has been removed to prevent training on mock data.
             
-            # For simplicity in this iteration, we create a dummy 'macro_risk' feature based on event proximity.
-            # In production, we would map exact dates to the dataframe index.
-            df['macro_risk_flag'] = 0
-            if macro_events:
-                # Mark random recent hours as high risk just to simulate the feature injection
-                # since the dataset might not overlap exactly with the *current* week's json feed.
-                df['macro_risk_flag'] = np.random.choice([0, 1], size=len(df), p=[0.95, 0.05])
-                
             self.job.progress = 50.0
             self.db.commit()
 
@@ -219,7 +212,7 @@ class ForexMLTrainingEngine:
                 from app.services.ml_fractional_diff import apply_fractional_differentiation
                 import gc
                 # Ensure we don't difference target, OHLC, or categorical features
-                exclude = ['target', 'open', 'high', 'low', 'close', 'tick_volume', 'is_asian', 'is_london', 'is_ny', 'macro_risk_flag', 'timestamp', 'time']
+                exclude = ['target', 'open', 'high', 'low', 'close', 'tick_volume', 'is_asian', 'is_london', 'is_ny', 'timestamp', 'time']
                 df = apply_fractional_differentiation(df, d_value=d_val, exclude_cols=exclude)
                 self._log(f"Fractional Differentiation complete. Shape: {df.shape}")
                 gc.collect()
@@ -229,7 +222,7 @@ class ForexMLTrainingEngine:
             missing_threshold = self.job.config.get("missing_data_threshold", 0.5)
             
             # Define naturally zero features before data cleaning (Only true binary/zero flags, NOT volume/spread)
-            naturally_zero = ['liquidation_volume', 'is_asian', 'is_london', 'is_ny', 'macro_risk_flag']
+            naturally_zero = ['liquidation_volume', 'is_asian', 'is_london', 'is_ny']
             
             if missing_threshold is not None:
                 from app.services.ml.forex_data_cleaning import advanced_forex_data_cleaning

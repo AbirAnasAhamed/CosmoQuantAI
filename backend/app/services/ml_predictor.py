@@ -286,6 +286,18 @@ def predict(model_id: str, symbol_override: Optional[str], db: Session, sequence
         except Exception as e:
             print(f"[ml_predictor] Failed to apply live PCA: {e}")
 
+    # ── 5.7 Inject Missing Base Heuristic Features ───────────────────────────
+    if 'macro_risk_flag' in features and 'macro_risk_flag' not in df.columns:
+        df['macro_risk_flag'] = 0
+    if 'is_asian' in features and 'is_asian' not in df.columns:
+        df['is_asian'] = ((df.index.hour >= 23) | (df.index.hour < 8)).astype(int)
+    if 'is_london' in features and 'is_london' not in df.columns:
+        df['is_london'] = ((df.index.hour >= 7) & (df.index.hour < 16)).astype(int)
+    if 'is_ny' in features and 'is_ny' not in df.columns:
+        df['is_ny'] = ((df.index.hour >= 12) & (df.index.hour < 21)).astype(int)
+    if 'liquidation_volume' in features and 'liquidation_volume' not in df.columns:
+        df['liquidation_volume'] = 0
+
     # ── 6. Prepare Feature Row / Sequence ────────────────────────────────────
     available_features = [f for f in features if f in df.columns]
     if not available_features:
