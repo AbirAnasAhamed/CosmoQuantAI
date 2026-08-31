@@ -813,13 +813,21 @@ class ForexMLTrainingEngine:
 
             # Generate and save metadata.json
             metadata_path = os.path.join(models_dir, f"{self.job_id}_{clean_symbol}_metadata.json")
+            job_config = self.job.config if hasattr(self.job, "config") and self.job.config else {}
             metadata = {
+                **job_config,
                 "features": list(X.columns),
                 "dataset_type": "forex",
                 "indicators": [],
                 "timeframe": self.job.timeframe,
                 "symbol": clean_symbol,
-                "prediction_target": "classification"
+                "prediction_target": "classification",
+                "model_name": final_name,
+                "algorithm": algorithm,
+                "accuracy": float(accuracy) if 'accuracy' in locals() else 0.0,
+                "latency": 10.0,
+                "explainability": explainability_data,
+                "selected_forex_features": job_config.get("selected_forex_features", [])
             }
             with open(metadata_path, "w") as f:
                 json.dump(metadata, f)

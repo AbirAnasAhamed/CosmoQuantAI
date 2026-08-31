@@ -14,7 +14,8 @@ const ModelTrainingStudio: React.FC<{ retrainModelId?: string | null }> = ({ ret
                 if (config) {
                     const isForex = 
                         config.dataset_type === 'forex' || 
-                        (config.symbol && config.symbol.includes('_'));
+                        config.config?.dataset_type === 'forex' ||
+                        (config.symbol && (config.symbol.includes('_') || config.symbol.includes('/')));
                     if (isForex) {
                         setMode('forex');
                     }

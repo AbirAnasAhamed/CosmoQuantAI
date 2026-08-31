@@ -2863,6 +2863,7 @@ def train_model_task(job_id: str, db: Session):
             trade_feats = config.get("hybrid_deep_trade_features", trade_feats)
 
         metadata_payload = {
+            **config,
             "features":         features,
             "dataset_type":     config.get("dataset_type", "ohlcv"),
             "indicators":       config.get("indicators", []),

@@ -105,20 +105,70 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
     const [activeJob, setActiveJob] = useState<ForexTrainingJob | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
 
+    const [isRetrainMode, setIsRetrainMode] = useState(false);
+    const [retrainModelName, setRetrainModelName] = useState<string>('');
+
     // Fetch config for retrain
     useEffect(() => {
         if (retrainModelId) {
+            setIsRetrainMode(true);
             mlModelsService.getModelConfig(retrainModelId).then((config) => {
                 if (config) {
-                    if (config.symbol) setSymbol(config.symbol);
-                    if (config.prediction_target) setPredictionTarget(config.prediction_target);
-                    if (config.forecast_horizon) setForecastHorizon(config.forecast_horizon);
-                    if (config.lookback_window) setLookbackWindow(config.lookback_window);
-                    if (config.eval_metric) setEvalMetric(config.eval_metric);
-                    if (config.algorithm) setAlgorithm(config.algorithm);
+                    if (config.model_name) setRetrainModelName(config.model_name);
                     
-                    if (config.features && Array.isArray(config.features)) {
-                        setSelectedForexFeatures(config.features);
+                    const actualConfig = config.config || config;
+                    if (config.symbol || actualConfig.symbol) setSymbol(config.symbol || actualConfig.symbol);
+                    if (actualConfig.prediction_target) setPredictionTarget(actualConfig.prediction_target);
+                    if (actualConfig.forecast_horizon) setForecastHorizon(actualConfig.forecast_horizon);
+                    if (actualConfig.lookback_window) setLookbackWindow(actualConfig.lookback_window);
+                    if (actualConfig.eval_metric) setEvalMetric(actualConfig.eval_metric);
+                    if (config.algorithm || actualConfig.algorithm) setAlgorithm(config.algorithm || actualConfig.algorithm);
+                    
+                    // Additional Core & Advanced Parameters
+                    if (actualConfig.broker) setBroker(actualConfig.broker);
+                    if (actualConfig.timeframe || config.timeframe) setTimeframe(actualConfig.timeframe || config.timeframe);
+                    if (actualConfig.use_triple_barrier !== undefined) setUseTripleBarrier(actualConfig.use_triple_barrier);
+                    if (actualConfig.pt_sl_ratio) setPtSlRatio(actualConfig.pt_sl_ratio);
+                    if (actualConfig.barrier_timeout) setBarrierTimeout(actualConfig.barrier_timeout);
+                    if (actualConfig.epochs) setEpochs(actualConfig.epochs);
+                    if (actualConfig.learning_rate) setLearningRate(actualConfig.learning_rate);
+                    if (actualConfig.max_depth) setMaxDepth(actualConfig.max_depth);
+                    if (actualConfig.enable_meta_labeling !== undefined) setEnableMetaLabeling(actualConfig.enable_meta_labeling);
+                    if (actualConfig.data_source_type) setDataSource(actualConfig.data_source_type);
+                    else if (actualConfig.dataset_type && actualConfig.dataset_type !== 'forex') setDataSource(actualConfig.dataset_type);
+                    
+                    if (actualConfig.outlier_removal) setOutlierRemoval(actualConfig.outlier_removal);
+                    if (actualConfig.scaling_method) setScalingMethod(actualConfig.scaling_method);
+                    if (actualConfig.fractional_diff !== undefined) setFractionalDiff(actualConfig.fractional_diff);
+                    if (actualConfig.fractional_d_value !== undefined) setFractionalDValue(actualConfig.fractional_d_value);
+                    if (actualConfig.augmentation_strategy) setAugmentationStrategy(actualConfig.augmentation_strategy);
+                    if (actualConfig.augmentation_factor !== undefined) setAugmentationFactor(actualConfig.augmentation_factor);
+                    if (actualConfig.augmentation_samples !== undefined) setAugmentationSamples(actualConfig.augmentation_samples);
+                    if (actualConfig.use_clustered_importance !== undefined) setUseClusteredImportance(actualConfig.use_clustered_importance);
+                    if (actualConfig.enable_adversarial !== undefined) setEnableAdversarial(actualConfig.enable_adversarial);
+                    if (actualConfig.adversarial_epsilon !== undefined) setAdversarialEpsilon(actualConfig.adversarial_epsilon);
+                    if (actualConfig.apply_pca_collinearity !== undefined) setApplyPcaCollinearity(actualConfig.apply_pca_collinearity);
+                    if (actualConfig.apply_shap_selection !== undefined) setApplyShapSelection(actualConfig.apply_shap_selection);
+                    if (actualConfig.shap_variance_threshold !== undefined) setShapVarianceThreshold(actualConfig.shap_variance_threshold);
+                    if (actualConfig.missing_data_threshold !== undefined) setMissingDataThreshold(actualConfig.missing_data_threshold);
+                    if (actualConfig.max_warmup_tolerance !== undefined) setMaxWarmupTolerance(actualConfig.max_warmup_tolerance);
+                    if (actualConfig.auto_feature_selection !== undefined) setAutoFeatureSelection(actualConfig.auto_feature_selection);
+                    if (actualConfig.auto_feature_count !== undefined) setAutoFeatureCount(actualConfig.auto_feature_count);
+                    if (actualConfig.split_method) setSplitMethod(actualConfig.split_method);
+                    if (actualConfig.train_ratio !== undefined) setTrainRatio(actualConfig.train_ratio);
+                    if (actualConfig.val_ratio !== undefined) setValRatio(actualConfig.val_ratio);
+                    if (actualConfig.test_ratio !== undefined) setTestRatio(actualConfig.test_ratio);
+                    if (actualConfig.imbalance_strategy) setImbalanceStrategy(actualConfig.imbalance_strategy);
+                    if (actualConfig.fee_threshold !== undefined) setFeeThreshold(actualConfig.fee_threshold);
+                    if (actualConfig.purge_length !== undefined) setPurgeLength(actualConfig.purge_length);
+                    if (actualConfig.use_automl !== undefined) setUseAutoMl(actualConfig.use_automl);
+                    if (actualConfig.automl_trials !== undefined) setAutoMlTrials(actualConfig.automl_trials);
+                    if (actualConfig.feature_selection_method) setFeatureSelectionMethod(actualConfig.feature_selection_method);
+                    if (actualConfig.wfo_windows !== undefined) setWfoWindows(actualConfig.wfo_windows);
+                    
+                    const features = actualConfig.selected_forex_features || actualConfig.features || actualConfig.indicators || actualConfig.feature_list;
+                    if (features && Array.isArray(features) && features.length > 0) {
+                        setSelectedForexFeatures(features);
                     }
                 }
             }).catch(console.error);
@@ -694,11 +744,15 @@ const ForexModelTrainingStudio: React.FC<ForexModelTrainingStudioProps> = ({ ret
             <header className="flex items-center gap-4 z-10 px-2 mt-2">
                 <h2 className="text-xl font-black text-white flex items-center gap-2">
                     <Globe className="w-5 h-5 text-teal-400" />
-                    Forex ML Intelligence Studio
+                    {isRetrainMode ? "Forex Model Retraining Studio" : "Forex ML Intelligence Studio"}
+                    {isRetrainMode && <div className="w-1.5 h-1.5 bg-teal-500 rounded-full animate-ping ml-2"></div>}
                 </h2>
                 <div className="w-px h-4 bg-white/20"></div>
                 <div className="text-slate-400 text-xs font-medium tracking-wide flex items-center gap-2">
-                    Decentralized Market Modeling with Macro-Economic Pipelines
+                    {isRetrainMode 
+                        ? <span className="flex items-center gap-2">Fine-tuning: <span className="text-teal-400 font-bold bg-teal-500/10 px-2 py-0.5 rounded border border-teal-500/30">{retrainModelName || retrainModelId}</span> Add new features to increase intelligence.</span>
+                        : "Decentralized Market Modeling with Macro-Economic Pipelines"
+                    }
                 </div>
             </header>
 
