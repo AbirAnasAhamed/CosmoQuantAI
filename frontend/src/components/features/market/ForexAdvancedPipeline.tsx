@@ -130,6 +130,7 @@ export const FOREX_MODULES = [
         description: 'Overbought/Oversold and rate of change.',
         source: 'ohlcv',
         features: [
+            // --- Legacy Retail Metrics (9) ---
             { id: 'rsi', name: 'RSI (Relative Strength Index)' },
             { id: 'stoch_k', name: 'Stochastic %K' },
             { id: 'stoch_d', name: 'Stochastic %D' },
@@ -138,7 +139,59 @@ export const FOREX_MODULES = [
             { id: 'cci', name: 'Commodity Channel Index (CCI)' },
             { id: 'momentum', name: 'Momentum (MOM)' },
             { id: 'awesome_oscillator', name: 'Awesome Oscillator (AO)' },
-            { id: 'tsi', name: 'True Strength Index (TSI)' }
+            { id: 'tsi', name: 'True Strength Index (TSI)' },
+            
+            // --- Advanced Quant Metrics (41) ---
+            // Phase 1: Core Oscillators & Derivatives
+            { id: 'mom_crsi', name: 'Connors RSI Proxy' },
+            { id: 'mom_uo', name: 'Ultimate Oscillator' },
+            { id: 'mom_cmo', name: 'Chande Momentum Oscillator' },
+            { id: 'mom_ppo', name: 'Percentage Price Oscillator' },
+            { id: 'mom_rsi_velocity', name: 'RSI Velocity (Speed)' },
+            { id: 'mom_rsi_acceleration', name: 'RSI Acceleration' },
+            { id: 'mom_stoch_velocity', name: 'Stochastic Velocity' },
+            { id: 'mom_cci_velocity', name: 'CCI Velocity' },
+            { id: 'mom_roc_accel', name: 'ROC Acceleration' },
+            { id: 'mom_macd_norm', name: 'MACD Normalized Factor' },
+            
+            // Phase 2: Divergence Proxies & Gaussian Filters
+            { id: 'mom_rsi_div_proxy', name: 'RSI Divergence Proxy' },
+            { id: 'mom_stoch_div_proxy', name: 'Stochastic Divergence Proxy' },
+            { id: 'mom_macd_div_proxy', name: 'MACD Divergence Proxy' },
+            { id: 'mom_fisher_transform', name: 'Fisher Transform' },
+            { id: 'mom_cg_oscillator', name: 'Center of Gravity (CG)' },
+            { id: 'mom_rvi', name: 'Relative Vigor Index (RVI)' },
+            { id: 'mom_trix', name: 'TRIX (Triple EMA ROC)' },
+            { id: 'mom_coppock_proxy', name: 'Coppock Curve Proxy' },
+            
+            // Phase 3: Volume-Weighted & Asymmetric Momentum
+            { id: 'mom_mfi', name: 'Money Flow Index (MFI)' },
+            { id: 'mom_cmf', name: 'Chaikin Money Flow (CMF)' },
+            { id: 'mom_vw_roc', name: 'Volume Weighted ROC' },
+            { id: 'mom_elder_bull', name: 'Elder Ray Bull Power' },
+            { id: 'mom_elder_bear', name: 'Elder Ray Bear Power' },
+            { id: 'mom_qstick', name: 'QStick Indicator' },
+            { id: 'mom_chande_kroll_proxy', name: 'Chande Kroll Stop Proxy' },
+            
+            // Phase 4: MTF & DSP Smoothed Momentum
+            { id: 'mom_kst', name: 'Know Sure Thing (KST)' },
+            { id: 'mom_kst_signal', name: 'KST Signal Line' },
+            { id: 'mom_ehlers_rsi', name: 'Ehlers Smoothed RSI Proxy' },
+            { id: 'mom_dss_bressert', name: 'DSS Bressert Proxy' },
+            { id: 'mom_fractal_energy', name: 'Momentum Fractal Energy' },
+            { id: 'mom_inertia', name: 'Inertia Indicator' },
+            { id: 'mom_stoch_rsi_k', name: 'StochRSI %K' },
+            { id: 'mom_stoch_rsi_d', name: 'StochRSI %D' },
+            
+            // Phase 5: Statistical Extremes
+            { id: 'mom_rsi_skewness', name: 'RSI Skewness' },
+            { id: 'mom_rsi_kurtosis', name: 'RSI Kurtosis (Black Swan)' },
+            { id: 'mom_williams_z_score', name: 'Williams %R Z-Score' },
+            { id: 'mom_roc_accel_spread', name: 'ROC Accel Spread' },
+            { id: 'mom_tsi_signal', name: 'TSI Signal Line' },
+            { id: 'mom_stoch_rsi_div', name: 'StochRSI Divergence Proxy' },
+            { id: 'mom_rsi_z_score', name: 'RSI Z-Score' },
+            { id: 'mom_cci_z_score', name: 'CCI Z-Score' }
         ]
     },
     {
