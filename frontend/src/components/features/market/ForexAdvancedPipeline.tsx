@@ -201,6 +201,7 @@ export const FOREX_MODULES = [
         description: 'Market volatility and standard deviation bands.',
         source: 'ohlcv',
         features: [
+            // Phase 0: Legacy Retail Metrics (12)
             { id: 'true_range', name: 'True Range (TR)' },
             { id: 'atr', name: 'Average True Range (ATR)' },
             { id: 'bb_upper', name: 'Bollinger Bands Upper' },
@@ -212,7 +213,85 @@ export const FOREX_MODULES = [
             { id: 'donchian_upper', name: 'Donchian Channel Upper' },
             { id: 'donchian_lower', name: 'Donchian Channel Lower' },
             { id: 'historical_volatility', name: 'Historical Volatility' },
-            { id: 'choppiness_index', name: 'Choppiness Index' }
+            { id: 'choppiness_index', name: 'Choppiness Index' },
+            
+            // Phase 1: Stationary Band Distances (11)
+            { id: 'vol_bb_upper_dist', name: 'BB Upper Distance' },
+            { id: 'vol_bb_lower_dist', name: 'BB Lower Distance' },
+            { id: 'vol_bb_pct_b_z_score', name: 'Bollinger %B Z-Score' },
+            { id: 'vol_kc_upper_dist', name: 'Keltner Upper Distance' },
+            { id: 'vol_kc_lower_dist', name: 'Keltner Lower Distance' },
+            { id: 'vol_kc_mid_dist', name: 'Keltner Mid Distance' },
+            { id: 'vol_dc_upper_dist', name: 'Donchian Upper Distance' },
+            { id: 'vol_dc_lower_dist', name: 'Donchian Lower Distance' },
+            { id: 'vol_dc_width_roc', name: 'Donchian Width Expansion Rate' },
+            { id: 'vol_accband_upper_dist', name: 'Acceleration Bands Upper Dist' },
+            { id: 'vol_accband_lower_dist', name: 'Acceleration Bands Lower Dist' },
+            
+            // Phase 2: ATR & True Range Derivatives (5)
+            { id: 'vol_atr_velocity', name: 'ATR Velocity' },
+            { id: 'vol_atr_acceleration', name: 'ATR Acceleration' },
+            { id: 'vol_atr_ratio_14_50', name: 'ATR Ratio (14/50)' },
+            { id: 'vol_natr', name: 'Normalized ATR (NATR)' },
+            { id: 'vol_tr_z_score', name: 'True Range Z-Score' },
+            
+            // Phase 3: Squeeze & Standard Deviation Dynamics (5)
+            { id: 'vol_bb_kc_squeeze_ratio', name: 'BB/KC Squeeze Ratio' },
+            { id: 'vol_squeeze_momentum', name: 'Squeeze Momentum' },
+            { id: 'vol_dc_width_z_score', name: 'Donchian Width Z-Score' },
+            { id: 'vol_std_dev_velocity', name: 'StdDev Velocity' },
+            { id: 'vol_std_dev_acceleration', name: 'StdDev Acceleration' },
+            
+            // Phase 4: Advanced Hedge-Fund Estimators (8)
+            { id: 'vol_yang_zhang', name: 'Yang-Zhang Volatility' },
+            { id: 'vol_garman_klass', name: 'Garman-Klass Volatility' },
+            { id: 'vol_parkinson', name: 'Parkinson Volatility' },
+            { id: 'vol_hodges_tompkins', name: 'Hodges-Tompkins Volatility' },
+            { id: 'vol_ulcer_index', name: 'Ulcer Index' },
+            { id: 'vol_mass_index', name: 'Mass Index' },
+            { id: 'vol_rvi_volatility', name: 'Relative Volatility Index (RVI)' },
+            { id: 'vol_hv_ratio_10_30', name: 'Historical Volatility Ratio (10/30)' },
+            
+            // Phase 5: Vortex & Statistical Extremes (7)
+            { id: 'vol_vortex_pos', name: 'Vortex Indicator (+VI)' },
+            { id: 'vol_vortex_neg', name: 'Vortex Indicator (-VI)' },
+            { id: 'vol_vortex_diff', name: 'Vortex Directional Difference' },
+            { id: 'vol_atr_skewness', name: 'ATR Skewness' },
+            { id: 'vol_atr_kurtosis', name: 'ATR Kurtosis' },
+            { id: 'vol_chandelier_long_dist', name: 'Chandelier Exit Long Dist' },
+            { id: 'vol_chandelier_short_dist', name: 'Chandelier Exit Short Dist' },
+            
+            // Phase 6: MTF & DSP Envelopes (8)
+            { id: 'vol_mtf_atr_proxy', name: 'MTF ATR Proxy' },
+            { id: 'vol_hw_channel_upper_dist', name: 'Holt-Winter Upper Dist' },
+            { id: 'vol_hw_channel_lower_dist', name: 'Holt-Winter Lower Dist' },
+            { id: 'vol_hw_channel_width', name: 'Holt-Winter Width' },
+            { id: 'vol_starbands_upper_dist', name: 'STARC Bands Upper Dist' },
+            { id: 'vol_starbands_lower_dist', name: 'STARC Bands Lower Dist' },
+            { id: 'vol_kama_atr_upper_dist', name: 'KAMA-ATR Upper Dist' },
+            { id: 'vol_kama_atr_lower_dist', name: 'KAMA-ATR Lower Dist' },
+            
+            // Phase 7: Asymmetric Volatility (6)
+            { id: 'vol_up_day_tr', name: 'Up-Day True Range' },
+            { id: 'vol_down_day_tr', name: 'Down-Day True Range' },
+            { id: 'vol_tr_asymmetry_ratio', name: 'TR Asymmetry Ratio' },
+            { id: 'vol_std_dev_up', name: 'Positive Return StdDev' },
+            { id: 'vol_std_dev_down', name: 'Negative Return StdDev' },
+            { id: 'vol_std_dev_asymmetry', name: 'StdDev Asymmetry Difference' },
+            
+            // Phase 8: High-Low Spread & DSP (12)
+            { id: 'vol_fractal_dimension_proxy', name: 'Fractal Dimension Proxy' },
+            { id: 'vol_choppiness_z_score', name: 'Choppiness Z-Score' },
+            { id: 'vol_ehlers_atr', name: 'Ehlers Smoothed ATR' },
+            { id: 'vol_std_dev_log', name: 'Log Standard Deviation' },
+            { id: 'vol_hl_spread', name: 'High-Low Spread' },
+            { id: 'vol_hl_spread_z_score', name: 'High-Low Spread Z-Score' },
+            { id: 'vol_open_close_spread', name: 'Open-Close Body Spread' },
+            { id: 'vol_body_to_range_ratio', name: 'Body-to-Range Ratio' },
+            { id: 'vol_volatility_breakout_proxy', name: 'Volatility Breakout Proxy' },
+            { id: 'vol_price_bb_upper_z_score', name: 'Price to BB Upper Z-Score' },
+            { id: 'vol_price_bb_lower_z_score', name: 'Price to BB Lower Z-Score' },
+            { id: 'vol_price_bb_mid_z_score', name: 'Price to BB Mid Z-Score' }
         ]
     },
     {
