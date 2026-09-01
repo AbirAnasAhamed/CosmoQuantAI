@@ -301,12 +301,84 @@ export const FOREX_MODULES = [
         description: 'Forex tick volume based indicators.',
         source: 'ohlcv',
         features: [
+            // Phase 0: Legacy Retail Metrics (6)
             { id: 'obv', name: 'On-Balance Volume (OBV)' },
             { id: 'volume_sma', name: 'Volume SMA' },
             { id: 'vroc', name: 'Volume Rate of Change (VROC)' },
             { id: 'mfi', name: 'Money Flow Index (MFI)' },
             { id: 'force_index', name: 'Force Index' },
-            { id: 'cmf', name: 'Chaikin Money Flow (CMF)' }
+            { id: 'cmf', name: 'Chaikin Money Flow (CMF)' },
+
+            // Phase 1: Volume Momentum & Trend (6)
+            { id: 'vol_volume_ema', name: 'Volume EMA' },
+            { id: 'vol_volume_oscillator', name: 'Volume Oscillator' },
+            { id: 'vol_pvi', name: 'Positive Volume Index (PVI)' },
+            { id: 'vol_nvi', name: 'Negative Volume Index (NVI)' },
+            { id: 'vol_vpt', name: 'Volume Price Trend (VPT)' },
+            { id: 'vol_adi', name: 'Accumulation/Distribution Index (ADI)' },
+
+            // Phase 2: Statistical Volume Anomalies (5)
+            { id: 'vol_rel_vol', name: 'Relative Volume (RVOL)' },
+            { id: 'vol_volume_z_score', name: 'Volume Z-Score' },
+            { id: 'vol_volume_std_dev', name: 'Volume StdDev' },
+            { id: 'vol_volume_skewness', name: 'Volume Skewness' },
+            { id: 'vol_volume_kurtosis', name: 'Volume Kurtosis' },
+
+            // Phase 3: Demand/Supply & Money Flow (6)
+            { id: 'vol_kvo', name: 'Klinger Volume Oscillator (KVO)' },
+            { id: 'vol_eom', name: 'Ease of Movement (EOM)' },
+            { id: 'vol_vwma', name: 'Volume Weighted Moving Average (VWMA)' },
+            { id: 'vol_vwma_dist', name: 'VWMA Distance' },
+            { id: 'vol_vwap_proxy', name: 'Rolling VWAP Proxy' },
+            { id: 'vol_twap_proxy', name: 'TWAP Proxy' },
+
+            // Phase 4: Directional Volume Asymmetry (5)
+            { id: 'vol_up_day_volume', name: 'Up-Day Volume' },
+            { id: 'vol_down_day_volume', name: 'Down-Day Volume' },
+            { id: 'vol_volume_asymmetry_ratio', name: 'Volume Asymmetry Ratio' },
+            { id: 'vol_cvd_proxy', name: 'Cumulative Volume Delta (CVD) Proxy' },
+            { id: 'vol_efi_13', name: "Elder's Force Index (Smoothed)" },
+
+            // Phase 5: Price-Volume Divergence (5)
+            { id: 'vol_price_vol_trend', name: 'Price vs Volume Trend' },
+            { id: 'vol_clv', name: 'Close Location Value (CLV)' },
+            { id: 'vol_eff_ratio_vol', name: 'Volume Efficiency Ratio' },
+            { id: 'vol_vortex_vol_adjusted', name: 'Volume-Adjusted Vortex' },
+            { id: 'vol_pvo', name: 'Percentage Volume Oscillator (PVO)' },
+
+            // Phase 6: Volume Envelopes & Squeeze (6)
+            { id: 'vol_volume_bb_upper', name: 'Volume BB Upper' },
+            { id: 'vol_volume_bb_lower', name: 'Volume BB Lower' },
+            { id: 'vol_volume_bb_width', name: 'Volume BB Width' },
+            { id: 'vol_volume_kc_upper', name: 'Volume KC Upper' },
+            { id: 'vol_volume_kc_lower', name: 'Volume KC Lower' },
+            { id: 'vol_volume_squeeze', name: 'Volume Squeeze Proxy' },
+
+            // Phase 7: Volume-Weighted Advanced Indicators (VWI) (5)
+            { id: 'vol_vwmacd', name: 'Volume-Weighted MACD' },
+            { id: 'vol_vwmacd_signal', name: 'VWMACD Signal' },
+            { id: 'vol_vwmacd_hist', name: 'VWMACD Histogram' },
+            { id: 'vol_mfi_stochastic', name: 'Stochastic MFI' },
+            { id: 'vol_price_roc_vol_roc_ratio', name: 'Price ROC / Vol ROC Ratio' },
+
+            // Phase 8: Log-Normal Statistical Extremes (9)
+            { id: 'vol_log_volume', name: 'Log Volume' },
+            { id: 'vol_log_volume_z_score', name: 'Log Volume Z-Score' },
+            { id: 'vol_obv_z_score', name: 'OBV Z-Score' },
+            { id: 'vol_obv_acceleration', name: 'OBV Acceleration' },
+            { id: 'vol_obv_sma_crossover', name: 'OBV / SMA Crossover Dist' },
+            { id: 'vol_mfi_z_score', name: 'MFI Z-Score' },
+            { id: 'vol_cmf_z_score', name: 'CMF Z-Score' },
+            { id: 'vol_cmf_momentum', name: 'CMF Momentum' },
+            { id: 'vol_tick_volume_fractal_dimension', name: 'Tick Volume Fractal Dimension' },
+
+            // Phase 9: Buying & Selling Pressure (6)
+            { id: 'vol_buying_pressure', name: 'True Buying Pressure' },
+            { id: 'vol_selling_pressure', name: 'True Selling Pressure' },
+            { id: 'vol_net_pressure_oscillator', name: 'Net Pressure Oscillator' },
+            { id: 'vol_volume_roc_10', name: 'Volume ROC (10)' },
+            { id: 'vol_volume_roc_20', name: 'Volume ROC (20)' },
+            { id: 'vol_mtf_vwap_proxy', name: 'Macro VWAP Proxy' }
         ]
     },
     {
