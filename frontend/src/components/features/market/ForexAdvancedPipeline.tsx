@@ -388,9 +388,110 @@ export const FOREX_MODULES = [
         description: 'Distribution tails, skewness, and variance.',
         source: 'ohlcv',
         features: [
+            // Phase 0: Legacy Statistical Metrics (3)
             { id: 'rolling_std', name: 'Rolling Standard Deviation' },
             { id: 'rolling_skewness', name: 'Rolling Skewness' },
-            { id: 'rolling_kurtosis', name: 'Rolling Kurtosis' }
+            { id: 'rolling_kurtosis', name: 'Rolling Kurtosis' },
+
+            // Phase 1: Distribution Moments (5)
+            { id: 'stat_rolling_variance', name: 'Rolling Variance' },
+            { id: 'stat_rolling_skewness_adj', name: 'Adjusted Skewness' },
+            { id: 'stat_rolling_kurtosis_adj', name: 'Adjusted Kurtosis' },
+            { id: 'stat_jarque_bera_proxy', name: 'Jarque-Bera Proxy' },
+            { id: 'stat_z_score_close', name: 'Close Price Z-Score' },
+
+            // Phase 2: Autocorrelation (5)
+            { id: 'stat_autocorr_lag1', name: 'Autocorrelation (Lag 1)' },
+            { id: 'stat_autocorr_lag3', name: 'Autocorrelation (Lag 3)' },
+            { id: 'stat_autocorr_lag5', name: 'Autocorrelation (Lag 5)' },
+            { id: 'stat_autocorr_lag10', name: 'Autocorrelation (Lag 10)' },
+            { id: 'stat_ljung_box_q_proxy', name: 'Ljung-Box Q Proxy' },
+
+            // Phase 3: Stationarity & Random Walk Analysis (4)
+            { id: 'stat_hurst_exponent', name: 'Hurst Exponent (Proxy)' },
+            { id: 'stat_variance_ratio', name: 'Variance Ratio Test' },
+            { id: 'stat_adf_statistic_proxy', name: 'ADF Statistic Proxy' },
+            { id: 'stat_half_life_mean_reversion', name: 'Mean Reversion Half-Life' },
+
+            // Phase 4: Entropy & Information Theory (3)
+            { id: 'stat_shannon_entropy', name: 'Shannon Entropy Proxy' },
+            { id: 'stat_approximate_entropy', name: 'Approximate Entropy' },
+            { id: 'stat_sample_entropy', name: 'Sample Entropy' },
+
+            // Phase 5: Time-Series Transformation (4)
+            { id: 'stat_fractional_differencing_d0_5', name: 'Fractional Differencing (d=0.5)' },
+            { id: 'stat_log_returns', name: 'Log Returns' },
+            { id: 'stat_cumulative_log_returns', name: 'Cumulative Log Returns' },
+            { id: 'stat_log_return_momentum', name: 'Log Return Momentum' },
+
+            // Phase 6: Risk-Adjusted Return Statistics (4)
+            { id: 'stat_sharpe_ratio_rolling', name: 'Rolling Sharpe Ratio' },
+            { id: 'stat_sortino_ratio_rolling', name: 'Rolling Sortino Ratio' },
+            { id: 'stat_calmar_ratio_proxy', name: 'Calmar Ratio Proxy' },
+            { id: 'stat_omega_ratio_proxy', name: 'Omega Ratio Proxy' },
+
+            // Phase 7: Linear Regression & Trend Statistics (5)
+            { id: 'stat_linear_regression_slope', name: 'Linear Regression Slope' },
+            { id: 'stat_linear_regression_intercept', name: 'Linear Regression Intercept' },
+            { id: 'stat_r_squared_trend', name: 'Trend R-Squared' },
+            { id: 'stat_standard_error', name: 'Standard Error' },
+            { id: 'stat_beta_vs_ma', name: 'Beta vs Moving Average' },
+
+            // Phase 8: Tail Risk & Extreme Events (5)
+            { id: 'stat_value_at_risk_95', name: 'Value at Risk (95%)' },
+            { id: 'stat_expected_shortfall_95', name: 'Expected Shortfall (CVaR)' },
+            { id: 'stat_max_drawdown_rolling', name: 'Rolling Max Drawdown' },
+            { id: 'stat_drawdown_duration', name: 'Drawdown Duration' },
+            { id: 'stat_tail_ratio', name: 'Tail Ratio (Pos/Neg Vol)' },
+
+            // Phase 9: Physics-Based Kinematic Statistics (8)
+            { id: 'stat_geometric_mean_return', name: 'Geometric Mean Return' },
+            { id: 'stat_harmonic_mean_proxy', name: 'Harmonic Mean Proxy' },
+            { id: 'stat_price_velocity', name: 'Price Velocity (1st Deriv)' },
+            { id: 'stat_price_acceleration', name: 'Price Acceleration (2nd Deriv)' },
+            { id: 'stat_jerk_metric', name: 'Price Jerk (3rd Deriv)' },
+            { id: 'stat_snap_metric', name: 'Price Snap (4th Deriv)' },
+            { id: 'stat_hurst_derivative', name: 'Hurst Exponent Velocity' },
+            { id: 'stat_entropy_velocity', name: 'Entropy Velocity' },
+
+            // Phase 10: Spectral & Frequency Domain (5)
+            { id: 'stat_dominant_cycle_period', name: 'Dominant Cycle Period' },
+            { id: 'stat_phase_angle', name: 'Cycle Phase Angle' },
+            { id: 'stat_signal_to_noise_ratio', name: 'Signal-to-Noise Ratio (SNR)' },
+            { id: 'stat_hilbert_transform_sine', name: 'Hilbert Transform (Sine)' },
+            { id: 'stat_hilbert_transform_cosine', name: 'Hilbert Transform (Cosine)' },
+
+            // Phase 11: Non-linear Dynamics & Chaos Theory (3)
+            { id: 'stat_lyapunov_exponent_proxy', name: 'Lyapunov Exponent Proxy' },
+            { id: 'stat_correlation_dimension_proxy', name: 'Correlation Dimension Proxy' },
+            { id: 'stat_dfa', name: 'Detrended Fluctuation Analysis' },
+
+            // Phase 12: Probability & Markov Chain Proxies (4)
+            { id: 'stat_transition_prob_up_up', name: 'Markov Prob (Up | Up)' },
+            { id: 'stat_transition_prob_down_down', name: 'Markov Prob (Down | Down)' },
+            { id: 'stat_transition_prob_reversal', name: 'Markov Prob (Reversal)' },
+            { id: 'stat_markov_regime_state', name: 'Markov Regime State (Vol)' },
+
+            // Phase 13: Higher Order Return Statistics (3)
+            { id: 'stat_autocorr_decay_rate', name: 'Autocorrelation Decay Rate' },
+            { id: 'stat_partial_autocorr_lag1', name: 'PACF Proxy (Lag 1)' },
+            { id: 'stat_partial_autocorr_lag3', name: 'PACF Proxy (Lag 3)' },
+
+            // Phase 14: Distance & Geometry Metrics (4)
+            { id: 'stat_euclidean_distance_rolling', name: 'Rolling Euclidean Distance' },
+            { id: 'stat_path_length_rolling', name: 'Rolling Path Length' },
+            { id: 'stat_efficiency_ratio_kaufman', name: 'Kaufman Efficiency Ratio' },
+            { id: 'stat_center_of_gravity', name: 'Ehlers Center of Gravity' },
+
+            // Phase 15: Cross-Series Correlation & Asymmetric Ratios (8)
+            { id: 'stat_covariance_price_volume', name: 'Price-Volume Covariance' },
+            { id: 'stat_beta_price_volume', name: 'Price-Volume Beta' },
+            { id: 'stat_spearman_rank_corr', name: 'Spearman Rank Correlation' },
+            { id: 'stat_kendall_tau_corr', name: 'Kendall Tau Concordance' },
+            { id: 'stat_information_ratio_proxy', name: 'Information Ratio Proxy' },
+            { id: 'stat_ulcer_index_proxy', name: 'Ulcer Index Proxy' },
+            { id: 'stat_pain_index_proxy', name: 'Pain Index Proxy' },
+            { id: 'stat_cross_sectional_momentum', name: 'Cross-Sectional Momentum (10 vs 50)' }
         ]
     },
     {

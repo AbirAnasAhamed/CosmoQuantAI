@@ -194,14 +194,10 @@ def generate_ohlcv_features(df: pd.DataFrame, selected_features: list[str]) -> p
                 logger.warning("Volume data missing, skipping volume-based metrics.")
 
         # --- 6. Statistical & Time-Series ---
-        if 'rolling_std' in selected_features:
-            df['rolling_std'] = df['close'].rolling(window=20).std()
-        if 'rolling_skewness' in selected_features:
-            ret = np.log(df['close'] / df['close'].shift(1))
-            df['rolling_skewness'] = ret.rolling(window=20).skew()
-        if 'rolling_kurtosis' in selected_features:
-            ret = np.log(df['close'] / df['close'].shift(1))
-            df['rolling_kurtosis'] = ret.rolling(window=20).kurt()
+        stat_features = [f for f in selected_features if f.startswith('stat_') or f in ['rolling_std', 'rolling_skewness', 'rolling_kurtosis']]
+        if stat_features:
+            from app.services.advanced_ml.features.forex.statistical_features import StatisticalFeatures
+            df = StatisticalFeatures.calculate_all(df, requested_features=stat_features)
 
         # --- 7. Call SMC & Psychology Engine ---
         # If any SMC, Candlestick, or Psychology features were selected, process them
