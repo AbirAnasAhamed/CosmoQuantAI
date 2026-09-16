@@ -53,6 +53,14 @@ class AdvancedOrderbookService:
         self.min_vol = min_vol
         logger.info(f"[{self.symbol}] Orderbook config updated: num_zones={num_zones}, min_vol={min_vol}")
 
+    def _get_ccxt_symbol(self, ex_id: str) -> str:
+        """Helper to get properly formatted unified CCXT swap symbol"""
+        sym = self.symbol
+        if ex_id == 'binance' and ':' not in sym and '/' in sym:
+            base, quote = sym.split('/')
+            sym = f"{sym}:{quote}"
+        return sym
+
     def _estimate_leverage(self, current_price: float, zone_price: float) -> str:
         """Estimates the liquidation leverage based on mathematical distance from current price."""
         distance_pct = abs(current_price - zone_price) / current_price * 100
@@ -78,15 +86,16 @@ class AdvancedOrderbookService:
             for price, amount in orders:
                 if current_price == 0: continue
                 
-                # Filter out immediate noise: Ignore orders within 0.5% of current price.
-                # Liquidation pools are usually further away, while immediate orders are just normal market depth.
-                if abs(price - current_price) / current_price < 0.005:
+                # Filter out immediate noise: Ignore orders very close to the current price.
+                # Adjusted to 0.1% to allow BTC which has small tick sizes relative to price.
+                if abs(price - current_price) / current_price < 0.001:
                     continue
                     
                 # Calculate nearest 0.2% bin
                 bin_step = current_price * 0.002
                 bin_price = round(price / bin_step) * bin_step
-                bins[bin_price] = bins.get(bin_price, 0) + amount
+                vol_usd = amount * price
+                bins[bin_price] = bins.get(bin_price, 0) + vol_usd
             return bins
             
         bid_bins = _bin_orders(bids, is_ask=False)
@@ -248,13 +257,14 @@ class AdvancedOrderbookService:
         exchange = await self._init_exchange('binance')
         logger.info(f"AdvancedOrderbookService: Started live orderbook stream for {self.symbol}")
         
-        # Add limit to watch_order_book call directly if exchange allows, else we slice later
-        limit = 100 
+        # Fetch maximum allowed depth so we get orders far away from current price
+        limit = 1000 
         
         while self._running:
             try:
+                ccxt_symbol = self._get_ccxt_symbol('binance')
                 # CCXT watch_order_book handles websocket management internally
-                orderbook = await exchange.watch_order_book(self.symbol, limit)
+                orderbook = await exchange.watch_order_book(ccxt_symbol, limit)
                 
                 # We need current price to base our calculations on
                 # Approximation: Mid price between top bid and ask
@@ -280,8 +290,9 @@ class AdvancedOrderbookService:
         exchange = await self._init_exchange('binance')
         while self._running:
             try:
+                ccxt_symbol = self._get_ccxt_symbol('binance')
                 # CCXT async REST API for funding rate
-                funding = await exchange.fetch_funding_rate(self.symbol)
+                funding = await exchange.fetch_funding_rate(ccxt_symbol)
                 if funding and 'fundingRate' in funding:
                     self.state["funding_rate"] = float(funding['fundingRate'])
             except Exception as e:

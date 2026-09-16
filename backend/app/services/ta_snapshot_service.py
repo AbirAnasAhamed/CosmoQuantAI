@@ -169,13 +169,18 @@ class TASnapshotService:
             
             if is_futures:
                 try:
+                    ccxt_sym = symbol
+                    if exchange.id == 'binance' and ':' not in ccxt_sym and '/' in ccxt_sym:
+                        base, quote = ccxt_sym.split('/')
+                        ccxt_sym = f"{ccxt_sym}:{quote}"
+
                     # Funding Rate
-                    funding_info = await exchange.fetch_funding_rate(symbol)
+                    funding_info = await exchange.fetch_funding_rate(ccxt_sym)
                     funding_rate = funding_info.get('fundingRate', 0)
                     funding_str = f"{funding_rate * 100:.4f}%" if funding_rate else "N/A"
                     
                     # Open Interest
-                    oi_info = await exchange.fetch_open_interest(symbol)
+                    oi_info = await exchange.fetch_open_interest(ccxt_sym)
                     oi_val = oi_info.get('openInterestValue') or oi_info.get('openInterestAmount', 0)
                     oi_str = format_volume(oi_val) if oi_val else "N/A"
                     

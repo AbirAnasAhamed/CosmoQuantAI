@@ -198,9 +198,9 @@ class MarketDepthService:
                 if order_book.get('asks') and order_book.get('bids'):
                     current_price = (order_book['asks'][0][0] + order_book['bids'][0][0]) / 2.0
 
-                # 3. Aggregate Data
-                aggregated_bids = self._aggregate_orders(order_book['bids'][:depth], bucket_size, is_bid=True)
-                aggregated_asks = self._aggregate_orders(order_book['asks'][:depth], bucket_size, is_bid=False)
+                # 3. Aggregate Data (Aggregate ALL raw orders first, then slice the buckets)
+                aggregated_bids = self._aggregate_orders(order_book['bids'], bucket_size, is_bid=True)[:depth]
+                aggregated_asks = self._aggregate_orders(order_book['asks'], bucket_size, is_bid=False)[:depth]
                 
                 result = {
                     "symbol": symbol,

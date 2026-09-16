@@ -124,7 +124,8 @@ class MarketDataStreamer:
 
         while stream_key in self._active_streams:
             try:
-                depth_limit = self._normalize_order_book_limit(exchange_id, 50)
+                # Fetch up to 1000 raw levels to allow deep aggregation
+                depth_limit = self._normalize_order_book_limit(exchange_id, 1000)
                 
                 # CCXT watch_order_book handles the WS connection gracefully behind the scenes
                 orderbook = await exchange.watch_order_book(symbol.upper(), limit=depth_limit)
