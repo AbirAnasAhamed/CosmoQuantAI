@@ -258,13 +258,13 @@ class AdvancedOrderbookService:
         logger.info(f"AdvancedOrderbookService: Started live orderbook stream for {self.symbol}")
         
         # Fetch maximum allowed depth so we get orders far away from current price
-        limit = 1000 
+        # By not passing a limit, CCXT will maintain a full orderbook in memory from the diff stream
         
         while self._running:
             try:
                 ccxt_symbol = self._get_ccxt_symbol('binance')
                 # CCXT watch_order_book handles websocket management internally
-                orderbook = await exchange.watch_order_book(ccxt_symbol, limit)
+                orderbook = await exchange.watch_order_book(ccxt_symbol)
                 
                 # We need current price to base our calculations on
                 # Approximation: Mid price between top bid and ask
