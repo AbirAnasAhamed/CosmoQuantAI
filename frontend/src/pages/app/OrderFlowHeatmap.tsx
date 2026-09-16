@@ -18,6 +18,7 @@ import { CVDChart, CVDDataPoint } from '../../components/features/market/CVDChar
 import { FootprintRenderer, FootprintCandleData, FootprintDataTick } from '../../components/features/market/FootprintRenderer';
 import { GodModeHUD } from '../../components/features/market/GodModeHUD';
 import { LiquidationRenderer } from '../../components/features/market/LiquidationRenderer';
+import { AlgoLogicDashboard } from '../../components/features/market/AlgoLogicDashboard';
 import { useGodModeData } from '../../hooks/useGodModeData';
 import { FibonacciCloudRenderer, FibonacciData } from '../../components/features/market/FibonacciCloudRenderer';
 import { IchimokuRenderer } from '../../components/features/market/IchimokuRenderer';
@@ -1987,6 +1988,15 @@ const OrderFlowChart: React.FC<{ exchange: string; symbol: string; interval: str
                 </button>
                 <div className="absolute inset-0 z-10 pointer-events-none overflow-hidden" style={{ right: 60, bottom: 26 }}>
                     <GodModeHUD data={godModeData} visible={indicatorSettings.showLiquidationHeatmap} />
+                    {indicatorSettings.showAlgoDashboard && godModeData && (
+                        <div className="pointer-events-auto">
+                            <AlgoLogicDashboard 
+                                data={godModeData} 
+                                numZones={indicatorSettings.liquidationNumZones}
+                                onClose={() => {}} 
+                            />
+                        </div>
+                    )}
                     <DualEngineDashboard settings={indicatorSettings} candles={allCandlesRef.current} currentPrice={currentPrice} />
                     <WatchlistScanner settings={indicatorSettings} exchange={exchange} interval={interval} />
                     {/* ── Advanced Metrics ── */}

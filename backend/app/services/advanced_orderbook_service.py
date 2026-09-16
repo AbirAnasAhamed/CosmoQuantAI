@@ -108,6 +108,7 @@ class AdvancedOrderbookService:
             zones.append({
                 "price": round(price, 2) if price > 10 else round(price, 5),
                 "intensity": min(100, round((vol / max_vol) * 100)),
+                "volume": float(vol),
                 "leverage": self._estimate_leverage(current_price, price),
                 "type": "SHORT"
             })
@@ -116,6 +117,7 @@ class AdvancedOrderbookService:
             zones.append({
                 "price": round(price, 2) if price > 10 else round(price, 5),
                 "intensity": min(100, round((vol / max_vol) * 100)),
+                "volume": float(vol),
                 "leverage": self._estimate_leverage(current_price, price),
                 "type": "LONG"
             })
@@ -133,6 +135,8 @@ class AdvancedOrderbookService:
 
         red_force = 0.0
         green_force = 0.0
+        total_short_vol = 0.0
+        total_long_vol = 0.0
         
         # Get funding rate if available
         funding_rate = self.state.get("funding_rate", 0.0)
@@ -149,11 +153,13 @@ class AdvancedOrderbookService:
                 if funding_rate < 0:
                     strength *= fr_multiplier
                 red_force += strength
+                total_short_vol += z.get('volume', 0.0)
             elif z['type'] == 'LONG':
                 # If Funding Rate is Positive (Market is heavily Long), Smart Money hunts DOWN (Green zones)
                 if funding_rate > 0:
                     strength *= fr_multiplier
                 green_force += strength
+                total_long_vol += z.get('volume', 0.0)
 
         self.state["bid_weight"] = round(green_force, 2)
         self.state["ask_weight"] = round(red_force, 2)
@@ -219,8 +225,23 @@ class AdvancedOrderbookService:
                     }
 
         self._current_direction = trajectory["direction"] if trajectory else None
+        
+        # Populate comprehensive logic state for the visual dashboard
         self.state["imbalance"] = round(abs(smoothed_red - smoothed_green), 2)
         self.state["ai_trajectory"] = trajectory
+        self.state["ema_red_force"] = round(smoothed_red, 2)
+        self.state["ema_green_force"] = round(smoothed_green, 2)
+        
+        if 'red_ratio' in locals() and 'green_ratio' in locals():
+            self.state["red_ratio"] = round(red_ratio * 100, 2)
+            self.state["green_ratio"] = round(green_ratio * 100, 2)
+        else:
+            self.state["red_ratio"] = 50.0
+            self.state["green_ratio"] = 50.0
+            
+        self.state["total_short_vol"] = round(total_short_vol, 2)
+        self.state["total_long_vol"] = round(total_long_vol, 2)
+        self.state["current_direction"] = self._current_direction
 
     async def _watch_orderbook_loop(self):
         """Continuously fetches Level-2 Orderbook and runs heavy calculations in background."""

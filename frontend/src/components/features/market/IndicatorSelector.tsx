@@ -28,6 +28,7 @@ export interface IndicatorSettings {
     quantumVolatilityFilter: boolean;
     quantumVolThreshold: number;
     showLiquidationHeatmap: boolean;
+    showAlgoDashboard: boolean;
     liquidationNumZones: number;
     liquidationMinVol: number;
     liquidationShowBubbles: boolean;
@@ -1337,6 +1338,10 @@ export const IndicatorSelector: React.FC<IndicatorSelectorProps> = ({ settings, 
                                         <label className="flex items-center justify-between cursor-pointer group">
                                             <span className="text-gray-400 font-bold group-hover:text-gray-200">Show Live Bubbles</span>
                                             <input type="checkbox" checked={settings.liquidationShowBubbles as boolean} onChange={() => onSettingsChange({ ...settings, liquidationShowBubbles: !settings.liquidationShowBubbles })} className="w-3 h-3 rounded" />
+                                        </label>
+                                        <label className="flex items-center justify-between cursor-pointer group">
+                                            <span className="text-gray-400 font-bold group-hover:text-gray-200">Show Algo Dashboard</span>
+                                            <input type="checkbox" checked={settings.showAlgoDashboard as boolean} onChange={() => onSettingsChange({ ...settings, showAlgoDashboard: !settings.showAlgoDashboard })} className="w-3 h-3 rounded" />
                                         </label>
                                     </div>
                                     <div className="flex flex-col gap-1.5 mt-1 border-t dark:border-white/10 pt-2">

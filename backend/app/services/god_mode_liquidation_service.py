@@ -69,6 +69,16 @@ class GodModeService:
                         self.state["magnet_zones"] = self.orderbook_service.state.get("magnet_zones", [])
                         self.state["ai_trajectory"] = self.orderbook_service.state.get("ai_trajectory", None)
                         
+                        # Merge new Algo logic fields
+                        self.state["ema_red_force"] = self.orderbook_service.state.get("ema_red_force", 0)
+                        self.state["ema_green_force"] = self.orderbook_service.state.get("ema_green_force", 0)
+                        self.state["red_ratio"] = self.orderbook_service.state.get("red_ratio", 50)
+                        self.state["green_ratio"] = self.orderbook_service.state.get("green_ratio", 50)
+                        self.state["total_short_vol"] = self.orderbook_service.state.get("total_short_vol", 0)
+                        self.state["total_long_vol"] = self.orderbook_service.state.get("total_long_vol", 0)
+                        self.state["funding_rate"] = self.orderbook_service.state.get("funding_rate", 0)
+                        self.state["current_direction"] = self.orderbook_service.state.get("current_direction", None)
+                        
                         await cb(self.state)
                     except Exception as e:
                         logger.error(f"God Mode Callback err: {e}")

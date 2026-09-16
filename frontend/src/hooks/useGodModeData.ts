@@ -13,6 +13,14 @@ export interface GodModeState {
     ai_trajectory?: { direction: string, target_price: number, confidence: number } | null;
     cascade_probs: { price: number, prob: number }[];
     current_price: number;
+    ema_red_force?: number;
+    ema_green_force?: number;
+    red_ratio?: number;
+    green_ratio?: number;
+    total_short_vol?: number;
+    total_long_vol?: number;
+    funding_rate?: number;
+    current_direction?: string | null;
 }
 
 export const useGodModeData = (symbol: string, numZones: number = 3, minVol: number = 0) => {
