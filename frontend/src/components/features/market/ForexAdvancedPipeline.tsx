@@ -12,20 +12,91 @@ export const FOREX_MODULES = [
         description: 'Core candlestick morphology and spreads.',
         source: 'ohlcv',
         features: [
+            // --- Phase 1: Core Returns & Base Kinematics ---
             { id: 'pa_log_returns', name: 'Log Returns' },
             { id: 'pa_price_acceleration', name: 'Price Acceleration (Momentum)' },
-            { id: 'pa_frac_diff_proxy', name: 'Fractional Differencing (Proxy)' },
-            { id: 'pa_cpr', name: 'Close Position in Range (CPR)' },
+            { id: 'pa_session_gap', name: 'Session Gap (Close to Open)' },
+            { id: 'pa_true_range', name: 'True Range (ATR Base)' },
+            { id: 'pa_price_velocity_1d', name: 'Price Velocity (1D)' },
+            { id: 'pa_price_jerk_3d', name: 'Price Jerk Snap-Back (3D)' },
+            { id: 'pa_directional_velocity_decay', name: 'Directional Velocity Decay' },
+            { id: 'pa_intrabar_travel_efficiency', name: 'Intra-bar Travel Efficiency' },
+            { id: 'pa_rolling_drift_coefficient', name: 'Rolling Drift Coefficient' },
+            { id: 'pa_price_return_skewness', name: 'Price Return Skewness' },
+            { id: 'pa_tail_rejection_velocity', name: 'Tail Rejection Velocity' },
+            { id: 'pa_price_action_thrust', name: 'Price Action Thrust' },
+
+            // --- Phase 2: Intrabar Proportions & Wick Geometry ---
             { id: 'pa_upper_wick_ratio', name: 'Upper Wick Ratio' },
             { id: 'pa_lower_wick_ratio', name: 'Lower Wick Ratio' },
             { id: 'pa_body_ratio', name: 'Body to Range Ratio' },
-            { id: 'pa_session_gap', name: 'Session Gap (Close to Open)' },
-            { id: 'pa_true_range', name: 'True Range (ATR Base)' },
+            { id: 'pa_cpr', name: 'Close Position in Range (CPR)' },
+            { id: 'pa_body_center_to_range_mid_deviation', name: 'Body Center Deviation' },
+            { id: 'pa_bar_expansion_symmetry', name: 'Bar Expansion Symmetry' },
+            { id: 'pa_high_low_midpoint_drift', name: 'High-Low Midpoint Drift' },
+            { id: 'pa_hlc3_close_divergence', name: 'HLC3 Close Divergence' },
+            { id: 'pa_bar_absorption_rate', name: 'Bar Absorption Rate' },
+            { id: 'pa_structural_overlap_percentage', name: 'Structural Overlap %' },
+            { id: 'pa_intrabar_swing_ratio', name: 'Intra-bar Swing Ratio' },
+            { id: 'pa_bar_weight_distribution', name: 'Bar Weight Distribution' },
+
+            // --- Phase 3: Rolling Statistical Distribution & Quantiles ---
             { id: 'pa_rolling_z_score', name: 'Rolling Price Z-Score' },
-            { id: 'pa_hist_volatility', name: 'Historical Volatility' },
-            { id: 'pa_consecutive_runs', name: 'Consecutive Runs (Directional)' },
-            { id: 'pa_inside_outside', name: 'Inside / Outside Bar State' },
             { id: 'pa_price_vs_median', name: 'Price vs N-Period Median' },
+            { id: 'pa_rolling_close_percentile_rank', name: 'Rolling Close Percentile' },
+            { id: 'pa_rolling_high_percentile_rank', name: 'Rolling High Percentile' },
+            { id: 'pa_rolling_low_percentile_rank', name: 'Rolling Low Percentile' },
+            { id: 'pa_price_density_cluster_score', name: 'Price Density Cluster Score' },
+            { id: 'pa_price_entropy_14d', name: 'Shannon Price Entropy (14d)' },
+            { id: 'pa_price_dispersion_index', name: 'Price Dispersion Index' },
+            { id: 'pa_kinematic_energy_proxy', name: 'Kinematic Energy Proxy' },
+            { id: 'pa_potential_energy_proxy', name: 'Potential Energy Proxy' },
+            { id: 'pa_energy_dissipation_rate', name: 'Energy Dissipation Rate' },
+            { id: 'pa_tail_risk_kurtosis_rolling', name: 'Rolling Tail-Risk Kurtosis' },
+
+            // --- Phase 4: Power Balance & Reversion Dynamics ---
+            { id: 'pa_consecutive_runs', name: 'Consecutive Runs (Directional)' },
+            { id: 'pa_bull_bear_power_balance', name: 'Bull vs Bear Power Balance' },
+            { id: 'pa_mean_reversion_stretch', name: 'Mean Reversion Stretch' },
+            { id: 'pa_sequential_up_down_ratio', name: 'Sequential Up/Down Ratio' },
+            { id: 'pa_current_bar_exhaustion_index', name: 'Bar Exhaustion Index' },
+            { id: 'pa_close_open_correlation', name: 'Close-Open Correlation' },
+            { id: 'pa_high_low_correlation', name: 'High-Low Correlation' },
+            { id: 'pa_hurst_exponent_proxy', name: 'Hurst Exponent Proxy' },
+            { id: 'pa_price_elasticity_coefficient', name: 'Price Elasticity Coefficient' },
+            { id: 'pa_three_bar_net_momentum', name: 'Three-Bar Net Momentum' },
+            { id: 'pa_n_period_consolidation_break', name: 'Consolidation Break Ratio' },
+            { id: 'pa_hausdorff_dimension_proxy', name: 'Hausdorff Fractal Dimension' },
+
+            // --- Phase 5: Micro-Structure & Gap Dynamics ---
+            { id: 'pa_micro_gap_magnitude', name: 'Micro-Gap Magnitude' },
+            { id: 'pa_micro_gap_fill_state', name: 'Micro-Gap Fill State' },
+            { id: 'pa_lap_state_bullish', name: 'Bullish Lap State' },
+            { id: 'pa_lap_state_bearish', name: 'Bearish Lap State' },
+            { id: 'pa_outside_bar_magnitude', name: 'Outside Bar Magnitude' },
+            { id: 'pa_anomaly_bar_flag', name: 'Anomaly Bar Alert Flag' },
+            { id: 'pa_consecutive_tight_ranges', name: 'Consecutive Tight Ranges' },
+            { id: 'pa_shadow_imbalance_ratio', name: 'Shadow Imbalance Ratio' },
+            { id: 'pa_price_vacuum_zone_distance', name: 'Price Vacuum Zone Distance' },
+            { id: 'pa_gap_exhaustion_proxy', name: 'Gap Exhaustion Proxy' },
+            { id: 'pa_price_cycle_periodicity_proxy', name: 'Price Cycle Periodicity' },
+            { id: 'pa_price_cycle_amplitude_proxy', name: 'Price Cycle Amplitude' },
+
+            // --- Phase 6: Spectral, Markov & Polynomial Transforms ---
+            { id: 'pa_poly_fit_slope_3d', name: 'Linear Fit Slope (3D)' },
+            { id: 'pa_poly_fit_curve_5d', name: 'Polynomial Curvature (5D)' },
+            { id: 'pa_dct_coefficient_1', name: 'DCT Coefficient 1 (Macro Wave)' },
+            { id: 'pa_dct_coefficient_2', name: 'DCT Coefficient 2 (Micro Wave)' },
+            { id: 'pa_renko_brick_proxy', name: 'Renko Brick Proxy' },
+            { id: 'pa_pnf_reversal_state', name: 'PnF Reversal Proxy' },
+            { id: 'pa_markov_up_up_prob', name: 'Markov Up-Up Transition Prob' },
+            { id: 'pa_markov_down_down_prob', name: 'Markov Down-Down Transition Prob' },
+            { id: 'pa_kl_divergence_normal', name: 'KL Divergence (vs Normal)' },
+            { id: 'pa_cooks_distance_proxy', name: 'Cooks Distance (Outlier)' },
+            { id: 'pa_dtw_linear_distance', name: 'DTW Linear Deviation' },
+            { id: 'pa_price_curve_length', name: 'Price Curve Path Length' },
+
+            // --- Phase 7: Historical & Structural Anchors (Originals Preserved) ---
             { id: 'pa_dist_to_support', name: 'Distance to Nearest Support' },
             { id: 'pa_dist_to_resistance', name: 'Distance to Nearest Resistance' },
             { id: 'pa_swing_high_dist', name: 'Swing High Price Distance' },
@@ -35,7 +106,13 @@ export const FOREX_MODULES = [
             { id: 'pa_bars_since_swing_l', name: 'Bars Since Last Swing Low' },
             { id: 'pa_dist_to_anchor', name: 'Distance to Daily Anchor' },
             { id: 'pa_fractal_dimension', name: 'Fractal Dimension (Choppiness)' },
-            { id: 'pa_donchian_pos', name: 'Donchian Channel Position' }
+            { id: 'pa_donchian_pos', name: 'Donchian Channel Position' },
+            { id: 'pa_hist_volatility', name: 'Historical Volatility' },
+            { id: 'pa_frac_diff_proxy', name: 'Fractional Differencing (Proxy)' },
+            { id: 'pa_inside_outside', name: 'Inside / Outside Bar State' },
+            { id: 'pa_structural_anchor_variance', name: 'Structural Anchor Variance' },
+            { id: 'pa_swing_efficiency_ratio', name: 'Swing Efficiency Ratio' },
+            { id: 'pa_support_resistance_density', name: 'Support Resistance Density' }
         ]
     },
     {
@@ -791,6 +868,98 @@ export const FOREX_MODULES = [
             { id: 'ict_seasonal_tendency', name: 'Seasonal Tendency Trend' },
             { id: 'ict_interest_rate_shock_proxy', name: 'Interest Rate Shock Expansion' },
             { id: 'ict_macro_regime_shift_proxy', name: 'Macro Regime Shift (Vol Spike)' }
+        ]
+    },
+    {
+        id: 'crt_features',
+        title: 'CRT (Candle Range Theory)',
+        icon: Layers,
+        description: 'Intra-candle dynamics, multi-candle range exhaustion, and wick fills.',
+        source: 'ohlcv',
+        features: [
+            // Phase 1-5: The Originals (Modified & Optimized)
+            { id: 'crt_master_candle_active_state', name: 'Master Candle Active State' },
+            { id: 'crt_master_candle_compression_ratio', name: 'Master Candle Compression Ratio' },
+            { id: 'crt_master_candle_breakout_prob', name: 'Master Candle Breakout Prob' },
+            { id: 'crt_nr4_nr7_state', name: 'NR4/NR7 Contraction State' },
+            { id: 'crt_range_expansion_velocity', name: 'Range Expansion Velocity' },
+            { id: 'crt_vcp_contraction_count', name: 'VCP Contraction Count' },
+            { id: 'crt_close_in_upper_quartile', name: 'Close in Upper Quartile' },
+            { id: 'crt_close_in_lower_quartile', name: 'Close in Lower Quartile' },
+            { id: 'crt_body_center_of_gravity_shift', name: 'Body Center of Gravity Shift' },
+            { id: 'crt_wick_to_range_dominance', name: 'Wick-to-Range Dominance' },
+            { id: 'crt_unfilled_wick_proximity', name: 'Unfilled Wick Proximity' },
+            { id: 'crt_wick_fill_probability', name: 'Statistical Wick Fill Probability' },
+            { id: 'crt_adr_exhaustion_score', name: 'ADR Exhaustion Score' },
+            { id: 'crt_range_deviation_bands_dist', name: 'Range Deviation Bands Dist' },
+            { id: 'crt_orb_extension_magnitude', name: 'ORB Extension Magnitude' },
+            { id: 'crt_dealer_range_proxy', name: 'Dealer Range Accumulation Proxy' },
+            
+            // Phase 6: Range Overlap & Gap Dynamics
+            { id: 'crt_range_overlap_pct', name: 'Range Overlap Percentage' },
+            { id: 'crt_implied_range_gap', name: 'Implied Range Gap' },
+            { id: 'crt_multi_bar_engulfment_count', name: 'Multi-Bar Engulfment Count' },
+            { id: 'crt_two_bar_reversal_yield', name: 'Two-Bar Reversal Yield' },
+            
+            // Phase 7: Advanced Wick Theory & Fill Dynamics
+            { id: 'crt_wick_damage_pct', name: 'Wick Damage Percentage' },
+            { id: 'crt_consecutive_wick_rejections', name: 'Consecutive Wick Rejections' },
+            { id: 'crt_wick_to_body_expansion_rate', name: 'Wick-to-Body Expansion Rate' },
+            { id: 'crt_wick_zone_consolidation_count', name: 'Wick Zone Consolidation Count' },
+            { id: 'crt_structural_wick_penetration', name: 'Structural Wick Penetration' },
+            
+            // Phase 8: Master Candle Breakout & Trap Mechanics
+            { id: 'crt_inside_bar_fakeout_trap', name: 'Inside Bar Fakeout Trap' },
+            { id: 'crt_master_candle_time_decay', name: 'Master Candle Time Decay' },
+            { id: 'crt_volatility_cone_state', name: 'Volatility Cone State' },
+            
+            // Phase 9: Intra-Candle Asymmetry & Quartile Flow
+            { id: 'crt_open_drive_asymmetry', name: 'Open Drive Asymmetry' },
+            { id: 'crt_close_drive_asymmetry', name: 'Close Drive Asymmetry' },
+            { id: 'crt_range_quartile_transition', name: 'Range Quartile Transition' },
+            { id: 'crt_body_wick_skewness', name: 'Body-Wick Skewness' },
+            
+            // Phase 10: ADR Fractional Delivery
+            { id: 'crt_session_range_completion_pct', name: 'Session Range Completion %' },
+            { id: 'crt_adr_extension_magnitude', name: 'ADR Extension Magnitude' },
+            { id: 'crt_bullish_range_dominance_rolling', name: 'Bullish Range Dominance (Rolling)' },
+            { id: 'crt_range_expansion_sustainability', name: 'Range Expansion Sustainability' },
+            { id: 'crt_range_fractal_efficiency', name: 'Range Fractal Efficiency' },
+            
+            // Phase 11: Fractal Range Kinematics
+            { id: 'crt_range_velocity_proxy', name: 'Range Velocity Proxy' },
+            { id: 'crt_range_acceleration_proxy', name: 'Range Acceleration Proxy' },
+            { id: 'crt_jerk_range_proxy', name: 'Jerk Range Proxy' },
+            
+            // Phase 12: True Body Dominance & Elasticity
+            { id: 'crt_elasticity_of_wicks', name: 'Elasticity of Wicks' },
+            { id: 'crt_true_body_momentum', name: 'True Body Momentum' },
+            { id: 'crt_mean_reversion_wick_proxy', name: 'Mean Reversion Wick Proxy' },
+            
+            // Phase 13: Squeeze, Time & Expansion Cycles
+            { id: 'crt_time_since_max_range', name: 'Time Since Max Range' },
+            { id: 'crt_time_since_min_range', name: 'Time Since Min Range' },
+            { id: 'crt_range_percentile_rank', name: 'Range Percentile Rank' },
+            { id: 'crt_squeeze_to_expansion_ratio', name: 'Squeeze-to-Expansion Ratio' },
+            
+            // Phase 14: Structural Density & Clustering
+            { id: 'crt_cluster_range_density', name: 'Cluster Range Density' },
+            { id: 'crt_three_bar_net_displacement', name: '3-Bar Net Displacement' },
+            { id: 'crt_five_bar_net_displacement', name: '5-Bar Net Displacement' },
+            { id: 'crt_range_centroid_shift', name: 'Range Centroid Shift' },
+            
+            // Phase 15: Exhaustion, Flow & Geometry
+            { id: 'crt_upper_tail_exhaustion_rate', name: 'Upper Tail Exhaustion Rate' },
+            { id: 'crt_lower_tail_exhaustion_rate', name: 'Lower Tail Exhaustion Rate' },
+            { id: 'crt_tail_asymmetry_index', name: 'Tail Asymmetry Index' },
+            { id: 'crt_proximity_to_rolling_high_range', name: 'Proximity to Rolling High Range' },
+            { id: 'crt_proximity_to_rolling_low_range', name: 'Proximity to Rolling Low Range' },
+            { id: 'crt_volatility_adjusted_body_shift', name: 'Volatility-Adjusted Body Shift' },
+            { id: 'crt_quartile_density_oscillator', name: 'Quartile Density Oscillator' },
+            { id: 'crt_reversal_range_velocity', name: 'Reversal Range Velocity' },
+            { id: 'crt_wick_engulfment_magnitude', name: 'Wick Engulfment Magnitude' },
+            { id: 'crt_range_gap_fill_velocity', name: 'Range Gap Fill Velocity' },
+            { id: 'crt_range_golden_ratio_proximity', name: 'Range Golden Ratio Proximity' }
         ]
     },
     {

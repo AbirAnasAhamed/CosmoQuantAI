@@ -53,6 +53,17 @@ def generate_ohlcv_features(df: pd.DataFrame, selected_features: list[str]) -> p
             range_val = df['high'] - df['low']
             df['body_to_range_ratio'] = np.where(range_val == 0, 0, abs(df['open'] - df['close']) / range_val)
 
+        # --- 1B. NEW Advanced Basic Price Action Engine (88 Metrics) ---
+        has_pa = any(f.startswith('pa_') for f in selected_features)
+        if has_pa:
+            try:
+                from app.services.advanced_ml.features.forex.basic_price_action_features import BasicPriceActionEngine
+                engine = BasicPriceActionEngine(df)
+                df = engine.generate_all_features()
+            except Exception as e:
+                logger.error(f"\n{'='*60}\nCRITICAL PIPELINE ERROR in Basic Price Action Engine:\n{e}\n{'='*60}")
+                raise e  # Fail Fast! Stop Training immediately.
+
         # --- 2. Trend & Moving Averages ---
         if 'sma' in selected_features:
             df.ta.sma(length=14, append=True)
@@ -243,6 +254,17 @@ def generate_ohlcv_features(df: pd.DataFrame, selected_features: list[str]) -> p
                 df = engine.generate_all_features()
             except Exception as e:
                 logger.error(f"\n{'='*60}\nCRITICAL PIPELINE ERROR in ICT Macro Engine:\n{e}\n{'='*60}")
+                raise e  # Fail Fast! Stop Training immediately.
+
+        # --- 12. Call NEW Candle Range Theory (CRT) Engine (62 Metrics) ---
+        has_crt = any(f.startswith('crt_') for f in selected_features)
+        if has_crt:
+            try:
+                from app.services.advanced_ml.features.forex.candle_range_theory_features import CandleRangeTheoryEngine
+                engine = CandleRangeTheoryEngine(df)
+                df = engine.generate_all_features()
+            except Exception as e:
+                logger.error(f"\n{'='*60}\nCRITICAL PIPELINE ERROR in CRT Engine:\n{e}\n{'='*60}")
                 raise e  # Fail Fast! Stop Training immediately.
 
     except Exception as e:
