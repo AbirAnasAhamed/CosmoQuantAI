@@ -1260,16 +1260,75 @@ export const FOREX_MODULES = [
         description: 'Micro-anatomy of candlesticks using tick data.',
         source: 'hybrid_ohlcv_tick',
         features: [
+            // Module 1: Wick Micro-Anatomy
             { id: 'wick_rejection_intensity', name: 'Wick Rejection Intensity' },
+            { id: 'upper_wick_tick_density', name: 'Upper Wick Tick Density (Absorption)' },
+            { id: 'lower_wick_tick_density', name: 'Lower Wick Tick Density (Absorption)' },
+            { id: 'wick_to_body_tick_turnover', name: 'Wick-to-Body Tick Turnover Ratio' },
+            { id: 'extreme_price_tick_reversal_velocity', name: 'Extreme Price Tick Reversal Velocity' },
+            { id: 'wick_sponsoring_delta', name: 'Wick Sponsoring Delta' },
+            { id: 'shadow_trapping_duration', name: 'Shadow Trapping Duration' },
+            { id: 'hidden_rejection_block', name: 'Hidden Rejection Block' },
+            
+            // Module 2: Body Momentum & Displacement
             { id: 'body_effort_result', name: 'Body Effort vs Result (Wyckoff)' },
-            { id: 'doji_indecision_entropy', name: 'Doji Indecision Entropy' },
+            { id: 'intra_candle_displacement_momentum', name: 'Intra-Candle Displacement Momentum' },
+            { id: 'body_fill_tick_asymmetry', name: 'Body Fill Tick Asymmetry' },
+            { id: 'candle_close_surge', name: 'Candle Close Tick Surge' },
+            { id: 'open_drive_tick_velocity', name: 'Open Drive Tick Velocity' },
+            { id: 'real_body_tick_saturation_index', name: 'Real Body Tick Saturation Index' },
+            
+            // Module 3: Tick-Verified Patterns
+            { id: 'doji_indecision_tick_density', name: 'Doji Indecision Tick Density' },
             { id: 'engulfing_imbalance_ratio', name: 'Engulfing Imbalance Ratio' },
             { id: 'pin_bar_trapping_volume', name: 'Pin Bar Trapping Volume' },
             { id: 'hammer_tick_acceleration', name: 'Hammer Tick Acceleration' },
             { id: 'star_validation_shift', name: 'Star Pattern Volume Shift' },
+            { id: 'shooting_star_exhaustion_signature', name: 'Shooting Star Exhaustion Signature' },
+            { id: 'inside_bar_tick_compression', name: 'Inside Bar Tick Compression' },
+            { id: 'marubozu_institutional_commitment', name: 'Marubozu Institutional Commitment' },
+            
+            // Module 4: Intra-Candle Trapping
+            { id: 'intra_candle_stop_hunt_cascade', name: 'Intra-Candle Stop Hunt Cascade' },
+            { id: 'late_joiner_trapping_index', name: 'Late Joiner Trapping Index' },
+            { id: 'fakeout_tick_velocity', name: 'Fakeout Tick Velocity' },
+            { id: 'squeeze_imbalance_ratio', name: 'Squeeze Imbalance Ratio' },
+            { id: 'wrong_sided_tick_accumulation', name: 'Wrong-Sided Tick Accumulation' },
+            { id: 'exhaustion_tick_gap', name: 'Exhaustion Tick Gap' },
             { id: 'consecutive_pressure', name: 'Consecutive Pressure' },
+            
+            // Module 5: Time & Velocity
             { id: 'gap_fill_velocity', name: 'Gap Fill Tick Velocity' },
-            { id: 'candle_close_surge', name: 'Candle Close Tick Surge' }
+            { id: 'vwap_divergence_within_candle', name: 'VWAP Divergence within Candle' },
+            { id: 'tick_inter_arrival_time_variance', name: 'Tick Inter-Arrival Time Variance' },
+            { id: 'price_traverse_time', name: 'Price Traverse Time' },
+            { id: 'high_frequency_micro_trend_reversals', name: 'High-Frequency Micro-Trend Reversals' },
+            { id: 'time_weighted_tick_absorption', name: 'Time-Weighted Tick Absorption (TWTA)' },
+            
+            // Module 6: VPA / Wyckoff Signatures
+            { id: 'climax_volume_tick_footprint', name: 'Climax Volume Tick Footprint' },
+            { id: 'churning_tick_index', name: 'Churning Tick Index' },
+            { id: 'stopping_volume_intensity', name: 'Stopping Volume Intensity' },
+            { id: 'no_demand_supply_tick_validation', name: 'No Demand/No Supply Tick Validation' },
+            { id: 'absorption_vs_initiation_tick_ratio', name: 'Absorption vs Initiation Tick Ratio' },
+            { id: 'effort_without_result_tick_anomaly', name: 'Effort without Result Tick Anomaly' },
+            { id: 'anomalous_spread_volume_divergence', name: 'Anomalous Spread-to-Volume Tick Divergence' },
+            
+            // Module 7: Intra-Candle Auction Theory
+            { id: 'poc_tick_gravity', name: 'Point of Control (POC) Tick Gravity' },
+            { id: 'vah_tick_rejection', name: 'Value Area High (VAH) Tick Rejection' },
+            { id: 'val_tick_rejection', name: 'Value Area Low (VAL) Tick Rejection' },
+            { id: 'intra_candle_volume_profile_skewness', name: 'Intra-Candle Volume Profile Skewness' },
+            { id: 'single_print_tick_anomalies', name: 'Single Print Tick Anomalies' },
+            { id: 'auction_imbalance_shift', name: 'Auction Imbalance Shift' },
+            { id: 'value_area_tick_density', name: 'Value Area Tick Density' },
+            
+            // Module 8: Liquidity Voids
+            { id: 'intra_candle_liquidity_void_traverse', name: 'Intra-Candle Liquidity Void Traverse' },
+            { id: 'magnet_zone_tick_acceleration', name: 'Magnet Zone Tick Acceleration' },
+            { id: 'zero_tick_spread_expansions', name: 'Zero-Tick Spread Expansions' },
+            { id: 'slippage_proxy_index', name: 'Slippage Proxy Index' },
+            { id: 'void_fill_asymmetry', name: 'Void Fill Asymmetry' }
         ]
     },
     {
