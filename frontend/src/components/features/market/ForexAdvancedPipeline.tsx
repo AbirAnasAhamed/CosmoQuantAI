@@ -1175,16 +1175,82 @@ export const FOREX_MODULES = [
         description: 'Smart money concepts verified by high-frequency tick volume.',
         source: 'hybrid_ohlcv_tick',
         features: [
-            { id: 'tick_verified_fvg', name: 'Tick-Verified FVG' },
-            { id: 'ob_tick_density', name: 'Order Block Tick Density' },
-            { id: 'liquidity_sweep_velocity', name: 'Liquidity Sweep Velocity' },
-            { id: 'mitigation_block_reaction', name: 'Mitigation Block Reaction Speed' },
-            { id: 'judas_swing_imbalance', name: 'Judas Swing Tick Imbalance' },
-            { id: 'breaker_block_absorption', name: 'Breaker Block Absorption Ratio' },
-            { id: 'choch_momentum', name: 'CHoCH Momentum' },
-            { id: 'bos_effort_result', name: 'BOS Effort vs Result' },
-            { id: 'inducement_sweep_volume', name: 'Inducement Sweep Volume' },
-            { id: 'ict_killzone_volatility', name: 'ICT Killzone Volatility' }
+            // Module 1: Order Block (OB) & Breaker Metrics
+            { id: 'ob_initiation_tick_surge', name: 'OB Initiation Tick Surge' },
+            { id: 'institutional_tick_delta_ob', name: 'Institutional Tick Delta at OB' },
+            { id: 'ob_defense_tick_intensity', name: 'OB Defense Tick Intensity' },
+            { id: 'breaker_block_tick_turnover', name: 'Breaker Block Tick Turnover' },
+            { id: 'ob_time_in_force_tick', name: 'OB Time-in-Force (Tick-time)' },
+            { id: 'mitigation_tick_absorption_rate', name: 'Mitigation Tick Absorption Rate' },
+            
+            // Module 2: FVG & Imbalance Metrics
+            { id: 'tick_volume_fvg_magnitude', name: 'Tick-Volume FVG Magnitude' },
+            { id: 'fvg_fill_velocity', name: 'FVG Fill Velocity' },
+            { id: 'tick_imbalance_ratio_fvg', name: 'Tick Imbalance Ratio at FVG' },
+            { id: 'fvg_mitigation_tick_density', name: 'FVG Mitigation Tick Density' },
+            { id: 'unmitigated_fvg_gravity_index', name: 'Unmitigated FVG Gravity Index' },
+            
+            // Module 3: Liquidity, Stop Hunts & Inducement Metrics
+            { id: 'bsl_ssl_sweep_tick_velocity', name: 'BSL/SSL Sweep Tick Velocity' },
+            { id: 'liquidity_grab_rejection_delta', name: 'Liquidity Grab Rejection Delta' },
+            { id: 'stop_run_tick_exhaustion_index', name: 'Stop-Run Tick Exhaustion Index' },
+            { id: 'inducement_level_tick_clustering', name: 'Inducement Level Tick Clustering' },
+            { id: 'sweep_vs_bos_tick_ratio', name: 'Sweep vs BOS Tick Ratio' },
+            
+            // Module 4: Market Structure (BOS/MSS) Metrics
+            { id: 'bos_tick_confirmation_ratio', name: 'BOS Tick Confirmation Ratio' },
+            { id: 'mss_displacement_tick_momentum', name: 'MSS Displacement Tick Momentum' },
+            { id: 'displacement_candle_gini_coef', name: 'Displacement Candle Gini Coefficient' },
+            { id: 'fractal_bos_tick_validation', name: 'Fractal BOS Tick Validation' },
+            { id: 'ote_tick_confluence', name: 'OTE Tick Confluence' },
+            
+            // Module 5: Time & Macro (Killzones & AMD) Metrics
+            { id: 'asian_range_tick_density', name: 'Asian Range Tick Density' },
+            { id: 'london_open_manipulation_delta', name: 'London Open Manipulation Delta' },
+            { id: 'ny_killzone_distribution_velocity', name: 'NY Killzone Distribution Velocity' },
+            { id: 'po3_tick_synchronization', name: 'PO3 Tick Synchronization' },
+            { id: 'killzone_tick_vwap_divergence', name: 'Killzone Tick-VWAP Divergence' },
+            { id: 'macro_window_tick_spike_rate', name: 'Macro Window Tick Spike Rate' },
+            
+            // Module 6: Advanced Order Flow & Institutional Signatures
+            { id: 'cumulative_tick_delta_divergence', name: 'CTD Divergence' },
+            { id: 'institutional_sponsoring_signature', name: 'Institutional Sponsoring Signature' },
+            { id: 'tick_spread_widening_indicator', name: 'Tick Spread Widening Indicator' },
+            { id: 'tick_accel_decel_at_poi', name: 'Tick Accel/Decel at POI' },
+            { id: 'tick_imbalance_sequence_index', name: 'Tick Imbalance Sequence Index' },
+            { id: 'smc_level_exhaustion_rate', name: 'SMC Level Exhaustion Rate' },
+            { id: 'liquidity_void_tick_traverse_time', name: 'Liquidity Void Tick Traverse Time' },
+            { id: 'composite_smc_tick_score', name: 'Composite SMC-Tick Score' },
+            
+            // Module 7: Micro-Structure & High-Frequency Order Flow
+            { id: 'tofi_decay', name: 'Tick Order Flow Imbalance (TOFI) Decay' },
+            { id: 'stb_probability', name: 'Sequential Tick Block (STB) Probability' },
+            { id: 'bsl_ssl_tick_trap_ratio', name: 'BSL/SSL Tick Trap Ratio' },
+            { id: 'tlfv_deviation', name: 'Tick-Level Fair Value (TLFV) Deviation' },
+            { id: 'hfmv', name: 'High-Frequency Mitigation Velocity (HFMV)' },
+            { id: 'twta', name: 'Time-Weighted Tick Absorption (TWTA)' },
+            { id: 'stealth_mitigation_index', name: 'Stealth Mitigation Index (SMI)' },
+            { id: 'tcd_at_pd_arrays', name: 'Tick Cluster Density (TCD) at PD Arrays' },
+            { id: 'vsts', name: 'Volume-Synchronized Tick Sequences (VSTS)' },
+            { id: 'iceberg_order_tick_footprint', name: 'Iceberg Order Tick Footprint' },
+            
+            // Module 8: Advanced Liquidity & Spread Dynamics
+            { id: 'internal_vs_external_liquidity_tick_delta', name: 'Internal vs External Liquidity Tick Delta' },
+            { id: 'liquidity_void_tick_spread_coefficient', name: 'Liquidity Void Tick-Spread Coefficient' },
+            { id: 'stop_run_cascading_tick_multiplier', name: 'Stop-Run Cascading Tick Multiplier' },
+            { id: 'killzone_tick_volatility_skew', name: 'Killzone Tick Volatility Skew' },
+            { id: 'macro_time_tick_entropy', name: 'Macro-Time Tick Entropy' },
+            { id: 'displacement_tick_fractal_dimension', name: 'Displacement Tick Fractal Dimension' },
+            { id: 'tick_weighted_smt_divergence', name: 'Tick-Weighted SMT Divergence' },
+            { id: 'fvg_inversion_tick_threshold', name: 'FVG Inversion Tick Threshold' },
+            { id: 'breaker_block_resonance_index', name: 'Breaker Block Resonance Index' },
+            { id: 'institutional_order_layering', name: 'Institutional Order Layering' },
+            
+            // Module 9: AI/ML Specific Metrics
+            { id: 'eigen_structure_tick_covariance', name: 'Eigen-Structure of Tick Covariance' },
+            { id: 'pdf_tick_inter_arrival_times', name: 'PDF of Tick Inter-Arrival Times' },
+            { id: 'tick_volume_weighted_hurst', name: 'Tick-Volume Weighted Hurst Exponent' },
+            { id: 'rl_reward_signal_proxy', name: 'RL Reward Signal Proxy' }
         ]
     },
     {
