@@ -71,6 +71,7 @@ class ShootingStarExhaustionSignature(BaseCandlePsychologyFeature):
         tr = np.where(tr == 0, 0.00001, tr)
         is_shooting = (upper / tr > 0.6) & (df_ohlcv['close'] < df_ohlcv['open'])
         exh = np.where(is_shooting, tick_count / (tick_count.rolling(5).mean() + 1), 0)
+        exh = pd.Series(exh).fillna(0).values
         return pd.DataFrame({'shooting_star_exhaustion_signature': exh}, index=df_ohlcv.index)
 
 class InsideBarTickCompression(BaseCandlePsychologyFeature):

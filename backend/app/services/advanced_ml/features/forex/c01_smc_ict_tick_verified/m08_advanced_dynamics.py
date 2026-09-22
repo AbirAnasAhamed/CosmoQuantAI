@@ -28,7 +28,7 @@ class LiquidityVoidTickSpreadCoefficient(BaseTickVerifiedFeature):
                         np.maximum(abs(df_ohlcv['high'] - df_ohlcv['close'].shift(1)), 
                                    abs(df_ohlcv['low'] - df_ohlcv['close'].shift(1))))
         coef = tr * tick_vol
-        return pd.DataFrame({'liquidity_void_tick_spread_coefficient': coef}, index=df_ohlcv.index)
+        return pd.DataFrame({'liquidity_void_tick_spread_coefficient': coef.fillna(0)}, index=df_ohlcv.index)
 
 class StopRunCascadingTickMultiplier(BaseTickVerifiedFeature):
     def calculate(self, df_ohlcv: pd.DataFrame, df_tick: pd.DataFrame, **kwargs) -> pd.DataFrame:
